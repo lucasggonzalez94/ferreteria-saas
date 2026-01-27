@@ -1,0 +1,694 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// MULTI-TENANT: Business (Tenant)
+// ============================================================================
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  cuit      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  
+  // Configuración fiscal
+  taxCondition String  // RESPONSABLE_INSCRIPTO, MONOTRIBUTO, EXENTO
+  iibbNumber   String? // Ingresos Brutos
+  startDate    DateTime @default(now())
+  
+  // Configuración facturación
+  invoiceProvider     String  @default("mock") // mock, facturante, arca_direct
+  invoiceApiKey       String?
+  invoicePointOfSale  Int     @default(1)
+  
+  // Configuración negocio
+  allowNegativeStock  Boolean @default(false)
+  currency            String  @default("ARS")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  users               User[]
+  roles               Role[]
+  products            Product[]
+  categories          Category[]
+  brands              Brand[]
+  suppliers           Supplier[]
+  purchases           Purchase[]
+  inventoryMovements  InventoryMovement[]
+  sales               Sale[]
+  cashRegisterSessions CashRegisterSession[]
+  customers           Customer[]
+  invoices            Invoice[]
+  auditLogs           AuditLog[]
+  idempotencyKeys     IdempotencyKey[]
+  exchangeRateSnapshots ExchangeRateSnapshot[]
+  
+  @@map("businesses")
+}
+
+// ============================================================================
+// AUTH & RBAC
+// ============================================================================
+
+model User {
+  id         String   @id @default(cuid())
+  businessId String
+  email      String   @unique
+  username   String?  @unique
+  password   String   // argon2 hash
+  firstName  String?
+  lastName   String?
+  isActive   Boolean  @default(true)
+  
+  // Reset password
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business             Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roles                UserRole[]
+  cashRegisterSessions CashRegisterSession[]
+  auditLogs            AuditLog[]
+  
+  @@index([businessId])
+  @@index([email])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String   // OWNER, ADMIN, CASHIER, STOCKER, MANAGER
+  description String?
+  isSystem    Boolean  @default(false) // Roles del sistema no se pueden eliminar
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  users       UserRole[]
+  permissions RolePermission[]
+  
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  resource    String   // products, sales, inventory, etc.
+  action      String   // create, read, update, delete, manage
+  description String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  roles RolePermission[]
+  
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+  
+  assignedAt DateTime @default(now())
+  
+  // Relaciones
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+  
+  grantedAt DateTime @default(now())
+  
+  // Relaciones
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+// ============================================================================
+// PRODUCTS
+// ============================================================================
+
+model Category {
+  id          String  @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  parentId    String? // Para categorías anidadas
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  parent   Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+  
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@map("categories")
+}
+
+model Brand {
+  id          String  @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  products Product[]
+  
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@map("brands")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  businessId   String
+  internalSku  String   @unique // Auto-generado: FER-00001
+  barcode      String?  @unique // Código de barras (opcional)
+  name         String
+  description  String?
+  categoryId   String?
+  brandId      String?
+  
+  // Unidad de medida: u (unidad), mt (metro), kg (kilogramo), lt (litro)
+  unit         String   @default("u")
+  isFractional Boolean  @default(false) // Permite decimales en cantidad
+  
+  // Precios e impuestos
+  cost         Decimal  @db.Decimal(12, 2)
+  price        Decimal  @db.Decimal(12, 2)
+  taxRate      Decimal  @db.Decimal(5, 2) @default(21.00) // IVA %
+  
+  // Stock
+  stockQuantity Decimal  @db.Decimal(12, 3) @default(0)
+  minStock      Decimal? @db.Decimal(12, 3)
+  
+  // Variantes (self-relation)
+  parentId     String?
+  variantName  String? // Ej: "Talle L", "Pack x12"
+  
+  isActive     Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business           Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category           Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  parent             Product?            @relation("ProductVariants", fields: [parentId], references: [id])
+  variants           Product[]           @relation("ProductVariants")
+  priceHistory       PriceHistory[]
+  inventoryMovements InventoryMovement[]
+  purchaseItems      PurchaseItem[]
+  saleItems          SaleItem[]
+  
+  @@index([businessId])
+  @@index([barcode])
+  @@index([internalSku])
+  @@index([categoryId])
+  @@index([brandId])
+  @@map("products")
+}
+
+model PriceHistory {
+  id         String  @id @default(cuid())
+  productId  String
+  oldCost    Decimal @db.Decimal(12, 2)
+  newCost    Decimal @db.Decimal(12, 2)
+  oldPrice   Decimal @db.Decimal(12, 2)
+  newPrice   Decimal @db.Decimal(12, 2)
+  reason     String?
+  changedBy  String? // userId
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
+  @@map("price_history")
+}
+
+// ============================================================================
+// INVENTORY
+// ============================================================================
+
+model InventoryMovement {
+  id          String  @id @default(cuid())
+  businessId  String
+  productId   String
+  type        String  // PURCHASE_RECEIPT, SALE, RETURN, ADJUSTMENT, TRANSFER
+  quantity    Decimal @db.Decimal(12, 3) // Puede ser negativo (salida)
+  
+  // Metadata
+  reason      String?
+  referenceId String? // ID de la venta, compra, etc.
+  userId      String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([productId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
+// ============================================================================
+// SUPPLIERS & PURCHASES
+// ============================================================================
+
+model Supplier {
+  id          String  @id @default(cuid())
+  businessId  String
+  name        String
+  cuit        String?
+  email       String?
+  phone       String?
+  address     String?
+  isActive    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+  
+  @@index([businessId])
+  @@map("suppliers")
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  businessId  String
+  supplierId  String
+  invoiceNumber String?
+  status      String   @default("CONFIRMED") // DRAFT, CONFIRMED, CANCELLED
+  
+  subtotal    Decimal  @db.Decimal(12, 2)
+  tax         Decimal  @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  
+  notes       String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items    PurchaseItem[]
+  
+  @@index([businessId])
+  @@index([supplierId])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id         String  @id @default(cuid())
+  purchaseId String
+  productId  String
+  quantity   Decimal @db.Decimal(12, 3)
+  unitCost   Decimal @db.Decimal(12, 2)
+  taxRate    Decimal @db.Decimal(5, 2)
+  subtotal   Decimal @db.Decimal(12, 2)
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_items")
+}
+
+// ============================================================================
+// SALES & POS
+// ============================================================================
+
+model Sale {
+  id            String   @id @default(cuid())
+  businessId    String
+  customerId    String?
+  userId        String?  // Cajero
+  cashRegisterId String? // Sesión de caja
+  
+  status        String   @default("DRAFT") // DRAFT, CONFIRMED, CANCELLED
+  invoiceStatus String   @default("PENDING_INVOICE") // PENDING_INVOICE, INVOICED, FAILED
+  
+  // Totales
+  subtotal      Decimal  @db.Decimal(12, 2)
+  discountAmount Decimal @db.Decimal(12, 2) @default(0)
+  taxAmount     Decimal  @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(12, 2)
+  
+  // Offline sync
+  clientOperationId String? @unique
+  
+  notes         String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  confirmedAt DateTime?
+  
+  // Relaciones
+  business       Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer       Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cashRegister   CashRegisterSession? @relation(fields: [cashRegisterId], references: [id], onDelete: SetNull)
+  items          SaleItem[]
+  payments       Payment[]
+  invoice        Invoice?
+  
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([clientOperationId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id              String  @id @default(cuid())
+  saleId          String
+  productId       String
+  quantity        Decimal @db.Decimal(12, 3)
+  unitPrice       Decimal @db.Decimal(12, 2)
+  taxRate         Decimal @db.Decimal(5, 2)
+  discountAmount  Decimal @db.Decimal(12, 2) @default(0)
+  discountPercent Decimal @db.Decimal(5, 2) @default(0)
+  subtotal        Decimal @db.Decimal(12, 2)
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model Payment {
+  id     String  @id @default(cuid())
+  saleId String
+  method String  // CASH_ARS, CASH_USD, CARD, TRANSFER, QR
+  amount Decimal @db.Decimal(12, 2)
+  
+  // Para pagos en USD
+  exchangeRateId String?
+  amountUSD      Decimal? @db.Decimal(12, 2)
+  
+  // Para tarjetas
+  cardBrand      String? // VISA, MASTERCARD, etc.
+  financialCost  Decimal? @db.Decimal(12, 2) @default(0)
+  
+  notes String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  sale         Sale                  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  exchangeRate ExchangeRateSnapshot? @relation(fields: [exchangeRateId], references: [id])
+  
+  @@index([saleId])
+  @@map("payments")
+}
+
+// ============================================================================
+// CASH REGISTER
+// ============================================================================
+
+model CashRegisterSession {
+  id          String   @id @default(cuid())
+  businessId  String
+  userId      String
+  status      String   @default("OPEN") // OPEN, CLOSED
+  
+  openingAmount Decimal @db.Decimal(12, 2)
+  closingAmount Decimal? @db.Decimal(12, 2)
+  expectedAmount Decimal? @db.Decimal(12, 2)
+  difference    Decimal? @db.Decimal(12, 2)
+  
+  openedAt  DateTime @default(now())
+  closedAt  DateTime?
+  
+  notes String?
+  
+  // Relaciones
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sales    Sale[]
+  movements CashMovement[]
+  
+  @@index([businessId])
+  @@index([userId])
+  @@index([status])
+  @@map("cash_register_sessions")
+}
+
+model CashMovement {
+  id               String  @id @default(cuid())
+  cashRegisterId   String
+  type             String  // INCOME, EXPENSE
+  amount           Decimal @db.Decimal(12, 2)
+  reason           String
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  cashRegister CashRegisterSession @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  
+  @@index([cashRegisterId])
+  @@map("cash_movements")
+}
+
+// ============================================================================
+// CUSTOMERS & ACCOUNT
+// ============================================================================
+
+model Customer {
+  id          String  @id @default(cuid())
+  businessId  String
+  type        String  @default("PERSON") // PERSON, COMPANY
+  
+  // Persona
+  firstName   String?
+  lastName    String?
+  
+  // Empresa
+  companyName String?
+  cuit        String?
+  
+  email       String?
+  phone       String?
+  address     String?
+  
+  // Cuenta corriente
+  creditLimit Decimal? @db.Decimal(12, 2)
+  currentBalance Decimal @db.Decimal(12, 2) @default(0)
+  
+  isActive    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sales           Sale[]
+  accountMovements AccountMovement[]
+  
+  @@index([businessId])
+  @@index([email])
+  @@map("customers")
+}
+
+model AccountMovement {
+  id         String  @id @default(cuid())
+  customerId String
+  type       String  // SALE, PAYMENT, ADJUSTMENT
+  amount     Decimal @db.Decimal(12, 2) // Positivo = deuda, Negativo = pago
+  balance    Decimal @db.Decimal(12, 2) // Balance después del movimiento
+  
+  referenceId String? // ID de venta o pago
+  notes       String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("account_movements")
+}
+
+// ============================================================================
+// INVOICING (ARCA/AFIP)
+// ============================================================================
+
+model Invoice {
+  id          String  @id @default(cuid())
+  businessId  String
+  saleId      String  @unique
+  
+  provider    String  // mock, facturante, arca_direct
+  voucherType String  // A, B, C
+  
+  // Datos ARCA
+  cae         String?
+  caeExpiry   DateTime?
+  pointOfSale Int?
+  number      Int?
+  qrData      String?  @db.Text
+  
+  // URLs
+  pdfUrl      String?
+  xmlUrl      String?
+  
+  status      String  @default("PENDING") // PENDING, ISSUED, FAILED
+  errorMessage String? @db.Text
+  
+  // Request/Response para auditoría
+  requestPayload  String? @db.Text
+  responsePayload String? @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  issuedAt  DateTime?
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale     Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([status])
+  @@map("invoices")
+}
+
+// ============================================================================
+// EXCHANGE RATE
+// ============================================================================
+
+model ExchangeRateSnapshot {
+  id       String  @id @default(cuid())
+  businessId String
+  
+  fromCurrency String @default("USD")
+  toCurrency   String @default("ARS")
+  rate         Decimal @db.Decimal(12, 4)
+  
+  source    String  // dolarapi, manual, etc.
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payments Payment[]
+  
+  @@index([businessId])
+  @@index([createdAt])
+  @@map("exchange_rate_snapshots")
+}
+
+// ============================================================================
+// AUDIT & IDEMPOTENCY
+// ============================================================================
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  businessId String
+  userId     String?
+  action     String  // CREATE, UPDATE, DELETE, LOGIN, etc.
+  entity     String  // products, sales, users, etc.
+  entityId   String?
+  
+  before     Json?
+  after      Json?
+  
+  ip         String?
+  userAgent  String?
+  
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([businessId])
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id                String @id @default(cuid())
+  businessId        String
+  clientOperationId String @unique
+  endpoint          String
+  
+  responseStatus    Int
+  responseBody      Json
+  
+  createdAt DateTime @default(now())
+  expiresAt DateTime // TTL: 24-48h
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([clientOperationId])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

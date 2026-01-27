@@ -1,0 +1,149 @@
+import { config } from 'dotenv';
+import { z } from 'zod';
+
+// Cargar variables de entorno
+config();
+
+// Schema de validación para variables de entorno
+const envSchema = z.object({
+  // Database
+  DATABASE_URL: z.string().url(),
+
+  // JWT
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
+  // Redis
+  REDIS_URL: z.string().optional(),
+  REDIS_ENABLED: z.enum(['true', 'false']).default('false'),
+
+  // Email
+  EMAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_SECURE: z.enum(['true', 'false']).default('false'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().email().default('noreply@ferresaas.com'),
+
+  // Facturación
+  INVOICE_PROVIDER: z.enum(['mock', 'facturante']).default('mock'),
+  FACTURANTE_API_KEY: z.string().optional(),
+  FACTURANTE_API_URL: z.string().url().optional(),
+
+  // Tipo de cambio
+  EXCHANGE_RATE_PROVIDER: z.string().default('dolarapi'),
+  EXCHANGE_RATE_FALLBACK_USD_ARS: z.string().default('1000'),
+  EXCHANGE_RATE_CACHE_TTL_SECONDS: z.string().default('300'),
+
+  // App
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.string().default('3001'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+
+  // Logging
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+
+  // Sentry
+  SENTRY_DSN: z.string().optional(),
+
+  // Business
+  ALLOW_NEGATIVE_STOCK: z.enum(['true', 'false']).default('false'),
+
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
+  RATE_LIMIT_MAX_REQUESTS: z.string().default('100'),
+});
+
+// Validar y parsear
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error('❌ Invalid environment variables:');
+  console.error(parsed.error.flatten().fieldErrors);
+  throw new Error('Invalid environment variables');
+}
+
+// Exportar configuración tipada
+export const env = {
+  // Database
+  database: {
+    url: parsed.data.DATABASE_URL,
+  },
+
+  // JWT
+  jwt: {
+    accessSecret: parsed.data.JWT_ACCESS_SECRET,
+    refreshSecret: parsed.data.JWT_REFRESH_SECRET,
+    accessExpiresIn: parsed.data.JWT_ACCESS_EXPIRES_IN,
+    refreshExpiresIn: parsed.data.JWT_REFRESH_EXPIRES_IN,
+  },
+
+  // Redis
+  redis: {
+    url: parsed.data.REDIS_URL,
+    enabled: parsed.data.REDIS_ENABLED === 'true',
+  },
+
+  // Email
+  email: {
+    provider: parsed.data.EMAIL_PROVIDER,
+    smtp: {
+      host: parsed.data.SMTP_HOST,
+      port: parsed.data.SMTP_PORT ? parseInt(parsed.data.SMTP_PORT) : 587,
+      secure: parsed.data.SMTP_SECURE === 'true',
+      user: parsed.data.SMTP_USER,
+      pass: parsed.data.SMTP_PASS,
+    },
+    from: parsed.data.EMAIL_FROM,
+  },
+
+  // Facturación
+  invoice: {
+    provider: parsed.data.INVOICE_PROVIDER,
+    facturante: {
+      apiKey: parsed.data.FACTURANTE_API_KEY,
+      apiUrl: parsed.data.FACTURANTE_API_URL,
+    },
+  },
+
+  // Tipo de cambio
+  exchangeRate: {
+    provider: parsed.data.EXCHANGE_RATE_PROVIDER,
+    fallbackRate: parseFloat(parsed.data.EXCHANGE_RATE_FALLBACK_USD_ARS),
+    cacheTtlSeconds: parseInt(parsed.data.EXCHANGE_RATE_CACHE_TTL_SECONDS),
+  },
+
+  // App
+  app: {
+    env: parsed.data.NODE_ENV,
+    port: parseInt(parsed.data.PORT),
+    frontendUrl: parsed.data.FRONTEND_URL,
+    isDevelopment: parsed.data.NODE_ENV === 'development',
+    isProduction: parsed.data.NODE_ENV === 'production',
+    isTest: parsed.data.NODE_ENV === 'test',
+  },
+
+  // Logging
+  logging: {
+    level: parsed.data.LOG_LEVEL,
+  },
+
+  // Sentry
+  sentry: {
+    dsn: parsed.data.SENTRY_DSN,
+  },
+
+  // Business
+  business: {
+    allowNegativeStock: parsed.data.ALLOW_NEGATIVE_STOCK === 'true',
+  },
+
+  // Rate Limiting
+  rateLimit: {
+    windowMs: parseInt(parsed.data.RATE_LIMIT_WINDOW_MS),
+    maxRequests: parseInt(parsed.data.RATE_LIMIT_MAX_REQUESTS),
+  },
+} as const;
