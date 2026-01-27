@@ -134,7 +134,7 @@ En la lista de accesos rápidos, haz click en **Productos**.
 
 Esta es la pantalla principal para los cajeros.
 
-1.  Ve a **Ventas / POS**.
+1.  Ve a **Punto de Venta**.
 2.  **Abrir Caja**: Antes de vender, el sistema te pedirá abrir la caja con un monto inicial (ej: $5000 para cambio).
 3.  **Agregar Productos**:
     - Puedes escanear códigos de barras (si tienes lector).

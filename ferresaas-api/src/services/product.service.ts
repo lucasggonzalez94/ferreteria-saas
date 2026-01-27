@@ -2,6 +2,8 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { Prisma } from '@prisma/client';
+import bwipjs from 'bwip-js';
+import PDFDocument from 'pdfkit';
 
 export class ProductService {
   /**
@@ -324,5 +326,76 @@ export class ProductService {
     await AuditService.logDelete(businessId, userId, 'products', productId, product);
 
     return updated;
+  }
+
+  /**
+   * Generar etiqueta en PDF con código de barras
+   */
+  async generateLabelPdf(
+    businessId: string,
+    productId: string,
+    format: 'a4' | 'label' = 'label'
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const product = await this.getById(businessId, productId);
+
+    const codeValue = product.barcode || product.internalSku;
+
+    const barcodeBuffer = await bwipjs.toBuffer({
+      bcid: 'code128',
+      text: codeValue,
+      scale: 3,
+      height: 10,
+      includetext: true,
+      textxalign: 'center',
+    });
+
+    const pageOptions =
+      format === 'a4'
+        ? { size: 'A4' as const, margin: 48 }
+        : { size: [360, 220] as [number, number], margin: 20 };
+
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument(pageOptions);
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+      doc.fontSize(18).text(product.name, { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(12).text(`SKU interno: ${product.internalSku}`, { align: 'center' });
+
+      if (product.barcode) {
+        doc.text(`Código de barras: ${product.barcode}`, { align: 'center' });
+      }
+
+      const priceValue = Number(product.price);
+      const taxValue = Number(product.taxRate);
+
+      doc.text(`Precio: $${priceValue.toFixed(2)}`, { align: 'center' });
+      doc.text(`IVA: ${taxValue.toFixed(2)}%`, { align: 'center' });
+
+      doc.moveDown(0.5);
+
+      const barcodeWidth = availableWidth - (format === 'a4' ? 60 : 30);
+      const barcodeX = doc.page.margins.left + (availableWidth - barcodeWidth) / 2;
+
+      doc.image(barcodeBuffer, barcodeX, doc.y, {
+        fit: [barcodeWidth, format === 'a4' ? 140 : 100],
+        align: 'center',
+      });
+
+      doc.end();
+    });
+
+    const safeName = product.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+    return {
+      buffer: pdfBuffer,
+      filename: `${product.internalSku}-${safeName}-etiqueta.pdf`,
+    };
   }
 }

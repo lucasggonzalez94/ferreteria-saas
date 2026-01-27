@@ -67,6 +67,11 @@ async function main() {
 
   console.log(`✅ Created ${permissions.length} permissions`);
 
+  const permissionMap = permissions.reduce<Record<string, string>>((acc, permission) => {
+    acc[`${permission.resource}:${permission.action}`] = permission.id;
+    return acc;
+  }, {});
+
   // 2. Crear negocio de ejemplo
   const business = await prisma.business.upsert({
     where: { cuit: '20-12345678-9' },
@@ -130,6 +135,41 @@ async function main() {
     skipDuplicates: true,
   });
 
+  const adminPermissionKeys = [
+    'products:read',
+    'products:update',
+    'sales:create',
+    'sales:read',
+    'inventory:read',
+    'inventory:adjust',
+    'reports:read',
+    'settings:update',
+  ];
+
+  await prisma.rolePermission.createMany({
+    data: adminPermissionKeys
+      .map((key) => permissionMap[key])
+      .filter(Boolean)
+      .map((permissionId) => ({
+        roleId: adminRole.id,
+        permissionId: permissionId!,
+      })),
+    skipDuplicates: true,
+  });
+
+  const cashierPermissionKeys = ['products:read', 'sales:create', 'sales:read', 'inventory:read'];
+
+  await prisma.rolePermission.createMany({
+    data: cashierPermissionKeys
+      .map((key) => permissionMap[key])
+      .filter(Boolean)
+      .map((permissionId) => ({
+        roleId: cashierRole.id,
+        permissionId: permissionId!,
+      })),
+    skipDuplicates: true,
+  });
+
   // 5. Crear usuario admin
   const hashedPassword = await hash('Admin123456');
   const adminUser = await prisma.user.upsert({
@@ -179,54 +219,57 @@ async function main() {
 
   console.log(`✅ Created ${categories.length} categories`);
 
-  // 7. Crear productos básicos
-  let skuCounter = 1;
-  const products = await Promise.all([
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        internalSku: `FER-${String(skuCounter++).padStart(5, '0')}`,
-        name: 'Martillo',
-        categoryId: categories[0].id,
-        unit: 'u',
-        cost: 5000,
-        price: 8000,
-        taxRate: 21,
-        stockQuantity: 10,
-        minStock: 5,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        internalSku: `FER-${String(skuCounter++).padStart(5, '0')}`,
-        name: 'Pintura Blanca 1L',
-        categoryId: categories[1].id,
-        unit: 'u',
-        cost: 3000,
-        price: 5000,
-        taxRate: 21,
-        stockQuantity: 20,
-        minStock: 10,
-      },
-    }),
-    prisma.product.create({
-      data: {
-        businessId: business.id,
-        internalSku: `FER-${String(skuCounter++).padStart(5, '0')}`,
-        barcode: '7798123456789',
-        name: 'Cable 2.5mm (metro)',
-        categoryId: categories[2].id,
-        unit: 'mt',
-        isFractional: true,
-        cost: 500,
-        price: 800,
-        taxRate: 21,
-        stockQuantity: 100,
-        minStock: 50,
-      },
-    }),
-  ]);
+  // 7. Crear productos básicos (idempotente)
+  const baseProducts = [
+    {
+      internalSku: 'FER-00001',
+      name: 'Martillo',
+      categoryId: categories[0].id,
+      unit: 'u',
+      cost: 5000,
+      price: 8000,
+      taxRate: 21,
+      stockQuantity: 10,
+      minStock: 5,
+    },
+    {
+      internalSku: 'FER-00002',
+      name: 'Pintura Blanca 1L',
+      categoryId: categories[1].id,
+      unit: 'u',
+      cost: 3000,
+      price: 5000,
+      taxRate: 21,
+      stockQuantity: 20,
+      minStock: 10,
+    },
+    {
+      internalSku: 'FER-00003',
+      barcode: '7798123456789',
+      name: 'Cable 2.5mm (metro)',
+      categoryId: categories[2].id,
+      unit: 'mt',
+      isFractional: true,
+      cost: 500,
+      price: 800,
+      taxRate: 21,
+      stockQuantity: 100,
+      minStock: 50,
+    },
+  ];
+
+  const products = await Promise.all(
+    baseProducts.map((product) =>
+      prisma.product.upsert({
+        where: { internalSku: product.internalSku },
+        update: {},
+        create: {
+          businessId: business.id,
+          ...product,
+        },
+      })
+    )
+  );
 
   console.log(`✅ Created ${products.length} products`);
 

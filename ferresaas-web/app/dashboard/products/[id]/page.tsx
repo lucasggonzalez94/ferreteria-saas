@@ -19,6 +19,7 @@ export default function EditProductPage({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isPrinting, setIsPrinting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     barcode: "",
@@ -39,6 +40,30 @@ export default function EditProductPage({
       return response.data || [];
     },
   });
+
+  const handlePrintLabel = async () => {
+    try {
+      setIsPrinting(true);
+      const blob = await api.getBlob(`/products/${params.id}/barcode`);
+      const fileUrl = URL.createObjectURL(blob);
+      const newWindow = window.open(fileUrl);
+
+      if (!newWindow) {
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = `${product?.name || "producto"}-etiqueta.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 5000);
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo descargar la etiqueta");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   // Obtener producto
   const { data: product, isLoading } = useQuery({
@@ -143,12 +168,8 @@ export default function EditProductPage({
               variant="outline"
               size="icon"
               title="Imprimir Etiqueta"
-              onClick={() => {
-                window.open(
-                  `${api.getBaseUrl()}/products/${params.id}/label.pdf`,
-                  "_blank",
-                );
-              }}
+              onClick={handlePrintLabel}
+              disabled={isPrinting}
             >
               <Printer className="h-4 w-4" />
             </Button>

@@ -161,4 +161,32 @@ router.delete(
   }
 );
 
+/**
+ * GET /products/:id/barcode
+ * Generar etiqueta PDF con código de barras
+ */
+router.get(
+  '/:id/barcode',
+  requirePermissions('products:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+      const format = req.query.format === 'a4' ? 'a4' : 'label';
+
+      const { buffer, filename } = await productService.generateLabelPdf(
+        authReq.businessId!,
+        id,
+        format
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

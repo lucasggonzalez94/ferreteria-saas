@@ -245,7 +245,7 @@ Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
 
 - Backend genera PDF (A4 o etiqueta) con barcode Code128:
   - Lib: bwip-js (barcode) + pdfkit (PDF) o puppeteer (HTML->PDF).
-- Endpoint: GET /products/:id/label.pdf?format=a4|label
+- Endpoint: GET /products/:id/barcode?format=a4|label
 
 ---
 

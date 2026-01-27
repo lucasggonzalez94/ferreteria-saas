@@ -244,6 +244,4 @@ MIT
 
 ---
 
-**Proyecto generado por IA** siguiendo especificaciones detalladas.
-**Estado**: ✅ Completado y funcional
 **Fecha**: Enero 2026
