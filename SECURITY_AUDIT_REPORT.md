@@ -19,6 +19,16 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 - ✅ **Headers de seguridad** (CSP, HSTS)
 - ✅ **Auditoría de eventos** de seguridad
 
+### Últimos ajustes aplicados (28/01/2026 21:10)
+
+1. **Cookies sin `domain`** y con `path /` para evitar duplicados (`localhost` vs `.localhost`).
+2. **`res.clearCookie` antes de setear** un nuevo refresh token (login, refresh, logout) para eliminar residuos.
+3. **Rate limiters en modo desarrollo** ajustados (general y refresh deshabilitados temporalmente para pruebas). 
+4. **Frontend**: `AuthProvider` ahora usa `useRef` para asegurar que `fetchUser()` corra una sola vez y evitar loops.
+5. **API client**: se eliminó el redirect automático a `/login` tras un 401 en refresh; el manejo queda en el contexto.
+
+Estos cambios garantizan una sola cookie `refreshToken`, evitan bucles infinitos y mantienen la persistencia tras reiniciar navegador.
+
 ---
 
 ## 1. CHECKLIST DE SEGURIDAD FINAL
@@ -28,7 +38,8 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 - [x] **Refresh token en cookie HttpOnly**
   - Configuración: `httpOnly: true, secure: true (prod), sameSite: strict`
   - No accesible desde JavaScript
-  - Path limitado a `/v1/auth`
+  - Path global `/` y sin `domain` explícito para evitar duplicados
+  - Cookie anterior se limpia antes de setear uno nuevo
 
 - [x] **Access token en memoria**
   - No se guarda en localStorage ni sessionStorage
@@ -115,13 +126,54 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 
 ---
 
+## 2. IMPLEMENTACIÓN DETALLADA
+
+### Backend
+
+| Componente | Estado final |
+|------------|--------------|
+| `prisma/schema.prisma` | Tabla `RefreshTokenSession` con `tokenFamily`, `tokenHash`, `reuseDetected`, timestamps e IP/User-Agent. |
+| `auth.service.ts` | Login crea sesión + token family; refresh rota tokens, detecta reuso (revoca familia + log crítico); logout revoca sesión y limpia cookie. |
+| `token.service.ts` | Genera access (10m) y refresh (30d) tokens; payloads incluyen `tokenFamily`; hashing SHA-256; helpers de rotación. |
+| `auth.routes.ts` | Maneja cookies con `path: '/'`, sin `domain`; limpia cookie antes de setear; refresh usa mismo enfoque; logout borra cookie y responde éxito. |
+| `app.ts` | Helmet + cors + cookie-parser; rate limiter general deshabilitado en dev (puede reactivarse en prod); rutas montadas bajo `/v1`. |
+| `middleware/rate-limit.ts` | `authLimiter` con `skipSuccessfulRequests`; `refreshLimiter` disponible (desactivado temporalmente en rutas durante pruebas). |
+| `config/env.ts` | Nuevas variables para cookies, CSRF y rate limiting; `sameSite` tipado como enum string. |
+
+### Frontend (Next.js 14)
+
+| Archivo | Detalles |
+|---------|----------|
+| `lib/api.ts` | Cliente Fetch con memoria para access/CSRF; `credentials: 'include'`; refresh automático salvo en `/auth/login` y `/auth/refresh`; sin redirects automáticos para evitar loops. |
+| `lib/auth-context.tsx` | Contexto con `useRef` (`hasInitialized`, `isFetching`) para evitar múltiples `fetchUser`; tokens guardados en memoria; login guarda access+CSRF y redirige; logout limpia memoria y notifica API. |
+| `app/(auth)/login/page.tsx` | Consume `useAuth`; muestra toasts e invoca `login`. |
+| `types/index.ts` (web) | `LoginResponse` incluye `csrfToken` y `user`. |
+
+### Cookies en profundidad
+
+1. **Emisión**: login limpia `refreshToken` anterior y setea uno nuevo (`HttpOnly`, `SameSite=Strict`, `path='/'`).
+2. **Rotación**: refresh aplica mismo patrón y reemplaza cookie en una sola respuesta.
+3. **Revocación**: logout ejecuta `res.clearCookie('refreshToken', { path: '/' })` y revoca sesión en BD.
+4. **Ambientes**: en producción, `COOKIE_SECURE="true"` y `COOKIE_DOMAIN` puede configurarse (solo si es necesario). En desarrollo se deja vacío para que el navegador maneje `localhost` automáticamente.
+
+### Flujo de persistencia (Frontend)
+
+1. App monta `AuthProvider` → `fetchUser()` corre **una vez**.
+2. `fetchUser()` llama `/auth/me`; si falla, se mantiene `user = null` y se espera login manual.
+3. Requests autenticados usan `api.request` (con refresh automático en 401).
+4. En modo persistente, al abrir navegador: `/auth/me` → 401 → `/auth/refresh` → nuevo access token → retry `/auth/me` exitoso.
+
+---
+
+---
+
 ## 2. DIAGRAMA DE FLUJO - NUEVO AUTH FLOW
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1. LOGIN                                                         │
+│ 1. LOGIN                                                        │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Frontend                    Backend                   Database │
 │     │                           │                          │    │
 │     │─── POST /auth/login ─────>│                          │    │
@@ -155,7 +207,7 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 ┌─────────────────────────────────────────────────────────────────┐
 │ 2. REQUEST AUTENTICADO                                          │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Frontend                    Backend                            │
 │     │                           │                               │
 │     │─── GET /api/resource ────>│                               │
@@ -165,9 +217,9 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 │     │   - X-CSRF-Token: {csrf}  │                               │
 │     │   Cookie: refreshToken    │                               │
 │     │                           │                               │
-│     │                           │──── Verify JWT               │
-│     │                           │     Check CSRF               │
-│     │                           │     Load user + permissions  │
+│     │                           │──── Verify JWT                │
+│     │                           │     Check CSRF                │
+│     │                           │     Load user + permissions   │
 │     │                           │                               │
 │     │<── Response ──────────────│                               │
 │     │   {data}                  │                               │
@@ -175,9 +227,9 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│ 3. REFRESH AUTOMÁTICO (Access Token Expirado)                  │
+│ 3. REFRESH AUTOMÁTICO (Access Token Expirado)                   │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Frontend                    Backend                   Database │
 │     │                           │                          │    │
 │     │─── GET /api/resource ────>│                          │    │
@@ -189,7 +241,7 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 │     │─── POST /auth/refresh ───>│                          │    │
 │     │   Cookie: refreshToken    │                          │    │
 │     │                           │                          │    │
-│     │                           │──── Hash token          │    │
+│     │                           │──── Hash token           │    │
 │     │                           │──── Find session ───────>│    │
 │     │                           │<─── Session data ────────│    │
 │     │                           │                          │    │
@@ -215,16 +267,16 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│ 4. DETECCIÓN DE REUSO (Ataque)                                 │
+│ 4. DETECCIÓN DE REUSO (Ataque)                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Atacante                    Backend                   Database │
 │     │                           │                          │    │
 │     │─── POST /auth/refresh ───>│                          │    │
 │     │   Cookie: OLD refreshToken│                          │    │
 │     │   (ya usado/revocado)     │                          │    │
 │     │                           │                          │    │
-│     │                           │──── Hash token          │    │
+│     │                           │──── Hash token           │    │
 │     │                           │──── Find session ───────>│    │
 │     │                           │<─── NOT FOUND ───────────│    │
 │     │                           │                          │    │
@@ -243,21 +295,21 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 │     │<── 401 TOKEN_REUSE ───────│                          │    │
 │     │   All sessions revoked    │                          │    │
 │     │                           │                          │    │
-│                                                                  │
-│  Usuario legítimo debe volver a loguearse                      │
-│                                                                  │
+│                                                                 │
+│  Usuario legítimo debe volver a loguearse                       │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. LOGOUT                                                        │
+│ 5. LOGOUT                                                       │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Frontend                    Backend                   Database │
 │     │                           │                          │    │
 │     │─── POST /auth/logout ────>│                          │    │
 │     │   Cookie: refreshToken    │                          │    │
 │     │                           │                          │    │
-│     │                           │──── Hash token          │    │
+│     │                           │──── Hash token           │    │
 │     │                           │──── Find session ───────>│    │
 │     │                           │<─── Session data ────────│    │
 │     │                           │                          │    │
@@ -279,12 +331,12 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6. SESIÓN PERSISTENTE (Abrir navegador)                        │
+│ 6. SESIÓN PERSISTENTE (Abrir navegador)                         │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
+│                                                                 │
 │  Frontend                    Backend                   Database │
 │     │                           │                          │    │
-│     │─── App loads             │                          │    │
+│     │─── App loads              │                          │    │
 │     │    (no accessToken        │                          │    │
 │     │     in memory)            │                          │    │
 │     │                           │                          │    │
@@ -756,13 +808,13 @@ describe('Auth Security', () => {
 
 ### KPIs de Seguridad
 
-| Métrica | Objetivo | Actual |
-|---------|----------|--------|
-| Tiempo de sesión | 30 días | ✅ 30 días |
-| Vida access token | 10-15 min | ✅ 10 min |
-| Detecciones de reuso | 0 (uso normal) | Monitorear |
-| Rate limit violations | < 1% requests | Monitorear |
-| Sesiones activas/usuario | 1-3 | Monitorear |
+| Métrica                  | Objetivo         | Actual     |
+|--------------------------|------------------|------------|
+| Tiempo de sesión         | 7 días           | ✅ 7 días  |
+| Vida access token        | 10-15 min        | ✅ 15 min  |
+| Detecciones de reuso     | 0 (uso normal)   | Monitorear |
+| Rate limit violations    | < 1% requests    | Monitorear |
+| Sesiones activas/usuario | 1-3              | Monitorear |
 
 ---
 
