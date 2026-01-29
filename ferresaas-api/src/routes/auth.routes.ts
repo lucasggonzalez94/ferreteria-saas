@@ -4,10 +4,10 @@ import { sendSuccess, AppError } from '../utils/response';
 import { authLimiter, resetPasswordLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
+import { env } from '../config/env';
 import {
   registerSchema,
   loginSchema,
-  refreshSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } from './auth.schemas';
@@ -44,6 +44,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 /**
  * POST /auth/login
  * Login con email y password
+ * Devuelve: accessToken y csrfToken en body, refreshToken en cookie HttpOnly
  */
 router.post('/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -53,7 +54,25 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
 
     const result = await authService.login(input.email, input.password, ip, userAgent);
 
-    sendSuccess(res, result);
+    // Limpiar cualquier cookie vieja primero
+    res.clearCookie('refreshToken', { path: '/' });
+    
+    // Setear refresh token en cookie HttpOnly
+    // NO especificar domain para evitar duplicados en localhost
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: env.cookies.secure,
+      sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+    });
+
+    // Devolver solo accessToken y csrfToken (no el refreshToken)
+    sendSuccess(res, {
+      user: result.user,
+      accessToken: result.accessToken,
+      csrfToken: result.csrfToken,
+    });
   } catch (error) {
     next(error);
   }
@@ -61,15 +80,39 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
 
 /**
  * POST /auth/refresh
- * Refresh access token
+ * Refresh access token usando cookie HttpOnly
+ * Rota el refresh token automáticamente
  */
 router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const input = refreshSchema.parse(req.body);
+    const refreshToken = req.cookies?.refreshToken;
 
-    const tokens = await authService.refresh(input.refreshToken);
+    if (!refreshToken) {
+      throw new AppError(401, 'NO_REFRESH_TOKEN', 'No refresh token provided');
+    }
 
-    sendSuccess(res, tokens);
+    const ip = req.ip;
+    const userAgent = req.get('user-agent');
+
+    const tokens = await authService.refresh(refreshToken, ip, userAgent);
+
+    // Limpiar cookie vieja primero
+    res.clearCookie('refreshToken', { path: '/' });
+    
+    // Setear nuevo refresh token en cookie HttpOnly (rotación)
+    // NO especificar domain para evitar duplicados
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: env.cookies.secure,
+      sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+    });
+
+    // Devolver solo accessToken (no el refreshToken)
+    sendSuccess(res, {
+      accessToken: tokens.accessToken,
+    });
   } catch (error) {
     next(error);
   }
@@ -77,12 +120,21 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 
 /**
  * POST /auth/logout
- * Logout (invalidar tokens)
- * TODO: Implementar revocación de refresh token en Redis
+ * Logout (revocar refresh token)
  */
-router.post('/logout', authenticate, async (_req: Request, res: Response, next: NextFunction) => {
+router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // TODO: Agregar refresh token a lista de revocación en Redis
+    const refreshToken = req.cookies?.refreshToken;
+    const ip = req.ip;
+    const userAgent = req.get('user-agent');
+
+    if (refreshToken) {
+      await authService.logout(refreshToken, ip, userAgent);
+    }
+
+    // Borrar cookie (sin especificar domain)
+    res.clearCookie('refreshToken', { path: '/' });
+
     sendSuccess(res, { message: 'Logged out successfully' });
   } catch (error) {
     next(error);

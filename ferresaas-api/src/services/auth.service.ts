@@ -111,6 +111,19 @@ export class AuthService {
     // Generar tokens
     const tokens = TokenService.generateTokenPair(user.id, user.businessId, user.email);
 
+    // Guardar refresh token session en BD
+    await prisma.refreshTokenSession.create({
+      data: {
+        userId: user.id,
+        businessId: user.businessId,
+        tokenFamily: tokens.tokenFamily,
+        tokenHash: tokens.refreshTokenHash,
+        expiresAt: tokens.expiresAt,
+        ipAddress: ip,
+        userAgent,
+      },
+    });
+
     // Auditoría
     await AuditService.log({
       businessId: user.businessId,
@@ -129,33 +142,170 @@ export class AuthService {
         lastName: user.lastName,
         businessId: user.businessId,
       },
-      ...tokens,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      csrfToken: tokens.csrfToken,
     };
   }
 
   /**
-   * Refresh token
+   * Refresh token con rotación y detección de reuso
    */
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken: string, ip?: string, userAgent?: string) {
     try {
       const payload = TokenService.verifyRefreshToken(refreshToken);
+      const tokenHash = TokenService.hashToken(refreshToken);
 
-      // Verificar que el usuario existe y está activo
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
+      // Buscar sesión en BD
+      const session = await prisma.refreshTokenSession.findUnique({
+        where: { tokenHash },
+        include: { user: true },
       });
 
-      if (!user || !user.isActive) {
-        throw new AppError(401, 'INVALID_TOKEN', 'User not found or inactive');
+      // Si no existe la sesión, puede ser reuso
+      if (!session) {
+        // Intentar encontrar por familia para detectar reuso
+        if (payload.tokenFamily) {
+          const familySessions = await prisma.refreshTokenSession.findMany({
+            where: { tokenFamily: payload.tokenFamily },
+          });
+
+          if (familySessions.length > 0) {
+            // REUSO DETECTADO: Revocar toda la familia
+            await prisma.refreshTokenSession.updateMany({
+              where: { tokenFamily: payload.tokenFamily },
+              data: { isRevoked: true, reuseDetected: true },
+            });
+
+            // Auditoría crítica
+            await AuditService.log({
+              businessId: payload.businessId,
+              userId: payload.userId,
+              action: 'TOKEN_REUSE_DETECTED',
+              entity: 'auth',
+              ip,
+              userAgent,
+              after: { tokenFamily: payload.tokenFamily },
+            });
+
+            throw new AppError(401, 'TOKEN_REUSE_DETECTED', 'Refresh token reuse detected. All sessions revoked.');
+          }
+        }
+
+        throw new AppError(401, 'INVALID_TOKEN', 'Invalid refresh token');
       }
 
-      // Generar nuevos tokens
-      const tokens = TokenService.generateTokenPair(user.id, user.businessId, user.email);
+      // Verificar si está revocada
+      if (session.isRevoked) {
+        throw new AppError(401, 'TOKEN_REVOKED', 'Refresh token has been revoked');
+      }
 
-      return tokens;
+      // Verificar expiración
+      if (session.expiresAt < new Date()) {
+        throw new AppError(401, 'TOKEN_EXPIRED', 'Refresh token has expired');
+      }
+
+      // Verificar que el usuario existe y está activo
+      if (!session.user || !session.user.isActive) {
+        throw new AppError(401, 'USER_INACTIVE', 'User not found or inactive');
+      }
+
+      // ROTAR: Marcar token actual como usado (revocado)
+      await prisma.refreshTokenSession.update({
+        where: { id: session.id },
+        data: { isRevoked: true, lastUsedAt: new Date() },
+      });
+
+      // Generar nuevos tokens (mantiene la familia)
+      const newTokens = TokenService.rotateRefreshToken(
+        session.user.id,
+        session.user.businessId,
+        session.user.email,
+        session.tokenFamily
+      );
+
+      // Guardar nueva sesión
+      await prisma.refreshTokenSession.create({
+        data: {
+          userId: session.user.id,
+          businessId: session.user.businessId,
+          tokenFamily: newTokens.tokenFamily,
+          tokenHash: newTokens.refreshTokenHash,
+          expiresAt: newTokens.expiresAt,
+          ipAddress: ip,
+          userAgent,
+        },
+      });
+
+      // Auditoría
+      await AuditService.log({
+        businessId: session.user.businessId,
+        userId: session.user.id,
+        action: 'REFRESH_TOKEN',
+        entity: 'auth',
+        ip,
+        userAgent,
+      });
+
+      return {
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+      };
     } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
       throw new AppError(401, 'INVALID_TOKEN', 'Invalid refresh token');
     }
+  }
+
+  /**
+   * Logout (revocar refresh token)
+   */
+  async logout(refreshToken: string, ip?: string, userAgent?: string) {
+    try {
+      const tokenHash = TokenService.hashToken(refreshToken);
+
+      // Buscar sesión
+      const session = await prisma.refreshTokenSession.findUnique({
+        where: { tokenHash },
+      });
+
+      if (session) {
+        // Revocar sesión
+        await prisma.refreshTokenSession.update({
+          where: { id: session.id },
+          data: { isRevoked: true },
+        });
+
+        // Auditoría
+        await AuditService.log({
+          businessId: session.businessId,
+          userId: session.userId,
+          action: 'LOGOUT',
+          entity: 'auth',
+          ip,
+          userAgent,
+        });
+      }
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      // No fallar el logout si hay error
+      return { message: 'Logged out successfully' };
+    }
+  }
+
+  /**
+   * Revocar todas las sesiones de un usuario
+   */
+  async revokeAllSessions(userId: string) {
+    await prisma.refreshTokenSession.updateMany({
+      where: { userId, isRevoked: false },
+      data: { isRevoked: true },
+    });
+
+    return { message: 'All sessions revoked successfully' };
   }
 
   /**

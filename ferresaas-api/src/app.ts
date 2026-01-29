@@ -1,11 +1,11 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import pinoHttp from 'pino-http';
 import { logger } from './config/logger';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
-import { generalLimiter } from './middleware/rate-limit';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -21,7 +21,23 @@ import salesRoutes from './routes/sales.routes';
 const app = express();
 
 // Security & Logging
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 app.use(
   cors({
     origin: env.app.frontendUrl,
@@ -30,12 +46,16 @@ app.use(
 );
 app.use(pinoHttp({ logger }));
 
+// Cookie parsing
+app.use(cookieParser());
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting
-app.use('/v1', generalLimiter);
+// Deshabilitado temporalmente para desarrollo
+// app.use('/v1', generalLimiter);
 
 // Health check
 app.get('/health', (_req, res) => {

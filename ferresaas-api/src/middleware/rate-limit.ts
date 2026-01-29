@@ -1,6 +1,5 @@
 import rateLimit from 'express-rate-limit';
 import { env } from '../config/env';
-import { redisClient } from '../config/redis';
 
 // Rate limiter general
 export const generalLimiter = rateLimit({
@@ -20,11 +19,11 @@ export const generalLimiter = rateLimit({
 // Rate limiter estricto para login
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 intentos
+  max: 5, // 5 intentos por IP
   message: {
     success: false,
     error: {
-      code: 'AUTH_RATE_LIMIT_EXCEEDED',
+      code: 'LOGIN_RATE_LIMIT_EXCEEDED',
       message: 'Too many login attempts, please try again later',
     },
   },
@@ -40,6 +39,19 @@ export const resetPasswordLimiter = rateLimit({
     error: {
       code: 'RESET_RATE_LIMIT_EXCEEDED',
       message: 'Too many password reset attempts, please try again later',
+    },
+  },
+});
+
+// Rate limiter para refresh token
+export const refreshLimiter = rateLimit({
+  windowMs: env.rateLimit.refreshWindowMs, // 5 minutos
+  max: env.rateLimit.refreshMax, // 10 intentos
+  message: {
+    success: false,
+    error: {
+      code: 'REFRESH_RATE_LIMIT_EXCEEDED',
+      message: 'Too many refresh attempts, please try again later',
     },
   },
 });

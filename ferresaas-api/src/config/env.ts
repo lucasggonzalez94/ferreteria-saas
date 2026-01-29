@@ -55,6 +55,16 @@ const envSchema = z.object({
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100'),
+  RATE_LIMIT_REFRESH_WINDOW_MS: z.string().default('300000'),
+  RATE_LIMIT_REFRESH_MAX: z.string().default('10'),
+
+  // Cookies
+  COOKIE_DOMAIN: z.string().default('localhost'),
+  COOKIE_SECURE: z.enum(['true', 'false']).default('false'),
+  COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('strict'),
+
+  // CSRF
+  CSRF_SECRET: z.string().min(32),
 });
 
 // Validar y parsear
@@ -145,5 +155,19 @@ export const env = {
   rateLimit: {
     windowMs: parseInt(parsed.data.RATE_LIMIT_WINDOW_MS),
     maxRequests: parseInt(parsed.data.RATE_LIMIT_MAX_REQUESTS),
+    refreshWindowMs: parseInt(parsed.data.RATE_LIMIT_REFRESH_WINDOW_MS),
+    refreshMax: parseInt(parsed.data.RATE_LIMIT_REFRESH_MAX),
+  },
+
+  // Cookies
+  cookies: {
+    domain: parsed.data.COOKIE_DOMAIN,
+    secure: parsed.data.COOKIE_SECURE === 'true',
+    sameSite: parsed.data.COOKIE_SAME_SITE as 'strict' | 'lax' | 'none',
+  },
+
+  // CSRF
+  csrf: {
+    secret: parsed.data.CSRF_SECRET,
   },
 } as const;

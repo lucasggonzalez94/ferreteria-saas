@@ -79,12 +79,6 @@ export default function LoginPage() {
               {isLoading ? "Ingresando..." : "Ingresar"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Credenciales de prueba:</p>
-            <p className="font-mono text-xs mt-1">
-              admin@ferreteria-demo.com / Admin123456
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,4 @@
 import { Request } from 'express';
-import { User } from '@prisma/client';
 
 // Extender Request de Express con datos de autenticación
 export interface AuthRequest extends Request {
@@ -55,6 +54,7 @@ export interface JwtPayload {
   businessId: string;
   email: string;
   type: 'access' | 'refresh';
+  tokenFamily?: string;
 }
 
 // Filtros comunes

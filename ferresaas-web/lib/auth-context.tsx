@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -25,25 +26,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const hasInitialized = useRef(false);
+  const isFetching = useRef(false);
 
   useEffect(() => {
-    // Verificar si hay token y obtener usuario
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      fetchUser();
-    } else {
-      setIsLoading(false);
+    // Prevenir ejecuciones múltiples con ref
+    if (hasInitialized.current || isFetching.current) {
+      return;
     }
-  }, []);
+    
+    hasInitialized.current = true;
+    isFetching.current = true;
+    
+    // Intentar obtener usuario (si hay cookie de refresh, el backend responderá)
+    fetchUser().finally(() => {
+      isFetching.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo ejecutar al montar
 
   const fetchUser = async () => {
     try {
+      // El api.ts maneja automáticamente el refresh si es necesario
       const response = await api.get<User>("/auth/me");
       if (response.success && response.data) {
         setUser(response.data);
       }
     } catch (error) {
-      clearTokens();
+      // Si falla después del refresh automático, no hay sesión válida
+      // No hacer nada, simplemente dejar user como null
+      console.log('No active session');
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (response.success && response.data) {
-      saveTokens(response.data.accessToken, response.data.refreshToken);
+      // Guardar access token y CSRF token en memoria
+      saveTokens(response.data.accessToken, response.data.csrfToken);
       setUser(response.data.user);
       router.push("/dashboard");
     } else {
@@ -64,10 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    clearTokens();
-    setUser(null);
-    router.push("/login");
+  const logout = async () => {
+    try {
+      // Llamar al endpoint de logout para revocar refresh token
+      await api.post("/auth/logout", {});
+    } catch {
+      // Continuar con logout local incluso si falla el servidor
+    } finally {
+      clearTokens();
+      setUser(null);
+      router.push("/login");
+    }
   };
 
   return (

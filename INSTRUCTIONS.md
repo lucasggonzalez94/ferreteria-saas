@@ -128,7 +128,7 @@ En la lista de accesos rápidos, haz click en **Productos**.
 
 - Aquí puedes ver la lista de productos cargados.
 - Prueba crear uno nuevo con el botón "Nuevo Producto".
-- Puedes imprimir etiquetas de código de barras para productos que no tengan uno de fábrica.
+- Puedes ingresar a "Ver detalles" de un producto para imprimir etiquetas de código de barras para productos que no tengan uno de fábrica.
 
 ### Paso 4: Realizar una Venta (POS - Punto de Venta)
 
