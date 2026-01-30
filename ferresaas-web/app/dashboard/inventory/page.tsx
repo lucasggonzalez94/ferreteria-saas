@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -19,7 +19,22 @@ export default function InventoryPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Inventario</h1>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-full">
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold">Inventario</h1>
+          </div>
+        </div>
 
         {/* Low Stock Alert */}
         <Card className="mb-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ShoppingCart,
   Package,
@@ -24,6 +26,54 @@ import {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [businessLogo, setBusinessLogo] = useState<string | null>(null);
+
+  // Obtener datos del dashboard
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      try {
+        const [salesRes, productsRes, customersRes] = await Promise.all([
+          api.get<any>("/sales?limit=100"),
+          api.get<any>("/products?limit=1000"),
+          api.get<any>("/customers?limit=1000"),
+        ]);
+
+        // Las respuestas devuelven { success: true, data: [...], meta: {...} }
+        // salesRes.data ya es el array de items
+        const sales = Array.isArray(salesRes.data) ? salesRes.data : [];
+        const products = Array.isArray(productsRes.data) ? productsRes.data : [];
+        const customers = Array.isArray(customersRes.data) ? customersRes.data : [];
+
+        // Calcular ventas de hoy
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const salesToday = sales.filter((sale: any) => {
+          const saleDate = new Date(sale.createdAt);
+          saleDate.setHours(0, 0, 0, 0);
+          return saleDate.getTime() === today.getTime() && sale.status === "CONFIRMED";
+        });
+        const totalSalesToday = salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total), 0);
+
+        // Contar productos con stock bajo
+        const lowStockProducts = products.filter((p: any) => p.stockQuantity < p.minStock).length;
+
+        return {
+          totalSalesToday,
+          totalProducts: products.length,
+          totalCustomers: customers.length,
+          lowStockProducts,
+        };
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        return {
+          totalSalesToday: 0,
+          totalProducts: 0,
+          totalCustomers: 0,
+          lowStockProducts: 0,
+        };
+      }
+    },
+  });
 
   useEffect(() => {
     const savedLogo = localStorage.getItem("businessLogo");
@@ -79,8 +129,8 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$0</div>
-              <p className="text-xs text-muted-foreground">Próximamente</p>
+              <div className="text-2xl font-bold">${Number(dashboardData?.totalSalesToday || 0).toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">Confirmadas</p>
             </CardContent>
           </Card>
 
@@ -90,7 +140,7 @@ export default function DashboardPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{dashboardData?.totalProducts || 0}</div>
               <p className="text-xs text-muted-foreground">En catálogo</p>
             </CardContent>
           </Card>
@@ -101,7 +151,7 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{dashboardData?.totalCustomers || 0}</div>
               <p className="text-xs text-muted-foreground">Registrados</p>
             </CardContent>
           </Card>
@@ -112,7 +162,7 @@ export default function DashboardPage() {
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{dashboardData?.lowStockProducts || 0}</div>
               <p className="text-xs text-muted-foreground">Productos</p>
             </CardContent>
           </Card>

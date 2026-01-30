@@ -3,8 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Package, TrendingUp, DollarSign } from "lucide-react";
+import { ShoppingCart, Package, TrendingUp, DollarSign, ArrowLeft } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function PurchasesPage() {
   const { data: purchases, isLoading } = useQuery({
@@ -18,7 +20,22 @@ export default function PurchasesPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Compras</h1>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-full">
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold">Compras</h1>
+          </div>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -81,7 +98,7 @@ export default function PurchasesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold">
-                        ${purchase.total.toFixed(2)}
+                        ${Number(purchase.total).toFixed(2)}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(purchase.createdAt).toLocaleDateString(

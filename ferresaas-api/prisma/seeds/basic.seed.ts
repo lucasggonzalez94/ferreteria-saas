@@ -63,6 +63,38 @@ async function main() {
       update: {},
       create: { resource: 'settings', action: 'update', description: 'Modificar configuración' },
     }),
+    // Clientes
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'customers', action: 'read' } },
+      update: {},
+      create: { resource: 'customers', action: 'read', description: 'Ver clientes' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'customers', action: 'create' } },
+      update: {},
+      create: { resource: 'customers', action: 'create', description: 'Crear clientes' },
+    }),
+    // Caja
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'cash_register', action: 'read' } },
+      update: {},
+      create: { resource: 'cash_register', action: 'read', description: 'Ver estado de caja' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'cash_register', action: 'open' } },
+      update: {},
+      create: { resource: 'cash_register', action: 'open', description: 'Abrir caja' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'cash_register', action: 'close' } },
+      update: {},
+      create: { resource: 'cash_register', action: 'close', description: 'Cerrar caja' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'cash_register', action: 'manage' } },
+      update: {},
+      create: { resource: 'cash_register', action: 'manage', description: 'Gestionar movimientos de caja' },
+    }),
   ]);
 
   console.log(`✅ Created ${permissions.length} permissions`);
@@ -144,6 +176,12 @@ async function main() {
     'inventory:adjust',
     'reports:read',
     'settings:update',
+    'cash_register:read',
+    'cash_register:open',
+    'cash_register:close',
+    'cash_register:manage',
+    'customers:read',
+    'customers:create',
   ];
 
   await prisma.rolePermission.createMany({
@@ -157,7 +195,16 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const cashierPermissionKeys = ['products:read', 'sales:create', 'sales:read', 'inventory:read'];
+  const cashierPermissionKeys = [
+    'products:read',
+    'sales:create',
+    'sales:read',
+    'inventory:read',
+    'cash_register:read',
+    'cash_register:open',
+    'cash_register:close',
+    'cash_register:manage',
+  ];
 
   await prisma.rolePermission.createMany({
     data: cashierPermissionKeys

@@ -44,7 +44,7 @@ export default function ReportsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalSales.toFixed(2)}</div>
+              <div className="text-2xl font-bold">${Number(totalSales).toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">Histórico</p>
             </CardContent>
           </Card>
@@ -107,7 +107,7 @@ export default function ReportsPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">${sale.total.toFixed(2)}</p>
+                      <p className="font-semibold">${Number(sale.total).toFixed(2)}</p>
                       <p className="text-sm text-muted-foreground">
                         {sale._count?.items || 0} productos
                       </p>

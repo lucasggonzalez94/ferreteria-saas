@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { DollarSign, LogOut, TrendingUp } from "lucide-react";
+import { ArrowLeft, DollarSign, LogOut, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import Link from "next/link";
 
 export default function CashRegisterPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const queryClient = useQueryClient();
@@ -36,6 +40,11 @@ export default function CashRegisterPage() {
       toast.success("Caja abierta exitosamente");
       setOpeningAmount("");
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      
+      // Redirigir al POS después de abrir caja
+      setTimeout(() => {
+        router.push("/dashboard/pos");
+      }, 1000);
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al abrir caja");
@@ -81,8 +90,7 @@ export default function CashRegisterPage() {
     return (
       <div className="p-8">
         <div className="max-w-4xl mx-auto text-center">
-          <LoadingSpinner text="Cargando..." />
-          <p className="text-muted-foreground">Cargando estado de caja...</p>
+          <LoadingSpinner text="Cargando estado de caja..." />
         </div>
       </div>
     );
@@ -91,7 +99,22 @@ export default function CashRegisterPage() {
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Caja</h1>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-full">
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold">Caja</h1>
+          </div>
+        </div>
 
         {!session ? (
           // Caja cerrada - mostrar formulario de apertura
@@ -148,7 +171,7 @@ export default function CashRegisterPage() {
                       Monto Inicial
                     </p>
                     <p className="text-2xl font-bold">
-                      ${session.openingAmount.toFixed(2)}
+                      ${Number(session.openingAmount).toFixed(2)}
                     </p>
                   </div>
                   <div>

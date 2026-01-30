@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, DollarSign } from "lucide-react";
-import type { Product } from "@/types";
+import { Search, Plus, Minus, Trash2, DollarSign, ArrowLeft } from "lucide-react";
+import type { Product, Sale } from "@/types";
+import Link from "next/link";
 
 interface CartItem {
   product: Product;
@@ -18,10 +20,28 @@ interface CartItem {
 }
 
 export default function POSPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
   const queryClient = useQueryClient();
+
+  // Validar que la caja esté abierta
+  const { data: cashRegisterStatus, isLoading: isCashStatusLoading } = useQuery({
+    queryKey: ["cash-register", "status"],
+    queryFn: async () => {
+      const response = await api.get<any>("/cash-register/status");
+      return response.data;
+    },
+    refetchInterval: 30000, // Refetch cada 30s
+  });
+
+  useEffect(() => {
+    if (!isCashStatusLoading && cashRegisterStatus === null) {
+      toast.error("Debes abrir la caja antes de operar");
+      router.push("/dashboard/cash-register");
+    }
+  }, [cashRegisterStatus, isCashStatusLoading, router]);
 
   // Buscar productos
   const { data: products } = useQuery({
@@ -40,11 +60,14 @@ export default function POSPage() {
   const createSaleMutation = useMutation({
     mutationFn: async (data: any) => {
       // Crear borrador
-      const saleResponse = await api.post("/sales", data);
+      const saleResponse = await api.post<Sale>("/sales", data);
       const sale = saleResponse.data;
+      if (!sale) {
+        throw new Error("La API no devolvió la venta creada");
+      }
 
       // Confirmar inmediatamente
-      const confirmResponse = await api.post(`/sales/${sale.id}/confirm`, {
+      const confirmResponse = await api.post<Sale>(`/sales/${sale.id}/confirm`, {
         payments: [
           {
             method: "CASH_ARS",
@@ -53,6 +76,10 @@ export default function POSPage() {
         ],
         invoiceType: "B",
       });
+
+      if (!confirmResponse.data) {
+        throw new Error("La API no devolvió la venta confirmada");
+      }
 
       return confirmResponse.data;
     },
@@ -120,7 +147,7 @@ export default function POSPage() {
     setCart(cart.filter((item) => item.product.id !== productId));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotal = cart.reduce((sum, item) => sum + Number(item.subtotal), 0);
   const tax = subtotal * 0.21;
   const total = subtotal + tax;
 
@@ -140,8 +167,8 @@ export default function POSPage() {
       items: cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        taxRate: item.product.taxRate,
+        unitPrice: Number(item.unitPrice),
+        taxRate: Number(item.product.taxRate),
       })),
     });
   };
@@ -151,7 +178,22 @@ export default function POSPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Punto de Venta</h1>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-full">
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold">Punto de Venta</h1>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Product Search */}
@@ -190,7 +232,7 @@ export default function POSPage() {
                             </p>
                           </div>
                           <p className="font-semibold">
-                            ${product.price.toFixed(2)}
+                            ${Number(product.price).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -220,7 +262,7 @@ export default function POSPage() {
                         <div className="flex-1">
                           <p className="font-medium">{item.product.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            ${item.unitPrice.toFixed(2)} x {item.quantity}
+                            ${Number(item.unitPrice).toFixed(2)} x {item.quantity}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -243,7 +285,7 @@ export default function POSPage() {
                           </Button>
                         </div>
                         <p className="font-semibold w-24 text-right">
-                          ${item.subtotal.toFixed(2)}
+                          ${Number(item.subtotal).toFixed(2)}
                         </p>
                         <Button
                           size="icon"
@@ -269,15 +311,15 @@ export default function POSPage() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal:</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>${Number(subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>IVA (21%):</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>${Number(tax).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-3">
                   <span>Total:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>${Number(total).toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -303,7 +345,7 @@ export default function POSPage() {
                   <div className="p-3 bg-green-50 rounded-lg">
                     <p className="text-sm text-green-700">Vuelto:</p>
                     <p className="text-2xl font-bold text-green-800">
-                      ${change.toFixed(2)}
+                      ${Number(change).toFixed(2)}
                     </p>
                   </div>
                 )}
