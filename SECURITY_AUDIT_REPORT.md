@@ -18,6 +18,7 @@ Se realizó una auditoría completa del sistema de autenticación y se implement
 - ✅ **Rate limiting** mejorado
 - ✅ **Headers de seguridad** (CSP, HSTS)
 - ✅ **Auditoría de eventos** de seguridad
+- ✅ **Protección de rutas** con middleware + layouts (cliente/servidor)
 
 ### Últimos ajustes aplicados (28/01/2026 21:10)
 
@@ -90,6 +91,11 @@ Estos cambios garantizan una sola cookie `refreshToken`, evitan bucles infinitos
   - Cookie se borra del cliente
   - Tokens en memoria se limpian
 
+- [x] **Protección de rutas**
+  - Middleware en Next.js valida cookie `refreshToken` antes de servir contenido
+  - Layout `(auth)` redirige usuarios autenticados lejos del login
+  - Layout `dashboard` impide renderizar contenido sin sesión
+
 - [x] **Gestión de sesiones**
   - Tabla `RefreshTokenSession` en BD
   - Índices optimizados para búsquedas
@@ -130,24 +136,27 @@ Estos cambios garantizan una sola cookie `refreshToken`, evitan bucles infinitos
 
 ### Backend
 
-| Componente | Estado final |
-|------------|--------------|
-| `prisma/schema.prisma` | Tabla `RefreshTokenSession` con `tokenFamily`, `tokenHash`, `reuseDetected`, timestamps e IP/User-Agent. |
-| `auth.service.ts` | Login crea sesión + token family; refresh rota tokens, detecta reuso (revoca familia + log crítico); logout revoca sesión y limpia cookie. |
-| `token.service.ts` | Genera access (10m) y refresh (30d) tokens; payloads incluyen `tokenFamily`; hashing SHA-256; helpers de rotación. |
-| `auth.routes.ts` | Maneja cookies con `path: '/'`, sin `domain`; limpia cookie antes de setear; refresh usa mismo enfoque; logout borra cookie y responde éxito. |
-| `app.ts` | Helmet + cors + cookie-parser; rate limiter general deshabilitado en dev (puede reactivarse en prod); rutas montadas bajo `/v1`. |
-| `middleware/rate-limit.ts` | `authLimiter` con `skipSuccessfulRequests`; `refreshLimiter` disponible (desactivado temporalmente en rutas durante pruebas). |
-| `config/env.ts` | Nuevas variables para cookies, CSRF y rate limiting; `sameSite` tipado como enum string. |
+| Componente                 | Estado final                                                                                                                                  |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `prisma/schema.prisma`     | Tabla `RefreshTokenSession` con `tokenFamily`, `tokenHash`, `reuseDetected`, timestamps e IP/User-Agent.                                      |
+| `auth.service.ts`          | Login crea sesión + token family; refresh rota tokens, detecta reuso (revoca familia + log crítico); logout revoca sesión y limpia cookie.    |
+| `token.service.ts`         | Genera access (10m) y refresh (30d) tokens; payloads incluyen `tokenFamily`; hashing SHA-256; helpers de rotación.                            |
+| `auth.routes.ts`           | Maneja cookies con `path: '/'`, sin `domain`; limpia cookie antes de setear; refresh usa mismo enfoque; logout borra cookie y responde éxito. |
+| `app.ts`                   | Helmet + cors + cookie-parser; rate limiter general deshabilitado en dev (puede reactivarse en prod); rutas montadas bajo `/v1`.              |
+| `middleware/rate-limit.ts` | `authLimiter` con `skipSuccessfulRequests`; `refreshLimiter` disponible (desactivado temporalmente en rutas durante pruebas).                 |
+| `config/env.ts`            | Nuevas variables para cookies, CSRF y rate limiting; `sameSite` tipado como enum string.                                                      |
+| `ferresaas-web/middleware.ts` | Middleware de Next.js que valida presencia de `refreshToken` en cookies y redirige según el estado (rutas públicas vs protegidas). |
 
 ### Frontend (Next.js 14)
 
-| Archivo | Detalles |
-|---------|----------|
-| `lib/api.ts` | Cliente Fetch con memoria para access/CSRF; `credentials: 'include'`; refresh automático salvo en `/auth/login` y `/auth/refresh`; sin redirects automáticos para evitar loops. |
-| `lib/auth-context.tsx` | Contexto con `useRef` (`hasInitialized`, `isFetching`) para evitar múltiples `fetchUser`; tokens guardados en memoria; login guarda access+CSRF y redirige; logout limpia memoria y notifica API. |
-| `app/(auth)/login/page.tsx` | Consume `useAuth`; muestra toasts e invoca `login`. |
-| `types/index.ts` (web) | `LoginResponse` incluye `csrfToken` y `user`. |
+| Archivo                     | Detalles                                                                                                                                                                                          |
+|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `lib/api.ts`                | Cliente Fetch con memoria para access/CSRF; `credentials: 'include'`; refresh automático salvo en `/auth/login` y `/auth/refresh`; sin redirects automáticos para evitar loops.                   |
+| `lib/auth-context.tsx`      | Contexto con `useRef` (`hasInitialized`, `isFetching`) para evitar múltiples `fetchUser`; tokens guardados en memoria; login guarda access+CSRF y redirige; logout limpia memoria y notifica API. |
+| `app/(auth)/login/page.tsx` | Consume `useAuth`; muestra toasts e invoca `login`.                                                                                                                                               |
+| `types/index.ts` (web)      | `LoginResponse` incluye `csrfToken` y `user`.                                                                                                                                                     |
+| `app/(auth)/layout.tsx`     | Layout cliente que bloquea acceso al login cuando el usuario ya está autenticado y muestra loader mientras verifica sesión. |
+| `app/dashboard/layout.tsx`  | Layout existente que asegura que todas las subrutas del dashboard requieran sesión y manejen estados de carga. |
 
 ### Cookies en profundidad
 

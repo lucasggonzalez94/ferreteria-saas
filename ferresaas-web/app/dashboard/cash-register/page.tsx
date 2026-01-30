@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { DollarSign, LogOut, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function CashRegisterPage() {
   const [openingAmount, setOpeningAmount] = useState("");
@@ -80,7 +81,7 @@ export default function CashRegisterPage() {
     return (
       <div className="p-8">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <LoadingSpinner text="Cargando..." />
           <p className="text-muted-foreground">Cargando estado de caja...</p>
         </div>
       </div>

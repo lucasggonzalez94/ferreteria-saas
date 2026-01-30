@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Package, TrendingUp, DollarSign } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function PurchasesPage() {
   const { data: purchases, isLoading } = useQuery({
@@ -60,7 +61,7 @@ export default function PurchasesPage() {
         {isLoading ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <LoadingSpinner text="Cargando..." />
               <p className="text-muted-foreground">Cargando compras...</p>
             </CardContent>
           </Card>

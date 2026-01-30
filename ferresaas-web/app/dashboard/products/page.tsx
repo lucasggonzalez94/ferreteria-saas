@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function ProductsPage() {
   const [search, setSearch] = useState("");
@@ -68,7 +69,7 @@ export default function ProductsPage() {
         {/* Products List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <LoadingSpinner text="Cargando..." />
             <p className="text-muted-foreground">Cargando productos...</p>
           </div>
         ) : data && data.length > 0 ? (

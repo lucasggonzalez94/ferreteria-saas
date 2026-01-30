@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Search, User } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
@@ -233,7 +234,7 @@ export default function CustomersPage() {
         {/* Customers List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <LoadingSpinner text="Cargando..." />
             <p className="text-muted-foreground">Cargando clientes...</p>
           </div>
         ) : customers && customers.length > 0 ? (
