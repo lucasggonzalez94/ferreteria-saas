@@ -69,13 +69,18 @@ export default function BusinessSettingsPage() {
     <div className="p-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/dashboard/settings">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
-          <div>
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-full">
+            <Link href="/dashboard/settings">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver
+              </Button>
+            </Link>
             <h1 className="text-3xl font-bold">Datos del Negocio</h1>
             <p className="text-muted-foreground">
               Información general de tu ferretería

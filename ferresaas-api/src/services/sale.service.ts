@@ -41,6 +41,9 @@ export class SaleService {
         taxRate: number;
         discountAmount?: number;
         discountPercent?: number;
+        discountedPrice?: number;
+        discountReason?: string;
+        discountApprovedBy?: string;
       }>;
       discountAmount?: number;
       notes?: string;
@@ -84,7 +87,13 @@ export class SaleService {
           throw new AppError(400, 'PRODUCT_INACTIVE', `Product ${product.name} is inactive`);
         }
 
-        const itemSubtotal = item.quantity * item.unitPrice - (item.discountAmount || 0);
+        // Calcular precio unitario (considerando descuento a ojo si existe)
+        let finalUnitPrice = item.unitPrice;
+        if (item.discountedPrice) {
+          finalUnitPrice = item.discountedPrice;
+        }
+
+        const itemSubtotal = item.quantity * finalUnitPrice - (item.discountAmount || 0);
         const itemTax = (itemSubtotal * item.taxRate) / 100;
 
         subtotal += itemSubtotal;
@@ -128,6 +137,10 @@ export class SaleService {
           discountAmount: item.discountAmount || 0,
           discountPercent: item.discountPercent || 0,
           subtotal: item.subtotal,
+          discountedPrice: item.discountedPrice,
+          discountReason: item.discountReason,
+          discountApprovedBy: item.discountApprovedBy,
+          discountApprovedAt: item.discountApprovedBy ? new Date() : null,
         })),
       });
 
@@ -161,6 +174,7 @@ export class SaleService {
         financialCost?: number;
         notes?: string;
       }>;
+      changeGiven?: number;
       invoiceType?: 'A' | 'B' | 'C';
       clientOperationId?: string;
     }
@@ -172,17 +186,24 @@ export class SaleService {
       throw new AppError(400, 'SALE_ALREADY_CONFIRMED', 'Sale already confirmed or cancelled');
     }
 
-    // Validar que los pagos cubran el total
+    // Validar que los pagos cubran al menos el total
     const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
     const saleTotal = sale.total.toNumber();
 
-    if (Math.abs(totalPaid - saleTotal) > 0.01) {
+    if (totalPaid < saleTotal - 0.01) {
       throw new AppError(
         400,
-        'INVALID_PAYMENT_AMOUNT',
-        `Payment total (${totalPaid}) does not match sale total (${saleTotal})`
+        'INSUFFICIENT_PAYMENT',
+        `Payment total (${totalPaid}) is less than sale total (${saleTotal})`
       );
     }
+
+    // Calcular vuelto/sobrante teórico
+    const changeTheoretical = totalPaid - saleTotal;
+    
+    // Determinar si hay pagos en efectivo
+    const hasCashPayment = data.payments.some(p => p.method === 'CASH_ARS' || p.method === 'CASH_USD');
+    const hasAccountPayment = data.payments.some(p => p.method === 'ACCOUNT');
 
     // Obtener sesión de caja abierta (opcional)
     const cashRegister = await prisma.cashRegisterSession.findFirst({
@@ -258,22 +279,74 @@ export class SaleService {
         });
 
         if (customer) {
-          const newBalance = customer.currentBalance.toNumber() + saleTotal;
+          // Calcular deuda neta considerando pagos a cuenta corriente
+          let debtAmount = saleTotal;
+          let creditAmount = 0;
 
+          // Si hay pago a cuenta corriente, restar del total
+          for (const payment of data.payments) {
+            if (payment.method === 'ACCOUNT') {
+              debtAmount -= payment.amount;
+              creditAmount += payment.amount;
+            }
+          }
+
+          // Si hay sobrante y hay pago a cuenta corriente, acreditarlo
+          if (changeTheoretical > 0.01 && hasAccountPayment) {
+            debtAmount -= changeTheoretical;
+            creditAmount += changeTheoretical;
+          }
+
+          // Actualizar balance del cliente
+          const newBalance = customer.currentBalance.toNumber() + debtAmount;
+
+          // Registrar movimiento de venta
           await tx.accountMovement.create({
             data: {
               customerId: sale.customerId,
               type: 'SALE',
-              amount: saleTotal, // Positivo = deuda
+              amount: saleTotal, // Monto total de la venta
               balance: newBalance,
               referenceId: saleId,
               notes: `Venta #${saleId}`,
             },
           });
 
+          // Si hay pagos a cuenta corriente, registrar crédito
+          if (creditAmount > 0.01) {
+            const balanceAfterCredit = newBalance - creditAmount;
+            await tx.accountMovement.create({
+              data: {
+                customerId: sale.customerId,
+                type: 'PAYMENT',
+                amount: -creditAmount, // Negativo = pago/crédito
+                balance: balanceAfterCredit,
+                referenceId: saleId,
+                notes: `Pago a cuenta corriente - Venta #${saleId}`,
+              },
+            });
+          }
+
           await tx.customer.update({
             where: { id: sale.customerId },
-            data: { currentBalance: newBalance },
+            data: { currentBalance: newBalance - creditAmount },
+          });
+        }
+      }
+
+      // 5. Si hay vuelto en efectivo, registrar movimiento de caja
+      if (changeTheoretical > 0.01 && hasCashPayment && data.changeGiven !== undefined) {
+        const changeDifference = data.changeGiven - changeTheoretical;
+        
+        if (Math.abs(changeDifference) > 0.01 && cashRegister) {
+          // Registrar ajuste de caja (diferencia entre vuelto teórico y real)
+          await tx.cashMovement.create({
+            data: {
+              cashRegisterId: cashRegister.id,
+              type: changeDifference > 0 ? 'WITHDRAWAL' : 'DEPOSIT',
+              amount: Math.abs(changeDifference),
+              reason: `Ajuste de vuelto - Venta #${saleId} (Teórico: ${changeTheoretical}, Real: ${data.changeGiven})`,
+            },
           });
         }
       }

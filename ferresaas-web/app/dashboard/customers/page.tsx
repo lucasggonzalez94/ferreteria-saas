@@ -63,7 +63,23 @@ export default function CustomersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+
+    const payload: Record<string, any> = { ...formData };
+
+    if (payload.type === "PERSON") {
+      delete payload.companyName;
+    } else {
+      delete payload.firstName;
+      delete payload.lastName;
+    }
+
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === "" || payload[key] === null) {
+        delete payload[key];
+      }
+    });
+
+    createMutation.mutate(payload);
   };
 
   return (

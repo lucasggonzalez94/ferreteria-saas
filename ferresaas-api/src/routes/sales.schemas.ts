@@ -8,11 +8,15 @@ const saleItemSchema = z.object({
   taxRate: z.number().min(0).max(100),
   discountAmount: z.number().min(0).default(0),
   discountPercent: z.number().min(0).max(100).default(0),
+  // Descuentos a ojo
+  discountedPrice: z.number().positive().optional(), // Precio final con descuento
+  discountReason: z.string().max(500).optional(), // Motivo del descuento
+  discountApprovedBy: z.string().cuid().optional(), // userId de quien aprobó
 });
 
 // Pago
 const paymentSchema = z.object({
-  method: z.enum(['CASH_ARS', 'CASH_USD', 'CARD', 'TRANSFER', 'QR']),
+  method: z.enum(['CASH_ARS', 'CASH_USD', 'CARD', 'TRANSFER', 'QR', 'ACCOUNT']),
   amount: z.number().positive(),
   amountUSD: z.number().positive().optional(),
   cardBrand: z.string().max(50).optional(),
@@ -34,8 +38,30 @@ export type CreateSaleInput = z.infer<typeof createSaleSchema>;
 // Confirmar venta
 export const confirmSaleSchema = z.object({
   payments: z.array(paymentSchema).min(1),
+  changeGiven: z.number().min(0).optional(), // Vuelto entregado (solo para efectivo)
   invoiceType: z.enum(['A', 'B', 'C']).optional(),
   clientOperationId: z.string().optional(),
+});
+
+// Solicitar aprobación de descuento
+export const requestDiscountApprovalSchema = z.object({
+  saleId: z.string().cuid(),
+  productId: z.string().cuid(),
+  originalPrice: z.number().positive(),
+  discountedPrice: z.number().positive(),
+  discountReason: z.string().max(500),
+});
+
+// Aprobar descuento
+export const approveDiscountSchema = z.object({
+  discountApprovalId: z.string().cuid(),
+  approverPassword: z.string(), // Contraseña del aprobador para validación rápida
+});
+
+// Rechazar descuento
+export const rejectDiscountSchema = z.object({
+  discountApprovalId: z.string().cuid(),
+  rejectionReason: z.string().max(500).optional(),
 });
 
 export type ConfirmSaleInput = z.infer<typeof confirmSaleSchema>;
