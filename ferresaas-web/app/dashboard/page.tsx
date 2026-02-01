@@ -43,8 +43,12 @@ export default function DashboardPage() {
         // Las respuestas devuelven { success: true, data: [...], meta: {...} }
         // salesRes.data ya es el array de items
         const sales = Array.isArray(salesRes.data) ? salesRes.data : [];
-        const products = Array.isArray(productsRes.data) ? productsRes.data : [];
-        const customers = Array.isArray(customersRes.data) ? customersRes.data : [];
+        const products = Array.isArray(productsRes.data)
+          ? productsRes.data
+          : [];
+        const customers = Array.isArray(customersRes.data)
+          ? customersRes.data
+          : [];
 
         // Calcular ventas de hoy
         const today = new Date();
@@ -52,12 +56,20 @@ export default function DashboardPage() {
         const salesToday = sales.filter((sale: any) => {
           const saleDate = new Date(sale.createdAt);
           saleDate.setHours(0, 0, 0, 0);
-          return saleDate.getTime() === today.getTime() && sale.status === "CONFIRMED";
+          return (
+            saleDate.getTime() === today.getTime() &&
+            sale.status === "CONFIRMED"
+          );
         });
-        const totalSalesToday = salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total), 0);
+        const totalSalesToday = salesToday.reduce(
+          (sum: number, sale: any) => sum + Number(sale.total),
+          0,
+        );
 
         // Contar productos con stock bajo
-        const lowStockProducts = products.filter((p: any) => p.stockQuantity < p.minStock).length;
+        const lowStockProducts = products.filter(
+          (p: any) => p.stockQuantity < p.minStock,
+        ).length;
 
         return {
           totalSalesToday,
@@ -131,7 +143,9 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${Number(dashboardData?.totalSalesToday || 0).toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                ${Number(dashboardData?.totalSalesToday || 0).toFixed(2)}
+              </div>
               <p className="text-xs text-muted-foreground">Confirmadas</p>
             </CardContent>
           </Card>
@@ -142,7 +156,9 @@ export default function DashboardPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.totalProducts || 0}</div>
+              <div className="text-2xl font-bold">
+                {dashboardData?.totalProducts || 0}
+              </div>
               <p className="text-xs text-muted-foreground">En catálogo</p>
             </CardContent>
           </Card>
@@ -153,7 +169,9 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.totalCustomers || 0}</div>
+              <div className="text-2xl font-bold">
+                {dashboardData?.totalCustomers || 0}
+              </div>
               <p className="text-xs text-muted-foreground">Registrados</p>
             </CardContent>
           </Card>
@@ -164,7 +182,9 @@ export default function DashboardPage() {
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardData?.lowStockProducts || 0}</div>
+              <div className="text-2xl font-bold">
+                {dashboardData?.lowStockProducts || 0}
+              </div>
               <p className="text-xs text-muted-foreground">Productos</p>
             </CardContent>
           </Card>
@@ -178,6 +198,16 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Link href="/dashboard/cash-register">
+                <Button
+                  variant="outline"
+                  className="w-full h-20 flex flex-col gap-2"
+                >
+                  <DollarSign className="h-6 w-6" />
+                  <span>Caja</span>
+                </Button>
+              </Link>
+
               <Link href="/dashboard/pos">
                 <Button
                   variant="outline"
@@ -225,16 +255,6 @@ export default function DashboardPage() {
                 >
                   <ShoppingCart className="h-6 w-6" />
                   <span>Compras</span>
-                </Button>
-              </Link>
-
-              <Link href="/dashboard/cash-register">
-                <Button
-                  variant="outline"
-                  className="w-full h-20 flex flex-col gap-2"
-                >
-                  <DollarSign className="h-6 w-6" />
-                  <span>Caja</span>
                 </Button>
               </Link>
 

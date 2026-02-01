@@ -63,7 +63,7 @@ export class FacturanteProvider implements InvoiceProvider {
         throw new Error(`Facturante API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       // TODO: Ajustar según formato de respuesta real
       return {
@@ -95,7 +95,7 @@ export class FacturanteProvider implements InvoiceProvider {
         return null;
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       return {
         id: data.id,

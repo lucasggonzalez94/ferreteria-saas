@@ -55,7 +55,7 @@ export const sendPaginated = <T>(
     data: items,
     meta: {
       ...meta,
-      totalPages,
+      // totalPages,
       hasMore: meta.page < totalPages,
     },
   };

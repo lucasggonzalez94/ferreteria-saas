@@ -71,7 +71,7 @@ export class ExchangeRateService {
    */
   private async saveToCache(rate: ExchangeRate): Promise<void> {
     try {
-      await redisClient.set(this.cacheKey, JSON.stringify(rate), env.exchangeRate.cacheTtlSeconds);
+      await (redisClient as any).setex(this.cacheKey, env.exchangeRate.cacheTtlSeconds, JSON.stringify(rate));
     } catch (error) {
       logger.error({ error }, 'Failed to save exchange rate to cache');
     }
@@ -88,7 +88,7 @@ export class ExchangeRateService {
       throw new Error(`DolarAPI returned ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     // Formato DolarAPI: { "compra": 1000, "venta": 1020, "fecha": "..." }
     // Usamos el precio de venta

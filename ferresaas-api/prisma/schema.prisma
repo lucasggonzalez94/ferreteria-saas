@@ -589,6 +589,7 @@ model CashMovement {
   type             String  // INCOME, EXPENSE
   amount           Decimal @db.Decimal(12, 2)
   reason           String
+  approvedBy       String? // userId de quien aprobó
   
   createdAt DateTime @default(now())
   

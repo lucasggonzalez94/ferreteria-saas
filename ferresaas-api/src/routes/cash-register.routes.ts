@@ -68,7 +68,7 @@ router.post(
 
 /**
  * POST /cash-register/move
- * Registrar movimiento de caja
+ * Registrar movimiento de caja (requiere aprobación)
  */
 router.post(
   '/move',
@@ -103,10 +103,15 @@ router.post(
       await AuditService.log({
         businessId: authReq.businessId!,
         userId: authReq.user!.id,
-        action: 'CASH_MOVEMENT',
-        entity: 'cash_register',
-        entityId: session.id,
-        after: data,
+        action: 'CASH_MOVEMENT_CREATE',
+        entity: 'cash_movement',
+        entityId: movement.id,
+        after: {
+          type: data.type,
+          amount: data.amount,
+          reason: data.reason,
+          approvedBy: data.approvedBy,
+        },
       });
 
       sendSuccess(res, movement, 201);
@@ -270,6 +275,150 @@ router.get(
       });
 
       sendSuccess(res, sessions);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /cash-register/:sessionId/summary
+ * Obtener resumen por medio de pago de una sesión
+ */
+router.get(
+  '/:sessionId/summary',
+  requirePermissions('cash_register:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { sessionId } = req.params;
+
+      const session = await prisma.cashRegisterSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          sales: {
+            where: { status: 'CONFIRMED' },
+            include: { payments: true },
+          },
+          movements: true,
+        },
+      });
+
+      if (!session) {
+        throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
+      }
+
+      if (session.businessId !== authReq.businessId!) {
+        throw new AppError(403, 'FORBIDDEN', 'Access denied');
+      }
+
+      // Agrupar pagos por método
+      const paymentsByMethod: Record<string, number> = {};
+      let totalCash = 0;
+
+      session.sales.forEach((sale) => {
+        sale.payments.forEach((payment) => {
+          const method = payment.method;
+          if (!paymentsByMethod[method]) {
+            paymentsByMethod[method] = 0;
+          }
+          paymentsByMethod[method] += payment.amount.toNumber();
+
+          if (method === 'CASH_ARS') {
+            totalCash += payment.amount.toNumber();
+          }
+        });
+      });
+
+      // Calcular monto esperado
+      let expectedAmount = session.openingAmount.toNumber();
+      expectedAmount += totalCash;
+
+      session.movements.forEach((movement) => {
+        if (movement.type === 'INCOME') {
+          expectedAmount += movement.amount.toNumber();
+        } else {
+          expectedAmount -= movement.amount.toNumber();
+        }
+      });
+
+      const summary = {
+        sessionId: session.id,
+        openingAmount: session.openingAmount.toNumber(),
+        closingAmount: session.closingAmount?.toNumber() || null,
+        expectedAmount,
+        difference: session.difference?.toNumber() || null,
+        paymentsByMethod,
+        totalSales: session.sales.length,
+        totalMovements: session.movements.length,
+        movements: session.movements.map((m) => ({
+          id: m.id,
+          type: m.type,
+          amount: m.amount.toNumber(),
+          reason: m.reason,
+          createdAt: m.createdAt,
+        })),
+      };
+
+      sendSuccess(res, summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /cash-register/:sessionId/audit
+ * Obtener auditoría completa de una sesión de caja
+ */
+router.get(
+  '/:sessionId/audit',
+  requirePermissions('cash_register:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { sessionId } = req.params;
+
+      const session = await prisma.cashRegisterSession.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (!session) {
+        throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
+      }
+
+      if (session.businessId !== authReq.businessId!) {
+        throw new AppError(403, 'FORBIDDEN', 'Access denied');
+      }
+
+      const auditLogs = await prisma.auditLog.findMany({
+        where: {
+          businessId: authReq.businessId!,
+          OR: [
+            { entityId: sessionId },
+            {
+              entity: 'cash_movement',
+              after: {
+                path: ['cashRegisterId'],
+                equals: sessionId,
+              },
+            },
+          ],
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      sendSuccess(res, auditLogs);
     } catch (error) {
       next(error);
     }
