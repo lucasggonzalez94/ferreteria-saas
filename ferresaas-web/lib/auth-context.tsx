@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, saveTokens, clearTokens } from "@/lib/api";
+import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
 import type { User, LoginResponse } from "@/types";
 
 interface AuthContextType {
@@ -80,8 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // Llamar al endpoint de logout para revocar refresh token
-      await api.post("/auth/logout", {});
+      // Obtener el access token antes de limpiarlo
+      const accessToken = getToken();
+      
+      // Llamar al endpoint de logout para revocar refresh token y access token
+      await api.post("/auth/logout", { accessToken });
     } catch {
       // Continuar con logout local incluso si falla el servidor
     } finally {

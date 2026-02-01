@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { AuthRequest, JwtPayload } from '../types';
 import { AppError } from '../utils/response';
 import { prisma } from '../config/database';
+import { TokenBlacklistService } from '../services/token-blacklist.service';
 
 export const authenticate = async (
   req: Request,
@@ -18,6 +19,12 @@ export const authenticate = async (
     }
 
     const token = authHeader.substring(7);
+
+    // Verificar si el token está en blacklist
+    const isBlacklisted = await TokenBlacklistService.isBlacklisted(token);
+    if (isBlacklisted) {
+      throw new AppError(401, 'TOKEN_REVOKED', 'Access token has been revoked');
+    }
 
     // Verificar token
     const decoded = jwt.verify(token, env.jwt.accessSecret) as JwtPayload;

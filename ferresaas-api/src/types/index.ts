@@ -57,6 +57,8 @@ export interface JwtPayload {
   email: string;
   type: 'access' | 'refresh';
   tokenFamily?: string;
+  iat?: number; // Issued at
+  exp?: number; // Expiration time
 }
 
 // Filtros comunes

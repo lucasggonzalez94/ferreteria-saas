@@ -19,7 +19,7 @@ let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
 // Helper para obtener access token de memoria
-function getToken(): string | null {
+export function getToken(): string | null {
   return accessToken;
 }
 

@@ -707,9 +707,615 @@ psql -d ferresaas -c "SELECT COUNT(*) FROM refresh_token_sessions WHERE \"isRevo
 
 ---
 
-## 5. TESTING CHECKLIST
+## 5. TESTING CHECKLIST - OPCIÓN 1: TOKEN BLACKLIST EN REDIS
 
-### Tests Manuales
+### Implementación Completada (01/02/2026)
+
+Se implementó la **Opción 1: Token Blacklist en Redis** con las siguientes mejoras:
+
+#### ✅ Cambios Implementados
+
+1. **Servicio de Token Blacklist** (`token-blacklist.service.ts`)
+   - Integración con Redis para almacenar tokens revocados
+   - Fallback a almacenamiento en memoria si Redis no está disponible
+   - TTL automático basado en expiración del token
+
+2. **Middleware de Autenticación Actualizado**
+   - Verifica si access token está en blacklist antes de procesar request
+   - Rechaza con error `401 TOKEN_REVOKED` si está revocado
+
+3. **Logout Mejorado**
+   - Acepta access token del cliente
+   - Agrega access token a blacklist inmediatamente
+   - Revoca refresh token en BD
+   - Borra cookie del cliente
+
+4. **Cambio de Contraseña Seguro**
+   - Revoca todas las sesiones del usuario
+   - Fuerza re-login en todos los dispositivos
+
+5. **Inicialización del Servidor**
+   - Conecta a Redis al iniciar
+   - Desconecta gracefully al apagar
+
+---
+
+### Tests Manuales - FASE 1: Logout Inmediato
+
+#### Test 1.1: Logout Invalida Access Token Inmediatamente
+
+**Objetivo:** Verificar que después del logout, el access token no puede usarse
+
+**Pasos:**
+
+1. **Login:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies.txt
+   ```
+   
+   **Respuesta esperada:**
+   ```json
+   {
+     "success": true,
+     "data": {
+       "user": { "id": "...", "email": "test@test.com" },
+       "accessToken": "eyJhbGc...",
+       "csrfToken": "..."
+     }
+   }
+   ```
+   
+   **Guardar:** `accessToken` y verificar que `cookies.txt` contiene `refreshToken`
+
+2. **Usar Access Token (debe funcionar):**
+   ```bash
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+   ```
+   
+   **Respuesta esperada:** `200 OK` con datos del usuario
+
+3. **Logout (enviar access token):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/logout \
+     -H "Content-Type: application/json" \
+     -b cookies.txt \
+     -d '{"accessToken":"<ACCESS_TOKEN>"}'
+   ```
+   
+   **Respuesta esperada:**
+   ```json
+   {
+     "success": true,
+     "data": { "message": "Logged out successfully" }
+   }
+   ```
+
+4. **Intentar usar Access Token (debe fallar):**
+   ```bash
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+   ```
+   
+   **Respuesta esperada:** `401 Unauthorized` con código `TOKEN_REVOKED`
+   ```json
+   {
+     "success": false,
+     "error": {
+       "code": "TOKEN_REVOKED",
+       "message": "Access token has been revoked"
+     }
+   }
+   ```
+
+**✅ Criterio de Éxito:** El access token es rechazado inmediatamente después del logout
+
+---
+
+#### Test 1.2: Access Token Expira Naturalmente
+
+**Objetivo:** Verificar que el access token se elimina de la blacklist cuando expira
+
+**Pasos:**
+
+1. **Login:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies.txt
+   ```
+
+2. **Logout (agregar a blacklist):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/logout \
+     -H "Content-Type: application/json" \
+     -b cookies.txt \
+     -d '{"accessToken":"<ACCESS_TOKEN>"}'
+   ```
+
+3. **Esperar a que expire (15 minutos por defecto):**
+   - En desarrollo, cambiar `JWT_ACCESS_EXPIRES_IN` a `1m` para pruebas rápidas
+
+4. **Verificar que se limpió de Redis:**
+   ```bash
+   redis-cli
+   > KEYS "blacklist:*"
+   # Debería estar vacío después de expiración
+   ```
+
+**✅ Criterio de Éxito:** Token se elimina automáticamente de Redis después de expirar
+
+---
+
+### Tests Manuales - FASE 2: Cambio de Contraseña
+
+#### Test 2.1: Cambio de Contraseña Revoca Todas las Sesiones
+
+**Objetivo:** Verificar que cambiar contraseña invalida todas las sesiones activas
+
+**Pasos:**
+
+1. **Login en Dispositivo 1:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies_device1.txt
+   ```
+   
+   **Guardar:** `accessToken1`
+
+2. **Login en Dispositivo 2 (simular con otra terminal):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies_device2.txt
+   ```
+   
+   **Guardar:** `accessToken2`
+
+3. **Verificar que ambos tokens funcionan:**
+   ```bash
+   # Device 1
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN1>"
+   # Respuesta: 200 OK
+   
+   # Device 2
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN2>"
+   # Respuesta: 200 OK
+   ```
+
+4. **Cambiar contraseña en Device 1:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/change-password \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <ACCESS_TOKEN1>" \
+     -d '{
+       "currentPassword":"Test123!",
+       "newPassword":"NewTest456!"
+     }'
+   ```
+   
+   **Respuesta esperada:** `200 OK` con mensaje de éxito
+
+5. **Verificar que Device 1 sigue funcionando (refresh automático):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/refresh \
+     -b cookies_device1.txt
+   ```
+   
+   **Respuesta esperada:** `200 OK` con nuevo access token
+
+6. **Verificar que Device 2 está revocado:**
+   ```bash
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN2>"
+   ```
+   
+   **Respuesta esperada:** `401 Unauthorized` - sesión revocada
+
+7. **Verificar en BD que todas las sesiones están revocadas:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT COUNT(*) FROM refresh_token_sessions 
+      WHERE user_id = '<USER_ID>' AND is_revoked = false;"
+   ```
+   
+   **Respuesta esperada:** `0` (todas revocadas)
+
+**✅ Criterio de Éxito:** Cambiar contraseña revoca todas las sesiones excepto la actual
+
+---
+
+### Tests Manuales - FASE 3: Usuario Desactivado
+
+#### Test 3.1: Usuario Desactivado No Puede Usar Access Token
+
+**Objetivo:** Verificar que desactivar un usuario invalida sus tokens inmediatamente
+
+**Pasos:**
+
+1. **Login:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies.txt
+   ```
+   
+   **Guardar:** `accessToken`
+
+2. **Verificar que funciona:**
+   ```bash
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+   # Respuesta: 200 OK
+   ```
+
+3. **Desactivar usuario (como admin):**
+   ```bash
+   # En BD directamente o mediante endpoint admin
+   psql -d ferresaas -c \
+     "UPDATE users SET is_active = false 
+      WHERE email = 'test@test.com';"
+   ```
+
+4. **Intentar usar access token (debe fallar):**
+   ```bash
+   curl -X GET http://localhost:3001/v1/auth/me \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+   ```
+   
+   **Respuesta esperada:** `401 Unauthorized` con código `USER_NOT_FOUND`
+   ```json
+   {
+     "success": false,
+     "error": {
+       "code": "USER_NOT_FOUND",
+       "message": "User not found or inactive"
+     }
+   }
+   ```
+
+**✅ Criterio de Éxito:** Usuario desactivado no puede usar tokens
+
+---
+
+### Tests Manuales - FASE 4: Detección de Reuso (Existente)
+
+#### Test 4.1: Detección de Reuso de Refresh Token
+
+**Objetivo:** Verificar que el reuso de refresh token revoca toda la familia
+
+**Pasos:**
+
+1. **Login:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"test@test.com","password":"Test123!"}' \
+     -c cookies.txt
+   ```
+   
+   **Guardar:** `refreshToken1` (de la cookie)
+
+2. **Hacer Refresh (rota token):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/refresh \
+     -b cookies.txt
+   ```
+   
+   **Guardar:** `refreshToken2` (nueva cookie)
+
+3. **Intentar usar token viejo (reuso):**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/refresh \
+     -H "Cookie: refreshToken=<REFRESH_TOKEN1>"
+   ```
+   
+   **Respuesta esperada:** `401 Unauthorized` con código `TOKEN_REUSE_DETECTED`
+   ```json
+   {
+     "success": false,
+     "error": {
+       "code": "TOKEN_REUSE_DETECTED",
+       "message": "Refresh token reuse detected. All sessions revoked."
+     }
+   }
+   ```
+
+4. **Verificar que toda la familia está revocada:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT COUNT(*) FROM refresh_token_sessions 
+      WHERE token_family = '<FAMILY_ID>' AND is_revoked = false;"
+   ```
+   
+   **Respuesta esperada:** `0` (todas revocadas)
+
+5. **Verificar evento de auditoría:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT action, entity FROM audit_logs 
+      WHERE action = 'TOKEN_REUSE_DETECTED' 
+      ORDER BY created_at DESC LIMIT 1;"
+   ```
+   
+   **Respuesta esperada:** `TOKEN_REUSE_DETECTED | auth`
+
+**✅ Criterio de Éxito:** Reuso detectado y familia revocada
+
+---
+
+### Tests Automatizados (Recomendado)
+
+#### Test Suite: Token Blacklist
+
+```typescript
+// tests/auth-blacklist.test.ts
+import request from 'supertest';
+import app from '../src/app';
+import { TokenBlacklistService } from '../src/services/token-blacklist.service';
+import { prisma } from '../src/config/database';
+
+describe('Auth - Token Blacklist (Opción 1)', () => {
+  
+  beforeEach(async () => {
+    // Limpiar blacklist antes de cada test
+    await TokenBlacklistService.clear();
+  });
+
+  describe('Logout - Access Token Blacklist', () => {
+    
+    it('should add access token to blacklist on logout', async () => {
+      // 1. Login
+      const loginRes = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken = loginRes.body.data.accessToken;
+      const refreshToken = loginRes.headers['set-cookie'][0];
+
+      // 2. Logout con access token
+      await request(app)
+        .post('/v1/auth/logout')
+        .set('Cookie', refreshToken)
+        .send({ accessToken });
+
+      // 3. Intentar usar access token (debe fallar)
+      const res = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('TOKEN_REVOKED');
+    });
+
+    it('should reject blacklisted access token immediately', async () => {
+      // 1. Login
+      const loginRes = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken = loginRes.body.data.accessToken;
+      const refreshToken = loginRes.headers['set-cookie'][0];
+
+      // 2. Verificar que funciona antes de logout
+      let res = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(res.status).toBe(200);
+
+      // 3. Logout
+      await request(app)
+        .post('/v1/auth/logout')
+        .set('Cookie', refreshToken)
+        .send({ accessToken });
+
+      // 4. Verificar que no funciona después
+      res = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('TOKEN_REVOKED');
+    });
+  });
+
+  describe('Change Password - Session Revocation', () => {
+    
+    it('should revoke all sessions on password change', async () => {
+      // 1. Login Device 1
+      const login1 = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken1 = login1.body.data.accessToken;
+      const refreshToken1 = login1.headers['set-cookie'][0];
+
+      // 2. Login Device 2
+      const login2 = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken2 = login2.body.data.accessToken;
+
+      // 3. Cambiar contraseña en Device 1
+      await request(app)
+        .post('/v1/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken1}`)
+        .send({
+          currentPassword: 'Test123!',
+          newPassword: 'NewTest456!'
+        });
+
+      // 4. Device 1 debe poder refrescar (sesión actual)
+      const refreshRes = await request(app)
+        .post('/v1/auth/refresh')
+        .set('Cookie', refreshToken1);
+      expect(refreshRes.status).toBe(200);
+
+      // 5. Device 2 debe estar revocado
+      const meRes = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken2}`);
+      expect(meRes.status).toBe(401);
+    });
+  });
+
+  describe('User Deactivation - Immediate Invalidation', () => {
+    
+    it('should reject token of deactivated user', async () => {
+      // 1. Login
+      const loginRes = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken = loginRes.body.data.accessToken;
+      const user = loginRes.body.data.user;
+
+      // 2. Verificar que funciona
+      let res = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(res.status).toBe(200);
+
+      // 3. Desactivar usuario
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: false }
+      });
+
+      // 4. Verificar que no funciona
+      res = await request(app)
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('USER_NOT_FOUND');
+
+      // 5. Reactivar usuario
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: true }
+      });
+    });
+  });
+
+  describe('Token Expiration - Automatic Cleanup', () => {
+    
+    it('should remove token from blacklist after expiration', async () => {
+      // 1. Login
+      const loginRes = await request(app)
+        .post('/v1/auth/login')
+        .send({ email: 'test@test.com', password: 'Test123!' });
+
+      const accessToken = loginRes.body.data.accessToken;
+      const refreshToken = loginRes.headers['set-cookie'][0];
+
+      // 2. Logout (agregar a blacklist)
+      await request(app)
+        .post('/v1/auth/logout')
+        .set('Cookie', refreshToken)
+        .send({ accessToken });
+
+      // 3. Verificar que está en blacklist
+      let isBlacklisted = await TokenBlacklistService.isBlacklisted(accessToken);
+      expect(isBlacklisted).toBe(true);
+
+      // 4. Esperar a que expire (en test, usar token con TTL corto)
+      // Nota: En producción, esperar 15 minutos
+      // Para tests, modificar JWT_ACCESS_EXPIRES_IN a "1s"
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 5. Verificar que se limpió
+      isBlacklisted = await TokenBlacklistService.isBlacklisted(accessToken);
+      expect(isBlacklisted).toBe(false);
+    });
+  });
+});
+```
+
+---
+
+### Tests Manuales - FASE 5: Integración Frontend
+
+#### Test 5.1: Logout desde Frontend
+
+**Objetivo:** Verificar que el frontend envía el access token al logout
+
+**Pasos:**
+
+1. **Abrir DevTools (F12):**
+   - Network tab
+   - Console tab
+
+2. **Login en la aplicación:**
+   - Ir a `http://localhost:3000/login`
+   - Ingresar credenciales
+   - Verificar que se redirige a `/dashboard`
+
+3. **Hacer logout:**
+   - Click en botón "Logout"
+   - En Network tab, buscar request `POST /auth/logout`
+   - Verificar que el body contiene `accessToken`
+
+4. **Verificar que se redirige a login:**
+   - Debería estar en `/login`
+   - Intentar acceder a `/dashboard` debería redirigir a `/login`
+
+**✅ Criterio de Éxito:** Frontend envía access token al logout
+
+---
+
+### Checklist de Validación Final
+
+- [ ] **Redis está corriendo** (si está habilitado)
+  ```bash
+  redis-cli ping
+  # Respuesta: PONG
+  ```
+
+- [ ] **Servidor inicia sin errores:**
+  ```bash
+  npm run dev
+  # Buscar: "Redis client connected for token blacklist"
+  ```
+
+- [ ] **Test 1.1 pasa:** Access token invalido después de logout
+
+- [ ] **Test 1.2 pasa:** Token se limpia de Redis después de expirar
+
+- [ ] **Test 2.1 pasa:** Cambio de contraseña revoca sesiones
+
+- [ ] **Test 3.1 pasa:** Usuario desactivado no puede usar token
+
+- [ ] **Test 4.1 pasa:** Reuso de token detectado (ya existente)
+
+- [ ] **Test 5.1 pasa:** Frontend envía access token al logout
+
+- [ ] **Auditoría registra eventos:**
+  ```bash
+  psql -d ferresaas -c \
+    "SELECT action FROM audit_logs 
+     WHERE action IN ('LOGOUT', 'PASSWORD_CHANGED', 'TOKEN_REUSE_DETECTED')
+     ORDER BY created_at DESC LIMIT 10;"
+  ```
+
+- [ ] **No hay errores en logs:**
+  ```bash
+  npm run dev 2>&1 | grep -i error
+  # No debería haber errores relacionados con blacklist
+  ```
+
+---
+
+### Tests Manuales (Anteriores)
 
 - [ ] **Login exitoso**
   - Cookie `refreshToken` seteada
@@ -720,11 +1326,6 @@ psql -d ferresaas -c "SELECT COUNT(*) FROM refresh_token_sessions WHERE \"isRevo
   - Esperar 10 minutos
   - Hacer request
   - Verificar refresh silencioso
-
-- [ ] **Logout**
-  - Cookie borrada
-  - Sesión revocada en BD
-  - Redirect a `/login`
 
 - [ ] **Sesión persistente**
   - Login

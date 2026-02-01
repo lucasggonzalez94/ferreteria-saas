@@ -3,6 +3,7 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { EmailService } from './email.service';
 import { AuditService } from './audit.service';
+import { TokenBlacklistService } from './token-blacklist.service';
 import { AppError } from '../utils/response';
 import { addMinutes } from 'date-fns';
 
@@ -260,9 +261,9 @@ export class AuthService {
   }
 
   /**
-   * Logout (revocar refresh token)
+   * Logout (revocar refresh token y agregar access token a blacklist)
    */
-  async logout(refreshToken: string, ip?: string, userAgent?: string) {
+  async logout(refreshToken: string, accessToken?: string, ip?: string, userAgent?: string) {
     try {
       const tokenHash = TokenService.hashToken(refreshToken);
 
@@ -287,6 +288,22 @@ export class AuthService {
           ip,
           userAgent,
         });
+      }
+
+      // Agregar access token a blacklist (si se proporciona)
+      if (accessToken) {
+        try {
+          // Parsear el token para obtener el tiempo de expiración
+          const decoded = TokenService.verifyAccessToken(accessToken);
+          const now = Math.floor(Date.now() / 1000);
+          const expiresIn = Math.max(0, (decoded.exp || 0) - now);
+
+          if (expiresIn > 0) {
+            await TokenBlacklistService.addToBlacklist(accessToken, expiresIn);
+          }
+        } catch (error) {
+          // No fallar el logout si hay error al agregar a blacklist
+        }
       }
 
       return { message: 'Logged out successfully' };
@@ -436,6 +453,9 @@ export class AuthService {
       where: { id: userId },
       data: { password: hashedPassword },
     });
+
+    // Revocar todas las sesiones del usuario (fuerza re-login)
+    await this.revokeAllSessions(userId);
 
     // Auditoría
     await AuditService.log({

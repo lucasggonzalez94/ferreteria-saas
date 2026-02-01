@@ -123,16 +123,17 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 
 /**
  * POST /auth/logout
- * Logout (revocar refresh token)
+ * Logout (revocar refresh token y agregar access token a blacklist)
  */
 router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = req.cookies?.refreshToken;
+    const accessToken = req.body?.accessToken; // Cliente envía el access token
     const ip = req.ip;
     const userAgent = req.get('user-agent');
 
     if (refreshToken) {
-      await authService.logout(refreshToken, ip, userAgent);
+      await authService.logout(refreshToken, accessToken, ip, userAgent);
     }
 
     // Borrar cookie (sin especificar domain)
