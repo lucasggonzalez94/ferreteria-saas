@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Search, Plus, Minus, Trash2, DollarSign, ArrowLeft, X } from "lucide-react";
 import type { Product, Sale, Customer } from "@/types";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 interface CartItem {
   product: Product;
@@ -402,22 +403,9 @@ export default function POSPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-full">
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Punto de Venta</h1>
-          </div>
-        </div>
+        <Header
+          title="Punto de Venta"
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Product Search */}

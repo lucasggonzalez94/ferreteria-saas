@@ -61,6 +61,8 @@ export const authenticate = async (
       id: user.id,
       businessId: user.businessId,
       email: user.email,
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
       roles,
       permissions,
     };

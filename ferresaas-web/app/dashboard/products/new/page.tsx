@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -69,19 +70,12 @@ export default function NewProductPage() {
   return (
     <div className="p-8">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <Link href="/dashboard/products">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold">Nuevo Producto</h1>
-          <p className="text-muted-foreground">
-            Crear un nuevo producto en el catálogo
-          </p>
-        </div>
+        <Header
+          title="Nuevo Producto"
+          description="Crear un nuevo producto en el catálogo"
+          link="/dashboard/products"
+          linkLabel="Volver"
+        />
 
         {/* Form */}
         <Card>

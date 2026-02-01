@@ -5,11 +5,14 @@ import { authLimiter, resetPasswordLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { env } from '../config/env';
+import { prisma } from '../config/database';
+import { AuditService } from '../services/audit.service';
 import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from './auth.schemas';
 
 const router = Router();
@@ -176,6 +179,81 @@ router.post('/reset-password', async (req: Request, res: Response, next: NextFun
     next(error);
   }
 });
+
+/**
+ * POST /auth/change-password
+ * Cambiar contraseña del usuario actual
+ */
+router.post(
+  '/change-password',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const input = changePasswordSchema.parse(req.body);
+
+      if (!authReq.user?.id) {
+        throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+      }
+
+      await authService.changePassword(authReq.user.id, input.currentPassword, input.newPassword);
+
+      sendSuccess(res, { message: 'Password changed successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /auth/profile
+ * Actualizar información personal del usuario
+ */
+router.put(
+  '/profile',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { firstName, lastName } = req.body;
+
+      if (!authReq.user?.id) {
+        throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+      }
+
+      if (!firstName || typeof firstName !== 'string') {
+        throw new AppError(400, 'INVALID_INPUT', 'First name is required');
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: authReq.user.id },
+        data: {
+          firstName: firstName.trim(),
+          lastName: lastName?.trim() || null,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          businessId: true,
+        },
+      });
+
+      // Auditoría
+      await AuditService.log({
+        businessId: authReq.user.businessId,
+        userId: authReq.user.id,
+        action: 'PROFILE_UPDATED',
+        entity: 'auth',
+      });
+
+      sendSuccess(res, updatedUser);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 /**
  * GET /me

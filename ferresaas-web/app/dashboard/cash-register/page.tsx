@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 export default function CashRegisterPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function CashRegisterPage() {
       toast.success("Caja abierta exitosamente");
       setOpeningAmount("");
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      
+
       // Redirigir al POS después de abrir caja
       setTimeout(() => {
         router.push("/dashboard/pos");
@@ -99,22 +100,7 @@ export default function CashRegisterPage() {
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-full">
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Caja</h1>
-          </div>
-        </div>
+        <Header title="Caja" />
 
         {!session ? (
           // Caja cerrada - mostrar formulario de apertura

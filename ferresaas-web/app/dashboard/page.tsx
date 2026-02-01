@@ -21,6 +21,8 @@ import {
   TrendingUp,
   AlertTriangle,
   Settings,
+  CheckCircle,
+  BarChart3,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -233,6 +235,26 @@ export default function DashboardPage() {
                 >
                   <DollarSign className="h-6 w-6" />
                   <span>Caja</span>
+                </Button>
+              </Link>
+
+              <Link href="/dashboard/discount-approvals">
+                <Button
+                  variant="outline"
+                  className="w-full h-20 flex flex-col gap-2"
+                >
+                  <CheckCircle className="h-6 w-6" />
+                  <span>Aprobación de Descuentos</span>
+                </Button>
+              </Link>
+
+              <Link href="/dashboard/reports">
+                <Button
+                  variant="outline"
+                  className="w-full h-20 flex flex-col gap-2"
+                >
+                  <BarChart3 className="h-6 w-6" />
+                  <span>Reportes</span>
                 </Button>
               </Link>
             </div>

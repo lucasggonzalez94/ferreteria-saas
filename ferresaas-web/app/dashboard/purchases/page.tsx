@@ -7,6 +7,7 @@ import { ShoppingCart, Package, TrendingUp, DollarSign, ArrowLeft } from "lucide
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/ui/header";
 
 export default function PurchasesPage() {
   const { data: purchases, isLoading } = useQuery({
@@ -20,22 +21,9 @@ export default function PurchasesPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-full">
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Compras</h1>
-          </div>
-        </div>
+        <Header
+          title="Compras"
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -78,8 +66,7 @@ export default function PurchasesPage() {
         {isLoading ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <LoadingSpinner text="Cargando..." />
-              <p className="text-muted-foreground">Cargando compras...</p>
+              <LoadingSpinner text="Cargando compras..." />
             </CardContent>
           </Card>
         ) : purchases && purchases.length > 0 ? (

@@ -9,9 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import Header from "@/components/ui/header";
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -25,31 +28,14 @@ export default function ProductsPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Productos</h1>
-            <p className="text-muted-foreground">
-              Gestión de catálogo de productos
-            </p>
-          </div>
-          <Link href="/dashboard/products/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Producto
-            </Button>
-          </Link>
-        </div>
+        <Header
+          title="Productos"
+          description="Gestión de catálogo de productos"
+          showButton={true}
+          buttonLabel="Nuevo Producto"
+          buttonIcon={<Plus className="h-4 w-4 mr-2" />}
+          buttonAction={() => router.push("/dashboard/products/new")}
+        />
 
         {/* Search */}
         <Card className="mb-6">
@@ -69,8 +55,7 @@ export default function ProductsPage() {
         {/* Products List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <LoadingSpinner text="Cargando..." />
-            <p className="text-muted-foreground">Cargando productos...</p>
+            <LoadingSpinner text="Cargando productos..." />
           </div>
         ) : data && data.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

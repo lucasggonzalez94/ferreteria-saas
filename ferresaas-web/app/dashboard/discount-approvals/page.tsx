@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Check, X, Clock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import Header from "@/components/ui/header";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface DiscountApproval {
   id: string;
@@ -159,25 +161,10 @@ export default function DiscountApprovalsPage() {
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/dashboard">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver al Dashboard
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">Aprobación de Descuentos</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Gestiona las solicitudes de descuentos pendientes de aprobación
-            </p>
-          </div>
-        </div>
+        <Header
+          title="Aprobación de Descuentos"
+          description="Gestiona las solicitudes de descuentos pendientes de aprobación"
+        />
 
         {/* Contenido */}
         <Card>
@@ -188,9 +175,7 @@ export default function DiscountApprovalsPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Cargando solicitudes...
-              </div>
+              <LoadingSpinner text="Cargando solicitudes..." />
             ) : approvals.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No hay solicitudes de descuentos pendientes

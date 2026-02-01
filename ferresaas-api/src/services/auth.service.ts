@@ -394,4 +394,60 @@ export class AuthService {
 
     return { message: 'Password reset successfully' };
   }
+
+  /**
+   * Cambiar contraseña del usuario actual
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    // Obtener usuario
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    // Validar contraseña actual
+    const passwordValid = await PasswordService.verify(currentPassword, user.password);
+    if (!passwordValid) {
+      throw new AppError(401, 'INVALID_PASSWORD', 'Current password is incorrect');
+    }
+
+    // Validar nueva contraseña
+    const passwordValidation = PasswordService.validate(newPassword);
+    if (!passwordValidation.valid) {
+      throw new AppError(400, 'INVALID_PASSWORD', 'New password does not meet requirements', {
+        errors: passwordValidation.errors,
+      });
+    }
+
+    // No permitir usar la misma contraseña
+    const samePassword = await PasswordService.verify(newPassword, user.password);
+    if (samePassword) {
+      throw new AppError(400, 'SAME_PASSWORD', 'New password must be different from current password');
+    }
+
+    // Hash nueva contraseña
+    const hashedPassword = await PasswordService.hash(newPassword);
+
+    // Actualizar contraseña
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    // Auditoría
+    await AuditService.log({
+      businessId: user.businessId,
+      userId: userId,
+      action: 'PASSWORD_CHANGED',
+      entity: 'auth',
+    });
+
+    // Enviar email de confirmación
+    await this.emailService.sendPasswordChangedEmail(user.email);
+
+    return { message: 'Password changed successfully' };
+  }
 }

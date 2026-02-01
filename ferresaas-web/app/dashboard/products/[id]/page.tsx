@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Printer } from "lucide-react";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 export default function EditProductPage({
   params,
@@ -148,49 +149,42 @@ export default function EditProductPage({
   return (
     <div className="p-8">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex justify-between items-start">
-          <div>
-            <Link href="/dashboard/products">
-              <Button variant="ghost" size="sm" className="mb-4">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver
+        <Header
+          title="Editar Producto"
+          description="Modificar datos del producto"
+          link="/dashboard/products"
+          linkLabel="Volver"
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                title="Imprimir Etiqueta"
+                onClick={handlePrintLabel}
+                disabled={isPrinting}
+              >
+                <Printer className="h-4 w-4" />
               </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Editar Producto</h1>
-            <p className="text-muted-foreground">
-              Modificar datos del producto
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              title="Imprimir Etiqueta"
-              onClick={handlePrintLabel}
-              disabled={isPrinting}
-            >
-              <Printer className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              title="Eliminar Producto"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
-                  )
-                ) {
-                  deleteMutation.mutate();
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+              <Button
+                variant="destructive"
+                size="icon"
+                title="Eliminar Producto"
+                onClick={() => {
+                  if (
+                    // TODO: Mostrar modal customizado
+                    window.confirm(
+                      "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
+                    )
+                  ) {
+                    deleteMutation.mutate();
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          }
+        />
 
         {/* Form */}
         <Card>

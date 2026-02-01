@@ -165,6 +165,7 @@ router.get(
 /**
  * POST /discount-approvals/:id/approve
  * Aprobar descuento (con contraseña para validación rápida)
+ * Puede ser llamado sin autenticación (modal de aprobación rápida) o con autenticación (dashboard)
  */
 router.post(
   '/:id/approve',
@@ -213,9 +214,24 @@ router.post(
         throw new AppError(400, 'APPROVAL_EXPIRED', 'Approval request has expired');
       }
 
-      // Validar contraseña del aprobador
+      // Obtener usuario aprobador con sus roles y permisos
       const approver = await prisma.user.findUnique({
         where: { id: userId },
+        include: {
+          roles: {
+            include: {
+              role: {
+                include: {
+                  permissions: {
+                    include: {
+                      permission: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!approver) {
@@ -225,6 +241,17 @@ router.post(
       const passwordValid = await argon2.verify(approver.password, approverPassword);
       if (!passwordValid) {
         throw new AppError(401, 'INVALID_PASSWORD', 'Invalid password');
+      }
+
+      // Validar que el usuario tiene permiso para aprobar descuentos
+      const hasApprovalPermission = approver.roles?.some(userRole =>
+        userRole.role.permissions?.some(rolePermission =>
+          rolePermission.permission.action === 'approve_discount' && rolePermission.permission.resource === 'sales'
+        )
+      );
+
+      if (!hasApprovalPermission) {
+        throw new AppError(403, 'INSUFFICIENT_PERMISSIONS', 'User does not have permission to approve discounts');
       }
 
       // Aprobar descuento

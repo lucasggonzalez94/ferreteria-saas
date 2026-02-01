@@ -15,31 +15,18 @@ import {
   FileText,
   DollarSign,
   ArrowLeft,
+  Lock,
 } from "lucide-react";
+import Header from "@/components/ui/header";
 
 export default function SettingsPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-full">
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Configuración</h1>
-            <p className="text-muted-foreground">
-              Administra tu ferretería y usuarios
-            </p>
-          </div>
-        </div>
+        <Header
+          title="Configuración"
+          description="Administra tu ferretería y usuarios"
+        />
 
         {/* Settings Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -107,6 +94,18 @@ export default function SettingsPage() {
                   Tipo de Cambio
                 </CardTitle>
                 <CardDescription>Configura el valor del dólar</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/settings/profile">
+            <Card className="hover:bg-slate-50 transition-colors cursor-pointer h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Mi Perfil
+                </CardTitle>
+                <CardDescription>Cambiar contraseña y datos personales</CardDescription>
               </CardHeader>
             </Card>
           </Link>

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, TrendingUp, Package } from "lucide-react";
+import Header from "@/components/ui/header";
 
 export default function ReportsPage() {
   const { data: sales } = useQuery({
@@ -23,7 +24,7 @@ export default function ReportsPage() {
   });
 
   const totalSales =
-    sales?.reduce((sum: number, sale: any) => sum + sale.total, 0) || 0;
+    sales?.reduce((sum: number, sale: any) => sum + Number(sale.total), 0) || 0;
   const totalProducts = products?.length || 0;
   const lowStockProducts =
     products?.filter((p: any) => p.minStock && p.stockQuantity <= p.minStock)
@@ -32,7 +33,9 @@ export default function ReportsPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Reportes</h1>
+        <Header
+          title="Reportes"
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

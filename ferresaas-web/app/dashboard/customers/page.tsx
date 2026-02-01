@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Search, User } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
@@ -85,29 +86,14 @@ export default function CustomersPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-full">
-            <Link href="/dashboard">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 -ml-2 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Dashboard
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold">Clientes</h1>
-            <p className="text-muted-foreground">
-              Gestión de clientes y cuenta corriente
-            </p>
-          </div>
-          <Button onClick={() => setShowForm(!showForm)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Cliente
-          </Button>
-        </div>
+        <Header
+          title="Clientes"
+          description="Gestión de clientes y cuenta corriente"
+          showButton={true}
+          buttonLabel="Nuevo Cliente"
+          buttonIcon={<Plus className="h-4 w-4 mr-2" />}
+          buttonAction={() => setShowForm(!showForm)}
+        />
 
         {/* Form */}
         {showForm && (
@@ -261,8 +247,7 @@ export default function CustomersPage() {
         {/* Customers List */}
         {isLoading ? (
           <div className="text-center py-12">
-            <LoadingSpinner text="Cargando..." />
-            <p className="text-muted-foreground">Cargando clientes...</p>
+            <LoadingSpinner text="Cargando clientes..." />
           </div>
         ) : customers && customers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
