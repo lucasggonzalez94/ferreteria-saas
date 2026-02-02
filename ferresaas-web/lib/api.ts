@@ -15,6 +15,7 @@ interface ApiResponse<T = unknown> {
 // Almacenamiento en memoria para access token y CSRF token
 let accessToken: string | null = null;
 let csrfToken: string | null = null;
+let csrfHash: string | null = null;
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
@@ -29,10 +30,13 @@ function getCsrfToken(): string | null {
 }
 
 // Helper para guardar tokens en memoria
-export function saveTokens(newAccessToken: string, newCsrfToken?: string): void {
+export function saveTokens(newAccessToken: string, newCsrfToken?: string, newCsrfHash?: string): void {
   accessToken = newAccessToken;
   if (newCsrfToken) {
     csrfToken = newCsrfToken;
+  }
+  if (newCsrfHash) {
+    csrfHash = newCsrfHash;
   }
 }
 
@@ -40,6 +44,7 @@ export function saveTokens(newAccessToken: string, newCsrfToken?: string): void 
 export function clearTokens(): void {
   accessToken = null;
   csrfToken = null;
+  csrfHash = null;
 }
 
 // Suscribirse a refresh de token
@@ -84,13 +89,15 @@ class ApiClient {
 
     const data = await response.json();
     const newAccessToken = data.data?.accessToken;
+    const newCsrfToken = data.data?.csrfToken;
+    const newCsrfHash = data.data?.csrfHash;
 
     if (!newAccessToken) {
       clearTokens();
       throw new Error("No access token in refresh response");
     }
 
-    saveTokens(newAccessToken);
+    saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
     return newAccessToken;
   }
 
@@ -111,9 +118,12 @@ class ApiClient {
       (headers as any)["Authorization"] = `Bearer ${token}`;
     }
 
-    // Agregar CSRF token en requests mutantes
+    // Agregar CSRF token y hash en requests mutantes
     if (csrf && ["POST", "PUT", "DELETE", "PATCH"].includes(options.method || "GET")) {
       (headers as any)["X-CSRF-Token"] = csrf;
+      if (csrfHash) {
+        (headers as any)["X-CSRF-Hash"] = csrfHash;
+      }
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {

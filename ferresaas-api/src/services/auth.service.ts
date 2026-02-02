@@ -146,6 +146,7 @@ export class AuthService {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       csrfToken: tokens.csrfToken,
+      csrfHash: tokens.csrfHash,
     };
   }
 
@@ -244,6 +245,8 @@ export class AuthService {
       return {
         accessToken: newTokens.accessToken,
         refreshToken: newTokens.refreshToken,
+        csrfToken: newTokens.csrfToken,
+        csrfHash: newTokens.csrfHash,
       };
     } catch (error) {
       if (error instanceof AppError) {

@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { sendSuccess, AppError } from '../utils/response';
-import { authLimiter, resetPasswordLimiter } from '../middleware/rate-limit';
+import { authLimiter, resetPasswordLimiter, refreshLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { env } from '../config/env';
@@ -70,11 +70,12 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
     });
 
-    // Devolver solo accessToken y csrfToken (no el refreshToken)
+    // Devolver solo accessToken, csrfToken y csrfHash (no el refreshToken)
     sendSuccess(res, {
       user: result.user,
       accessToken: result.accessToken,
       csrfToken: result.csrfToken,
+      csrfHash: result.csrfHash,
     });
   } catch (error) {
     next(error);
@@ -86,7 +87,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
  * Refresh access token usando cookie HttpOnly
  * Rota el refresh token automáticamente
  */
-router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/refresh', refreshLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = req.cookies?.refreshToken;
 
@@ -112,9 +113,11 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
     });
 
-    // Devolver solo accessToken (no el refreshToken)
+    // Devolver accessToken, csrfToken y csrfHash (no el refreshToken)
     sendSuccess(res, {
       accessToken: tokens.accessToken,
+      csrfToken: tokens.csrfToken,
+      csrfHash: tokens.csrfHash,
     });
   } catch (error) {
     next(error);
@@ -169,7 +172,7 @@ router.post(
  * POST /auth/reset-password
  * Reset password con token
  */
-router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/reset-password', resetPasswordLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = resetPasswordSchema.parse(req.body);
 

@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (response.success && response.data) {
-      // Guardar access token y CSRF token en memoria
-      saveTokens(response.data.accessToken, response.data.csrfToken);
+      // Guardar access token, CSRF token y CSRF hash en memoria
+      saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
       setUser(response.data.user);
       router.push("/dashboard");
     } else {

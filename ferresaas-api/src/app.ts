@@ -6,6 +6,8 @@ import pinoHttp from 'pino-http';
 import { logger } from './config/logger';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
+import { generalLimiter } from './middleware/rate-limit';
+import { verifyCsrf } from './middleware/csrf';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -26,7 +28,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'https:'],
       },
@@ -54,8 +56,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting
-// Deshabilitado temporalmente para desarrollo
-// app.use('/v1', generalLimiter);
+app.use('/v1', generalLimiter);
+
+// CSRF protection (aplica a métodos mutantes)
+app.use('/v1', verifyCsrf);
 
 // Health check
 app.get('/health', (_req, res) => {

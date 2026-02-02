@@ -88,6 +88,7 @@ export interface LoginResponse {
   user: User;
   accessToken: string;
   csrfToken: string;
+  csrfHash: string;
 }
 
 export interface ExchangeRateResponse {

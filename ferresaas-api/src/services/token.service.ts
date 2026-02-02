@@ -84,10 +84,15 @@ export class TokenService {
   }
 
   /**
-   * Generar CSRF token
+   * Generar CSRF token con hash HMAC
    */
-  static generateCsrfToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+  static generateCsrfToken(): { token: string; hash: string } {
+    const token = crypto.randomBytes(32).toString('hex');
+    const hash = crypto
+      .createHmac('sha256', env.csrf.secret)
+      .update(token)
+      .digest('hex');
+    return { token, hash };
   }
 
   /**
@@ -103,7 +108,7 @@ export class TokenService {
   static generateTokenPair(userId: string, businessId: string, email: string) {
     const accessToken = this.generateAccessToken(userId, businessId, email);
     const refreshTokenData = this.generateRefreshToken(userId, businessId, email);
-    const csrfToken = this.generateCsrfToken();
+    const csrfTokenData = this.generateCsrfToken();
 
     return {
       accessToken,
@@ -111,7 +116,8 @@ export class TokenService {
       refreshTokenHash: refreshTokenData.tokenHash,
       tokenFamily: refreshTokenData.tokenFamily,
       expiresAt: refreshTokenData.expiresAt,
-      csrfToken,
+      csrfToken: csrfTokenData.token,
+      csrfHash: csrfTokenData.hash,
     };
   }
 
@@ -126,6 +132,7 @@ export class TokenService {
   ) {
     const accessToken = this.generateAccessToken(userId, businessId, email);
     const refreshTokenData = this.generateRefreshToken(userId, businessId, email, tokenFamily);
+    const csrfTokenData = this.generateCsrfToken();
 
     return {
       accessToken,
@@ -133,6 +140,8 @@ export class TokenService {
       refreshTokenHash: refreshTokenData.tokenHash,
       tokenFamily: refreshTokenData.tokenFamily,
       expiresAt: refreshTokenData.expiresAt,
+      csrfToken: csrfTokenData.token,
+      csrfHash: csrfTokenData.hash,
     };
   }
 }
