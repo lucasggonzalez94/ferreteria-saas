@@ -1315,6 +1315,363 @@ describe('Auth - Token Blacklist (Opción 1)', () => {
 
 ---
 
+---
+
+## 6. TESTING CHECKLIST - RECUPERACIÓN DE CONTRASEÑA
+
+### Implementación Completada (02/02/2026)
+
+Se implementó el flujo completo de recuperación de contraseña con las siguientes mejoras:
+
+#### ✅ Cambios Implementados
+
+1. **Frontend - Páginas nuevas**
+   - `/forgot-password` - Solicitar reset con email
+   - `/reset-password?token=XXX` - Restablecer contraseña con validación
+   - Link "¿Olvidaste tu contraseña?" en formulario cambiar contraseña
+
+2. **Backend - Mejoras de seguridad**
+   - Token de reset hasheado en BD (SHA-256)
+   - Revocación de todas las sesiones al resetear
+   - Validación de token expirado (30 minutos)
+   - Auditoría de eventos
+
+3. **Validación en Frontend**
+   - Requisitos de password en tiempo real
+   - Confirmación de contraseña
+   - Indicador de fortaleza
+   - Manejo de tokens expirados
+
+---
+
+### Tests Manuales - FASE 1: Flujo Básico
+
+#### Test 1.1: Solicitar Reset desde Login
+
+**Objetivo:** Verificar que el usuario puede solicitar reset desde la página de login
+
+**Pasos:**
+
+1. **Ir a login:**
+   ```
+   http://localhost:3000/login
+   ```
+
+2. **Hacer clic en "¿Olvidaste tu contraseña?"**
+   - Debería redirigir a `/forgot-password`
+
+3. **Ingresar email:**
+   ```
+   admin@ferreteria-demo.com
+   ```
+
+4. **Hacer clic en "Enviar enlace de recuperación"**
+   - Debería mostrar mensaje de éxito
+   - Mensaje: "Revisa tu email"
+
+5. **Verificar email (Mock):**
+   - En logs del servidor, buscar: `sendPasswordResetEmail`
+   - Debería contener URL con token: `/reset-password?token=XXX`
+
+**✅ Criterio de Éxito:** Email enviado con enlace válido
+
+---
+
+#### Test 1.2: Restablecer Contraseña con Token Válido
+
+**Objetivo:** Verificar que el usuario puede restablecer su contraseña
+
+**Pasos:**
+
+1. **Obtener token del email (Mock):**
+   - Revisar logs del servidor
+   - Copiar token de la URL
+
+2. **Ir a página de reset:**
+   ```
+   http://localhost:3000/reset-password?token=<TOKEN>
+   ```
+
+3. **Ingresar nueva contraseña:**
+   - Nueva contraseña: `NewPassword123!`
+   - Confirmar: `NewPassword123!`
+   - Debería mostrar requisitos cumplidos
+
+4. **Hacer clic en "Restablecer contraseña"**
+   - Debería mostrar mensaje de éxito
+   - Mensaje: "¡Contraseña restablecida!"
+   - Aviso: "Todas tus sesiones activas han sido cerradas"
+
+5. **Verificar que sesiones fueron revocadas:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT COUNT(*) FROM refresh_token_sessions 
+      WHERE user_id = '<USER_ID>' AND is_revoked = false;"
+   ```
+   
+   **Respuesta esperada:** `0` (todas revocadas)
+
+6. **Intentar login con contraseña anterior:**
+   ```
+   Email: admin@ferreteria-demo.com
+   Password: Test123!
+   ```
+   
+   **Respuesta esperada:** `401 INVALID_CREDENTIALS`
+
+7. **Login con nueva contraseña:**
+   ```
+   Email: admin@ferreteria-demo.com
+   Password: NewPassword123!
+   ```
+   
+   **Respuesta esperada:** `200 OK` - Login exitoso
+
+**✅ Criterio de Éxito:** Contraseña actualizada, sesiones revocadas, login con nueva contraseña funciona
+
+---
+
+### Tests Manuales - FASE 2: Validación de Token
+
+#### Test 2.1: Token Expirado
+
+**Objetivo:** Verificar que tokens expirados son rechazados
+
+**Pasos:**
+
+1. **Solicitar reset:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/forgot-password \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@ferreteria-demo.com"}'
+   ```
+
+2. **Obtener token del email (Mock)**
+
+3. **Esperar 31 minutos** (token expira en 30)
+   - O cambiar `JWT_ACCESS_EXPIRES_IN` a `1m` en `.env` para pruebas rápidas
+
+4. **Intentar usar token expirado:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/reset-password \
+     -H "Content-Type: application/json" \
+     -d '{
+       "token":"<EXPIRED_TOKEN>",
+       "newPassword":"NewPass123!"
+     }'
+   ```
+   
+   **Respuesta esperada:** `400 INVALID_TOKEN`
+   ```json
+   {
+     "success": false,
+     "error": {
+       "code": "INVALID_TOKEN",
+       "message": "Invalid or expired reset token"
+     }
+   }
+   ```
+
+5. **En frontend, debería mostrar:**
+   - Página con error "Enlace inválido o expirado"
+   - Botón "Solicitar nuevo enlace"
+
+**✅ Criterio de Éxito:** Token expirado rechazado correctamente
+
+---
+
+#### Test 2.2: Token Inválido
+
+**Objetivo:** Verificar que tokens inválidos son rechazados
+
+**Pasos:**
+
+1. **Intentar usar token falso:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/reset-password \
+     -H "Content-Type: application/json" \
+     -d '{
+       "token":"invalid_token_12345",
+       "newPassword":"NewPass123!"
+     }'
+   ```
+   
+   **Respuesta esperada:** `400 INVALID_TOKEN`
+
+2. **En frontend:**
+   ```
+   http://localhost:3000/reset-password?token=invalid_token
+   ```
+   
+   **Respuesta esperada:** Página con error "Enlace inválido o expirado"
+
+**✅ Criterio de Éxito:** Token inválido rechazado
+
+---
+
+### Tests Manuales - FASE 3: Validación de Contraseña
+
+#### Test 3.1: Contraseña No Cumple Requisitos
+
+**Objetivo:** Verificar validación de requisitos de password
+
+**Pasos:**
+
+1. **Ir a página de reset con token válido**
+
+2. **Intentar contraseña débil:**
+   - Ingresar: `weak`
+   - Debería mostrar requisitos no cumplidos (rojo)
+   - Botón "Restablecer contraseña" deshabilitado
+
+3. **Intentar contraseña sin mayúscula:**
+   - Ingresar: `password123!`
+   - Debería faltar requisito "Una mayúscula"
+   - Botón deshabilitado
+
+4. **Intentar contraseña sin número:**
+   - Ingresar: `Password!`
+   - Debería faltar requisito "Un número"
+   - Botón deshabilitado
+
+5. **Ingresar contraseña válida:**
+   - Ingresar: `ValidPass123!`
+   - Todos los requisitos cumplidos (verde)
+   - Botón habilitado
+
+**✅ Criterio de Éxito:** Validación de requisitos funciona correctamente
+
+---
+
+#### Test 3.2: Contraseñas No Coinciden
+
+**Objetivo:** Verificar que las contraseñas deben coincidir
+
+**Pasos:**
+
+1. **Ingresar contraseña:**
+   - Nueva: `ValidPass123!`
+   - Confirmar: `DifferentPass456!`
+   - Debería mostrar error: "Las contraseñas no coinciden"
+   - Botón deshabilitado
+
+2. **Corregir confirmación:**
+   - Confirmar: `ValidPass123!`
+   - Error desaparece
+   - Botón habilitado
+
+**✅ Criterio de Éxito:** Validación de coincidencia funciona
+
+---
+
+### Tests Manuales - FASE 4: Recuperación desde Settings
+
+#### Test 4.1: Link "¿Olvidaste tu contraseña?" en Settings
+
+**Objetivo:** Verificar que el usuario puede recuperar contraseña desde settings
+
+**Pasos:**
+
+1. **Login y ir a settings:**
+   ```
+   http://localhost:3000/dashboard/settings/profile
+   ```
+
+2. **Buscar sección "Cambiar Contraseña"**
+
+3. **Hacer clic en "¿Olvidaste tu contraseña?"**
+   - Debería redirigir a `/forgot-password`
+
+4. **Completar flujo de reset**
+   - Solicitar reset
+   - Recibir email
+   - Restablecer contraseña
+   - Redirigir a login
+
+**✅ Criterio de Éxito:** Link funciona y redirige correctamente
+
+---
+
+### Tests Manuales - FASE 5: Seguridad
+
+#### Test 5.1: Token Hasheado en BD
+
+**Objetivo:** Verificar que el token se guarda hasheado
+
+**Pasos:**
+
+1. **Solicitar reset:**
+   ```bash
+   curl -X POST http://localhost:3001/v1/auth/forgot-password \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@ferreteria-demo.com"}'
+   ```
+
+2. **Obtener token del email (Mock)**
+   - Ejemplo: `a1b2c3d4e5f6...` (64 caracteres hex)
+
+3. **Verificar en BD:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT reset_token FROM users 
+      WHERE email = 'admin@ferreteria-demo.com';"
+   ```
+   
+   **Respuesta esperada:** Hash diferente al token original
+   - Token original: `a1b2c3d4e5f6...`
+   - En BD: `7f8e9d0c1b2a...` (hash SHA-256)
+
+**✅ Criterio de Éxito:** Token hasheado correctamente en BD
+
+---
+
+#### Test 5.2: Auditoría de Eventos
+
+**Objetivo:** Verificar que se registran eventos de recuperación
+
+**Pasos:**
+
+1. **Solicitar reset**
+
+2. **Verificar auditoría:**
+   ```bash
+   psql -d ferresaas -c \
+     "SELECT action FROM audit_logs 
+      WHERE action IN ('PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET')
+      ORDER BY created_at DESC LIMIT 5;"
+   ```
+   
+   **Respuesta esperada:**
+   ```
+   PASSWORD_RESET_REQUESTED
+   PASSWORD_RESET
+   ```
+
+**✅ Criterio de Éxito:** Eventos registrados correctamente
+
+---
+
+### Checklist de Validación Final
+
+- [ ] **Test 1.1 pasa:** Solicitar reset desde login
+- [ ] **Test 1.2 pasa:** Restablecer contraseña con token válido
+- [ ] **Test 2.1 pasa:** Token expirado rechazado
+- [ ] **Test 2.2 pasa:** Token inválido rechazado
+- [ ] **Test 3.1 pasa:** Validación de requisitos
+- [ ] **Test 3.2 pasa:** Validación de coincidencia
+- [ ] **Test 4.1 pasa:** Link desde settings funciona
+- [ ] **Test 5.1 pasa:** Token hasheado en BD
+- [ ] **Test 5.2 pasa:** Auditoría registra eventos
+- [ ] **No hay errores en logs:**
+  ```bash
+  npm run dev 2>&1 | grep -i error
+  ```
+- [ ] **Email mock funciona:**
+  - Buscar en logs: `sendPasswordResetEmail`
+  - Verificar que contiene token y URL válida
+
+---
+
 ### Tests Manuales (Anteriores)
 
 - [ ] **Login exitoso**

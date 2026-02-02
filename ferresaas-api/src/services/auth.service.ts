@@ -336,18 +336,19 @@ export class AuthService {
 
     // Generar token de reset
     const resetToken = TokenService.generateResetToken();
+    const resetTokenHash = TokenService.hashToken(resetToken);
     const resetTokenExpiry = addMinutes(new Date(), 30);
 
-    // Guardar token
+    // Guardar token hasheado
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken,
+        resetToken: resetTokenHash,
         resetTokenExpiry,
       },
     });
 
-    // Enviar email
+    // Enviar email con token sin hashear (solo el usuario lo recibe)
     await this.emailService.sendPasswordResetEmail(user.email, resetToken);
 
     // Auditoría
@@ -365,8 +366,11 @@ export class AuthService {
    * Reset password con token
    */
   async resetPassword(token: string, newPassword: string) {
+    // Hashear el token para comparar con lo guardado en BD
+    const resetTokenHash = TokenService.hashToken(token);
+
     const user = await prisma.user.findUnique({
-      where: { resetToken: token },
+      where: { resetToken: resetTokenHash },
     });
 
     if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
@@ -393,6 +397,9 @@ export class AuthService {
         resetTokenExpiry: null,
       },
     });
+
+    // Revocar todas las sesiones del usuario (fuerza re-login)
+    await this.revokeAllSessions(user.id);
 
     // Auditoría
     await AuditService.log({

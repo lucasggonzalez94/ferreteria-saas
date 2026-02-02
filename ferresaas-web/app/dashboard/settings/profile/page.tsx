@@ -217,7 +217,15 @@ export default function ProfilePage() {
             <form onSubmit={handleChangePassword} className="space-y-4">
               {/* Contraseña actual */}
               <div>
-                <label className="text-sm font-medium">Contraseña Actual</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Contraseña Actual</label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
                 <div className="relative mt-1">
                   <Input
                     type={showCurrentPassword ? "text" : "password"}
