@@ -211,12 +211,6 @@ export class AuthService {
         throw new AppError(401, 'USER_INACTIVE', 'User not found or inactive');
       }
 
-      // ROTAR: Marcar token actual como usado (revocado)
-      await prisma.refreshTokenSession.update({
-        where: { id: session.id },
-        data: { isRevoked: true, lastUsedAt: new Date() },
-      });
-
       // Generar nuevos tokens (mantiene la familia)
       const newTokens = TokenService.rotateRefreshToken(
         session.user.id,
@@ -225,14 +219,13 @@ export class AuthService {
         session.tokenFamily
       );
 
-      // Guardar nueva sesión
-      await prisma.refreshTokenSession.create({
+      // ROTAR: Reutilizar registro existente en lugar de crear uno nuevo
+      await prisma.refreshTokenSession.update({
+        where: { id: session.id },
         data: {
-          userId: session.user.id,
-          businessId: session.user.businessId,
-          tokenFamily: newTokens.tokenFamily,
           tokenHash: newTokens.refreshTokenHash,
           expiresAt: newTokens.expiresAt,
+          lastUsedAt: new Date(),
           ipAddress: ip,
           userAgent,
         },
