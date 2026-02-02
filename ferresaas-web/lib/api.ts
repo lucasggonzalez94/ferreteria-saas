@@ -13,6 +13,11 @@ interface ApiResponse<T = unknown> {
 }
 
 // Almacenamiento en memoria para access token y CSRF token
+// NOTA: Los tokens se guardan SOLO en memoria (no en localStorage)
+// La persistencia se logra mediante:
+// 1. Cookie HttpOnly refreshToken (persiste automáticamente)
+// 2. Refresh automático al recargar página
+// 3. Endpoint /auth/me devuelve accessToken
 let accessToken: string | null = null;
 let csrfToken: string | null = null;
 let csrfHash: string | null = null;
@@ -27,6 +32,11 @@ export function getToken(): string | null {
 // Helper para obtener CSRF token
 function getCsrfToken(): string | null {
   return csrfToken;
+}
+
+// Helper para obtener CSRF hash
+function getCsrfHash(): string | null {
+  return csrfHash;
 }
 
 // Helper para guardar tokens en memoria
@@ -108,6 +118,7 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const token = getToken();
     const csrf = getCsrfToken();
+    const hash = getCsrfHash();
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",
@@ -121,8 +132,8 @@ class ApiClient {
     // Agregar CSRF token y hash en requests mutantes
     if (csrf && ["POST", "PUT", "DELETE", "PATCH"].includes(options.method || "GET")) {
       (headers as any)["X-CSRF-Token"] = csrf;
-      if (csrfHash) {
-        (headers as any)["X-CSRF-Hash"] = csrfHash;
+      if (hash) {
+        (headers as any)["X-CSRF-Hash"] = hash;
       }
     }
 

@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { TokenService } from '../services/token.service';
 import { sendSuccess, AppError } from '../utils/response';
 import { authLimiter, resetPasswordLimiter, refreshLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
@@ -258,6 +259,128 @@ router.put(
     }
   }
 );
+
+/**
+ * GET /restore-session
+ * Restaurar sesión usando cookie HttpOnly refreshToken
+ * NO requiere Authorization header
+ * Se usa al recargar página para recuperar tokens
+ */
+router.get('/restore-session', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new AppError(401, 'NO_REFRESH_TOKEN', 'No refresh token provided');
+    }
+
+    // Validar refresh token y obtener datos del usuario
+    let decoded;
+    try {
+      decoded = TokenService.verifyRefreshToken(refreshToken);
+    } catch (error) {
+      throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
+    }
+
+    // Obtener usuario de la BD
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new AppError(401, 'USER_NOT_FOUND', 'User not found or inactive');
+    }
+
+    // Generar nuevos tokens
+    const newAccessToken = TokenService.generateAccessToken(user.id, user.businessId, user.email);
+    const csrfTokenData = TokenService.generateCsrfToken();
+
+    // Actualizar refresh token session
+    const tokenHash = TokenService.hashToken(refreshToken);
+    const session = await prisma.refreshTokenSession.findUnique({
+      where: { tokenHash },
+    });
+
+    if (session) {
+      const newRefreshTokenData = TokenService.generateRefreshToken(
+        user.id,
+        user.businessId,
+        user.email,
+        session.tokenFamily
+      );
+
+      await prisma.refreshTokenSession.update({
+        where: { id: session.id },
+        data: {
+          tokenHash: newRefreshTokenData.tokenHash,
+          expiresAt: newRefreshTokenData.expiresAt,
+          lastUsedAt: new Date(),
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+      });
+
+      // Setear nueva cookie con refresh token rotado
+      res.cookie('refreshToken', newRefreshTokenData.token, {
+        httpOnly: true,
+        secure: env.cookies.secure,
+        sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+      });
+    }
+
+    // Construir respuesta con usuario y tokens
+    const roles = user.roles.map((ur) => ur.role.name);
+    const permissions = user.roles.flatMap((ur) =>
+      ur.role.permissions.map((rp) => `${rp.permission.resource}:${rp.permission.action}`)
+    );
+
+    const userData = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      businessId: user.businessId,
+      roles,
+      permissions,
+    };
+
+    // Auditoría
+    await AuditService.log({
+      businessId: user.businessId,
+      userId: user.id,
+      action: 'SESSION_RESTORED',
+      entity: 'auth',
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    sendSuccess(res, {
+      user: userData,
+      accessToken: newAccessToken,
+      csrfToken: csrfTokenData.token,
+      csrfHash: csrfTokenData.hash,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * GET /me

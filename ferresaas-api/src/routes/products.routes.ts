@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ProductService } from '../services/product.service';
-import { sendSuccess, sendPaginated } from '../utils/response';
+import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -81,6 +81,11 @@ router.get(
       const { id } = req.params;
 
       const product = await productService.getById(authReq.businessId!, id);
+
+      // Validación explícita de propiedad
+      if (product.businessId !== authReq.businessId!) {
+        throw new AppError(403, 'FORBIDDEN', 'Access denied to this resource');
+      }
 
       sendSuccess(res, product);
     } catch (error) {

@@ -57,6 +57,9 @@ model Business {
   exchangeRateSnapshots ExchangeRateSnapshot[]
   refreshTokenSessions RefreshTokenSession[]
   discountApprovals   DiscountApproval[]
+  priceHistories      PriceHistory[]
+  cashMovements       CashMovement[]
+  accountMovements    AccountMovement[]
   
   @@map("businesses")
 }
@@ -292,6 +295,7 @@ model Product {
 
 model PriceHistory {
   id         String  @id @default(cuid())
+  businessId String
   productId  String
   oldCost    Decimal @db.Decimal(12, 2)
   newCost    Decimal @db.Decimal(12, 2)
@@ -303,8 +307,10 @@ model PriceHistory {
   createdAt DateTime @default(now())
   
   // Relaciones
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   
+  @@index([businessId])
   @@index([productId])
   @@map("price_history")
 }
@@ -585,6 +591,7 @@ model CashRegisterSession {
 
 model CashMovement {
   id               String  @id @default(cuid())
+  businessId       String
   cashRegisterId   String
   type             String  // INCOME, EXPENSE
   amount           Decimal @db.Decimal(12, 2)
@@ -594,8 +601,10 @@ model CashMovement {
   createdAt DateTime @default(now())
   
   // Relaciones
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   cashRegister CashRegisterSession @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
   
+  @@index([businessId])
   @@index([cashRegisterId])
   @@map("cash_movements")
 }
@@ -642,6 +651,7 @@ model Customer {
 
 model AccountMovement {
   id         String  @id @default(cuid())
+  businessId String
   customerId String
   type       String  // SALE, PAYMENT, ADJUSTMENT
   amount     Decimal @db.Decimal(12, 2) // Positivo = deuda, Negativo = pago
@@ -653,8 +663,10 @@ model AccountMovement {
   createdAt DateTime @default(now())
   
   // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   
+  @@index([businessId])
   @@index([customerId])
   @@index([createdAt])
   @@map("account_movements")

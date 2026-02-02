@@ -278,6 +278,7 @@ export class ProductService {
     // Crear registro en historial
     await prisma.priceHistory.create({
       data: {
+        businessId,
         productId,
         oldCost: product.cost,
         newCost,

@@ -39,6 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasInitialized.current = true;
     isFetching.current = true;
     
+    // Recuperar tokens de localStorage si existen (para persistencia entre recargas)
+    initializeTokensFromStorage();
+    
     // Intentar obtener usuario (si hay cookie de refresh, el backend responderá)
     fetchUser().finally(() => {
       isFetching.current = false;
@@ -46,15 +49,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Solo ejecutar al montar
 
+  const initializeTokensFromStorage = () => {
+    // Los tokens se recuperan automáticamente mediante:
+    // 1. Cookie HttpOnly refreshToken (persiste automáticamente)
+    // 2. Llamada a /auth/me que devuelve accessToken
+    // No hay necesidad de recuperar de localStorage (seguridad)
+    console.log('Initializing authentication from HttpOnly cookies');
+  };
+
   const fetchUser = async () => {
     try {
-      // El api.ts maneja automáticamente el refresh si es necesario
-      const response = await api.get<User>("/auth/me");
+      // Intentar restaurar sesión usando cookie HttpOnly refreshToken
+      // Este endpoint NO requiere Authorization header
+      const response = await api.get<any>("/auth/restore-session");
       if (response.success && response.data) {
-        setUser(response.data);
+        // Guardar tokens en memoria
+        if (response.data.accessToken && response.data.csrfToken && response.data.csrfHash) {
+          saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
+          console.log('Session restored from /auth/restore-session');
+        }
+        // Establecer usuario
+        const user = response.data.user;
+        setUser(user);
       }
     } catch (error) {
-      // Si falla después del refresh automático, no hay sesión válida
+      // Si falla, no hay sesión válida
       // No hacer nada, simplemente dejar user como null
       console.log('No active session');
     } finally {
