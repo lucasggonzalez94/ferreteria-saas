@@ -156,6 +156,43 @@ Si es la primera vez, el sistema ya habrá creado una ferretería de prueba. Pue
    - Crea roles por área (Ej: “Ventas Mayoristas”) y asigna solo los permisos necesarios.
    - Revisa periódicamente la pestaña para auditar qué permisos tiene cada rol.
 
+### Paso 2.2: Gestionar Usuarios
+
+> Disponible para usuarios con permiso `users:read`.
+
+1. **Acceder a la Sección de Usuarios**
+   - Desde Configuración, haz clic en la tarjeta **Usuarios**.
+   - Verás una tabla con todos los usuarios del negocio.
+
+2. **Buscar y Filtrar Usuarios**
+   - Usa el buscador para encontrar usuarios por email o nombre.
+   - Filtra por estado (Activos/Inactivos) usando el selector de estado.
+
+3. **Invitar Nuevo Usuario**
+   - Haz clic en **Invitar Usuario** (requiere permiso `users:create`).
+   - Completa email, nombre y apellido (opcionales).
+   - Asigna roles iniciales desde el diálogo.
+   - El usuario recibirá un email con su contraseña temporal.
+
+4. **Ver o Editar un Usuario**
+   - Presiona **Ver** en la fila del usuario.
+   - La tarjeta **Información del Usuario** muestra email, nombre, apellido y estado.
+   - Botón **Editar** (requiere `users:update`) permite cambiar nombre y apellido.
+
+5. **Cambiar Estado del Usuario**
+   - En la página de detalle, usa el botón **Desactivar Usuario** o **Activar Usuario**.
+   - Un usuario inactivo no puede acceder al sistema.
+
+6. **Enviar Reset de Contraseña**
+   - En la página de detalle, haz clic en **Enviar Reset de Contraseña**.
+   - El usuario recibirá un email con un enlace para cambiar su contraseña.
+
+7. **Asignar Roles a Usuario**
+   - En la página de detalle, sección **Roles Asignados** (requiere `users:manage`).
+   - Marca/desmarca los roles con checkboxes.
+   - Haz clic en **Guardar Roles** para aplicar los cambios.
+   - Los cambios son inmediatos y quedan registrados en auditoría.
+
 ### Paso 3: Gestión de Productos
 
 En la lista de accesos rápidos, haz click en **Productos**.

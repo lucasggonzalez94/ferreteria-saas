@@ -6,6 +6,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   businessId: string;
+  isActive?: boolean;
   roles?: string[];
   permissions?: string[];
 }

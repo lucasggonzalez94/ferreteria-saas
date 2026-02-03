@@ -211,6 +211,30 @@ useEffect(() => {
 - En modo edición se usan checkboxes vinculados al estado `selectedPermissionIds`; al guardar se envía `permissionIds` al endpoint `PUT /roles/:id`.
 - Los roles del sistema se bloquean para edición de nombre/descripcion y no muestran botón de eliminar.
 
+### 3.7 Gestión de usuarios
+
+```typescript
+// Página: /dashboard/settings/users
+const { users, listUsers } = useUsers();
+const { roles, listRoles } = useRoles();
+
+useEffect(() => {
+  listUsers();    // Listar usuarios con paginación
+  listRoles();    // Cargar roles disponibles para invitación
+}, []);
+```
+
+**Flujo de listado:**
+- Tabla con búsqueda por email/nombre, filtros por estado (activo/inactivo) y paginación.
+- Botón "Invitar Usuario" (requiere `users:create`) abre diálogo con formulario.
+- Cada fila muestra email, nombre, roles asignados, estado y botón "Ver" para detalle.
+
+**Página de detalle (`/dashboard/settings/users/[id]`):**
+- Tarjeta "Información del Usuario" con email, nombre, apellido, estado y cantidad de roles.
+- Botón "Editar" (requiere `users:update`) permite cambiar nombre/apellido.
+- Sección "Acciones" con botones para activar/desactivar usuario y enviar reset de contraseña.
+- Sección "Roles Asignados" (requiere `users:manage`) con checkboxes para asignar/remover roles.
+
 ---
 
 ## 4. Validación de Permisos en Frontend

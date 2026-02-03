@@ -142,6 +142,11 @@ async function main() {
       update: {},
       create: { resource: 'users', action: 'delete', description: 'Eliminar usuarios' },
     }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'users', action: 'manage' } },
+      update: {},
+      create: { resource: 'users', action: 'manage', description: 'Gestionar usuarios y roles' },
+    }),
   ]);
 
   console.log(`✅ Created ${permissions.length} permissions`);
