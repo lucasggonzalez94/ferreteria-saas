@@ -135,6 +135,27 @@ export class AuthService {
       userAgent,
     });
 
+    // Obtener roles y permisos del usuario
+    const userRoles = user.roles.map((ur) => ur.role.name);
+    const rolePermissions = await prisma.rolePermission.findMany({
+      where: {
+        role: {
+          id: {
+            in: user.roles.map((ur) => ur.roleId),
+          },
+        },
+      },
+      include: {
+        permission: true,
+      },
+    });
+
+    const permissions = Array.from(
+      new Set(
+        rolePermissions.map((rp) => `${rp.permission.resource}:${rp.permission.action}`)
+      )
+    );
+
     return {
       user: {
         id: user.id,
@@ -142,6 +163,8 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         businessId: user.businessId,
+        roles: userRoles,
+        permissions,
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

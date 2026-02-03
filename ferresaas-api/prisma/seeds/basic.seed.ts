@@ -95,6 +95,53 @@ async function main() {
       update: {},
       create: { resource: 'cash_register', action: 'manage', description: 'Gestionar movimientos de caja' },
     }),
+    // Roles
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'roles', action: 'create' } },
+      update: {},
+      create: { resource: 'roles', action: 'create', description: 'Crear roles' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'roles', action: 'read' } },
+      update: {},
+      create: { resource: 'roles', action: 'read', description: 'Ver roles' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'roles', action: 'update' } },
+      update: {},
+      create: { resource: 'roles', action: 'update', description: 'Editar roles' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'roles', action: 'delete' } },
+      update: {},
+      create: { resource: 'roles', action: 'delete', description: 'Eliminar roles' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'roles', action: 'manage' } },
+      update: {},
+      create: { resource: 'roles', action: 'manage', description: 'Gestionar roles y permisos' },
+    }),
+    // Usuarios
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'users', action: 'create' } },
+      update: {},
+      create: { resource: 'users', action: 'create', description: 'Crear usuarios' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'users', action: 'read' } },
+      update: {},
+      create: { resource: 'users', action: 'read', description: 'Ver usuarios' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'users', action: 'update' } },
+      update: {},
+      create: { resource: 'users', action: 'update', description: 'Editar usuarios' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'users', action: 'delete' } },
+      update: {},
+      create: { resource: 'users', action: 'delete', description: 'Eliminar usuarios' },
+    }),
   ]);
 
   console.log(`✅ Created ${permissions.length} permissions`);

@@ -6,6 +6,8 @@ export interface User {
   firstName?: string;
   lastName?: string;
   businessId: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface Product {

@@ -19,6 +19,9 @@ import suppliersPurchasesRoutes from './routes/suppliers-purchases.routes';
 import customersRoutes from './routes/customers.routes';
 import cashRegisterRoutes from './routes/cash-register.routes';
 import salesRoutes from './routes/sales.routes';
+import rolesRoutes from './routes/roles.routes';
+import permissionsRoutes from './routes/permissions.routes';
+import userRolesRoutes from './routes/user-roles.routes';
 
 const app = express();
 
@@ -76,6 +79,9 @@ app.use('/v1', suppliersPurchasesRoutes); // /suppliers y /purchases
 app.use('/v1/customers', customersRoutes);
 app.use('/v1/cash-register', cashRegisterRoutes);
 app.use('/v1/sales', salesRoutes);
+app.use('/v1/roles', rolesRoutes);
+app.use('/v1/permissions', permissionsRoutes);
+app.use('/v1/users', userRolesRoutes);
 
 // 404 handler
 app.use((_req, res) => {

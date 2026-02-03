@@ -122,6 +122,39 @@ Usa las credenciales que se generaron en el paso de "seed" del backend.
 
 Si es la primera vez, el sistema ya habrá creado una ferretería de prueba. Puedes ir a "Configuración" para cambiar el nombre, CUIT, y logo de tu ferretería.
 
+### Paso 2.1: Gestionar Roles y Permisos
+
+> Disponible para usuarios con permiso `roles:manage`.
+
+1. **Ir a Configuración → Roles y Permisos**
+   - Si no ves la tarjeta en Configuración, tu usuario no tiene permisos para gestionarla. Solicita acceso a un administrador.
+
+2. **Listar Roles Existentes**
+   - Verás los roles del negocio (OWNER, ADMIN, CASHIER y los que crees).
+   - Cada tarjeta muestra cantidad de permisos y usuarios asignados.
+
+3. **Crear un Nuevo Rol**
+   - Haz clic en **Crear Rol**.
+   - Completa *Nombre* y *Descripción*. (Los permisos se asignan luego desde el detalle del rol).
+   - Confirma con **Crear Rol**.
+
+4. **Editar o Ver un Rol**
+   - Presiona **Ver** en la tarjeta del rol.
+   - En el detalle puedes actualizar nombre, descripción y marcar los permisos disponibles (cada permiso tiene formato `recurso:acción`).
+   - Los roles del sistema (OWNER/ADMIN/CASHIER) no pueden eliminarse.
+
+5. **Asignar Roles a Usuarios**
+   - Desde Configuración → Usuarios selecciona un usuario y usa la sección **Roles asignados** para agregar o quitar roles.
+   - Los cambios son inmediatos y quedan registrados en auditoría.
+
+6. **Eliminar un Rol**
+   - Desde la tarjeta del rol (si no es del sistema) usa el icono de eliminar.
+   - El sistema verifica que no tenga usuarios asignados; si los tiene, primero reasígnalos.
+
+7. **Buenas Prácticas**
+   - Crea roles por área (Ej: “Ventas Mayoristas”) y asigna solo los permisos necesarios.
+   - Revisa periódicamente la pestaña para auditar qué permisos tiene cada rol.
+
 ### Paso 3: Gestión de Productos
 
 En la lista de accesos rápidos, haz click en **Productos**.
