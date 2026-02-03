@@ -193,6 +193,24 @@ const handleAssign = async (userId, roleIds) => {
 };
 ```
 
+### 3.6 Ver detalle y permisos de un rol
+
+```typescript
+// Página: /dashboard/settings/roles/[id]
+const { getRole } = useRoles();
+const { permissions, listPermissions } = usePermissions();
+
+useEffect(() => {
+  getRole(roleId);      // Trae datos del rol (incluye permissionCount)
+  listPermissions();    // Carga catálogo completo para agrupar por recurso
+}, [roleId]);
+```
+
+- La tarjeta **Información del Rol** muestra nombre, descripción, cantidad total de permisos (`permissionCount`) y usuarios asignados (`userCount`).
+- La sección **Permisos del Rol** agrupa los permisos por `resource` y marca cuáles están activos.
+- En modo edición se usan checkboxes vinculados al estado `selectedPermissionIds`; al guardar se envía `permissionIds` al endpoint `PUT /roles/:id`.
+- Los roles del sistema se bloquean para edición de nombre/descripcion y no muestran botón de eliminar.
+
 ---
 
 ## 4. Validación de Permisos en Frontend

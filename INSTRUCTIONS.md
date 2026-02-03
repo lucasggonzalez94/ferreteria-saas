@@ -140,7 +140,8 @@ Si es la primera vez, el sistema ya habrá creado una ferretería de prueba. Pue
 
 4. **Editar o Ver un Rol**
    - Presiona **Ver** en la tarjeta del rol.
-   - En el detalle puedes actualizar nombre, descripción y marcar los permisos disponibles (cada permiso tiene formato `recurso:acción`).
+   - La tarjeta **Información del Rol** muestra nombre, descripción, cantidad de permisos y usuarios asignados.
+   - La sección **Permisos del Rol** agrupa los permisos por módulo (`recurso:acción`) y te permite activarlos/desactivarlos con checkboxes.
    - Los roles del sistema (OWNER/ADMIN/CASHIER) no pueden eliminarse.
 
 5. **Asignar Roles a Usuarios**
