@@ -2,12 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type { Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search, ArrowLeft, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -15,7 +16,18 @@ import Header from "@/components/ui/header";
 
 export default function ProductsPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
+
+  const canViewProducts = user?.permissions?.includes("products:read");
+  const canCreateProducts = user?.permissions?.includes("products:create");
+
+  useEffect(() => {
+    if (!canViewProducts) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewProducts, router]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["products", search],
@@ -31,7 +43,7 @@ export default function ProductsPage() {
         <Header
           title="Productos"
           description="Gestión de catálogo de productos"
-          showButton={true}
+          showButton={canCreateProducts}
           buttonLabel="Nuevo Producto"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
           buttonAction={() => router.push("/dashboard/products/new")}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -40,7 +41,17 @@ import Header from "@/components/ui/header";
 
 export default function CashRegisterPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const canAccessCashRegister = user?.permissions?.includes("cash_register:read");
+
+  useEffect(() => {
+    if (!canAccessCashRegister) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canAccessCashRegister, router]);
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [movementType, setMovementType] = useState<"INCOME" | "EXPENSE">("INCOME");

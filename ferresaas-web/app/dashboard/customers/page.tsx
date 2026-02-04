@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +16,19 @@ import Link from "next/link";
 import Header from "@/components/ui/header";
 
 export default function CustomersPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
+
+  const canViewCustomers = user?.permissions?.includes("customers:read");
+  const canCreateCustomers = user?.permissions?.includes("customers:create");
+
+  useEffect(() => {
+    if (!canViewCustomers) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewCustomers, router]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     type: "PERSON" as "PERSON" | "COMPANY",

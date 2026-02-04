@@ -15,9 +15,22 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 
 export default function BusinessSettingsPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+
+  const canUpdateSettings = user?.permissions?.includes("settings:update");
+
+  useEffect(() => {
+    if (!canUpdateSettings) {
+      router.push("/dashboard/settings");
+      return;
+    }
+  }, [canUpdateSettings, router]);
 
   // Mock initial data
   const [formData, setFormData] = useState({

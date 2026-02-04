@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,9 +48,20 @@ interface DiscountApproval {
 }
 
 export default function DiscountApprovalsPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  const canApproveDiscounts = user?.permissions?.includes("sales:manage");
+
+  useEffect(() => {
+    if (!canApproveDiscounts) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canApproveDiscounts, router]);
 
   // Obtener aprobaciones pendientes
   const { data: approvalsData, isLoading } = useQuery({

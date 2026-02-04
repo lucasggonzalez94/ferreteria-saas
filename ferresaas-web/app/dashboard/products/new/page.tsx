@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,16 @@ import Header from "@/components/ui/header";
 
 export default function NewProductPage() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const canCreateProducts = user?.permissions?.includes("products:create");
+
+  useEffect(() => {
+    if (!canCreateProducts) {
+      router.push("/dashboard/products");
+      return;
+    }
+  }, [canCreateProducts, router]);
   const [formData, setFormData] = useState({
     name: "",
     barcode: "",

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,16 @@ interface Payment {
 
 export default function POSPage() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const canAccessPOS = user?.permissions?.includes("sales:create");
+
+  useEffect(() => {
+    if (!canAccessPOS) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canAccessPOS, router]);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);

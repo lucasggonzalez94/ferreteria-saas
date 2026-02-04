@@ -2,6 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -10,6 +13,17 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 
 export default function InventoryPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const canViewInventory = user?.permissions?.includes("inventory:read");
+
+  useEffect(() => {
+    if (!canViewInventory) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewInventory, router]);
   const { data: lowStock, isLoading } = useQuery({
     queryKey: ["inventory", "low-stock"],
     queryFn: async () => {

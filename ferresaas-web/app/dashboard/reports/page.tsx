@@ -2,11 +2,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, TrendingUp, Package } from "lucide-react";
 import Header from "@/components/ui/header";
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const canViewReports = user?.permissions?.includes("reports:read");
+
+  useEffect(() => {
+    if (!canViewReports) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewReports, router]);
   const { data: sales } = useQuery({
     queryKey: ["sales"],
     queryFn: async () => {

@@ -2,6 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Package, TrendingUp, DollarSign, ArrowLeft } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -10,6 +13,17 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/ui/header";
 
 export default function PurchasesPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const canViewPurchases = user?.permissions?.includes("purchases:read");
+
+  useEffect(() => {
+    if (!canViewPurchases) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewPurchases, router]);
   const { data: purchases, isLoading } = useQuery({
     queryKey: ["purchases"],
     queryFn: async () => {
