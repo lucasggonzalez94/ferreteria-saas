@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const hasInitialized = useRef(false);
   const isFetching = useRef(false);
+  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Prevenir ejecuciones múltiples con ref
@@ -46,6 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser().finally(() => {
       isFetching.current = false;
     });
+
+    // Limpiar interval al desmontar
+    return () => {
+      if (sessionCheckInterval.current) {
+        clearInterval(sessionCheckInterval.current);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Solo ejecutar al montar
 
@@ -75,9 +83,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // Si falla, no hay sesión válida
       // No hacer nada, simplemente dejar user como null
-      console.log('No active session');
+      console.log('No active session', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Función para sincronizar usuario cuando la sesión se restaura automáticamente
+  const syncUserFromSession = async () => {
+    try {
+      const response = await api.get<any>("/auth/restore-session");
+      if (response.success && response.data?.user) {
+        setUser(response.data.user);
+      }
+    } catch (error) {
+      // Si falla la sincronización, el siguiente request 401 lo manejará
     }
   };
 

@@ -23,6 +23,8 @@ let csrfToken: string | null = null;
 let csrfHash: string | null = null;
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
+let tokenExpiresAt: number | null = null;
+let refreshTimer: NodeJS.Timeout | null = null;
 
 // Helper para obtener access token de memoria
 export function getToken(): string | null {
@@ -47,6 +49,97 @@ export function saveTokens(newAccessToken: string, newCsrfToken?: string, newCsr
   }
   if (newCsrfHash) {
     csrfHash = newCsrfHash;
+  }
+  
+  // Calcular tiempo de expiración (access token típicamente expira en 15 min)
+  // Refrescar 2 minutos antes de que expire
+  tokenExpiresAt = Date.now() + (13 * 60 * 1000); // 13 minutos
+  scheduleTokenRefresh();
+}
+
+// Programar refresh automático del token
+function scheduleTokenRefresh(): void {
+  // Limpiar timer anterior si existe
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+  }
+  
+  // Programar nuevo refresh
+  refreshTimer = setTimeout(() => {
+    if (accessToken) {
+      // Intentar refrescar silenciosamente sin interrumpir al usuario
+      refreshAccessTokenSilently().catch(() => {
+        // Si falla, el siguiente request 401 lo manejará
+      });
+    }
+  }, 13 * 60 * 1000); // 13 minutos
+}
+
+// Refrescar token silenciosamente sin que el usuario se entere
+async function refreshAccessTokenSilently(): Promise<void> {
+  if (isRefreshing) {
+    return; // Ya se está refrescando
+  }
+  
+  isRefreshing = true;
+  try {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      // Si falla, intentar restaurar sesión
+      await restoreSessionSilently();
+      return;
+    }
+
+    const data = await response.json();
+    const newAccessToken = data.data?.accessToken;
+    const newCsrfToken = data.data?.csrfToken;
+    const newCsrfHash = data.data?.csrfHash;
+
+    if (newAccessToken) {
+      saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
+      onRefreshed(newAccessToken);
+    }
+  } catch (error) {
+    // Error de red, intentar restaurar sesión
+    await restoreSessionSilently();
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+// Restaurar sesión silenciosamente usando restore-session
+async function restoreSessionSilently(): Promise<void> {
+  try {
+    const response = await fetch(`${API_URL}/auth/restore-session`, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await response.json();
+    if (data.success && data.data?.accessToken) {
+      saveTokens(
+        data.data.accessToken,
+        data.data.csrfToken,
+        data.data.csrfHash
+      );
+      onRefreshed(data.data.accessToken);
+    }
+  } catch (error) {
+    // Falló la restauración, el siguiente error 401 lo manejará
   }
 }
 
@@ -82,33 +175,76 @@ class ApiClient {
 
   /**
    * Refresh access token usando cookie HttpOnly
+   * Si falla, intenta restaurar la sesión usando restore-session
    */
   private async refreshAccessToken(): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-      method: "POST",
-      credentials: "include", // Envía cookie automáticamente
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: "POST",
+        credentials: "include", // Envía cookie automáticamente
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (!response.ok) {
-      clearTokens();
-      throw new Error("Failed to refresh token");
+      if (!response.ok) {
+        // Si refresh falla, intentar restaurar sesión
+        return await this.restoreSession();
+      }
+
+      const data = await response.json();
+      const newAccessToken = data.data?.accessToken;
+      const newCsrfToken = data.data?.csrfToken;
+      const newCsrfHash = data.data?.csrfHash;
+
+      if (!newAccessToken) {
+        // Si no hay token, intentar restaurar sesión
+        return await this.restoreSession();
+      }
+
+      saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
+      return newAccessToken;
+    } catch (error) {
+      // Error de red o parsing, intentar restaurar sesión
+      return await this.restoreSession();
     }
+  }
 
-    const data = await response.json();
-    const newAccessToken = data.data?.accessToken;
-    const newCsrfToken = data.data?.csrfToken;
-    const newCsrfHash = data.data?.csrfHash;
+  /**
+   * Restaurar sesión usando restore-session endpoint
+   * Se usa cuando refresh falla (ej: refreshToken vencido)
+   */
+  private async restoreSession(): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/restore-session`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (!newAccessToken) {
+      if (!response.ok) {
+        clearTokens();
+        throw new Error("Failed to restore session");
+      }
+
+      const data = await response.json();
+      if (!data.success || !data.data?.accessToken) {
+        clearTokens();
+        throw new Error("No access token in restore response");
+      }
+
+      saveTokens(
+        data.data.accessToken,
+        data.data.csrfToken,
+        data.data.csrfHash
+      );
+      return data.data.accessToken;
+    } catch (error) {
       clearTokens();
-      throw new Error("No access token in refresh response");
+      throw error;
     }
-
-    saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
-    return newAccessToken;
   }
 
   private async request<T>(
@@ -144,8 +280,12 @@ class ApiClient {
     });
 
     // Si es 401 y podemos reintentar, refrescar token
-    // Excluir solo login y refresh para evitar loops infinitos
-    const shouldNotRefresh = endpoint.includes("/auth/login") || endpoint.includes("/auth/refresh");
+    // Excluir solo login, refresh y restore-session para evitar loops infinitos
+    const shouldNotRefresh = 
+      endpoint.includes("/auth/login") || 
+      endpoint.includes("/auth/refresh") ||
+      endpoint.includes("/auth/restore-session");
+    
     if (response.status === 401 && retry && !shouldNotRefresh) {
       if (!isRefreshing) {
         isRefreshing = true;
@@ -162,7 +302,7 @@ class ApiClient {
           throw error;
         }
       } else {
-        // Si ya se está refrescando, esperar
+        // Si ya se está refrescando, esperar a que termine
         return new Promise((resolve, reject) => {
           subscribeTokenRefresh((token: string) => {
             // Reintentar con nuevo token

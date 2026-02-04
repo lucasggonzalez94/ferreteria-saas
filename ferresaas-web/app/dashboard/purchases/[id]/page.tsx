@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, Package, DollarSign } from "lucide-react";
 import Link from "next/link";
+import Header from "@/components/ui/header";
 
 interface PurchaseDetail {
   id: string;
@@ -97,22 +98,12 @@ export default function PurchaseDetailPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/dashboard/purchases">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">
-              Compra #{purchase.invoiceNumber || purchase.id.slice(0, 8)}
-            </h1>
-            <p className="text-muted-foreground">
-              {new Date(purchase.createdAt).toLocaleDateString("es-AR")}
-            </p>
-          </div>
-        </div>
+        <Header
+          title={`Compra #${purchase.invoiceNumber || purchase.id.slice(0, 8)}`}
+          description={new Date(purchase.createdAt).toLocaleDateString("es-AR")}
+          link="/dashboard/purchases"
+          linkLabel="Volver a Compras"
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -166,7 +157,7 @@ export default function PurchaseDetailPage() {
                           </p>
                         </div>
                         <p className="font-semibold">
-                          ${item.subtotal.toFixed(2)}
+                          ${Number(item.subtotal).toFixed(2)}
                         </p>
                       </div>
                       <div className="grid grid-cols-4 gap-4 text-sm text-muted-foreground">
@@ -179,7 +170,7 @@ export default function PurchaseDetailPage() {
                         <div>
                           <p>Precio Unit.</p>
                           <p className="font-semibold text-foreground">
-                            ${item.unitCost.toFixed(2)}
+                            ${Number(item.unitCost).toFixed(2)}
                           </p>
                         </div>
                         <div>
@@ -191,7 +182,7 @@ export default function PurchaseDetailPage() {
                         <div>
                           <p>Subtotal</p>
                           <p className="font-semibold text-foreground">
-                            ${item.subtotal.toFixed(2)}
+                            ${Number(item.subtotal).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -227,19 +218,19 @@ export default function PurchaseDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-semibold">
-                    ${purchase.subtotal.toFixed(2)}
+                    ${Number(purchase.subtotal).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">IVA</span>
                   <span className="font-semibold">
-                    ${purchase.tax.toFixed(2)}
+                    ${Number(purchase.tax).toFixed(2)}
                   </span>
                 </div>
                 <div className="border-t pt-4 flex justify-between">
                   <span className="font-semibold">Total</span>
                   <span className="text-lg font-bold">
-                    ${purchase.total.toFixed(2)}
+                    ${Number(purchase.total).toFixed(2)}
                   </span>
                 </div>
               </CardContent>

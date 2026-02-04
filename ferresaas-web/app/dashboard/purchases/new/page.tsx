@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, PackagePlus, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { QuickCreateProductModal } from "@/components/quick-create-product-modal";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Header from "@/components/ui/header";
 
 interface Supplier {
   id: string;
@@ -56,6 +59,7 @@ export default function NewPurchasePage() {
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [taxRate, setTaxRate] = useState("21");
+  const [showCreateProductModal, setShowCreateProductModal] = useState(false);
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -70,21 +74,25 @@ export default function NewPurchasePage() {
       const response = await api.get<any>("/suppliers", {
         params: { limit: 1000 },
       });
-      return response.data?.data || [];
+      return response.data || [];
     },
     enabled: canCreatePurchase,
   });
 
-  const { data: products, isLoading: isLoadingProducts } = useQuery<any[]>({
+  const { data: products, isLoading: isLoadingProducts, error: productsError, refetch: refetchProducts } = useQuery<any[]>({
     queryKey: ["products-list"],
     queryFn: async () => {
       const response = await api.get<any>("/products", {
         params: { limit: 1000 },
       });
-      return response.data?.data || [];
+      return response.data || [];
     },
     enabled: canCreatePurchase,
   });
+
+  console.log("Current products state:", products);
+  console.log("Products length:", products?.length);
+  console.log("isLoadingProducts:", isLoadingProducts);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -109,7 +117,7 @@ export default function NewPurchasePage() {
 
   const handleAddItem = () => {
     if (!selectedProductId || !quantity || !unitCost) {
-      alert("Completa todos los campos del producto");
+      toast.error("Completa todos los campos del producto");
       return;
     }
 
@@ -134,11 +142,11 @@ export default function NewPurchasePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierId) {
-      alert("Selecciona un proveedor");
+      toast.error("Selecciona un proveedor");
       return;
     }
     if (items.length === 0) {
-      alert("Agrega al menos un producto");
+      toast.error("Agrega al menos un producto");
       return;
     }
     createMutation.mutate();
@@ -174,15 +182,7 @@ export default function NewPurchasePage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/dashboard/purchases">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold">Nueva Compra</h1>
-        </div>
+        <Header title="Nueva Compra" />
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Supplier Selection */}
@@ -240,22 +240,59 @@ export default function NewPurchasePage() {
               <CardTitle>Agregar Productos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {productsError && (
+                <div className="w-full p-3 rounded-md border border-destructive bg-destructive/10 text-sm text-destructive">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Error al cargar productos</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchProducts()}
+                    className="w-full"
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div>
-                  <Label htmlFor="product">Producto *</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="product">Producto *</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCreateProductModal(true)}
+                      className="h-fit text-xs"
+                    >
+                      <PackagePlus className="h-3 w-3 mr-1" />
+                      Nuevo
+                    </Button>
+                  </div>
                   <Select
                     value={selectedProductId}
                     onValueChange={(value: string) => setSelectedProductId(value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona" />
+                      <SelectValue placeholder="Selecciona un producto" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products?.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
+                      {products && products.length > 0 ? (
+                        products.map((product: any) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          <PackagePlus className="h-4 w-4 mx-auto mb-2" />
+                          <p>No hay productos registrados</p>
+                          <p className="text-xs mt-1">Usa el botón "Nuevo" para crear uno</p>
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -434,6 +471,14 @@ export default function NewPurchasePage() {
             </Link>
           </div>
         </form>
+
+        <QuickCreateProductModal
+          open={showCreateProductModal}
+          onOpenChange={setShowCreateProductModal}
+          onSuccess={(productId) => {
+            setSelectedProductId(productId);
+          }}
+        />
       </div>
     </div>
   );
