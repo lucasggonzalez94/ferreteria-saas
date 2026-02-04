@@ -10,7 +10,9 @@ import {
   updateProductSchema,
   updatePriceSchema,
   productFiltersSchema,
+  calculateSuggestedPriceSchema,
 } from './products.schemas';
+import { calculateSuggestedPrice } from '../utils/pricing';
 
 const router = Router();
 const productService = new ProductService();
@@ -188,6 +190,35 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
       res.send(buffer);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /products/calculate-price
+ * Calcular precio sugerido
+ */
+router.post(
+  '/calculate-price',
+  requirePermissions('products:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = calculateSuggestedPriceSchema.parse(req.body);
+      
+      const suggestedPrice = calculateSuggestedPrice(
+        data.cost,
+        data.taxRate,
+        data.marginPercent
+      );
+
+      sendSuccess(res, { 
+        cost: data.cost,
+        taxRate: data.taxRate,
+        marginPercent: data.marginPercent,
+        suggestedPrice,
+      });
     } catch (error) {
       next(error);
     }

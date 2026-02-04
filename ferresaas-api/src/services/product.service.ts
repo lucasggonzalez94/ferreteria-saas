@@ -4,29 +4,54 @@ import { AuditService } from './audit.service';
 import { Prisma } from '@prisma/client';
 import bwipjs from 'bwip-js';
 import PDFDocument from 'pdfkit';
+import { calculateSuggestedPrice } from '../utils/pricing';
 
 export class ProductService {
   /**
    * Generar internal SKU único
    */
   private async generateInternalSku(businessId: string): Promise<string> {
-    // Obtener el último producto del negocio
-    const lastProduct = await prisma.product.findFirst({
+    // Obtener todos los productos del negocio y encontrar el número más alto
+    const allProducts = await prisma.product.findMany({
       where: { businessId },
-      orderBy: { createdAt: 'desc' },
       select: { internalSku: true },
+      orderBy: { internalSku: 'desc' },
+      take: 1,
     });
 
     let nextNumber = 1;
 
-    if (lastProduct && lastProduct.internalSku.startsWith('FER-')) {
-      const lastNumber = parseInt(lastProduct.internalSku.replace('FER-', ''));
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
+    if (allProducts.length > 0) {
+      const lastSku = allProducts[0].internalSku;
+      if (lastSku.startsWith('FER-')) {
+        const lastNumber = parseInt(lastSku.replace('FER-', ''));
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
+        }
       }
     }
 
-    return `FER-${String(nextNumber).padStart(5, '0')}`;
+    // Generar SKU candidato
+    let sku = `FER-${String(nextNumber).padStart(5, '0')}`;
+    
+    // Verificar que no exista (en caso de conflicto, incrementar)
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await prisma.product.findUnique({
+        where: { internalSku: sku },
+      });
+      
+      if (!existing) {
+        return sku;
+      }
+      
+      // Si existe, incrementar y reintentar
+      nextNumber++;
+      sku = `FER-${String(nextNumber).padStart(5, '0')}`;
+      attempts++;
+    }
+
+    throw new AppError(500, 'SKU_GENERATION_FAILED', 'Unable to generate unique SKU after multiple attempts');
   }
 
   /**
@@ -46,7 +71,8 @@ export class ProductService {
       cost: number;
       price: number;
       taxRate: number;
-      minStock?: number;
+      marginPercent?: number | null;
+      minStock?: number | null;
     }
   ) {
     // Generar SKU interno
@@ -61,6 +87,16 @@ export class ProductService {
       if (existing) {
         throw new AppError(409, 'BARCODE_EXISTS', 'Barcode already exists');
       }
+    }
+
+    // Calcular precio sugerido si se proporcionó margen
+    let suggestedPrice: number | undefined;
+    if (data.marginPercent !== undefined && data.marginPercent !== null) {
+      suggestedPrice = calculateSuggestedPrice(
+        data.cost,
+        data.taxRate,
+        data.marginPercent
+      );
     }
 
     // Crear producto
@@ -78,6 +114,8 @@ export class ProductService {
         cost: data.cost,
         price: data.price,
         taxRate: data.taxRate,
+        marginPercent: data.marginPercent,
+        suggestedPrice,
         minStock: data.minStock,
         stockQuantity: 0, // Stock inicial en 0
       },
@@ -228,6 +266,7 @@ export class ProductService {
       cost: number;
       price: number;
       taxRate: number;
+      marginPercent?: number | null;
       minStock?: number | null;
       isActive: boolean;
     }>
@@ -246,10 +285,29 @@ export class ProductService {
       }
     }
 
+    // Recalcular precio sugerido si cambiaron cost, taxRate o marginPercent
+    let suggestedPrice: number | undefined;
+    const finalCost = data.cost ?? Number(current.cost);
+    const finalTaxRate = data.taxRate ?? Number(current.taxRate);
+    const finalMarginPercent = data.marginPercent !== undefined 
+      ? data.marginPercent 
+      : (current.marginPercent ? Number(current.marginPercent) : undefined);
+
+    if (finalMarginPercent !== undefined && finalMarginPercent !== null) {
+      suggestedPrice = calculateSuggestedPrice(
+        finalCost,
+        finalTaxRate,
+        finalMarginPercent
+      );
+    }
+
     // Actualizar
     const updated = await prisma.product.update({
       where: { id: productId },
-      data,
+      data: {
+        ...data,
+        suggestedPrice,
+      },
       include: {
         category: true,
         brand: true,

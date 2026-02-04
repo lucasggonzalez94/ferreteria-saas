@@ -25,6 +25,8 @@ export interface Product {
   cost: number;
   price: number;
   taxRate: number;
+  marginPercent?: number;
+  suggestedPrice?: number;
   stockQuantity: number;
   minStock?: number;
   isActive: boolean;

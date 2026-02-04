@@ -258,9 +258,11 @@ model Product {
   isFractional Boolean  @default(false) // Permite decimales en cantidad
   
   // Precios e impuestos
-  cost         Decimal  @db.Decimal(12, 2)
-  price        Decimal  @db.Decimal(12, 2)
-  taxRate      Decimal  @db.Decimal(5, 2) @default(21.00) // IVA %
+  cost           Decimal  @db.Decimal(12, 2)
+  price          Decimal  @db.Decimal(12, 2)
+  taxRate        Decimal  @db.Decimal(5, 2) @default(21.00) // IVA %
+  marginPercent  Decimal? @db.Decimal(5, 2) // Margen de ganancia %
+  suggestedPrice Decimal? @db.Decimal(12, 2) // Precio sugerido calculado
   
   // Stock
   stockQuantity Decimal  @db.Decimal(12, 3) @default(0)

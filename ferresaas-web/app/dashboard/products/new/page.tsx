@@ -35,8 +35,11 @@ export default function NewProductPage() {
     cost: "",
     price: "",
     taxRate: "21",
+    marginPercent: "",
     minStock: "",
   });
+
+  const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
 
   // Obtener categorías
   const { data: categories } = useQuery({
@@ -61,6 +64,34 @@ export default function NewProductPage() {
     },
   });
 
+  const calculatePrice = async () => {
+    if (!formData.cost || !formData.taxRate || !formData.marginPercent) {
+      toast.error("Completa costo, IVA y margen para calcular");
+      return;
+    }
+
+    try {
+      const response = await api.post<any>("/products/calculate-price", {
+        cost: parseFloat(formData.cost),
+        taxRate: parseFloat(formData.taxRate),
+        marginPercent: parseFloat(formData.marginPercent),
+      });
+
+      const calculated = response.data.suggestedPrice;
+      setSuggestedPrice(calculated);
+      toast.success(`Precio sugerido: $${calculated.toFixed(2)}`);
+    } catch (error: any) {
+      toast.error(error.message || "Error al calcular precio");
+    }
+  };
+
+  const applySuggestedPrice = () => {
+    if (suggestedPrice !== null) {
+      setFormData({ ...formData, price: suggestedPrice.toFixed(2) });
+      toast.success("Precio sugerido aplicado");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -74,6 +105,7 @@ export default function NewProductPage() {
       cost: parseFloat(formData.cost),
       price: parseFloat(formData.price),
       taxRate: parseFloat(formData.taxRate),
+      marginPercent: formData.marginPercent ? parseFloat(formData.marginPercent) : undefined,
       minStock: formData.minStock ? parseFloat(formData.minStock) : undefined,
     });
   };
@@ -209,7 +241,7 @@ export default function NewProductPage() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div>
                   <Label htmlFor="taxRate">IVA (%)</Label>
                   <Input
                     id="taxRate"
@@ -220,6 +252,50 @@ export default function NewProductPage() {
                       setFormData({ ...formData, taxRate: e.target.value })
                     }
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="marginPercent">Margen (%)</Label>
+                  <Input
+                    id="marginPercent"
+                    type="number"
+                    step="0.01"
+                    value={formData.marginPercent}
+                    onChange={(e) =>
+                      setFormData({ ...formData, marginPercent: e.target.value })
+                    }
+                    placeholder="Ej: 30"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label>Precio Sugerido</Label>
+                      <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
+                        {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Calcular primero"}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={calculatePrice}
+                      variant="outline"
+                      disabled={!formData.cost || !formData.taxRate || !formData.marginPercent}
+                    >
+                      Calcular
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={applySuggestedPrice}
+                      variant="secondary"
+                      disabled={suggestedPrice === null}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Fórmula: Precio = Costo × (1 + Margen%) × (1 + IVA%)
+                  </p>
                 </div>
               </div>
 

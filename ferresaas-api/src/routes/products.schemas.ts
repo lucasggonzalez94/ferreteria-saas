@@ -12,7 +12,8 @@ export const createProductSchema = z.object({
   cost: z.number().positive(),
   price: z.number().positive(),
   taxRate: z.number().min(0).max(100).default(21),
-  minStock: z.number().min(0).optional(),
+  marginPercent: z.number().min(0).max(1000).nullable().optional(),
+  minStock: z.number().min(0).nullable().optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
@@ -29,6 +30,7 @@ export const updateProductSchema = z.object({
   cost: z.number().positive().optional(),
   price: z.number().positive().optional(),
   taxRate: z.number().min(0).max(100).optional(),
+  marginPercent: z.number().min(0).max(1000).nullable().optional(),
   minStock: z.number().min(0).nullable().optional(),
   isActive: z.boolean().optional(),
 });
@@ -56,3 +58,12 @@ export const productFiltersSchema = z.object({
 });
 
 export type ProductFilters = z.infer<typeof productFiltersSchema>;
+
+// Calcular precio sugerido
+export const calculateSuggestedPriceSchema = z.object({
+  cost: z.number().positive(),
+  taxRate: z.number().min(0).max(100),
+  marginPercent: z.number().min(0).max(1000),
+});
+
+export type CalculateSuggestedPriceInput = z.infer<typeof calculateSuggestedPriceSchema>;
