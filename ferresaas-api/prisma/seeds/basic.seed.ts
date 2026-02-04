@@ -29,6 +29,11 @@ async function main() {
       update: {},
       create: { resource: 'products', action: 'delete', description: 'Eliminar productos' },
     }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'products', action: 'manage' } },
+      update: {},
+      create: { resource: 'products', action: 'manage', description: 'Gestionar productos' },
+    }),
     // Ventas
     prisma.permission.upsert({
       where: { resource_action: { resource: 'sales', action: 'create' } },
@@ -40,6 +45,32 @@ async function main() {
       update: {},
       create: { resource: 'sales', action: 'read', description: 'Ver ventas' },
     }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'sales', action: 'refund' } },
+      update: {},
+      create: { resource: 'sales', action: 'refund', description: 'Reembolsar ventas' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'sales', action: 'manage' } },
+      update: {},
+      create: { resource: 'sales', action: 'manage', description: 'Gestionar ventas y descuentos' },
+    }),
+    // Compras
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'purchases', action: 'create' } },
+      update: {},
+      create: { resource: 'purchases', action: 'create', description: 'Crear compras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'purchases', action: 'read' } },
+      update: {},
+      create: { resource: 'purchases', action: 'read', description: 'Ver compras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'purchases', action: 'manage' } },
+      update: {},
+      create: { resource: 'purchases', action: 'manage', description: 'Gestionar compras' },
+    }),
     // Inventario
     prisma.permission.upsert({
       where: { resource_action: { resource: 'inventory', action: 'read' } },
@@ -50,6 +81,11 @@ async function main() {
       where: { resource_action: { resource: 'inventory', action: 'adjust' } },
       update: {},
       create: { resource: 'inventory', action: 'adjust', description: 'Ajustar inventario' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'inventory', action: 'manage' } },
+      update: {},
+      create: { resource: 'inventory', action: 'manage', description: 'Gestionar inventario' },
     }),
     // Reportes
     prisma.permission.upsert({
@@ -73,6 +109,21 @@ async function main() {
       where: { resource_action: { resource: 'customers', action: 'create' } },
       update: {},
       create: { resource: 'customers', action: 'create', description: 'Crear clientes' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'customers', action: 'update' } },
+      update: {},
+      create: { resource: 'customers', action: 'update', description: 'Editar clientes' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'customers', action: 'delete' } },
+      update: {},
+      create: { resource: 'customers', action: 'delete', description: 'Eliminar clientes' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'customers', action: 'manage' } },
+      update: {},
+      create: { resource: 'customers', action: 'manage', description: 'Gestionar clientes' },
     }),
     // Caja
     prisma.permission.upsert({
