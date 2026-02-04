@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const canAccessPOS = user?.permissions?.includes("sales:create");
   const canAccessCashRegister = user?.permissions?.includes("cash_register:read");
   const canAccessPurchases = user?.permissions?.includes("purchases:read");
+  const canAccessSuppliers = user?.permissions?.includes("purchases:read");
+  const canAccessPayables = user?.permissions?.includes("purchases:read");
   const canAccessReports = user?.permissions?.includes("reports:read");
   const canApproveDiscounts = user?.permissions?.includes("sales:manage");
 
@@ -305,6 +307,18 @@ export default function DashboardPage() {
                 </Link>
               )}
 
+              {canAccessSuppliers && (
+                <Link href="/dashboard/suppliers">
+                  <Button
+                    variant="outline"
+                    className="w-full h-20 flex flex-col gap-2"
+                  >
+                    <Package className="h-6 w-6" />
+                    <span>Proveedores</span>
+                  </Button>
+                </Link>
+              )}
+
               {canAccessPurchases && (
                 <Link href="/dashboard/purchases">
                   <Button
@@ -313,6 +327,18 @@ export default function DashboardPage() {
                   >
                     <ShoppingCart className="h-6 w-6" />
                     <span>Compras</span>
+                  </Button>
+                </Link>
+              )}
+
+              {canAccessPayables && (
+                <Link href="/dashboard/payables">
+                  <Button
+                    variant="outline"
+                    className="w-full h-20 flex flex-col gap-2"
+                  >
+                    <DollarSign className="h-6 w-6" />
+                    <span>Cuentas por Pagar</span>
                   </Button>
                 </Link>
               )}

@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { PurchaseService } from '../services/purchase.service';
+import { SupplierService } from '../services/supplier.service';
+import { PayableService } from '../services/payable.service';
 import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
@@ -15,6 +17,8 @@ import {
 
 const router = Router();
 const purchaseService = new PurchaseService();
+const supplierService = new SupplierService();
+const payableService = new PayableService();
 
 // Todas las rutas requieren autenticación y multi-tenant
 router.use(authenticate, multiTenant);
@@ -25,7 +29,7 @@ router.use(authenticate, multiTenant);
 
 /**
  * GET /suppliers
- * Listar proveedores
+ * Listar proveedores con búsqueda y paginación
  */
 router.get(
   '/suppliers',
@@ -33,13 +37,16 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
+      const { search, isActive, page, limit } = req.query;
 
-      const suppliers = await prisma.supplier.findMany({
-        where: { businessId: authReq.businessId! },
-        orderBy: { name: 'asc' },
+      const result = await supplierService.list(authReq.businessId!, {
+        search: search as string | undefined,
+        isActive: isActive === 'false' ? false : isActive === 'true' ? true : undefined,
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
       });
 
-      sendSuccess(res, suppliers);
+      sendPaginated(res, result.items, result.meta);
     } catch (error) {
       next(error);
     }
@@ -82,7 +89,7 @@ router.post(
 
 /**
  * GET /suppliers/:id
- * Obtener proveedor por ID
+ * Obtener proveedor por ID con resumen
  */
 router.get(
   '/suppliers/:id',
@@ -92,24 +99,8 @@ router.get(
       const authReq = req as AuthRequest;
       const { id } = req.params;
 
-      const supplier = await prisma.supplier.findUnique({
-        where: { id },
-        include: {
-          _count: {
-            select: { purchases: true },
-          },
-        },
-      });
-
-      if (!supplier) {
-        throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
-      }
-
-      if (supplier.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
-
-      sendSuccess(res, supplier);
+      const result = await supplierService.getSummary(authReq.businessId!, id);
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }
@@ -270,6 +261,86 @@ router.get(
       const purchase = await purchaseService.getById(authReq.businessId!, id);
 
       sendSuccess(res, purchase);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================================================
+// CUENTAS POR PAGAR
+// ============================================================================
+
+/**
+ * GET /payables
+ * Listar cuentas por pagar
+ */
+router.get(
+  '/payables',
+  requirePermissions('purchases:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { supplierId, status, startDate, endDate, page, limit } = req.query;
+
+      const result = await payableService.list(authReq.businessId!, {
+        supplierId: supplierId as string | undefined,
+        status: status as string | undefined,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+
+      sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /payables/summary
+ * Obtener resumen de cuentas por pagar
+ */
+router.get(
+  '/payables/summary',
+  requirePermissions('purchases:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const summary = await payableService.getSummary(authReq.businessId!);
+      sendSuccess(res, summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /payables/:payableId/payments
+ * Registrar pago a proveedor
+ */
+router.post(
+  '/payables/:payableId/payments',
+  requirePermissions('purchases:update'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { payableId } = req.params;
+      const { amount, method, reference, notes } = req.body;
+
+      const payment = await payableService.recordPayment(
+        authReq.businessId!,
+        authReq.user!.id,
+        payableId,
+        amount,
+        method,
+        reference,
+        notes
+      );
+
+      sendSuccess(res, payment, 201);
     } catch (error) {
       next(error);
     }

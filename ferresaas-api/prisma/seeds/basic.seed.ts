@@ -67,6 +67,16 @@ async function main() {
       create: { resource: 'purchases', action: 'read', description: 'Ver compras' },
     }),
     prisma.permission.upsert({
+      where: { resource_action: { resource: 'purchases', action: 'update' } },
+      update: {},
+      create: { resource: 'purchases', action: 'update', description: 'Editar compras y proveedores' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'purchases', action: 'delete' } },
+      update: {},
+      create: { resource: 'purchases', action: 'delete', description: 'Eliminar compras y proveedores' },
+    }),
+    prisma.permission.upsert({
       where: { resource_action: { resource: 'purchases', action: 'manage' } },
       update: {},
       create: { resource: 'purchases', action: 'manage', description: 'Gestionar compras' },

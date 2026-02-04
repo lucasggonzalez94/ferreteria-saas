@@ -7,6 +7,11 @@ export const createSupplierSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
+  paymentTerms: z.string().max(100).optional(),
+  paymentMethods: z.string().optional(), // JSON string
+  creditLimit: z.number().positive().optional(),
+  contactName: z.string().max(200).optional(),
+  contactPhone: z.string().max(50).optional(),
 });
 
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
@@ -18,6 +23,11 @@ export const updateSupplierSchema = z.object({
   email: z.string().email().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
+  paymentTerms: z.string().max(100).nullable().optional(),
+  paymentMethods: z.string().nullable().optional(),
+  creditLimit: z.number().positive().nullable().optional(),
+  contactName: z.string().max(200).nullable().optional(),
+  contactPhone: z.string().max(50).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 
