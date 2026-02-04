@@ -60,6 +60,7 @@ export default function NewPurchasePage() {
   const [unitCost, setUnitCost] = useState("");
   const [taxRate, setTaxRate] = useState("21");
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -106,11 +107,14 @@ export default function NewPurchasePage() {
           taxRate: parseFloat(item.taxRate.toString()),
         })),
         notes: notes || undefined,
+        amountPaid: amountPaid ? parseFloat(amountPaid) : 0,
       });
       return response.data;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchases-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
       router.push(`/dashboard/purchases/${data.id}`);
     },
   });
@@ -451,6 +455,37 @@ export default function NewPurchasePage() {
                 <span className="text-lg font-bold">
                   ${totals.total.toFixed(2)}
                 </span>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <div>
+                  <Label htmlFor="amountPaid">Monto Pagado</Label>
+                  <Input
+                    id="amountPaid"
+                    type="number"
+                    step="0.01"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(e.target.value)}
+                    placeholder={totals.total.toFixed(2)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Déjalo vacío o en 0 para marcar como pendiente de pago
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-blue-700">Saldo Pendiente</span>
+                    <span className="font-semibold text-blue-900">
+                      ${Math.max(0, totals.total - (amountPaid ? parseFloat(amountPaid) : 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600">
+                    {amountPaid && parseFloat(amountPaid) > 0
+                      ? `Pagado: $${parseFloat(amountPaid).toFixed(2)}`
+                      : "Compra completamente pendiente de pago"}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

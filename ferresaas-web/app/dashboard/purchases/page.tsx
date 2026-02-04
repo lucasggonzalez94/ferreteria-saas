@@ -89,7 +89,10 @@ export default function PurchasesPage() {
           ...(endDate && { endDate }),
         },
       });
-      return response.data as PurchasesResponse;
+      return {
+        data: response.data || [],
+        meta: (response as any).meta || { page: 1, limit: 10, total: 0, totalPages: 0, hasMore: false },
+      } as PurchasesResponse;
     },
     enabled: canViewPurchases,
   });

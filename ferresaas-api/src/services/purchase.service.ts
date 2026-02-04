@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { InventoryService } from './inventory.service';
+import { PayableService } from './payable.service';
 
 export class PurchaseService {
   private inventoryService: InventoryService;
@@ -26,6 +27,7 @@ export class PurchaseService {
         taxRate: number;
       }>;
       notes?: string;
+      amountPaid?: number;
     }
   ) {
     // Verificar que el proveedor existe y pertenece al negocio
@@ -130,6 +132,34 @@ export class PurchaseService {
       total,
       itemsCount: data.items.length,
     });
+
+    // Crear automáticamente la cuenta por pagar
+    const payableService = new PayableService();
+    const amountPaid = data.amountPaid || 0;
+    const pendingAmount = total - amountPaid;
+
+    if (pendingAmount > 0) {
+      await payableService.createFromPurchase(businessId, userId, purchase.id);
+      
+      // Si hay un monto pagado, registrar el pago
+      if (amountPaid > 0) {
+        const payable = await prisma.supplierPayable.findFirst({
+          where: { purchaseId: purchase.id },
+        });
+        
+        if (payable) {
+          await payableService.recordPayment(
+            businessId,
+            userId,
+            payable.id,
+            amountPaid,
+            'INITIAL_PAYMENT',
+            undefined,
+            'Pago inicial al crear la compra'
+          );
+        }
+      }
+    }
 
     // Obtener compra completa con items
     const fullPurchase = await prisma.purchase.findUnique({
