@@ -146,18 +146,14 @@ export default function SupplierDetailPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pendiente
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
               <AlertCircle className="h-4 w-4 text-amber-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">
                 ${stats.pendingPayment.toFixed(2)}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Por pagar
-              </p>
+              <p className="text-xs text-muted-foreground">Por pagar</p>
             </CardContent>
           </Card>
 
@@ -171,9 +167,7 @@ export default function SupplierDetailPage() {
             <CardContent>
               <div className="text-sm font-bold">
                 {stats.lastPurchaseDate
-                  ? new Date(stats.lastPurchaseDate).toLocaleDateString(
-                      "es-AR"
-                    )
+                  ? new Date(stats.lastPurchaseDate).toLocaleDateString("es-AR")
                   : "Sin compras"}
               </div>
             </CardContent>
@@ -181,83 +175,55 @@ export default function SupplierDetailPage() {
         </div>
 
         {/* Supplier Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Información del Proveedor</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {supplier.cuit && (
-                <div>
-                  <p className="text-sm text-muted-foreground">CUIT</p>
-                  <p className="font-semibold">{supplier.cuit}</p>
-                </div>
-              )}
-              {supplier.email && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-semibold">{supplier.email}</p>
-                </div>
-              )}
-              {supplier.phone && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Teléfono</p>
-                  <p className="font-semibold">{supplier.phone}</p>
-                </div>
-              )}
-              {supplier.address && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Dirección</p>
-                  <p className="font-semibold">{supplier.address}</p>
-                </div>
-              )}
-              {supplier.paymentTerms && (
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Condiciones de Pago
-                  </p>
-                  <p className="font-semibold">{supplier.paymentTerms}</p>
-                </div>
-              )}
-              {supplier.creditLimit && (
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Límite de Crédito
-                  </p>
-                  <p className="font-semibold">
-                    ${Number(supplier.creditLimit).toFixed(2)}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Contacto Secundario</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {supplier.contactName ? (
-                <>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nombre</p>
-                    <p className="font-semibold">{supplier.contactName}</p>
-                  </div>
-                  {supplier.contactPhone && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Teléfono</p>
-                      <p className="font-semibold">{supplier.contactPhone}</p>
-                    </div>
-                  )}
-                </>
-              ) : (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Información del Proveedor</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {supplier.cuit && (
+              <div>
+                <p className="text-sm text-muted-foreground">CUIT</p>
+                <p className="font-semibold">{supplier.cuit}</p>
+              </div>
+            )}
+            {supplier.email && (
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-semibold">{supplier.email}</p>
+              </div>
+            )}
+            {supplier.phone && (
+              <div>
+                <p className="text-sm text-muted-foreground">Teléfono</p>
+                <p className="font-semibold">{supplier.phone}</p>
+              </div>
+            )}
+            {supplier.address && (
+              <div>
+                <p className="text-sm text-muted-foreground">Dirección</p>
+                <p className="font-semibold">{supplier.address}</p>
+              </div>
+            )}
+            {supplier.paymentTerms && (
+              <div>
                 <p className="text-sm text-muted-foreground">
-                  No hay contacto secundario registrado
+                  Condiciones de Pago
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <p className="font-semibold">{supplier.paymentTerms}</p>
+              </div>
+            )}
+            {supplier.creditLimit && (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Límite de Crédito
+                </p>
+                <p className="font-semibold">
+                  ${Number(supplier.creditLimit).toFixed(2)}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Actions */}
         <div className="flex gap-4 mt-8">
