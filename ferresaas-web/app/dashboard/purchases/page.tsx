@@ -20,6 +20,7 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";
 
 interface Purchase {
   id: string;
@@ -28,6 +29,7 @@ interface Purchase {
   subtotal: number;
   tax: number;
   total: number;
+  amountPaid?: number;
   createdAt: string;
   supplier: {
     id: string;
@@ -341,8 +343,8 @@ export default function PurchasesPage() {
                             "es-AR"
                           )}
                         </p>
-                        <span className="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                          {purchase.status}
+                        <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full border ${getPurchaseStatusColor(purchase.status)}`}>
+                          {getPurchaseStatusLabel(purchase.status)}
                         </span>
                       </div>
                     </div>
@@ -396,14 +398,6 @@ export default function PurchasesPage() {
               <p className="text-muted-foreground">
                 No hay compras registradas
               </p>
-              {canCreatePurchase && (
-                <Link href="/dashboard/purchases/new">
-                  <Button className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Crear Primera Compra
-                  </Button>
-                </Link>
-              )}
             </CardContent>
           </Card>
         )}

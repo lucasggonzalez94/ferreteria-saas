@@ -325,7 +325,7 @@ export default function CashRegisterPage() {
                                 }
                               >
                                 {movement.type === "INCOME" ? "+" : "-"}$
-                                {movement.amount.toFixed(2)}
+                                {Number(movement.amount).toFixed(2)}
                               </span>
                             </div>
                           ))}
@@ -430,7 +430,7 @@ export default function CashRegisterPage() {
                         <div>
                           <p className="text-muted-foreground">Monto Esperado</p>
                           <p className="text-lg font-bold">
-                            ${summary.expectedAmount.toFixed(2)}
+                            ${Number(summary.expectedAmount).toFixed(2)}
                           </p>
                         </div>
                         <div>

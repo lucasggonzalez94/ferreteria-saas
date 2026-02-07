@@ -15,6 +15,7 @@ import exchangeRateRoutes from './routes/exchange-rate.routes';
 import productsRoutes from './routes/products.routes';
 import categoriesBrandsRoutes from './routes/categories-brands.routes';
 import inventoryRoutes from './routes/inventory.routes';
+import inventoryReportsRoutes from './routes/inventory-reports.routes';
 import suppliersPurchasesRoutes from './routes/suppliers-purchases.routes';
 import customersRoutes from './routes/customers.routes';
 import cashRegisterRoutes from './routes/cash-register.routes';
@@ -76,6 +77,7 @@ app.use('/v1/exchange-rate', exchangeRateRoutes);
 app.use('/v1/products', productsRoutes);
 app.use('/v1', categoriesBrandsRoutes); // /categories y /brands
 app.use('/v1/inventory', inventoryRoutes);
+app.use('/v1/inventory-reports', inventoryReportsRoutes);
 app.use('/v1', suppliersPurchasesRoutes); // /suppliers y /purchases
 app.use('/v1/customers', customersRoutes);
 app.use('/v1/cash-register', cashRegisterRoutes);

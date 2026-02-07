@@ -1,22 +1,37 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, Plus, TrendingDown, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AdjustmentModal from "@/components/inventory/adjustment-modal";
+import ReturnModal from "@/components/inventory/return-modal";
 
 export default function InventoryPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
 
   const canViewInventory = user?.permissions?.includes("inventory:read");
+  const canAdjust = user?.permissions?.includes("inventory:adjust");
+  const canReturn = user?.permissions?.includes("inventory:return");
 
   useEffect(() => {
     if (!canViewInventory) {
@@ -24,82 +39,397 @@ export default function InventoryPage() {
       return;
     }
   }, [canViewInventory, router]);
-  const { data: lowStock, isLoading } = useQuery({
-    queryKey: ["inventory", "low-stock"],
+
+  // Obtener productos con stock
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ["inventory", "products"],
     queryFn: async () => {
-      const response = await api.get<any[]>("/inventory/low-stock");
-      return response.data || [];
+      try {
+        const response = await api.get<any>("/inventory");
+        const productList = Array.isArray(response.data) ? response.data : response.data?.data || [];
+        return productList;
+      } catch (error) {
+        console.error("Error cargando productos:", error);
+        return [];
+      }
+    },
+    enabled: canViewInventory,
+  });
+
+  // Obtener alertas de stock
+  const { data: alerts, isLoading: alertsLoading } = useQuery({
+    queryKey: ["inventory", "alerts"],
+    queryFn: async () => {
+      try {
+        const response = await api.get<any>("/inventory-reports/stock-alerts");
+        const alertsData = response.data?.data || response.data || { items: [], summary: {} };
+        return alertsData;
+      } catch (error) {
+        console.error("Error cargando alertas:", error);
+        return { items: [], summary: {} };
+      }
+    },
+    enabled: canViewInventory,
+  });
+
+  // Obtener movimientos recientes
+  const { data: movements, isLoading: movementsLoading } = useQuery({
+    queryKey: ["inventory", "movements"],
+    queryFn: async () => {
+      try {
+        const response = await api.get<any>("/inventory/movements", {
+          params: { limit: 10, page: 1 },
+        });
+        const movementList = Array.isArray(response.data) ? response.data : response.data?.data || [];
+        return movementList;
+      } catch (error) {
+        console.error("Error cargando movimientos:", error);
+        return [];
+      }
+    },
+    enabled: canViewInventory,
+  });
+
+  const adjustmentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post("/inventory/adjustments", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setAdjustmentOpen(false);
     },
   });
+
+  const returnMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await api.post("/inventory/returns", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setReturnOpen(false);
+    },
+  });
+
+  const getAlertColor = (level: string) => {
+    switch (level) {
+      case "CRITICAL":
+        return "bg-red-50 border-red-200";
+      case "WARNING":
+        return "bg-yellow-50 border-yellow-200";
+      default:
+        return "bg-gray-50 border-gray-200";
+    }
+  };
+
+  const getAlertIcon = (level: string) => {
+    return level === "CRITICAL" ? (
+      <AlertTriangle className="h-5 w-5 text-red-600" />
+    ) : (
+      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+    );
+  };
 
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <Header
-          title="Inventario"
-        />
+        <div className="flex justify-between items-center mb-8">
+          <Header title="Inventario" />
+          <div className="flex gap-2">
+            {canAdjust && (
+              <Button
+                onClick={() => setAdjustmentOpen(true)}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Ajuste Manual
+              </Button>
+            )}
+            {canReturn && (
+              <Button
+                onClick={() => setReturnOpen(true)}
+                variant="outline"
+                className="gap-2"
+              >
+                <TrendingDown className="h-4 w-4" />
+                Devolución
+              </Button>
+            )}
+          </div>
+        </div>
 
-        {/* Low Stock Alert */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              Productos con Stock Bajo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <LoadingSpinner text="Cargando..." />
-            ) : lowStock && lowStock.length > 0 ? (
-              <div className="space-y-2">
-                {lowStock.map((product: any) => (
-                  <div
-                    key={product.id}
-                    className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        SKU: {product.internalSku}
-                      </p>
+        <Tabs defaultValue="alerts" className="w-full">
+          <TabsList>
+            <TabsTrigger value="alerts">Alertas</TabsTrigger>
+            <TabsTrigger value="products">Productos</TabsTrigger>
+            <TabsTrigger value="movements">Movimientos</TabsTrigger>
+          </TabsList>
+
+          {/* Tab: Alertas */}
+          <TabsContent value="alerts">
+            {alertsLoading ? (
+              <LoadingSpinner text="Cargando alertas..." />
+            ) : alerts?.items && alerts.items.length > 0 ? (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      Resumen de Alertas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                        <p className="text-sm text-red-600 font-medium">
+                          Críticas
+                        </p>
+                        <p className="text-2xl font-bold text-red-700">
+                          {alerts.summary?.critical || 0}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-600 font-medium">
+                          Advertencias
+                        </p>
+                        <p className="text-2xl font-bold text-yellow-700">
+                          {alerts.summary?.warning || 0}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-600 font-medium">
+                          Total
+                        </p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {alerts.summary?.total || 0}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-yellow-700">
-                        Stock: {product.stockQuantity} {product.unit}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Mínimo: {product.minStock} {product.unit}
-                      </p>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-2">
+                  {alerts.items.map((alert: any) => (
+                    <div
+                      key={alert.id}
+                      className={`flex justify-between items-center p-4 rounded-lg border ${getAlertColor(
+                        alert.alertLevel
+                      )}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {getAlertIcon(alert.alertLevel)}
+                        <div>
+                          <p className="font-medium">{alert.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            SKU: {alert.internalSku}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">
+                          {Number(alert.stockQuantity).toFixed(2)} {alert.unit}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {alert.alertMessage}
+                        </p>
+                        {alert.minStock && (
+                          <p className="text-xs text-muted-foreground">
+                            Mín: {Number(alert.minStock).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ) : (
-              <p className="text-muted-foreground">
-                No hay productos con stock bajo
-              </p>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-center text-muted-foreground">
+                    No hay alertas de stock
+                  </p>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-          <p className="text-blue-800 font-medium">
-            Módulo de Inventario Completo en Desarrollo
-          </p>
-          <p className="text-blue-700 text-sm mt-2 mb-4">
-            Funcionalidades de movimientos y ajustes estarán disponibles
-            próximamente.
-          </p>
-          <Link href="/dashboard/products">
-            <Button
-              variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-100"
-            >
-              Ir a Gestión de Productos
-            </Button>
-          </Link>
-        </div>
+          {/* Tab: Productos */}
+          <TabsContent value="products">
+            {productsLoading ? (
+              <LoadingSpinner text="Cargando productos..." />
+            ) : products && products.length > 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Categoría</TableHead>
+                          <TableHead className="text-right">Stock</TableHead>
+                          <TableHead className="text-right">Mínimo</TableHead>
+                          <TableHead className="text-center">Estado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {products.map((product: any) => {
+                          const stockLevel =
+                            product.minStock &&
+                            product.stockQuantity < product.minStock
+                              ? "low"
+                              : product.stockQuantity === 0
+                              ? "critical"
+                              : "ok";
+
+                          return (
+                            <TableRow key={product.id}>
+                              <TableCell className="font-medium">
+                                {product.internalSku}
+                              </TableCell>
+                              <TableCell>{product.name}</TableCell>
+                              <TableCell>
+                                {product.category?.name || "-"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {Number(product.stockQuantity).toFixed(2)}{" "}
+                                {product.unit}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {product.minStock
+                                  ? Number(product.minStock).toFixed(2)
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {stockLevel === "critical" && (
+                                  <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                                    Sin stock
+                                  </span>
+                                )}
+                                {stockLevel === "low" && (
+                                  <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                                    Bajo
+                                  </span>
+                                )}
+                                {stockLevel === "ok" && (
+                                  <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                    OK
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-center text-muted-foreground">
+                    No hay productos
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Tab: Movimientos */}
+          <TabsContent value="movements">
+            {movementsLoading ? (
+              <LoadingSpinner text="Cargando movimientos..." />
+            ) : movements && movements.length > 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead className="text-right">Cantidad</TableHead>
+                          <TableHead>Motivo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {movements.map((movement: any) => (
+                          <TableRow key={movement.id}>
+                            <TableCell className="text-sm">
+                              {new Date(movement.createdAt).toLocaleDateString(
+                                "es-AR"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`inline-block px-2 py-1 text-xs rounded-full ${
+                                  movement.type === "SALE"
+                                    ? "bg-red-100 text-red-700"
+                                    : movement.type === "PURCHASE_RECEIPT"
+                                    ? "bg-green-100 text-green-700"
+                                    : movement.type === "RETURN"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {movement.type === "SALE"
+                                  ? "Venta"
+                                  : movement.type === "PURCHASE_RECEIPT"
+                                  ? "Compra"
+                                  : movement.type === "RETURN"
+                                  ? "Devolución"
+                                  : "Ajuste"}
+                              </span>
+                            </TableCell>
+                            <TableCell>{movement.product.name}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {movement.quantity > 0 ? "+" : ""}
+                              {Number(movement.quantity).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {movement.reason || "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-center text-muted-foreground">
+                    No hay movimientos
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Modales */}
+      {canAdjust && (
+        <AdjustmentModal
+          open={adjustmentOpen}
+          onOpenChange={setAdjustmentOpen}
+          onSubmit={(data: any) => adjustmentMutation.mutate(data)}
+          isLoading={adjustmentMutation.isPending}
+        />
+      )}
+
+      {canReturn && (
+        <ReturnModal
+          open={returnOpen}
+          onOpenChange={setReturnOpen}
+          onSubmit={(data: any) => returnMutation.mutate(data)}
+          isLoading={returnMutation.isPending}
+        />
+      )}
     </div>
   );
 }

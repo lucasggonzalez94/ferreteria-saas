@@ -97,6 +97,11 @@ async function main() {
       update: {},
       create: { resource: 'inventory', action: 'manage', description: 'Gestionar inventario' },
     }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'inventory', action: 'return' } },
+      update: {},
+      create: { resource: 'inventory', action: 'return', description: 'Procesar devoluciones de clientes' },
+    }),
     // Reportes
     prisma.permission.upsert({
       where: { resource_action: { resource: 'reports', action: 'read' } },
@@ -287,6 +292,8 @@ async function main() {
     'sales:read',
     'inventory:read',
     'inventory:adjust',
+    'inventory:manage',
+    'inventory:return',
     'reports:read',
     'settings:update',
     'cash_register:read',
@@ -313,6 +320,7 @@ async function main() {
     'sales:create',
     'sales:read',
     'inventory:read',
+    'inventory:return',
     'cash_register:read',
     'cash_register:open',
     'cash_register:close',
@@ -389,7 +397,7 @@ async function main() {
       cost: 5000,
       price: 8000,
       taxRate: 21,
-      stockQuantity: 10,
+      stockQuantity: 3,
       minStock: 5,
     },
     {
@@ -400,7 +408,7 @@ async function main() {
       cost: 3000,
       price: 5000,
       taxRate: 21,
-      stockQuantity: 20,
+      stockQuantity: 8,
       minStock: 10,
     },
     {

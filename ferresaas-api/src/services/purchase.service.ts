@@ -3,6 +3,7 @@ import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { InventoryService } from './inventory.service';
 import { PayableService } from './payable.service';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class PurchaseService {
   private inventoryService: InventoryService;
@@ -63,17 +64,28 @@ export class PurchaseService {
     const total = subtotal + tax;
 
     // Crear compra con items en transacción
+    // Determinar status basado en amountPaid
+    const amountPaid = data.amountPaid || 0;
+    let purchaseStatus = 'CONFIRMED';
+    if (amountPaid > 0 && amountPaid < total) {
+      purchaseStatus = 'PARTIAL';
+    } else if (amountPaid >= total) {
+      purchaseStatus = 'PAID';
+    } else if (amountPaid === 0) {
+      purchaseStatus = 'PENDING';
+    }
+
     const purchase = await prisma.$transaction(async (tx) => {
-      // Crear compra
       const newPurchase = await tx.purchase.create({
         data: {
           businessId,
           supplierId: data.supplierId,
           invoiceNumber: data.invoiceNumber,
-          status: 'CONFIRMED',
+          status: purchaseStatus,
           subtotal,
           tax,
           total,
+          amountPaid: new Decimal(amountPaid),
           notes: data.notes,
         },
       });
@@ -135,29 +147,22 @@ export class PurchaseService {
 
     // Crear automáticamente la cuenta por pagar
     const payableService = new PayableService();
-    const amountPaid = data.amountPaid || 0;
     const pendingAmount = total - amountPaid;
 
     if (pendingAmount > 0) {
-      await payableService.createFromPurchase(businessId, userId, purchase.id);
+      const payable = await payableService.createFromPurchase(businessId, userId, purchase.id);
       
       // Si hay un monto pagado, registrar el pago
       if (amountPaid > 0) {
-        const payable = await prisma.supplierPayable.findFirst({
-          where: { purchaseId: purchase.id },
-        });
-        
-        if (payable) {
-          await payableService.recordPayment(
-            businessId,
-            userId,
-            payable.id,
-            amountPaid,
-            'INITIAL_PAYMENT',
-            undefined,
-            'Pago inicial al crear la compra'
-          );
-        }
+        await payableService.recordPayment(
+          businessId,
+          userId,
+          payable.id,
+          amountPaid,
+          'CASH',
+          undefined,
+          'Pago inicial al crear la compra'
+        );
       }
     }
 
@@ -201,7 +206,16 @@ export class PurchaseService {
     const limit = Math.min(filters.limit || 50, 100);
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    interface WhereInput {
+      businessId: string;
+      supplierId?: string;
+      createdAt?: {
+        gte?: Date;
+        lte?: Date;
+      };
+    }
+
+    const where: WhereInput = {
       businessId,
     };
 

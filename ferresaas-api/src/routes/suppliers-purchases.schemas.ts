@@ -48,6 +48,7 @@ export const createPurchaseSchema = z.object({
     )
     .min(1),
   notes: z.string().max(1000).optional(),
+  amountPaid: z.number().min(0).optional(),
 });
 
 export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;

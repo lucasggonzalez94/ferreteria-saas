@@ -11,6 +11,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, Package, DollarSign } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";
 
 interface PurchaseDetail {
   id: string;
@@ -19,6 +20,7 @@ interface PurchaseDetail {
   subtotal: number;
   tax: number;
   total: number;
+  amountPaid?: number;
   notes?: string;
   createdAt: string;
   supplier: {
@@ -236,28 +238,44 @@ export default function PurchaseDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Payment Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Información de Pago</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Monto Pagado</span>
+                  <span className="font-semibold">
+                    ${Number(purchase.amountPaid || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Saldo Pendiente</span>
+                  <span className={`font-semibold ${Number(purchase.total) - Number(purchase.amountPaid || 0) > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                    ${(Number(purchase.total) - Number(purchase.amountPaid || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Status */}
             <Card>
               <CardHeader>
                 <CardTitle>Estado</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-semibold">
-                  {purchase.status}
+                <span className={`inline-block px-3 py-1 rounded-full border text-sm font-semibold ${getPurchaseStatusColor(purchase.status)}`}>
+                  {getPurchaseStatusLabel(purchase.status)}
                 </span>
               </CardContent>
             </Card>
 
             {/* Actions */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Link href={`/dashboard/suppliers/${purchase.supplier.id}`}>
                 <Button variant="outline" className="w-full">
                   Ver Proveedor
-                </Button>
-              </Link>
-              <Link href="/dashboard/purchases">
-                <Button variant="outline" className="w-full">
-                  Volver a Compras
                 </Button>
               </Link>
             </div>

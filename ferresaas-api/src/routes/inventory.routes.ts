@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
-import { createAdjustmentSchema, movementFiltersSchema } from './inventory.schemas';
+import { createAdjustmentSchema, movementFiltersSchema, processReturnSchema } from './inventory.schemas';
 
 const router = Router();
 const inventoryService = new InventoryService();
@@ -126,6 +126,31 @@ router.get(
       const products = await inventoryService.getLowStock(authReq.businessId!);
 
       sendSuccess(res, products);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /inventory/returns
+ * Procesar devolución de cliente
+ */
+router.post(
+  '/returns',
+  requirePermissions('inventory:return'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const data = processReturnSchema.parse(req.body);
+
+      const result = await inventoryService.processReturn(
+        authReq.businessId!,
+        authReq.user!.id,
+        data
+      );
+
+      sendSuccess(res, result, 201);
     } catch (error) {
       next(error);
     }

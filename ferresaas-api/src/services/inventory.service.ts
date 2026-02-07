@@ -212,4 +212,142 @@ export class InventoryService {
 
     return product;
   }
+
+  /**
+   * Procesar devolución de cliente
+   */
+  async processReturn(
+    businessId: string,
+    userId: string,
+    data: {
+      saleId: string;
+      items: Array<{
+        productId: string;
+        quantity: number;
+      }>;
+      reason?: string;
+    }
+  ) {
+    // Obtener venta
+    const sale = await prisma.sale.findUnique({
+      where: { id: data.saleId },
+      include: {
+        items: true,
+        customer: true,
+      },
+    });
+
+    if (!sale) {
+      throw new AppError(404, 'SALE_NOT_FOUND', 'Sale not found');
+    }
+
+    if (sale.businessId !== businessId) {
+      throw new AppError(403, 'FORBIDDEN', 'Access denied');
+    }
+
+    if (sale.status !== 'CONFIRMED') {
+      throw new AppError(400, 'INVALID_SALE_STATUS', 'Only confirmed sales can be returned');
+    }
+
+    // Validar que los items pertenecen a la venta
+    const saleItemMap = new Map(sale.items.map(item => [item.productId, item.quantity.toNumber()]));
+    
+    for (const item of data.items) {
+      const saleQuantity = saleItemMap.get(item.productId);
+      if (!saleQuantity) {
+        throw new AppError(400, 'ITEM_NOT_IN_SALE', `Product ${item.productId} not found in sale`);
+      }
+      if (item.quantity > saleQuantity) {
+        throw new AppError(400, 'RETURN_QUANTITY_EXCEEDS_SALE', `Cannot return more than ${saleQuantity} units of product ${item.productId}`);
+      }
+    }
+
+    // Procesar devolución en transacción
+    const returnMovements = await prisma.$transaction(async (tx) => {
+      const movements = [];
+
+      // 1. Crear movimientos de devolución y actualizar stock
+      for (const item of data.items) {
+        const movement = await tx.inventoryMovement.create({
+          data: {
+            businessId,
+            productId: item.productId,
+            type: 'RETURN',
+            quantity: item.quantity, // Positivo porque es entrada de stock
+            reason: data.reason || `Devolución de venta #${data.saleId}`,
+            referenceId: data.saleId,
+            userId,
+          },
+        });
+
+        // Actualizar stock
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+        });
+
+        if (product) {
+          const newStock = product.stockQuantity.toNumber() + item.quantity;
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stockQuantity: newStock },
+          });
+        }
+
+        movements.push(movement);
+      }
+
+      // 2. Actualizar cuenta corriente del cliente si existe
+      if (sale.customer) {
+        // Calcular monto total a devolver
+        const returnAmount = sale.items
+          .filter(saleItem => data.items.some(returnItem => returnItem.productId === saleItem.productId))
+          .reduce((sum, item) => {
+            const returnQty = data.items.find(r => r.productId === item.productId)?.quantity || 0;
+            return sum + (item.unitPrice.toNumber() * returnQty);
+          }, 0);
+
+        const newBalance = sale.customer.currentBalance.toNumber() - returnAmount;
+
+        // Registrar movimiento de devolución en cuenta corriente
+        await tx.accountMovement.create({
+          data: {
+            businessId,
+            customerId: sale.customerId!,
+            type: 'PAYMENT', // Negativo porque reduce la deuda
+            amount: -returnAmount,
+            balance: newBalance,
+            referenceId: data.saleId,
+            notes: `Devolución de venta #${data.saleId}`,
+          },
+        });
+
+        // Actualizar balance del cliente
+        await tx.customer.update({
+          where: { id: sale.customerId! },
+          data: { currentBalance: newBalance },
+        });
+      }
+
+      return movements;
+    });
+
+    // Auditoría
+    await AuditService.log({
+      businessId,
+      userId,
+      action: 'INVENTORY_RETURN',
+      entity: 'inventory',
+      entityId: data.saleId,
+      after: {
+        saleId: data.saleId,
+        itemsCount: data.items.length,
+        reason: data.reason,
+      },
+    });
+
+    return {
+      movements: returnMovements,
+      itemsCount: data.items.length,
+    };
+  }
 }

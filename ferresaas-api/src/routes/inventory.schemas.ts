@@ -9,6 +9,20 @@ export const createAdjustmentSchema = z.object({
 
 export type CreateAdjustmentInput = z.infer<typeof createAdjustmentSchema>;
 
+// Procesar devolución de cliente
+export const processReturnSchema = z.object({
+  saleId: z.string().cuid(),
+  items: z.array(
+    z.object({
+      productId: z.string().cuid(),
+      quantity: z.number().positive(),
+    })
+  ).min(1),
+  reason: z.string().max(500).optional(),
+});
+
+export type ProcessReturnInput = z.infer<typeof processReturnSchema>;
+
 // Filtros de movimientos
 export const movementFiltersSchema = z.object({
   productId: z.string().cuid().optional(),

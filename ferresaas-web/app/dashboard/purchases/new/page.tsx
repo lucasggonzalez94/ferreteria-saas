@@ -186,7 +186,7 @@ export default function NewPurchasePage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <Header title="Nueva Compra" />
+        <Header title="Nueva Compra" link="/dashboard/purchases" linkLabel="Volver a Compras" />
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Supplier Selection */}
@@ -466,7 +466,7 @@ export default function NewPurchasePage() {
                     step="0.01"
                     value={amountPaid}
                     onChange={(e) => setAmountPaid(e.target.value)}
-                    placeholder={totals.total.toFixed(2)}
+                    placeholder="0.00"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Déjalo vacío o en 0 para marcar como pendiente de pago
