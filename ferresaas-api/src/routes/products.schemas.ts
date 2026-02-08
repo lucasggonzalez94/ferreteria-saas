@@ -53,6 +53,11 @@ export const productFiltersSchema = z.object({
   brandId: z.string().cuid().optional(),
   active: z.enum(['true', 'false']).optional(),
   lowStock: z.enum(['true', 'false']).optional(),
+  priceMin: z.string().regex(/^\d+(\.\d+)?$/).transform(Number).optional(),
+  priceMax: z.string().regex(/^\d+(\.\d+)?$/).transform(Number).optional(),
+  sort: z
+    .enum(['name-asc', 'name-desc', 'price-asc', 'price-desc', 'stock-asc', 'stock-desc', 'created-desc'])
+    .optional(),
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
 });

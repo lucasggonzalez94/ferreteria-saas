@@ -146,6 +146,9 @@ export class ProductService {
       brandId?: string;
       active?: boolean;
       lowStock?: boolean;
+      priceMin?: number;
+      priceMax?: number;
+      sort?: 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-asc' | 'stock-desc' | 'created-desc';
       page?: number;
       limit?: number;
     }
@@ -194,6 +197,41 @@ export class ProductService {
       ];
     }
 
+    // Filtro por precio
+    if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
+      where.price = {
+        ...(filters.priceMin !== undefined ? { gte: filters.priceMin } : {}),
+        ...(filters.priceMax !== undefined ? { lte: filters.priceMax } : {}),
+      };
+    }
+
+    // Ordenamiento
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
+    switch (filters.sort) {
+      case 'name-asc':
+        orderBy = { name: 'asc' };
+        break;
+      case 'name-desc':
+        orderBy = { name: 'desc' };
+        break;
+      case 'price-asc':
+        orderBy = { price: 'asc' };
+        break;
+      case 'price-desc':
+        orderBy = { price: 'desc' };
+        break;
+      case 'stock-asc':
+        orderBy = { stockQuantity: 'asc' };
+        break;
+      case 'stock-desc':
+        orderBy = { stockQuantity: 'desc' };
+        break;
+      case 'created-desc':
+      default:
+        orderBy = { createdAt: 'desc' };
+        break;
+    }
+
     // Ejecutar queries en paralelo
     const [products, total] = await Promise.all([
       prisma.product.findMany({
@@ -204,7 +242,7 @@ export class ProductService {
           category: true,
           brand: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       prisma.product.count({ where }),
     ]);

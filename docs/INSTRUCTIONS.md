@@ -66,8 +66,8 @@ El "Backend" es el cerebro del sistema, donde se guardan los datos y se procesan
 
     > **Nota**: Al finalizar el seed, verás en la consola las credenciales del usuario administrador creado (email y contraseña). **¡Anótalas!**
     >
-    > - Email por defecto suele ser: `admin@ferreteria.com`
-    > - Password por defecto suele ser: `Admin123!`
+    > - Email por defecto: `admin@ferreteria-demo.com`
+    > - Password por defecto: `Admin123456`
 
 5.  **Iniciar el Servidor**:
     ```bash
@@ -115,8 +115,8 @@ Abrí tu navegador (Chrome, Edge, Firefox) y entra a: **[http://localhost:3000](
 
 Usa las credenciales que se generaron en el paso de "seed" del backend.
 
-- **Usuario**: `admin@ferreteria.com` (o el que haya salido en consola)
-- **Contraseña**: `Admin123!` (o la que haya salido en consola)
+- **Usuario**: `admin@ferreteria-demo.com` (o el que haya salido en consola)
+- **Contraseña**: `Admin123456` (o la que haya salido en consola)
 
 ### Paso 2: Configurar tu Negocio (Opcional)
 
@@ -283,7 +283,7 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 | Clientes y cuenta corriente | `customers.routes.ts`, `Customer` + movimientos en Prisma | CRUD de clientes, saldo corriente, movimientos automáticos al confirmar ventas o procesar devoluciones. |
 | Reportes de inventario | `inventory-reports.routes.ts`, `InventoryReportsService` | Reportes de movimientos, alertas de stock, rotación y devoluciones con agregados y segmentación. |
 
-> **Nota**: El esquema Prisma refleja el modelo multi-tenant (todas las tablas de negocio contienen `businessId`) y las migraciones/seed inicial establecen un negocio demo con credenciales `admin@ferreteria.com` / `Admin123!`.
+> **Nota**: El esquema Prisma refleja el modelo multi-tenant (todas las tablas de negocio contienen `businessId`) y las migraciones/seed inicial establecen un negocio demo con credenciales `admin@ferreteria-demo.com` / `Admin123456`.
 
 ### 8.2 Frontend (Directorio `ferresaas-web`)
 
@@ -405,7 +405,7 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 ### 11.1 Primer inicio y verificación básica
 
 1. **Arranque de servicios**: sigue los pasos de instalación (secciones 2–4). Comprueba `http://localhost:3001/health` y `http://localhost:3000`.
-2. **Login inicial**: accede con `admin@ferreteria.com / Admin123!`. Si el seed generó otras credenciales, usa las mostradas en consola.
+2. **Login inicial**: accede con `admin@ferreteria-demo.com / Admin123456`. Si el seed generó otras credenciales, usa las mostradas en consola.
 3. **Chequeo de sesión**: abre las DevTools → pestaña Application → Cookies y confirma que existe `refreshToken` (HttpOnly). En la UI, verifica que el avatar/menú muestre el correo del usuario.
 
 ### 11.2 Dashboard y accesos rápidos

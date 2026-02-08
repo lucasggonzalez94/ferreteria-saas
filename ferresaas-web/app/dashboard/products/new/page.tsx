@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface CategoryFormState {
+  name: string;
+  description: string;
+}
 
 export default function NewProductPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const canCreateProducts = user?.permissions?.includes("products:create");
 
@@ -40,6 +52,24 @@ export default function NewProductPage() {
   });
 
   const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState<CategoryFormState>({
+    name: "",
+    description: "",
+  });
+
+  const resetCategoryForm = () => {
+    setCategoryForm({ name: "", description: "" });
+  };
+
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) {
+      toast.error("Ingresa un nombre para la categoría");
+      return;
+    }
+    createCategoryMutation.mutate(categoryForm);
+  };
 
   // Obtener categorías
   const { data: categories } = useQuery({
@@ -50,12 +80,33 @@ export default function NewProductPage() {
     },
   });
 
+  const createCategoryMutation = useMutation({
+    mutationFn: async (payload: CategoryFormState) => {
+      const response = await api.post("/categories", {
+        name: payload.name,
+        description: payload.description || undefined,
+      });
+      return response.data;
+    },
+    onSuccess: (newCategory: any) => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      setFormData((prev) => ({ ...prev, categoryId: newCategory.id }));
+      toast.success("Categoría creada");
+      resetCategoryForm();
+      setCategoryModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error al crear categoría");
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await api.post("/products", data);
       return response.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Producto creado exitosamente");
       router.push("/dashboard/products");
     },
@@ -153,21 +204,32 @@ export default function NewProductPage() {
 
                 <div>
                   <Label htmlFor="categoryId">Categoría</Label>
-                  <select
-                    id="categoryId"
-                    value={formData.categoryId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, categoryId: e.target.value })
-                    }
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Sin categoría</option>
-                    {categories?.map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2 items-center">
+                    <select
+                      id="categoryId"
+                      value={formData.categoryId}
+                      onChange={(e) =>
+                        setFormData({ ...formData, categoryId: e.target.value })
+                      }
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Sin categoría</option>
+                      {categories?.map((cat: any) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setCategoryModalOpen(true)}
+                    >
+                      Nueva
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="col-span-2">
@@ -317,6 +379,57 @@ export default function NewProductPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Nueva Categoría</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateCategory} className="space-y-4">
+            <div>
+              <Label htmlFor="category-name">Nombre *</Label>
+              <Input
+                id="category-name"
+                value={categoryForm.name}
+                onChange={(e) =>
+                  setCategoryForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Ej: Ferretería"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="category-description">Descripción</Label>
+              <textarea
+                id="category-description"
+                value={categoryForm.description}
+                onChange={(e) =>
+                  setCategoryForm((prev) => ({ ...prev, description: e.target.value }))
+                }
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                placeholder="Opcional"
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCategoryForm();
+                  setCategoryModalOpen(false);
+                }}
+                disabled={createCategoryMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={createCategoryMutation.isPending}>
+                {createCategoryMutation.isPending ? "Creando..." : "Crear"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

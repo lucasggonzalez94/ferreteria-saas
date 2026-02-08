@@ -38,6 +38,9 @@ router.get(
         brandId: filters.brandId,
         active: filters.active === 'true' ? true : filters.active === 'false' ? false : undefined,
         lowStock: filters.lowStock === 'true',
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        sort: filters.sort,
         page: filters.page,
         limit: filters.limit,
       });

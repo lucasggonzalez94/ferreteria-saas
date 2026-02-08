@@ -31,6 +31,7 @@ export default function EditProductPage({
     price: "",
     taxRate: "21",
     minStock: "",
+    isActive: true,
   });
 
   // Obtener categorías
@@ -87,6 +88,7 @@ export default function EditProductPage({
         price: product.price.toString(),
         taxRate: product.taxRate.toString(),
         minStock: product.minStock ? product.minStock.toString() : "",
+        isActive: product.isActive,
       });
     }
   }, [product]);
@@ -135,6 +137,7 @@ export default function EditProductPage({
       price: parseFloat(formData.price),
       taxRate: parseFloat(formData.taxRate),
       minStock: formData.minStock ? parseFloat(formData.minStock) : undefined,
+      isActive: formData.isActive,
     });
   };
 
@@ -318,6 +321,21 @@ export default function EditProductPage({
                       setFormData({ ...formData, taxRate: e.target.value })
                     }
                   />
+                </div>
+
+                <div className="col-span-2 flex items-center gap-2">
+                  <input
+                    id="isActive"
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) =>
+                      setFormData({ ...formData, isActive: e.target.checked })
+                    }
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="isActive" className="text-sm">
+                    Producto activo
+                  </Label>
                 </div>
               </div>
 
