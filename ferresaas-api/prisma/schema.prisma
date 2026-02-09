@@ -272,6 +272,9 @@ model Product {
   parentId     String?
   variantName  String? // Ej: "Talle L", "Pack x12"
   
+  imageUrl       String?  // URL pública de Cloudinary
+  imagePublicId  String?  // ID público de Cloudinary para eliminar después
+  
   isActive     Boolean  @default(true)
   
   createdAt DateTime @default(now())

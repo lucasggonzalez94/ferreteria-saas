@@ -16,6 +16,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { ActionsMenu } from "@/components/ui/actions-menu";
+import { ImageIcon } from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -234,10 +237,19 @@ export default function ProductsPage() {
               <Card
                 key={product.id}
                 className="hover:shadow-lg transition-shadow h-full flex flex-col cursor-pointer"
-                onClick={() => router.push(`/dashboard/products/${product.id}`)}
+                onClick={() => router.push(`/dashboard/products/${product.id}/view`)}
               >
                 <CardHeader className="relative pb-2">
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-3">
+                    {product.imageUrl && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
+                          alt={product.name}
+                          className="w-20 h-20 object-cover rounded-md border border-gray-200"
+                        />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-lg truncate">{product.name}</CardTitle>
                       <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -261,6 +273,10 @@ export default function ProductsPage() {
                       </div>
                       <ActionsMenu
                         actions={[
+                          {
+                            label: "Ver detalle",
+                            onClick: () => router.push(`/dashboard/products/${product.id}/view`),
+                          },
                           {
                             label: "Editar",
                             onClick: () => router.push(`/dashboard/products/${product.id}`),

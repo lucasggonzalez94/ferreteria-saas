@@ -27,8 +27,20 @@ import userRolesRoutes from './routes/user-roles.routes';
 
 const app = express();
 
-// Security & Logging
+// CORS debe aplicarse PRIMERO antes que helmet
 app.use(
+  cors({
+    origin: env.app.frontendUrl,
+    credentials: true,
+  })
+);
+
+// Security & Logging
+// Aplicar helmet a todas las rutas EXCEPTO /uploads
+app.use((req, res, next) => {
+  if (req.path.startsWith('/uploads')) {
+    return next();
+  }
   helmet({
     contentSecurityPolicy: {
       directives: {
@@ -43,14 +55,9 @@ app.use(
       includeSubDomains: true,
       preload: true,
     },
-  })
-);
-app.use(
-  cors({
-    origin: env.app.frontendUrl,
-    credentials: true,
-  })
-);
+  })(req, res, next);
+});
+
 app.use(pinoHttp({ logger }));
 
 // Cookie parsing
@@ -63,8 +70,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting
 app.use('/v1', generalLimiter);
 
-// CSRF protection (aplica a métodos mutantes)
-app.use('/v1', verifyCsrf);
+// CSRF protection (aplica a métodos mutantes, pero excluye rutas de upload)
+app.use('/v1', (req, res, next) => {
+  // Excluir rutas de upload del CSRF (multer maneja multipart/form-data)
+  if (req.path.includes('/image') && req.method === 'POST') {
+    return next();
+  }
+  verifyCsrf(req, res, next);
+});
 
 // Health check
 app.get('/health', (_req, res) => {

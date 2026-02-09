@@ -65,6 +65,11 @@ const envSchema = z.object({
 
   // CSRF
   CSRF_SECRET: z.string().min(32),
+
+  // Cloudinary
+  CLOUDINARY_CLOUD_NAME: z.string(),
+  CLOUDINARY_API_KEY: z.string(),
+  CLOUDINARY_API_SECRET: z.string(),
 });
 
 // Validar y parsear
@@ -169,5 +174,12 @@ export const env = {
   // CSRF
   csrf: {
     secret: parsed.data.CSRF_SECRET,
+  },
+
+  // Cloudinary
+  cloudinary: {
+    cloudName: parsed.data.CLOUDINARY_CLOUD_NAME,
+    apiKey: parsed.data.CLOUDINARY_API_KEY,
+    apiSecret: parsed.data.CLOUDINARY_API_SECRET,
   },
 } as const;

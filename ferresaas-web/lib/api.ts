@@ -265,8 +265,8 @@ class ApiClient {
       (headers as any)["Authorization"] = `Bearer ${token}`;
     }
 
-    // Agregar CSRF token y hash en requests mutantes
-    if (csrf && ["POST", "PUT", "DELETE", "PATCH"].includes(options.method || "GET")) {
+    // Agregar CSRF token y hash en todas las requests
+    if (csrf) {
       (headers as any)["X-CSRF-Token"] = csrf;
       if (hash) {
         (headers as any)["X-CSRF-Hash"] = hash;
@@ -361,6 +361,32 @@ class ApiClient {
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: "DELETE" });
+  }
+
+  async upload<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    const token = getToken();
+    const csrf = getCsrfToken();
+    const hash = getCsrfHash();
+
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+    if (hash) headers["X-CSRF-Hash"] = hash;
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: "POST",
+      headers,
+      body: formData,
+      credentials: "include",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || "Upload failed");
+    }
+
+    return data;
   }
 
   async getBlob(endpoint: string): Promise<Blob> {

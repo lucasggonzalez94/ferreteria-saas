@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import bwipjs from 'bwip-js';
 import PDFDocument from 'pdfkit';
 import { calculateSuggestedPrice } from '../utils/pricing';
+import { CloudinaryService } from './cloudinary.service';
 
 export class ProductService {
   /**
@@ -339,6 +340,27 @@ export class ProductService {
       );
     }
 
+    // Registrar cambio de precio en historial si cambió cost o price
+    const oldCost = Number(current.cost);
+    const oldPrice = Number(current.price);
+    const newCost = data.cost ?? oldCost;
+    const newPrice = data.price ?? oldPrice;
+
+    if (newCost !== oldCost || newPrice !== oldPrice) {
+      await prisma.priceHistory.create({
+        data: {
+          businessId,
+          productId,
+          oldCost: oldCost,
+          newCost: newCost,
+          oldPrice: oldPrice,
+          newPrice: newPrice,
+          reason: 'Actualización de producto',
+          changedBy: userId,
+        },
+      });
+    }
+
     // Actualizar
     const updated = await prisma.product.update({
       where: { id: productId },
@@ -421,6 +443,269 @@ export class ProductService {
 
     // Auditoría
     await AuditService.logDelete(businessId, userId, 'products', productId, product);
+
+    return updated;
+  }
+
+  /**
+   * Obtener historial de precios con filtro de rango de fechas
+   */
+  async getPriceHistory(
+    businessId: string,
+    productId: string,
+    filters: {
+      from?: Date;
+      to?: Date;
+    }
+  ) {
+    // Verificar que el producto existe y pertenece al negocio
+    await this.getById(businessId, productId);
+
+    const where: Prisma.PriceHistoryWhereInput = {
+      businessId,
+      productId,
+    };
+
+    if (filters.from || filters.to) {
+      where.createdAt = {};
+      if (filters.from) {
+        where.createdAt.gte = filters.from;
+      }
+      if (filters.to) {
+        where.createdAt.lte = filters.to;
+      }
+    }
+
+    const history = await prisma.priceHistory.findMany({
+      where,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return history;
+  }
+
+  /**
+   * Obtener resumen de ventas de un producto con filtro de rango de fechas
+   */
+  async getSalesSummary(
+    businessId: string,
+    productId: string,
+    filters: {
+      from?: Date;
+      to?: Date;
+    }
+  ) {
+    // Verificar que el producto existe y pertenece al negocio
+    await this.getById(businessId, productId);
+
+    const saleItemWhere: Prisma.SaleItemWhereInput = {
+      productId,
+      sale: {
+        businessId,
+        status: 'CONFIRMED',
+      },
+    };
+
+    if (filters.from || filters.to) {
+      saleItemWhere.sale = {
+        ...saleItemWhere.sale as object,
+        confirmedAt: {
+          ...(filters.from ? { gte: filters.from } : {}),
+          ...(filters.to ? { lte: filters.to } : {}),
+        },
+      };
+    }
+
+    // Obtener todos los items de venta del producto en el rango
+    const saleItems = await prisma.saleItem.findMany({
+      where: saleItemWhere,
+      include: {
+        sale: {
+          select: {
+            confirmedAt: true,
+          },
+        },
+      },
+      orderBy: {
+        sale: {
+          confirmedAt: 'asc',
+        },
+      },
+    });
+
+    // Calcular totales
+    let totalUnits = 0;
+    let totalRevenue = 0;
+
+    // Agrupar por día para el gráfico
+    const dailyMap = new Map<string, { units: number; revenue: number }>();
+
+    for (const item of saleItems) {
+      const qty = Number(item.quantity);
+      const sub = Number(item.subtotal);
+      totalUnits += qty;
+      totalRevenue += sub;
+
+      const dateKey = item.sale.confirmedAt
+        ? item.sale.confirmedAt.toISOString().split('T')[0]
+        : 'unknown';
+
+      if (dateKey !== 'unknown') {
+        const existing = dailyMap.get(dateKey) || { units: 0, revenue: 0 };
+        existing.units += qty;
+        existing.revenue += sub;
+        dailyMap.set(dateKey, existing);
+      }
+    }
+
+    // Convertir mapa a array ordenado
+    const points = Array.from(dailyMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({
+        date,
+        units: data.units,
+        revenue: Math.round(data.revenue * 100) / 100,
+      }));
+
+    return {
+      totalUnits,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalTransactions: saleItems.length,
+      points,
+    };
+  }
+
+  /**
+   * Obtener movimientos de stock de un producto con filtro de rango de fechas
+   */
+  async getStockMovements(
+    businessId: string,
+    productId: string,
+    filters: {
+      from?: Date;
+      to?: Date;
+      limit?: number;
+    }
+  ) {
+    // Verificar que el producto existe y pertenece al negocio
+    await this.getById(businessId, productId);
+
+    const where: Prisma.InventoryMovementWhereInput = {
+      businessId,
+      productId,
+    };
+
+    if (filters.from || filters.to) {
+      where.createdAt = {};
+      if (filters.from) {
+        where.createdAt.gte = filters.from;
+      }
+      if (filters.to) {
+        where.createdAt.lte = filters.to;
+      }
+    }
+
+    const movements = await prisma.inventoryMovement.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: filters.limit || 50,
+    });
+
+    return movements;
+  }
+
+  /**
+   * Subir imagen de producto a Cloudinary
+   */
+  async uploadImage(
+    businessId: string,
+    userId: string,
+    productId: string,
+    file: Express.Multer.File
+  ) {
+    const product = await this.getById(businessId, productId);
+
+    // Eliminar imagen anterior si existe en Cloudinary
+    if (product.imagePublicId) {
+      try {
+        await CloudinaryService.deleteImage(product.imagePublicId);
+      } catch (error) {
+        console.warn('⚠️ Error deleting old image from Cloudinary:', error);
+      }
+    }
+
+    // Subir nueva imagen a Cloudinary
+    const uploadResult = await CloudinaryService.uploadImage(file) as any;
+
+    const updated = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        imageUrl: uploadResult.secure_url,
+        imagePublicId: uploadResult.public_id,
+      },
+      include: {
+        category: true,
+        brand: true,
+      },
+    });
+
+    // Auditoría
+    await AuditService.log({
+      businessId,
+      userId,
+      action: 'PRODUCT_IMAGE_UPLOAD',
+      entity: 'products',
+      entityId: productId,
+      after: { imageUrl: uploadResult.secure_url },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Eliminar imagen de producto de Cloudinary
+   */
+  async deleteImage(
+    businessId: string,
+    userId: string,
+    productId: string
+  ) {
+    const product = await this.getById(businessId, productId);
+
+    if (!product.imageUrl) {
+      throw new AppError(404, 'IMAGE_NOT_FOUND', 'Product has no image');
+    }
+
+    // Eliminar imagen de Cloudinary
+    if (product.imagePublicId) {
+      try {
+        await CloudinaryService.deleteImage(product.imagePublicId);
+      } catch (error) {
+        console.warn('⚠️ Error deleting image from Cloudinary:', error);
+      }
+    }
+
+    const updated = await prisma.product.update({
+      where: { id: productId },
+      data: { 
+        imageUrl: null,
+        imagePublicId: null,
+      },
+      include: {
+        category: true,
+        brand: true,
+      },
+    });
+
+    // Auditoría
+    await AuditService.log({
+      businessId,
+      userId,
+      action: 'PRODUCT_IMAGE_DELETE',
+      entity: 'products',
+      entityId: productId,
+      before: { imageUrl: product.imageUrl },
+    });
 
     return updated;
   }

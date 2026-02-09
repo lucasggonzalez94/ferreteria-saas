@@ -29,7 +29,48 @@ export interface Product {
   suggestedPrice?: number;
   stockQuantity: number;
   minStock?: number;
+  imageUrl?: string;
   isActive: boolean;
+  category?: Category;
+  brand?: Brand;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PriceHistoryEntry {
+  id: string;
+  businessId: string;
+  productId: string;
+  oldCost: number;
+  newCost: number;
+  oldPrice: number;
+  newPrice: number;
+  reason?: string;
+  changedBy?: string;
+  createdAt: string;
+}
+
+export interface InventoryMovementEntry {
+  id: string;
+  businessId: string;
+  productId: string;
+  type: string;
+  quantity: number;
+  reason?: string;
+  referenceId?: string;
+  userId?: string;
+  createdAt: string;
+}
+
+export interface SalesSummary {
+  totalUnits: number;
+  totalRevenue: number;
+  totalTransactions: number;
+  points: Array<{
+    date: string;
+    units: number;
+    revenue: number;
+  }>;
 }
 
 export interface Category {
