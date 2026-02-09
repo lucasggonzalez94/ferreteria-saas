@@ -41,9 +41,17 @@ import {
   Bar,
 } from "recharts";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") ||
+  "http://localhost:3001";
 
-type DatePreset = "7d" | "30d" | "this-month" | "this-year" | "last-year" | "custom";
+type DatePreset =
+  | "7d"
+  | "30d"
+  | "this-month"
+  | "this-year"
+  | "last-year"
+  | "custom";
 
 function getDateRange(preset: DatePreset): { from: Date; to: Date } {
   const now = new Date();
@@ -60,7 +68,10 @@ function getDateRange(preset: DatePreset): { from: Date; to: Date } {
       return { from: startOfYear(now), to };
     case "last-year": {
       const lastYear = subYears(now, 1);
-      return { from: startOfYear(lastYear), to: new Date(lastYear.getFullYear(), 11, 31, 23, 59, 59) };
+      return {
+        from: startOfYear(lastYear),
+        to: new Date(lastYear.getFullYear(), 11, 31, 23, 59, 59),
+      };
     }
     default:
       return { from: subDays(now, 30), to };
@@ -124,7 +135,7 @@ export default function ProductDetailViewPage() {
     queryFn: async () => {
       const res = await api.get<PriceHistoryEntry[]>(
         `/products/${productId}/price-history`,
-        { params: { from: fromISO, to: toISO } }
+        { params: { from: fromISO, to: toISO } },
       );
       return res.data || [];
     },
@@ -138,7 +149,7 @@ export default function ProductDetailViewPage() {
     queryFn: async () => {
       const res = await api.get<SalesSummary>(
         `/products/${productId}/sales-summary`,
-        { params: { from: fromISO, to: toISO } }
+        { params: { from: fromISO, to: toISO } },
       );
       return res.data!;
     },
@@ -152,7 +163,7 @@ export default function ProductDetailViewPage() {
     queryFn: async () => {
       const res = await api.get<InventoryMovementEntry[]>(
         `/products/${productId}/stock-movements`,
-        { params: { from: fromISO, to: toISO, limit: "50" } }
+        { params: { from: fromISO, to: toISO, limit: "50" } },
       );
       return res.data || [];
     },
@@ -229,7 +240,11 @@ export default function ProductDetailViewPage() {
   };
 
   const handleDelete = () => {
-    if (window.confirm("¿Eliminar este producto? Esta acción no se puede deshacer.")) {
+    if (
+      window.confirm(
+        "¿Eliminar este producto? Esta acción no se puede deshacer.",
+      )
+    ) {
       deleteMutation.mutate();
     }
   };
@@ -239,11 +254,13 @@ export default function ProductDetailViewPage() {
     () =>
       (priceHistory || []).map((entry) => ({
         date: format(new Date(entry.createdAt), "dd/MM/yy"),
-        fullDate: format(new Date(entry.createdAt), "dd/MM/yyyy HH:mm", { locale: es }),
+        fullDate: format(new Date(entry.createdAt), "dd/MM/yyyy HH:mm", {
+          locale: es,
+        }),
         precio: Number(entry.newPrice),
         costo: Number(entry.newCost),
       })),
-    [priceHistory]
+    [priceHistory],
   );
 
   // Preparar datos para gráfico de ventas
@@ -255,7 +272,7 @@ export default function ProductDetailViewPage() {
         unidades: point.units,
         ingresos: point.revenue,
       })),
-    [salesSummary?.points]
+    [salesSummary?.points],
   );
 
   if (loadingProduct) {
@@ -270,7 +287,10 @@ export default function ProductDetailViewPage() {
     return (
       <div className="p-8 text-center">
         <p className="text-muted-foreground">Producto no encontrado</p>
-        <Button className="mt-4" onClick={() => router.push("/dashboard/products")}>
+        <Button
+          className="mt-4"
+          onClick={() => router.push("/dashboard/products")}
+        >
           Volver al listado
         </Button>
       </div>
@@ -323,9 +343,7 @@ export default function ProductDetailViewPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                toggleActiveMutation.mutate(!product.isActive)
-              }
+              onClick={() => toggleActiveMutation.mutate(!product.isActive)}
               disabled={toggleActiveMutation.isPending}
             >
               <Power className="h-4 w-4 mr-1" />
@@ -356,7 +374,9 @@ export default function ProductDetailViewPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground mr-2">Rango:</span>
+              <span className="text-sm font-medium text-muted-foreground mr-2">
+                Rango:
+              </span>
               {(
                 [
                   { value: "7d", label: "7 días" },
@@ -405,7 +425,9 @@ export default function ProductDetailViewPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Precio</span>
               </div>
-              <p className="text-xl font-bold">${Number(product.price).toFixed(2)}</p>
+              <p className="text-xl font-bold">
+                ${Number(product.price).toFixed(2)}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -414,7 +436,9 @@ export default function ProductDetailViewPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Costo</span>
               </div>
-              <p className="text-xl font-bold">${Number(product.cost).toFixed(2)}</p>
+              <p className="text-xl font-bold">
+                ${Number(product.cost).toFixed(2)}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -432,11 +456,15 @@ export default function ProductDetailViewPage() {
                 <Package className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Stock</span>
               </div>
-              <p className={`text-xl font-bold ${isLowStock ? "text-red-600" : ""}`}>
+              <p
+                className={`text-xl font-bold ${isLowStock ? "text-red-600" : ""}`}
+              >
                 {Number(product.stockQuantity)} {product.unit}
               </p>
               {product.minStock !== undefined && product.minStock !== null && (
-                <p className="text-xs text-muted-foreground">Mín: {Number(product.minStock)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Mín: {Number(product.minStock)}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -444,10 +472,12 @@ export default function ProductDetailViewPage() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-2 mb-1">
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Ventas (uds)</span>
+                <span className="text-xs text-muted-foreground">
+                  Ventas (uds)
+                </span>
               </div>
               <p className="text-xl font-bold">
-                {loadingSales ? "..." : salesSummary?.totalUnits ?? 0}
+                {loadingSales ? "..." : (salesSummary?.totalUnits ?? 0)}
               </p>
             </CardContent>
           </Card>
@@ -458,7 +488,9 @@ export default function ProductDetailViewPage() {
                 <span className="text-xs text-muted-foreground">Ingresos</span>
               </div>
               <p className="text-xl font-bold">
-                {loadingSales ? "..." : `$${(salesSummary?.totalRevenue ?? 0).toFixed(2)}`}
+                {loadingSales
+                  ? "..."
+                  : `$${(salesSummary?.totalRevenue ?? 0).toFixed(2)}`}
               </p>
             </CardContent>
           </Card>
@@ -531,25 +563,45 @@ export default function ProductDetailViewPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 px-2 font-medium">Fecha</th>
-                          <th className="text-right py-2 px-2 font-medium">Precio anterior</th>
-                          <th className="text-right py-2 px-2 font-medium">Precio nuevo</th>
-                          <th className="text-right py-2 px-2 font-medium">Costo anterior</th>
-                          <th className="text-right py-2 px-2 font-medium">Costo nuevo</th>
-                          <th className="text-left py-2 px-2 font-medium">Motivo</th>
+                          <th className="text-left py-2 px-2 font-medium">
+                            Fecha
+                          </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Precio anterior
+                          </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Precio nuevo
+                          </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Costo anterior
+                          </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Costo nuevo
+                          </th>
+                          <th className="text-left py-2 px-2 font-medium">
+                            Motivo
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {priceHistory.map((entry) => (
                           <tr key={entry.id} className="border-b last:border-0">
                             <td className="py-2 px-2">
-                              {format(new Date(entry.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                              {format(
+                                new Date(entry.createdAt),
+                                "dd/MM/yyyy HH:mm",
+                                { locale: es },
+                              )}
                             </td>
-                            <td className="text-right py-2 px-2">${Number(entry.oldPrice).toFixed(2)}</td>
+                            <td className="text-right py-2 px-2">
+                              ${Number(entry.oldPrice).toFixed(2)}
+                            </td>
                             <td className="text-right py-2 px-2 font-medium">
                               ${Number(entry.newPrice).toFixed(2)}
                             </td>
-                            <td className="text-right py-2 px-2">${Number(entry.oldCost).toFixed(2)}</td>
+                            <td className="text-right py-2 px-2">
+                              ${Number(entry.oldCost).toFixed(2)}
+                            </td>
                             <td className="text-right py-2 px-2 font-medium">
                               ${Number(entry.newCost).toFixed(2)}
                             </td>
@@ -583,14 +635,21 @@ export default function ProductDetailViewPage() {
                       <YAxis fontSize={12} />
                       <Tooltip
                         formatter={(value: any, name: any) => [
-                          name === "unidades" ? `${value} uds` : `$${Number(value).toFixed(2)}`,
+                          name === "unidades"
+                            ? `${value} uds`
+                            : `$${Number(value).toFixed(2)}`,
                           name === "unidades" ? "Unidades" : "Ingresos",
                         ]}
                         labelFormatter={(label: any, payload: any[]) =>
                           payload?.[0]?.payload?.fullDate || label
                         }
                       />
-                      <Bar dataKey="unidades" fill="#2563eb" radius={[4, 4, 0, 0]} name="unidades" />
+                      <Bar
+                        dataKey="unidades"
+                        fill="#2563eb"
+                        radius={[4, 4, 0, 0]}
+                        name="unidades"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -616,24 +675,38 @@ export default function ProductDetailViewPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left py-2 px-2 font-medium">Fecha</th>
-                          <th className="text-left py-2 px-2 font-medium">Tipo</th>
-                          <th className="text-right py-2 px-2 font-medium">Cantidad</th>
-                          <th className="text-left py-2 px-2 font-medium">Motivo</th>
+                          <th className="text-left py-2 px-2 font-medium">
+                            Fecha
+                          </th>
+                          <th className="text-left py-2 px-2 font-medium">
+                            Tipo
+                          </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Cantidad
+                          </th>
+                          <th className="text-left py-2 px-2 font-medium">
+                            Motivo
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {stockMovements.map((mov) => (
                           <tr key={mov.id} className="border-b last:border-0">
                             <td className="py-2 px-2">
-                              {format(new Date(mov.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                              {format(
+                                new Date(mov.createdAt),
+                                "dd/MM/yyyy HH:mm",
+                                { locale: es },
+                              )}
                             </td>
                             <td className="py-2 px-2">
                               {MOVEMENT_TYPE_LABELS[mov.type] || mov.type}
                             </td>
                             <td
                               className={`text-right py-2 px-2 font-medium ${
-                                Number(mov.quantity) > 0 ? "text-green-600" : "text-red-600"
+                                Number(mov.quantity) > 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
                               }`}
                             >
                               {Number(mov.quantity) > 0 ? "+" : ""}
@@ -660,45 +733,49 @@ export default function ProductDetailViewPage() {
           <div className="space-y-6">
             {/* Imagen del producto */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
                   Imagen
                 </CardTitle>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7 bg-white"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadImageMutation.isPending}
+                  >
+                    <Upload className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7 bg-white text-red-600 hover:text-red-700"
+                    onClick={() => deleteImageMutation.mutate()}
+                    disabled={deleteImageMutation.isPending}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {product.imageUrl ? (
-                  <div className="relative group">
-                    <img
-                      src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
-                      alt={product.name}
-                      className="w-full h-48 object-contain rounded-md border bg-gray-50"
-                    />
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 bg-white"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadImageMutation.isPending}
-                      >
-                        <Upload className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 bg-white text-red-600 hover:text-red-700"
-                        onClick={() => deleteImageMutation.mutate()}
-                        disabled={deleteImageMutation.isPending}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+                  <img
+                    src={
+                      product.imageUrl.startsWith("http")
+                        ? product.imageUrl
+                        : `${API_BASE}${product.imageUrl}`
+                    }
+                    alt={product.name}
+                    className="w-48 h-48 object-cover rounded-md border bg-gray-50"
+                  />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-md bg-gray-50">
                     <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground mb-2">Sin imagen</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Sin imagen
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -728,7 +805,9 @@ export default function ProductDetailViewPage() {
               <CardContent className="space-y-3">
                 <DetailRow label="Nombre" value={product.name} />
                 <DetailRow label="SKU interno" value={product.internalSku} />
-                {product.barcode && <DetailRow label="Código de barras" value={product.barcode} />}
+                {product.barcode && (
+                  <DetailRow label="Código de barras" value={product.barcode} />
+                )}
                 {product.description && (
                   <DetailRow label="Descripción" value={product.description} />
                 )}
@@ -748,32 +827,39 @@ export default function ProductDetailViewPage() {
                   label="Permite fracciones"
                   value={product.isFractional ? "Sí" : "No"}
                 />
-                <DetailRow
-                  label="IVA"
-                  value={`${Number(product.taxRate)}%`}
-                />
-                {product.marginPercent !== undefined && product.marginPercent !== null && (
-                  <DetailRow
-                    label="Margen configurado"
-                    value={`${Number(product.marginPercent)}%`}
-                  />
-                )}
-                {product.suggestedPrice !== undefined && product.suggestedPrice !== null && (
-                  <DetailRow
-                    label="Precio sugerido"
-                    value={`$${Number(product.suggestedPrice).toFixed(2)}`}
-                  />
-                )}
+                <DetailRow label="IVA" value={`${Number(product.taxRate)}%`} />
+                {product.marginPercent !== undefined &&
+                  product.marginPercent !== null && (
+                    <DetailRow
+                      label="Margen configurado"
+                      value={`${Number(product.marginPercent)}%`}
+                    />
+                  )}
+                {product.suggestedPrice !== undefined &&
+                  product.suggestedPrice !== null && (
+                    <DetailRow
+                      label="Precio sugerido"
+                      value={`$${Number(product.suggestedPrice).toFixed(2)}`}
+                    />
+                  )}
                 {product.createdAt && (
                   <DetailRow
                     label="Creado"
-                    value={format(new Date(product.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                    value={format(
+                      new Date(product.createdAt),
+                      "dd/MM/yyyy HH:mm",
+                      { locale: es },
+                    )}
                   />
                 )}
                 {product.updatedAt && (
                   <DetailRow
                     label="Última actualización"
-                    value={format(new Date(product.updatedAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                    value={format(
+                      new Date(product.updatedAt),
+                      "dd/MM/yyyy HH:mm",
+                      { locale: es },
+                    )}
                   />
                 )}
               </CardContent>
