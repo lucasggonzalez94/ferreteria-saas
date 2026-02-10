@@ -14,6 +14,8 @@ import type { Product, Sale, Customer } from "@/types";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 interface CartItem {
   product: Product;
   quantity: number;
@@ -446,17 +448,24 @@ export default function POSPage() {
                         onClick={() => addToCart(product)}
                         className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
+                        <div className="flex gap-3 items-center">
+                          {product.imageUrl && (
+                            <img
+                              src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
+                              alt={product.name}
+                              className="w-16 h-16 object-cover rounded-md border border-gray-200 flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
                             <p className="font-medium">{product.name}</p>
                             <p className="text-sm text-muted-foreground">
                               SKU: {product.internalSku} | Stock:{" "}
                               {product.stockQuantity} {product.unit}
                             </p>
+                            <p className="font-semibold mt-1">
+                              ${Number(product.price).toFixed(2)}
+                            </p>
                           </div>
-                          <p className="font-semibold">
-                            ${Number(product.price).toFixed(2)}
-                          </p>
                         </div>
                       </div>
                     ))}

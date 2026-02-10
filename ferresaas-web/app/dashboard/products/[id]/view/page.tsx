@@ -761,15 +761,17 @@ export default function ProductDetailViewPage() {
               </CardHeader>
               <CardContent>
                 {product.imageUrl ? (
-                  <img
-                    src={
-                      product.imageUrl.startsWith("http")
-                        ? product.imageUrl
-                        : `${API_BASE}${product.imageUrl}`
-                    }
-                    alt={product.name}
-                    className="w-48 h-48 object-cover rounded-md border bg-gray-50"
-                  />
+                  <div className="flex items-center justify-center">
+                    <img
+                      src={
+                        product.imageUrl.startsWith("http")
+                          ? product.imageUrl
+                          : `${API_BASE}${product.imageUrl}`
+                      }
+                      alt={product.name}
+                      className="w-48 h-48 object-cover rounded-md border bg-gray-50"
+                    />
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-md bg-gray-50">
                     <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
