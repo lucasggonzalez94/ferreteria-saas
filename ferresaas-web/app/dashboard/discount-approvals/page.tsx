@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Check, X, Clock, ArrowLeft } from "lucide-react";
+import { Check, X, Clock, ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -64,13 +64,12 @@ export default function DiscountApprovalsPage() {
   }, [canApproveDiscounts, router]);
 
   // Obtener aprobaciones pendientes
-  const { data: approvalsData, isLoading } = useQuery({
+  const { data: approvalsData, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["discount-approvals", "PENDING"],
     queryFn: async () => {
       const response = await api.get<any>("/discount-approvals?status=PENDING");
       return response.data;
     },
-    refetchInterval: 5000, // Refetch cada 5 segundos
   });
 
   const approvals = approvalsData?.data || [];
@@ -181,10 +180,20 @@ export default function DiscountApprovalsPage() {
 
         {/* Contenido */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>
               Solicitudes Pendientes ({approvals.length})
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              {isFetching ? "Actualizando..." : "Refrescar"}
+            </Button>
           </CardHeader>
           <CardContent>
             {isLoading ? (

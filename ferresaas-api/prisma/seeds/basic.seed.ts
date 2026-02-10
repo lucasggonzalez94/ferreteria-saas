@@ -46,6 +46,11 @@ async function main() {
       create: { resource: 'sales', action: 'read', description: 'Ver ventas' },
     }),
     prisma.permission.upsert({
+      where: { resource_action: { resource: 'sales', action: 'approve_discount' } },
+      update: {},
+      create: { resource: 'sales', action: 'approve_discount', description: 'Aprobar descuentos' },
+    }),
+    prisma.permission.upsert({
       where: { resource_action: { resource: 'sales', action: 'refund' } },
       update: {},
       create: { resource: 'sales', action: 'refund', description: 'Reembolsar ventas' },
@@ -290,6 +295,7 @@ async function main() {
     'products:update',
     'sales:create',
     'sales:read',
+    'sales:approve_discount',
     'inventory:read',
     'inventory:adjust',
     'inventory:manage',
