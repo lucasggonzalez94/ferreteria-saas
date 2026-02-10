@@ -24,11 +24,26 @@ import {
   CheckCircle,
   BarChart3,
   Lock,
+  GripVertical,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [businessLogo, setBusinessLogo] = useState<string | null>(null);
+  const [quickActions, setQuickActions] = useState<Array<{
+    id: string;
+    label: string;
+    href: string;
+    icon: JSX.Element;
+    allowed: boolean;
+  }>>([]);
+  const [isEditingQuickActions, setIsEditingQuickActions] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const handleLogoUpdate = () => {
+    const logo = localStorage.getItem("businessLogo");
+    if (logo) setBusinessLogo(logo);
+  };
 
   // Validaciones de permisos
   const canViewSales = user?.permissions?.includes("sales:read");
@@ -130,19 +145,76 @@ export default function DashboardPage() {
     },
   });
 
+  const persistQuickActions = (actions: typeof quickActions) => {
+    setQuickActions(actions);
+    localStorage.setItem("dashboardQuickActions", JSON.stringify(actions.map((a) => a.id)));
+  };
+
+  const handleDragStart = (id: string) => {
+    if (!isEditingQuickActions) return;
+    setDraggingId(id);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, overId: string) => {
+    event.preventDefault();
+    if (!isEditingQuickActions || draggingId === overId || !draggingId) return;
+    const current = [...quickActions];
+    const fromIndex = current.findIndex((a) => a.id === draggingId);
+    const toIndex = current.findIndex((a) => a.id === overId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    current.splice(toIndex, 0, current.splice(fromIndex, 1)[0]);
+    setQuickActions(current);
+  };
+
+  const handleDragEnd = () => {
+    if (!isEditingQuickActions) return;
+    persistQuickActions(quickActions);
+    setDraggingId(null);
+  };
+
   useEffect(() => {
-    const savedLogo = localStorage.getItem("businessLogo");
-    if (savedLogo) setBusinessLogo(savedLogo);
+    const baseActions = [
+      { id: "cash", label: "Caja", href: "/dashboard/cash-register", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessCashRegister },
+      { id: "pos", label: "Punto de Venta", href: "/dashboard/pos", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPOS },
+      { id: "products", label: "Productos", href: "/dashboard/products", icon: <Package className="h-6 w-6" />, allowed: !!canViewProducts },
+      { id: "customers", label: "Clientes", href: "/dashboard/customers", icon: <Users className="h-6 w-6" />, allowed: !!canViewCustomers },
+      { id: "inventory", label: "Inventario", href: "/dashboard/inventory", icon: <TrendingUp className="h-6 w-6" />, allowed: !!canViewInventory },
+      { id: "suppliers", label: "Proveedores", href: "/dashboard/suppliers", icon: <Package className="h-6 w-6" />, allowed: !!canAccessSuppliers },
+      { id: "purchases", label: "Compras", href: "/dashboard/purchases", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPurchases },
+      { id: "payables", label: "Cuentas por Pagar", href: "/dashboard/payables", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessPayables },
+      { id: "discounts", label: "Aprobación de Descuentos", href: "/dashboard/discount-approvals", icon: <CheckCircle className="h-6 w-6" />, allowed: !!canApproveDiscounts },
+      { id: "reports", label: "Reportes", href: "/dashboard/reports", icon: <BarChart3 className="h-6 w-6" />, allowed: !!canAccessReports },
+    ];
 
-    const handleLogoUpdate = () => {
-      const newLogo = localStorage.getItem("businessLogo");
-      setBusinessLogo(newLogo);
-    };
+    const storedOrderRaw = localStorage.getItem("dashboardQuickActions");
+    if (storedOrderRaw) {
+      try {
+        const parsed: string[] = JSON.parse(storedOrderRaw);
+        const byId = Object.fromEntries(baseActions.map((a) => [a.id, a]));
+        const restored = parsed
+          .map((id) => byId[id])
+          .filter((item): item is typeof baseActions[number] => Boolean(item && item.allowed));
+        const missing = baseActions.filter((item) => item.allowed && !parsed.includes(item.id));
+        setQuickActions([...restored, ...missing]);
+        return;
+      } catch (error) {
+        console.error("Error parsing dashboardQuickActions", error);
+      }
+    }
 
-    window.addEventListener("businessLogoChanged", handleLogoUpdate);
-    return () =>
-      window.removeEventListener("businessLogoChanged", handleLogoUpdate);
-  }, []);
+    setQuickActions(baseActions.filter((item) => item.allowed));
+  }, [
+    canAccessCashRegister,
+    canAccessPOS,
+    canViewProducts,
+    canViewCustomers,
+    canViewInventory,
+    canAccessPurchases,
+    canAccessSuppliers,
+    canAccessPayables,
+    canApproveDiscounts,
+    canAccessReports,
+  ]);
 
   return (
     <div className="p-8">
@@ -241,146 +313,65 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <Card>
-          <CardHeader>
-            <CardTitle>Accesos Rápidos</CardTitle>
-            <CardDescription>Acciones frecuentes del sistema</CardDescription>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle>Accesos Rápidos</CardTitle>
+              <CardDescription>Acciones frecuentes del sistema</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {isEditingQuickActions && (
+                <span className="text-xs text-muted-foreground">Arrastra para reordenar</span>
+              )}
+              <Button
+                variant={isEditingQuickActions ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => {
+                  if (isEditingQuickActions) {
+                    persistQuickActions(quickActions);
+                    setDraggingId(null);
+                  }
+                  setIsEditingQuickActions((prev) => !prev);
+                }}
+              >
+                {isEditingQuickActions ? "Guardar" : "Editar"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {canAccessCashRegister && (
-                <Link href="/dashboard/cash-register">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
+            {quickActions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quickActions.map((action) => (
+                  <div
+                    key={action.id}
+                    draggable={isEditingQuickActions}
+                    onDragStart={() => handleDragStart(action.id)}
+                    onDragOver={(e) => handleDragOver(e, action.id)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
                   >
-                    <DollarSign className="h-6 w-6" />
-                    <span>Caja</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canAccessPOS && (
-                <Link href="/dashboard/pos">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <ShoppingCart className="h-6 w-6" />
-                    <span>Punto de Venta</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canViewProducts && (
-                <Link href="/dashboard/products">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <Package className="h-6 w-6" />
-                    <span>Productos</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canViewCustomers && (
-                <Link href="/dashboard/customers">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <Users className="h-6 w-6" />
-                    <span>Clientes</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canViewInventory && (
-                <Link href="/dashboard/inventory">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <TrendingUp className="h-6 w-6" />
-                    <span>Inventario</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canAccessSuppliers && (
-                <Link href="/dashboard/suppliers">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <Package className="h-6 w-6" />
-                    <span>Proveedores</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canAccessPurchases && (
-                <Link href="/dashboard/purchases">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <ShoppingCart className="h-6 w-6" />
-                    <span>Compras</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canAccessPayables && (
-                <Link href="/dashboard/payables">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <DollarSign className="h-6 w-6" />
-                    <span>Cuentas por Pagar</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canApproveDiscounts && (
-                <Link href="/dashboard/discount-approvals">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <CheckCircle className="h-6 w-6" />
-                    <span>Aprobación de Descuentos</span>
-                  </Button>
-                </Link>
-              )}
-
-              {canAccessReports && (
-                <Link href="/dashboard/reports">
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2"
-                  >
-                    <BarChart3 className="h-6 w-6" />
-                    <span>Reportes</span>
-                  </Button>
-                </Link>
-              )}
-            </div>
-
-            {!canAccessCashRegister &&
-              !canAccessPOS &&
-              !canViewProducts &&
-              !canViewCustomers &&
-              !canViewInventory &&
-              !canAccessPurchases &&
-              !canApproveDiscounts &&
-              !canAccessReports && (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <Lock className="h-5 w-5 mr-2" />
-                  <p>No tienes acceso a ninguna funcionalidad del sistema</p>
-                </div>
-              )}
+                    {isEditingQuickActions && (
+                      <div className="absolute top-2 right-2 text-muted-foreground">
+                        <GripVertical className="h-4 w-4" />
+                      </div>
+                    )}
+                    <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
+                      <Button
+                        variant="outline"
+                        className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed" : ""}`}
+                      >
+                        {action.icon}
+                        <span>{action.label}</span>
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <Lock className="h-5 w-5 mr-2" />
+                <p>No tienes acceso a ninguna funcionalidad del sistema</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
