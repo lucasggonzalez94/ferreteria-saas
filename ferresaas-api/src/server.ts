@@ -15,6 +15,11 @@ const server = app.listen(PORT, async () => {
   await TokenBlacklistService.initialize();
 });
 
+// Timeouts para compatibilidad con ALB/App Runner (idle timeout default 60s)
+// keepAliveTimeout debe ser mayor que el idle timeout del load balancer
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 70000;
+
 // Graceful shutdown
 const shutdown = async () => {
   logger.info('Shutting down gracefully...');

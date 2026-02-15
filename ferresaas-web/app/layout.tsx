@@ -11,6 +11,18 @@ export const metadata: Metadata = {
   title: "FerreSaaS - Sistema de Gestión para Ferreterías",
   description:
     "Sistema completo de gestión para ferreterías con POS, inventario y facturación",
+  manifest: "/manifest.json",
+  themeColor: "#1e40af",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FerreSaaS",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 };
 
 export default function RootLayout({

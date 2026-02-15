@@ -1,13 +1,46 @@
+const withPWA = require('@ducanh2912/next-pwa').default({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+  runtimeCaching: [
+    // Cache de assets estáticos (stale-while-revalidate)
+    {
+      urlPattern: /^https?.*\.(png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|eot)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-assets',
+        expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+      },
+    },
+    // Cache de API GET idempotentes (network-first con fallback)
+    {
+      urlPattern: /\/v1\/(exchange-rate|categories|brands|products)(\?.*)?$/i,
+      handler: 'NetworkFirst',
+      method: 'GET',
+      options: {
+        cacheName: 'api-cache',
+        expiration: { maxEntries: 100, maxAgeSeconds: 5 * 60 },
+        networkTimeoutSeconds: 10,
+      },
+    },
+    // Páginas navegadas (network-first)
+    {
+      urlPattern: /^https?.*\/dashboard.*$/i,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'pages-cache',
+        expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 },
+        networkTimeoutSeconds: 10,
+      },
+    },
+  ],
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // TODO: Configurar PWA con next-pwa cuando se implemente offline
-  // pwa: {
-  //   dest: 'public',
-  //   register: true,
-  //   skipWaiting: true,
-  // },
   
   // Content Security Policy (CSP) headers
   async headers() {
@@ -55,4 +88,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withPWA(nextConfig);

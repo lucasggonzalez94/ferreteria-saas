@@ -28,6 +28,11 @@ import userRolesRoutes from './routes/user-roles.routes';
 
 const app = express();
 
+// Trust proxy: necesario detrás de ALB/App Runner/CloudFront para cookies secure y req.ip correcto
+if (env.app.isProduction) {
+  app.set('trust proxy', 1);
+}
+
 // CORS debe aplicarse PRIMERO antes que helmet
 app.use(
   cors({
