@@ -173,16 +173,31 @@ export default function POSPage() {
   });
 
   const addToCart = (product: Product) => {
+    // Validar stock disponible
+    if (product.stockQuantity <= 0) {
+      toast.error(`${product.name} no tiene stock disponible`);
+      return;
+    }
+
     const existing = cart.find((item) => item.product.id === product.id);
 
     if (existing) {
+      // Validar que no exceda el stock disponible
+      const newQuantity = existing.quantity + 1;
+      if (newQuantity > product.stockQuantity) {
+        toast.error(
+          `Solo hay ${product.stockQuantity} ${product.unit} disponibles de ${product.name}`
+        );
+        return;
+      }
+
       setCart(
         cart.map((item) =>
           item.product.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + 1,
-                subtotal: (item.quantity + 1) * item.unitPrice,
+                quantity: newQuantity,
+                subtotal: newQuantity * item.unitPrice,
               }
             : item,
         ),
@@ -205,6 +220,15 @@ export default function POSPage() {
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromCart(productId);
+      return;
+    }
+
+    // Validar stock disponible
+    const item = cart.find((i) => i.product.id === productId);
+    if (item && newQuantity > item.product.stockQuantity) {
+      toast.error(
+        `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+      );
       return;
     }
 
@@ -313,8 +337,7 @@ export default function POSPage() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + Number(item.subtotal), 0);
-  const tax = subtotal * 0.21;
-  const total = subtotal + tax;
+  const total = subtotal;
 
   const addPayment = () => {
     const amount = parseFloat(paymentAmount);
@@ -402,7 +425,7 @@ export default function POSPage() {
         productId: item.product.id,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
-        taxRate: Number(item.product.taxRate),
+        taxRate: 0,
         discountedPrice: item.discountedPrice ? Number(item.discountedPrice) : undefined,
         discountReason: item.discountReason,
         discountApprovedBy: item.discountApprovedBy,
@@ -529,6 +552,10 @@ export default function POSPage() {
                               const newQty = parseFloat(e.target.value);
                               if (isNaN(newQty) || newQty <= 0) {
                                 removeFromCart(item.product.id);
+                              } else if (newQty > item.product.stockQuantity) {
+                                toast.error(
+                                  `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+                                );
                               } else {
                                 updateQuantity(item.product.id, newQty);
                               }
@@ -540,6 +567,10 @@ export default function POSPage() {
                                 const newQty = parseFloat(e.currentTarget.value);
                                 if (isNaN(newQty) || newQty <= 0) {
                                   removeFromCart(item.product.id);
+                                } else if (newQty > item.product.stockQuantity) {
+                                  toast.error(
+                                    `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+                                  );
                                 } else {
                                   updateQuantity(item.product.id, newQty);
                                 }
@@ -598,18 +629,13 @@ export default function POSPage() {
                 <CardTitle>Resumen</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span>${Number(subtotal).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>IVA (21%):</span>
-                  <span>${Number(tax).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-3">
+                <div className="flex justify-between text-lg font-bold">
                   <span>Total:</span>
                   <span>${Number(total).toFixed(2)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  (Incluye IVA)
+                </p>
               </CardContent>
             </Card>
 
