@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Printer } from "lucide-react";
+import { ArrowLeft, Trash2, Printer, Upload, X } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 
@@ -20,6 +20,7 @@ export default function EditProductPage({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -33,6 +34,7 @@ export default function EditProductPage({
     minStock: "",
     isActive: true,
   });
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Obtener categorías
   const { data: categories } = useQuery({
@@ -90,6 +92,9 @@ export default function EditProductPage({
         minStock: product.minStock ? product.minStock.toString() : "",
         isActive: product.isActive,
       });
+      if (product.imageUrl) {
+        setImagePreview(product.imageUrl);
+      }
     }
   }, [product]);
 
@@ -122,6 +127,48 @@ export default function EditProductPage({
       toast.error(error.message || "Error al eliminar producto");
     },
   });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      await api.upload(`/products/image/${params.id}`, formData);
+    },
+    onSuccess: () => {
+      toast.success("Imagen subida correctamente");
+      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo subir la imagen");
+    },
+  });
+
+  const deleteImageMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/products/${params.id}/image`);
+    },
+    onSuccess: () => {
+      toast.success("Imagen eliminada");
+      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo eliminar la imagen");
+    },
+  });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadImageMutation.mutate(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteImage = () => {
+    deleteImageMutation.mutate();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +367,55 @@ export default function EditProductPage({
                     onChange={(e) =>
                       setFormData({ ...formData, taxRate: e.target.value })
                     }
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Label>Imagen del Producto</Label>
+                  {imagePreview ? (
+                    <div className="w-full max-w-xs flex justify-start gap-2 items-start">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-48 h-48 object-cover rounded-md border border-input"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadImageMutation.isPending}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={handleDeleteImage}
+                          disabled={deleteImageMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="w-full border-2 border-dashed border-input rounded-md p-6 text-center cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm font-medium">Haz clic para seleccionar una imagen</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG, GIF hasta 5MB</p>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
                   />
                 </div>
 

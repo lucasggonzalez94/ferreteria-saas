@@ -135,7 +135,7 @@ El POS es la pantalla principal para realizar ventas. Está optimizado para velo
 
 ### 4.1 Requisito Previo: Caja Abierta
 
-Antes de poder vender, es necesario tener una sesión de caja abierta. Si no hay caja abierta, el POS mostrará un aviso y un botón para ir a abrir la caja.
+Antes de poder vender, es necesario tener una sesión de caja abierta. Si no hay caja abierta, el POS mostrará un aviso y redirigirá a la sección de Caja para que puedas abrir una.
 
 ### 4.2 Buscar Productos
 

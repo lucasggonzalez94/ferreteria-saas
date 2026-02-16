@@ -201,7 +201,7 @@ export default function ReportsPage() {
                                   : "Ajustes"}
                               </p>
                               <p className="text-xl font-bold text-blue-900">
-                                {total.toFixed(2)}
+                                {Number(total).toFixed(2)}
                               </p>
                             </div>
                           )
@@ -252,7 +252,7 @@ export default function ReportsPage() {
                               <TableCell>{movement.product.name}</TableCell>
                               <TableCell className="text-right font-medium">
                                 {movement.quantity > 0 ? "+" : ""}
-                                {movement.quantity.toFixed(2)}
+                                {Number(movement.quantity).toFixed(2)}
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
                                 {movement.reason || "-"}

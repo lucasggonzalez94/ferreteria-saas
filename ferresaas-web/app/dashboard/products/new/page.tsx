@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canCreateProducts = user?.permissions?.includes("products:create");
 
@@ -57,6 +59,8 @@ export default function NewProductPage() {
     name: "",
     description: "",
   });
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   const resetCategoryForm = () => {
     setCategoryForm({ name: "", description: "" });
@@ -105,13 +109,33 @@ export default function NewProductPage() {
       const response = await api.post("/products", data);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (newProduct: any) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Producto creado exitosamente");
-      router.push("/dashboard/products");
+      if (selectedImage) {
+        uploadImageMutation.mutate({ productId: newProduct.id, file: selectedImage });
+      } else {
+        toast.success("Producto creado exitosamente");
+        router.push("/dashboard/products");
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al crear producto");
+    },
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async ({ productId, file }: { productId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      await api.upload(`/products/image/${productId}`, formData);
+    },
+    onSuccess: () => {
+      toast.success("Producto creado y imagen subida exitosamente");
+      router.push("/dashboard/products");
+    },
+    onError: (error: any) => {
+      toast.warning("Producto creado pero la imagen no se pudo subir");
+      router.push("/dashboard/products");
     },
   });
 
@@ -140,6 +164,26 @@ export default function NewProductPage() {
     if (suggestedPrice !== null) {
       setFormData({ ...formData, price: suggestedPrice.toFixed(2) });
       toast.success("Precio sugerido aplicado");
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -358,6 +402,43 @@ export default function NewProductPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Fórmula: Precio = Costo × (1 + Margen%) × (1 + IVA%)
                   </p>
+                </div>
+
+                <div className="col-span-2">
+                  <Label>Imagen del Producto</Label>
+                  {imagePreview ? (
+                    <div className="w-full max-w-xs flex justify-start gap-2 items-start">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-48 h-48 object-cover rounded-md border border-input"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={handleRemoveImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="w-full border-2 border-dashed border-input rounded-md p-6 text-center cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm font-medium">Haz clic para seleccionar una imagen</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG, GIF hasta 5MB</p>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
                 </div>
               </div>
 

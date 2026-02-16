@@ -14,6 +14,7 @@ import { ArrowLeft, Plus, Search, User } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -75,6 +76,29 @@ export default function CustomersPage() {
       toast.error(error.message || "Error al crear cliente");
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      await api.delete(`/customers/${customerId}`);
+    },
+    onSuccess: () => {
+      toast.success("Cliente eliminado exitosamente");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error al eliminar cliente");
+    },
+  });
+
+  const handleDeleteCustomer = (customerId: string, customerName: string) => {
+    if (
+      window.confirm(
+        `¿Estás seguro de que deseas eliminar a ${customerName}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      deleteMutation.mutate(customerId);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,6 +306,30 @@ export default function CustomersPage() {
                         {customer.type === "COMPANY" ? "Empresa" : "Persona"}
                       </p>
                     </div>
+                    <ActionsMenu
+                      actions={[
+                        {
+                          label: "Ver detalle",
+                          onClick: () => router.push(`/dashboard/customers/${customer.id}`),
+                        },
+                        {
+                          label: "Editar",
+                          onClick: () => router.push(`/dashboard/customers/${customer.id}/edit`),
+                        },
+                        {
+                          label: "Eliminar",
+                          onClick: () =>
+                            handleDeleteCustomer(
+                              customer.id,
+                              customer.type === "COMPANY"
+                                ? customer.companyName
+                                : `${customer.firstName} ${customer.lastName}`
+                            ),
+                          disabled: deleteMutation.isPending,
+                          variant: "danger",
+                        },
+                      ]}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">

@@ -226,12 +226,12 @@ export default function DiscountApprovalsPage() {
                     <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg">
                       <div>
                         <p className="text-xs text-muted-foreground">Precio original</p>
-                        <p className="font-medium">${approval.originalPrice.toFixed(2)}</p>
+                        <p className="font-medium">${Number(approval.originalPrice).toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Precio solicitado</p>
                         <p className="font-medium text-green-600">
-                          ${approval.discountedPrice.toFixed(2)}
+                          ${Number(approval.discountedPrice).toFixed(2)}
                         </p>
                       </div>
                       <div>
