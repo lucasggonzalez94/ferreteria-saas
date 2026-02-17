@@ -3,13 +3,19 @@ import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { InventoryService } from './inventory.service';
 import { PayableService } from './payable.service';
+import { FinancialAccountService } from './financial-account.service';
+import { FinancialMovementService } from './financial-movement.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class PurchaseService {
   private inventoryService: InventoryService;
+  private financialAccountService: FinancialAccountService;
+  private financialMovementService: FinancialMovementService;
 
   constructor() {
     this.inventoryService = new InventoryService();
+    this.financialAccountService = new FinancialAccountService();
+    this.financialMovementService = new FinancialMovementService();
   }
 
   /**
@@ -29,6 +35,7 @@ export class PurchaseService {
       }>;
       notes?: string;
       amountPaid?: number;
+      paymentMethod?: string; // CASH, TRANSFER, CHECK
     }
   ) {
     // Verificar que el proveedor existe y pertenece al negocio
@@ -152,14 +159,23 @@ export class PurchaseService {
     if (pendingAmount > 0) {
       const payable = await payableService.createFromPurchase(businessId, userId, purchase.id);
       
-      // Si hay un monto pagado, registrar el pago
+      // Si hay un monto pagado, registrar el pago con método específico
       if (amountPaid > 0) {
+        const method = data.paymentMethod || 'CASH';
+        
+        // Validar fondos disponibles antes de registrar el pago
+        if (method !== 'CHECK') {
+          const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
+          const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
+          await this.financialAccountService.validateFunds(account.id, amountPaid);
+        }
+        
         await payableService.recordPayment(
           businessId,
           userId,
           payable.id,
           amountPaid,
-          'CASH',
+          method,
           undefined,
           'Pago inicial al crear la compra'
         );

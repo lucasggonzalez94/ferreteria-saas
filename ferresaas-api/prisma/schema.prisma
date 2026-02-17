@@ -62,6 +62,8 @@ model Business {
   accountMovements    AccountMovement[]
   supplierPayables    SupplierPayable[]
   supplierPayments    SupplierPayment[]
+  financialAccounts   FinancialAccount[]
+  financialMovements  FinancialMovement[]
   
   @@map("businesses")
 }
@@ -886,4 +888,84 @@ model IdempotencyKey {
   @@index([clientOperationId])
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+// ============================================================================
+// FINANCIAL ACCOUNTS (Cuentas Financieras)
+// ============================================================================
+
+model FinancialAccount {
+  id          String   @id @default(cuid())
+  businessId  String
+  
+  type        String   // CASH, BANK, WALLET, CREDIT_CARD
+  name        String   // "Caja Principal", "Banco Nación Cta 123", "MercadoPago"
+  description String?
+  currency    String   @default("ARS")
+  
+  // Balance actual (calculado en tiempo real)
+  balance     Decimal  @db.Decimal(12, 2) @default(0)
+  
+  // Configuración
+  isDefault   Boolean  @default(false) // Cuenta por defecto para cada tipo
+  isActive    Boolean  @default(true)
+  
+  // Metadata específica por tipo
+  bankName      String?  // Para BANK
+  accountNumber String?  // Para BANK
+  walletProvider String? // Para WALLET (mercadopago, ualá, etc.)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  movements     FinancialMovement[] @relation("AccountMovements")
+  transfersFrom FinancialMovement[] @relation("TransferFrom")
+  transfersTo   FinancialMovement[] @relation("TransferTo")
+  
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([type])
+  @@index([isActive])
+  @@map("financial_accounts")
+}
+
+model FinancialMovement {
+  id          String   @id @default(cuid())
+  businessId  String
+  accountId   String   // Cuenta afectada
+  
+  type        String   // INCOME, EXPENSE, TRANSFER
+  amount      Decimal  @db.Decimal(12, 2) // Siempre positivo
+  
+  // Para transferencias entre cuentas
+  transferFromAccountId String? // Cuenta origen (si es transferencia)
+  transferToAccountId   String? // Cuenta destino (si es transferencia)
+  
+  // Referencia a la transacción que originó el movimiento
+  sourceType  String?  // SALE, PURCHASE_PAYMENT, CASH_REGISTER_OPEN, SUPPLIER_PAYMENT, MANUAL, etc.
+  sourceId    String?  // ID de la venta, compra, pago, etc.
+  
+  description String?
+  notes       String?
+  
+  // Balance después del movimiento (snapshot para auditoría)
+  balanceAfter Decimal @db.Decimal(12, 2)
+  
+  createdAt   DateTime @default(now())
+  createdBy   String?  // userId
+  
+  // Relaciones
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  account      FinancialAccount @relation("AccountMovements", fields: [accountId], references: [id], onDelete: Restrict)
+  transferFrom FinancialAccount? @relation("TransferFrom", fields: [transferFromAccountId], references: [id], onDelete: SetNull)
+  transferTo   FinancialAccount? @relation("TransferTo", fields: [transferToAccountId], references: [id], onDelete: SetNull)
+  
+  @@index([businessId])
+  @@index([accountId])
+  @@index([sourceType, sourceId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("financial_movements")
 }

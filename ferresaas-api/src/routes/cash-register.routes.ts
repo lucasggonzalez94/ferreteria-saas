@@ -93,6 +93,7 @@ router.post(
 
       const movement = await prisma.cashMovement.create({
         data: {
+          businessId: authReq.businessId!,
           cashRegisterId: session.id,
           type: data.type,
           amount: data.amount,

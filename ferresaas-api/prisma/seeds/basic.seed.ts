@@ -192,6 +192,48 @@ async function main() {
       update: {},
       create: { resource: 'roles', action: 'manage', description: 'Gestionar roles y permisos' },
     }),
+    // Cuentas Financieras
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_accounts', action: 'create' } },
+      update: {},
+      create: { resource: 'financial_accounts', action: 'create', description: 'Crear cuentas financieras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_accounts', action: 'read' } },
+      update: {},
+      create: { resource: 'financial_accounts', action: 'read', description: 'Ver cuentas financieras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_accounts', action: 'update' } },
+      update: {},
+      create: { resource: 'financial_accounts', action: 'update', description: 'Editar cuentas financieras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_accounts', action: 'delete' } },
+      update: {},
+      create: { resource: 'financial_accounts', action: 'delete', description: 'Eliminar cuentas financieras' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_accounts', action: 'manage' } },
+      update: {},
+      create: { resource: 'financial_accounts', action: 'manage', description: 'Gestionar cuentas financieras' },
+    }),
+    // Movimientos Financieros
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_movements', action: 'create' } },
+      update: {},
+      create: { resource: 'financial_movements', action: 'create', description: 'Crear movimientos y transferencias' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_movements', action: 'read' } },
+      update: {},
+      create: { resource: 'financial_movements', action: 'read', description: 'Ver movimientos financieros' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'financial_movements', action: 'manage' } },
+      update: {},
+      create: { resource: 'financial_movements', action: 'manage', description: 'Gestionar movimientos financieros' },
+    }),
     // Usuarios
     prisma.permission.upsert({
       where: { resource_action: { resource: 'users', action: 'create' } },
@@ -447,10 +489,65 @@ async function main() {
 
   console.log(`✅ Created ${products.length} products`);
 
+  // 9. Crear cuentas financieras por defecto
+  const financialAccounts = await Promise.all([
+    prisma.financialAccount.upsert({
+      where: { businessId_name: { businessId: business.id, name: 'Caja Principal' } },
+      update: {},
+      create: {
+        businessId: business.id,
+        type: 'CASH',
+        name: 'Caja Principal',
+        description: 'Caja física para efectivo',
+        currency: 'ARS',
+        balance: 0,
+        isDefault: true,
+        isActive: true,
+      },
+    }),
+    prisma.financialAccount.upsert({
+      where: { businessId_name: { businessId: business.id, name: 'Cuenta Bancaria' } },
+      update: {},
+      create: {
+        businessId: business.id,
+        type: 'BANK',
+        name: 'Cuenta Bancaria',
+        description: 'Cuenta bancaria principal',
+        currency: 'ARS',
+        balance: 100000, // Balance inicial de ejemplo
+        isDefault: true,
+        isActive: true,
+        bankName: 'Banco Ejemplo',
+        accountNumber: '1234567890',
+      },
+    }),
+    prisma.financialAccount.upsert({
+      where: { businessId_name: { businessId: business.id, name: 'MercadoPago' } },
+      update: {},
+      create: {
+        businessId: business.id,
+        type: 'WALLET',
+        name: 'MercadoPago',
+        description: 'Billetera virtual MercadoPago',
+        currency: 'ARS',
+        balance: 0,
+        isDefault: true,
+        isActive: true,
+        walletProvider: 'mercadopago',
+      },
+    }),
+  ]);
+
+  console.log(`✅ Created ${financialAccounts.length} financial accounts`);
+
   console.log('\n✨ Basic seed completed successfully!');
   console.log('\n📝 Login credentials:');
   console.log('   Email: admin@ferreteria-demo.com');
   console.log('   Password: Admin123456');
+  console.log('\n💰 Financial Accounts:');
+  console.log('   - Caja Principal (CASH): $0.00');
+  console.log('   - Cuenta Bancaria (BANK): $100,000.00');
+  console.log('   - MercadoPago (WALLET): $0.00');
 }
 
 main()

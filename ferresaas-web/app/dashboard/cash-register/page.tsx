@@ -53,13 +53,23 @@ export default function CashRegisterPage() {
     }
   }, [canAccessCashRegister, router]);
   const [openingAmount, setOpeningAmount] = useState("");
+  const [sourceAccountId, setSourceAccountId] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
+  const [destinationAccountId, setDestinationAccountId] = useState("");
   const [movementType, setMovementType] = useState<"INCOME" | "EXPENSE">("INCOME");
   const [movementAmount, setMovementAmount] = useState("");
   const [movementReason, setMovementReason] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [showMovementDialog, setShowMovementDialog] = useState(false);
 
+
+  const { data: accounts } = useQuery<any[]>({
+    queryKey: ["financial-accounts"],
+    queryFn: async () => {
+      const response = await api.get<any>("/financial-accounts");
+      return response.data || [];
+    },
+  });
 
   const { data: session, isLoading } = useQuery({
     queryKey: ["cash-register", "status"],
@@ -84,13 +94,16 @@ export default function CashRegisterPage() {
     mutationFn: async (amount: number) => {
       const response = await api.post("/cash-register/open", {
         openingAmount: amount,
+        sourceAccountId: sourceAccountId || undefined,
       });
       return response.data;
     },
     onSuccess: () => {
       toast.success("Caja abierta exitosamente");
       setOpeningAmount("");
+      setSourceAccountId("");
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       setTimeout(() => {
         router.push("/dashboard/pos");
       }, 1000);
@@ -129,13 +142,16 @@ export default function CashRegisterPage() {
     mutationFn: async (amount: number) => {
       const response = await api.post("/cash-register/close", {
         closingAmount: amount,
+        destinationAccountId: destinationAccountId || undefined,
       });
       return response.data;
     },
     onSuccess: () => {
       toast.success("Caja cerrada exitosamente");
       setClosingAmount("");
+      setDestinationAccountId("");
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al cerrar caja");
@@ -209,7 +225,7 @@ export default function CashRegisterPage() {
                     className="text-lg"
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    Ingrese el monto con el que inicia la caja
+                    Ingrese el monto en efectivo que tiene en caja para iniciar el día
                   </p>
                 </div>
 

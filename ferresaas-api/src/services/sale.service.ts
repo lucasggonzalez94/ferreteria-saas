@@ -3,6 +3,8 @@ import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { InventoryService } from './inventory.service';
 import { ExchangeRateService } from './exchange-rate.service';
+import { FinancialAccountService } from './financial-account.service';
+import { FinancialMovementService } from './financial-movement.service';
 import { InvoiceProvider } from '../providers/invoice/invoice.provider.interface';
 import { MockInvoiceProvider } from '../providers/invoice/mock.provider';
 import { FacturanteProvider } from '../providers/invoice/facturante.provider';
@@ -12,11 +14,15 @@ import { Prisma } from '@prisma/client';
 export class SaleService {
   private inventoryService: InventoryService;
   private exchangeRateService: ExchangeRateService;
+  private financialAccountService: FinancialAccountService;
+  private financialMovementService: FinancialMovementService;
   private invoiceProvider: InvoiceProvider;
 
   constructor() {
     this.inventoryService = new InventoryService();
     this.exchangeRateService = new ExchangeRateService();
+    this.financialAccountService = new FinancialAccountService();
+    this.financialMovementService = new FinancialMovementService();
 
     // Seleccionar provider de facturación
     if (env.invoice.provider === 'facturante' && env.invoice.facturante.apiKey) {
@@ -226,7 +232,7 @@ export class SaleService {
         },
       });
 
-      // 2. Crear pagos
+      // 2. Crear pagos y movimientos financieros
       for (const payment of data.payments) {
         let exchangeRateId: string | undefined;
 
@@ -259,6 +265,48 @@ export class SaleService {
             notes: payment.notes,
           },
         });
+
+        // Crear movimiento financiero (excepto para ACCOUNT que es cuenta corriente)
+        if (payment.method !== 'ACCOUNT') {
+          // Determinar tipo de cuenta según método de pago
+          const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(payment.method);
+          
+          // Obtener cuenta por defecto del tipo
+          const account = await tx.financialAccount.findFirst({
+            where: {
+              businessId,
+              type: accountType,
+              isDefault: true,
+              isActive: true,
+            },
+          });
+
+          if (account) {
+            // Actualizar balance de cuenta
+            const currentBalance = account.balance.toNumber();
+            const newBalance = currentBalance + payment.amount;
+
+            await tx.financialAccount.update({
+              where: { id: account.id },
+              data: { balance: newBalance },
+            });
+
+            // Crear movimiento financiero
+            await tx.financialMovement.create({
+              data: {
+                businessId,
+                accountId: account.id,
+                type: 'INCOME',
+                amount: payment.amount,
+                sourceType: 'SALE',
+                sourceId: saleId,
+                description: `Venta #${saleId} - ${payment.method}`,
+                balanceAfter: newBalance,
+                createdBy: userId,
+              },
+            });
+          }
+        }
       }
 
       // 3. Actualizar stock (crear movimientos de inventario)
@@ -303,6 +351,7 @@ export class SaleService {
           // Registrar movimiento de venta
           await tx.accountMovement.create({
             data: {
+              businessId,
               customerId: sale.customerId,
               type: 'SALE',
               amount: saleTotal, // Monto total de la venta
@@ -317,6 +366,7 @@ export class SaleService {
             const balanceAfterCredit = newBalance - creditAmount;
             await tx.accountMovement.create({
               data: {
+                businessId,
                 customerId: sale.customerId,
                 type: 'PAYMENT',
                 amount: -creditAmount, // Negativo = pago/crédito
@@ -342,6 +392,7 @@ export class SaleService {
           // Registrar ajuste de caja (diferencia entre vuelto teórico y real)
           await tx.cashMovement.create({
             data: {
+              businessId,
               cashRegisterId: cashRegister.id,
               type: changeDifference > 0 ? 'WITHDRAWAL' : 'DEPOSIT',
               amount: Math.abs(changeDifference),

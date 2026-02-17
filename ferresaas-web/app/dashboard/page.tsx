@@ -25,6 +25,10 @@ import {
   BarChart3,
   Lock,
   GripVertical,
+  Edit,
+  Save,
+  X,
+  Wallet,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -180,6 +184,7 @@ export default function DashboardPage() {
       { id: "customers", label: "Clientes", href: "/dashboard/customers", icon: <Users className="h-6 w-6" />, allowed: !!canViewCustomers },
       { id: "inventory", label: "Inventario", href: "/dashboard/inventory", icon: <TrendingUp className="h-6 w-6" />, allowed: !!canViewInventory },
       { id: "suppliers", label: "Proveedores", href: "/dashboard/suppliers", icon: <Package className="h-6 w-6" />, allowed: !!canAccessSuppliers },
+      { id: "finances", label: "Finanzas", href: "/dashboard/financial-accounts", icon: <Wallet className="h-6 w-6" />, allowed: !!(user?.permissions?.includes("financial_accounts:read")) },
       { id: "purchases", label: "Compras", href: "/dashboard/purchases", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPurchases },
       { id: "payables", label: "Cuentas por Pagar", href: "/dashboard/payables", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessPayables },
       { id: "discounts", label: "Aprobación de Descuentos", href: "/dashboard/discount-approvals", icon: <CheckCircle className="h-6 w-6" />, allowed: !!canApproveDiscounts },

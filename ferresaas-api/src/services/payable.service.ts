@@ -1,9 +1,18 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
+import { FinancialAccountService } from './financial-account.service';
+import { FinancialMovementService } from './financial-movement.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class PayableService {
+  private financialAccountService: FinancialAccountService;
+  private financialMovementService: FinancialMovementService;
+
+  constructor() {
+    this.financialAccountService = new FinancialAccountService();
+    this.financialMovementService = new FinancialMovementService();
+  }
   /**
    * Crear cuenta por pagar desde una compra
    */
@@ -136,6 +145,13 @@ export class PayableService {
       throw new AppError(400, 'OVERPAYMENT', 'Payment exceeds payable amount');
     }
 
+    // Validar fondos disponibles antes de registrar el pago (excepto para CHECK)
+    if (method !== 'CHECK') {
+      const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
+      const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
+      await this.financialAccountService.validateFunds(account.id, amount);
+    }
+
     const payment = await prisma.$transaction(async (tx) => {
       // Crear registro de pago
       const newPayment = await tx.supplierPayment.create({
@@ -177,6 +193,45 @@ export class PayableService {
           where: { id: payable.supplierId },
           data: { currentBalance: new Decimal(newBalance) },
         });
+      }
+
+      // Crear movimiento financiero (excepto para CHECK que se registra cuando se cobra)
+      if (method !== 'CHECK') {
+        const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
+        const account = await tx.financialAccount.findFirst({
+          where: {
+            businessId,
+            type: accountType,
+            isDefault: true,
+            isActive: true,
+          },
+        });
+
+        if (account) {
+          // Actualizar balance de cuenta
+          const currentBalance = account.balance.toNumber();
+          const newAccountBalance = currentBalance - amount;
+
+          await tx.financialAccount.update({
+            where: { id: account.id },
+            data: { balance: newAccountBalance },
+          });
+
+          // Crear movimiento financiero
+          await tx.financialMovement.create({
+            data: {
+              businessId,
+              accountId: account.id,
+              type: 'EXPENSE',
+              amount: new Decimal(amount),
+              sourceType: 'SUPPLIER_PAYMENT',
+              sourceId: newPayment.id,
+              description: `Pago a proveedor - ${method}`,
+              balanceAfter: newAccountBalance,
+              createdBy: userId,
+            },
+          });
+        }
       }
 
       return newPayment;

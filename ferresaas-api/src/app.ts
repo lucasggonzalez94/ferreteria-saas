@@ -25,6 +25,7 @@ import rolesRoutes from './routes/roles.routes';
 import permissionsRoutes from './routes/permissions.routes';
 import usersRoutes from './routes/users.routes';
 import userRolesRoutes from './routes/user-roles.routes';
+import financialAccountsRoutes from './routes/financial-accounts.routes';
 
 const app = express();
 
@@ -106,6 +107,7 @@ app.use('/v1/roles', rolesRoutes);
 app.use('/v1/permissions', permissionsRoutes);
 app.use('/v1/users', usersRoutes); // CRUD de usuarios
 app.use('/v1/users', userRolesRoutes); // Asignación de roles a usuarios
+app.use('/v1/financial-accounts', financialAccountsRoutes);
 
 // 404 handler
 app.use((_req, res) => {

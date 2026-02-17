@@ -61,6 +61,7 @@ export default function NewPurchasePage() {
   const [taxRate, setTaxRate] = useState("21");
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -108,6 +109,7 @@ export default function NewPurchasePage() {
         })),
         notes: notes || undefined,
         amountPaid: amountPaid ? parseFloat(amountPaid) : 0,
+        paymentMethod: amountPaid && parseFloat(amountPaid) > 0 ? paymentMethod : undefined,
       });
       return response.data;
     },
@@ -472,6 +474,25 @@ export default function NewPurchasePage() {
                     Déjalo vacío o en 0 para marcar como pendiente de pago
                   </p>
                 </div>
+
+                {amountPaid && parseFloat(amountPaid) > 0 && (
+                  <div>
+                    <Label htmlFor="paymentMethod">Método de Pago</Label>
+                    <select
+                      id="paymentMethod"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="CASH">Efectivo</option>
+                      <option value="TRANSFER">Transferencia</option>
+                      <option value="CHECK">Cheque</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selecciona cómo se realizará el pago
+                    </p>
+                  </div>
+                )}
 
                 <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
                   <div className="flex justify-between mb-2">
