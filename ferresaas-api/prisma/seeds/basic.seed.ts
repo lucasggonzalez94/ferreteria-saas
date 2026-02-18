@@ -386,7 +386,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // 5. Crear usuario admin
+  // 5. Crear usuario admin (usuario de prueba con todos los permisos)
   const hashedPassword = await hash('Admin123456');
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@ferreteria-demo.com' },
@@ -402,7 +402,7 @@ async function main() {
     },
   });
 
-  // Asignar rol OWNER
+  // Asignar rol OWNER (que tiene todos los permisos)
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: adminUser.id, roleId: ownerRole.id } },
     update: {},
@@ -413,6 +413,7 @@ async function main() {
   });
 
   console.log(`✅ Created admin user: ${adminUser.email} / Admin123456`);
+  console.log(`✅ Assigned OWNER role with all ${permissions.length} permissions to admin user`);
 
   // 6. Crear categorías básicas
   const categories = await Promise.all([

@@ -1,0 +1,389 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useParams, useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import {
+  Wallet,
+  Building2,
+  Smartphone,
+  CreditCard,
+  ArrowLeft,
+  Edit,
+  Star,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Calendar,
+  FileText,
+} from "lucide-react";
+import Link from "next/link";
+import Header from "@/components/ui/header";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface FinancialAccount {
+  id: string;
+  type: string;
+  name: string;
+  description?: string;
+  balance: number;
+  currency: string;
+  isDefault: boolean;
+  isActive: boolean;
+  bankName?: string;
+  accountNumber?: string;
+  walletProvider?: string;
+  createdAt: string;
+  _count?: {
+    movements: number;
+  };
+}
+
+interface Movement {
+  id: string;
+  type: "INCOME" | "EXPENSE" | "TRANSFER_IN" | "TRANSFER_OUT";
+  amount: number;
+  description: string;
+  sourceType: string;
+  sourceId?: string;
+  date: string;
+  createdAt: string;
+}
+
+interface MovementsResponse {
+  items: Movement[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+const accountTypeIcons = {
+  CASH: Wallet,
+  BANK: Building2,
+  WALLET: Smartphone,
+  CREDIT_CARD: CreditCard,
+};
+
+const accountTypeLabels = {
+  CASH: "Efectivo",
+  BANK: "Cuenta Bancaria",
+  WALLET: "Billetera Virtual",
+  CREDIT_CARD: "Tarjeta de Crédito",
+};
+
+const movementTypeLabels = {
+  INCOME: "Ingreso",
+  EXPENSE: "Gasto",
+  TRANSFER_IN: "Transferencia Recibida",
+  TRANSFER_OUT: "Transferencia Enviada",
+};
+
+const movementTypeColors = {
+  INCOME: "text-green-600",
+  EXPENSE: "text-red-600",
+  TRANSFER_IN: "text-blue-600",
+  TRANSFER_OUT: "text-orange-600",
+};
+
+export default function AccountDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
+  const accountId = params.id as string;
+
+  const canRead = user?.permissions?.includes("financial_accounts:read");
+  const canManage =
+    user?.permissions?.includes("financial_accounts:manage") ||
+    user?.permissions?.includes("financial_accounts:update");
+
+  const { data: account, isLoading: accountLoading } = useQuery<FinancialAccount | null>({
+    queryKey: ["financial-accounts", accountId],
+    queryFn: async () => {
+      const response = await api.get<FinancialAccount>(
+        `/financial-accounts/${accountId}`
+      );
+      return response.data || null;
+    },
+    enabled: canRead && !!accountId,
+  });
+
+  const { data: movementsData, isLoading: movementsLoading } =
+    useQuery<MovementsResponse | null>({
+      queryKey: ["financial-accounts", accountId, "movements"],
+      queryFn: async () => {
+        const response = await api.get<MovementsResponse>(
+          `/financial-accounts/${accountId}/movements`,
+          {
+            params: {
+              page: 1,
+              limit: 50,
+            },
+          }
+        );
+        return response.data || null;
+      },
+      enabled: canRead && !!accountId,
+    });
+
+  if (!canRead) {
+    return (
+      <div className="p-8">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl font-bold mb-4">Acceso Denegado</h2>
+          <p className="text-muted-foreground">
+            No tienes permisos para ver las cuentas financieras.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (accountLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!account) {
+    return (
+      <div className="p-8">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl font-bold mb-4">Cuenta no encontrada</h2>
+          <p className="text-muted-foreground mb-6">
+            La cuenta que buscas no existe o no tienes acceso a ella.
+          </p>
+          <Link href="/dashboard/financial-accounts">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a Cuentas
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const Icon = accountTypeIcons[account.type as keyof typeof accountTypeIcons] || Wallet;
+  const movements = movementsData?.items || [];
+
+  return (
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/dashboard/financial-accounts">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Button>
+        </Link>
+        {canManage && (
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        {/* Account Header Card */}
+        <Card className="border-2">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Icon className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl flex items-center gap-2">
+                    {account.name}
+                    {account.isDefault && (
+                      <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    )}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {accountTypeLabels[account.type as keyof typeof accountTypeLabels]}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Balance Actual</p>
+                <p className="text-4xl font-bold">
+                  $
+                  {account.balance.toLocaleString("es-AR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {account.description && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Descripción</p>
+                    <p className="text-sm">{account.description}</p>
+                  </div>
+                )}
+
+                {account.bankName && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Banco</p>
+                    <p className="text-sm font-medium">{account.bankName}</p>
+                  </div>
+                )}
+
+                {account.accountNumber && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Número de Cuenta</p>
+                    <p className="text-sm font-medium">{account.accountNumber}</p>
+                  </div>
+                )}
+
+                {account.walletProvider && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Proveedor</p>
+                    <p className="text-sm font-medium capitalize">
+                      {account.walletProvider}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Moneda</p>
+                <p className="font-medium">{account.currency}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Estado</p>
+                <p className="font-medium">
+                  {account.isActive ? (
+                    <span className="text-green-600">Activa</span>
+                  ) : (
+                    <span className="text-red-600">Inactiva</span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Movimientos</p>
+                <p className="font-medium">{account._count?.movements || 0}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Creada</p>
+                <p className="font-medium text-sm">
+                  {format(new Date(account.createdAt), "dd MMM yyyy", {
+                    locale: es,
+                  })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Movements Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Movimientos</h2>
+
+          {movementsLoading ? (
+            <Card>
+              <CardContent className="py-8 flex items-center justify-center">
+                <LoadingSpinner />
+              </CardContent>
+            </Card>
+          ) : movements.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                No hay movimientos registrados en esta cuenta.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {movements.map((movement: Movement) => (
+                    <div
+                      key={movement.id}
+                      className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="p-2 bg-muted rounded-lg">
+                          {movement.type === "INCOME" ||
+                          movement.type === "TRANSFER_IN" ? (
+                            <ArrowDownLeft
+                              className={`h-5 w-5 ${
+                                movementTypeColors[
+                                  movement.type as keyof typeof movementTypeColors
+                                ]
+                              }`}
+                            />
+                          ) : (
+                            <ArrowUpRight
+                              className={`h-5 w-5 ${
+                                movementTypeColors[
+                                  movement.type as keyof typeof movementTypeColors
+                                ]
+                              }`}
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">
+                            {
+                              movementTypeLabels[
+                                movement.type as keyof typeof movementTypeLabels
+                              ]
+                            }
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {movement.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            {format(new Date(movement.date), "dd MMM yyyy HH:mm", {
+                              locale: es,
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`font-bold text-lg ${
+                            movement.type === "INCOME" ||
+                            movement.type === "TRANSFER_IN"
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {movement.type === "INCOME" ||
+                          movement.type === "TRANSFER_IN"
+                            ? "+"
+                            : "-"}
+                          $
+                          {movement.amount.toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

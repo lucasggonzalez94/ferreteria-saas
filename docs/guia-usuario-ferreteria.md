@@ -11,20 +11,21 @@ Sistema integral de gestión para ferreterías con punto de venta, inventario, f
 3. [Dashboard Principal](#3-dashboard-principal)
 4. [Punto de Venta (POS)](#4-punto-de-venta-pos)
 5. [Caja Registradora](#5-caja-registradora)
-6. [Productos](#6-productos)
-7. [Clientes](#7-clientes)
-8. [Proveedores](#8-proveedores)
-9. [Compras](#9-compras)
-10. [Cuentas por Pagar](#10-cuentas-por-pagar)
-11. [Inventario](#11-inventario)
-12. [Reportes](#12-reportes)
-13. [Aprobación de Descuentos](#13-aprobación-de-descuentos)
-14. [Configuración](#14-configuración)
-15. [Roles y Permisos](#15-roles-y-permisos)
-16. [Gestión de Usuarios](#16-gestión-de-usuarios)
-17. [Mi Perfil](#17-mi-perfil)
-18. [Modo Offline](#18-modo-offline)
-19. [Preguntas Frecuentes](#19-preguntas-frecuentes)
+6. [Cuentas Financieras](#6-cuentas-financieras)
+7. [Productos](#7-productos)
+8. [Clientes](#8-clientes)
+9. [Proveedores](#9-proveedores)
+10. [Compras](#10-compras)
+11. [Cuentas por Pagar](#11-cuentas-por-pagar)
+12. [Inventario](#12-inventario)
+13. [Reportes](#13-reportes)
+14. [Aprobación de Descuentos](#14-aprobación-de-descuentos)
+15. [Configuración](#15-configuración)
+16. [Roles y Permisos](#16-roles-y-permisos)
+17. [Gestión de Usuarios](#17-gestión-de-usuarios)
+18. [Mi Perfil](#18-mi-perfil)
+19. [Modo Offline](#19-modo-offline)
+20. [Preguntas Frecuentes](#20-preguntas-frecuentes)
 
 ---
 
@@ -272,7 +273,148 @@ Muestra todas las sesiones de caja anteriores con:
 
 ---
 
-## 6. Productos
+## 6. Cuentas Financieras
+
+**Ruta**: `/dashboard/financial-accounts`
+**Permiso requerido**: `financial_accounts:read`
+
+Las cuentas financieras registran todos los fondos de tu empresa (efectivo, banco, billeteras virtuales, tarjetas). Son **independientes de la sesión de caja** y se actualizan automáticamente con cada venta.
+
+### 6.1 Cuentas por Defecto
+
+El sistema crea automáticamente 3 cuentas:
+
+| Cuenta | Tipo | Propósito |
+|---|---|---|
+| **Caja Principal** | CASH | Efectivo físico en caja |
+| **Cuenta Bancaria** | BANK | Transferencias bancarias |
+| **MercadoPago** | WALLET | Billetera virtual (QR) |
+
+### 6.2 Visualizar Cuentas
+
+**Ruta**: `/dashboard/financial-accounts/summary`
+
+1. Hacé clic en **Finanzas** desde el Dashboard.
+2. Verás todas tus cuentas con:
+   - Balance actual
+   - Movimientos del día (ingresos/egresos)
+   - Resumen por tipo de cuenta
+
+### 6.3 Crear Nueva Cuenta
+
+**Permiso**: `financial_accounts:create`
+
+1. Desde la página de Finanzas, presioná **Nueva Cuenta**.
+2. Seleccioná el tipo:
+   - **CASH**: Efectivo
+   - **BANK**: Cuenta bancaria
+   - **WALLET**: Billetera virtual (MercadoPago, Ualá, etc.)
+   - **CREDIT_CARD**: Tarjeta de crédito
+3. Completá los datos:
+   - **Nombre**: Ej. "Banco Santander", "Ualá"
+   - **Descripción**: Opcional
+   - Para WALLET: Seleccioná el **Proveedor** (MercadoPago, Ualá, Naranja X, etc.)
+4. Presioná **Crear Cuenta**.
+
+### 6.4 Transferencias Entre Cuentas
+
+**Permiso**: `financial_accounts:manage`
+
+Transfiere dinero de una cuenta a otra (ej.: retiro de MercadoPago a Banco):
+
+1. Presioná **Transferir**.
+2. Seleccioná:
+   - **Cuenta Origen**: De dónde sale el dinero
+   - **Cuenta Destino**: A dónde va el dinero
+   - **Monto**: Cantidad a transferir
+3. Presioná **Transferir**.
+
+**Ejemplo**: Retiraste $50,000 de MercadoPago a tu banco:
+- Cuenta Origen: MercadoPago
+- Cuenta Destino: Banco Nación
+- Monto: $50,000
+
+### 6.5 Movimientos Manuales
+
+**Permiso**: `financial_accounts:manage`
+
+Registra ingresos o egresos que no provienen de ventas:
+
+1. Presioná **Movimiento Manual**.
+2. Seleccioná:
+   - **Cuenta**: Dónde registrar el movimiento
+   - **Tipo**: INGRESO o EGRESO
+   - **Monto**: Cantidad
+   - **Descripción**: Motivo (ej. "Extracción", "Comisión bancaria")
+3. Presioná **Registrar**.
+
+### 6.6 Validación al Cierre de Día
+
+**Ruta**: `/dashboard/financial-accounts/summary`
+
+Al final del día, valida que tus balances coincidan con la realidad:
+
+1. Ve a **Finanzas → Resumen**.
+2. Para cada cuenta, verifica:
+   - **Caja Principal**: Cuenta el efectivo físico
+   - **Banco**: Revisa el extracto bancario
+   - **MercadoPago**: Abre la app y compara el balance
+3. Si hay diferencia:
+   - Registra un **Movimiento Manual** para ajustar
+   - Tipo: INGRESO (si contaste más) o EGRESO (si contaste menos)
+   - Descripción: "Ajuste de cierre"
+
+**Ejemplo de validación correcta**:
+```
+Sistema dice:
+├── Caja Principal: $15,000
+├── Banco: $95,000
+└── MercadoPago: $2,000
+
+Tú verificas:
+├── Efectivo contado: $15,000 ✓
+├── Extracto: $95,000 ✓
+└── App: $2,000 ✓
+
+Resultado: TODO CUADRA ✓
+```
+
+### 6.7 Flujo de Ventas y Cuentas
+
+Las ventas **actualizan automáticamente** las cuentas según el método de pago:
+
+| Método de Pago | Cuenta Actualizada |
+|---|---|
+| **Efectivo ARS** | Caja Principal (+) |
+| **Transferencia** | Banco (+) |
+| **QR/MercadoPago** | MercadoPago (+) |
+| **Tarjeta** | Banco (+) |
+
+**Ejemplo de día completo**:
+```
+INICIO:
+├── Caja Principal: $0
+├── Banco: $100,000
+└── MercadoPago: $0
+
+VENTAS:
+├── Venta $5,000 CASH → Caja: $0 → $5,000
+├── Venta $3,000 TRANSFER → Banco: $100,000 → $103,000
+└── Venta $2,000 QR → MercadoPago: $0 → $2,000
+
+COMPRA:
+└── Compra $8,000 TRANSFER → Banco: $103,000 → $95,000
+
+CIERRE:
+├── Caja Principal: $5,000
+├── Banco: $95,000
+└── MercadoPago: $2,000
+└── TOTAL: $102,000
+```
+
+---
+
+## 7. Productos
 
 **Ruta**: `/dashboard/products`
 **Permiso requerido**: `products:read`
@@ -337,12 +479,12 @@ Desde la vista de detalle de un producto:
 
 ---
 
-## 7. Clientes
+## 8. Clientes
 
 **Ruta**: `/dashboard/customers`
 **Permiso requerido**: `customers:read`
 
-### 7.1 Lista de Clientes
+### 8.1 Lista de Clientes
 
 Muestra todos los clientes registrados con:
 
@@ -352,7 +494,7 @@ Muestra todos los clientes registrados con:
 - Saldo de cuenta corriente.
 - Buscador para filtrar por nombre, CUIT o email.
 
-### 7.2 Crear Cliente
+### 8.2 Crear Cliente
 
 **Permiso**: `customers:create`
 
@@ -367,7 +509,7 @@ Muestra todos los clientes registrados con:
    - **Condición IVA**: Consumidor Final, Responsable Inscripto, Monotributista, Exento.
 4. Presioná **Crear Cliente**.
 
-### 7.3 Cuenta Corriente
+### 8.3 Cuenta Corriente
 
 Cada cliente tiene un saldo de cuenta corriente que se actualiza automáticamente cuando:
 
@@ -378,12 +520,12 @@ El saldo actual se muestra en la lista de clientes y en el detalle del cliente.
 
 ---
 
-## 8. Proveedores
+## 9. Proveedores
 
 **Ruta**: `/dashboard/suppliers`
 **Permiso requerido**: `purchases:read`
 
-### 8.1 Lista de Proveedores
+### 9.1 Lista de Proveedores
 
 Muestra todos los proveedores con:
 
@@ -393,7 +535,7 @@ Muestra todos los proveedores con:
 - Monto adeudado actual.
 - Estado (Activo/Inactivo).
 
-### 8.2 Crear Proveedor
+### 9.2 Crear Proveedor
 
 **Permiso**: `purchases:create`
 
@@ -408,19 +550,19 @@ Muestra todos los proveedores con:
    - **Límite de Crédito**: Monto máximo de deuda permitida.
 3. Presioná **Guardar**.
 
-### 8.3 Editar Proveedor
+### 9.3 Editar Proveedor
 
 **Permiso**: `purchases:update`
 
 Desde la lista, presioná el ícono de edición y modificá los datos.
 
-### 8.4 Eliminar Proveedor
+### 9.4 Eliminar Proveedor
 
 **Permiso**: `purchases:delete`
 
 Presioná el ícono de papelera y confirmá la eliminación.
 
-### 8.5 Detalle del Proveedor
+### 9.5 Detalle del Proveedor
 
 Hacé clic en el ícono de **ojo** para ver la ficha completa del proveedor, que incluye:
 
@@ -430,12 +572,12 @@ Hacé clic en el ícono de **ojo** para ver la ficha completa del proveedor, que
 
 ---
 
-## 9. Compras
+## 10. Compras
 
 **Ruta**: `/dashboard/purchases`
 **Permiso requerido**: `purchases:read`
 
-### 9.1 Lista de Compras
+### 10.1 Lista de Compras
 
 Muestra todas las compras registradas con:
 
@@ -451,7 +593,7 @@ Los estados posibles son:
 | **Parcial** | Se pagó una parte del total |
 | **Pagado** | Compra completamente saldada |
 
-### 9.2 Nueva Compra
+### 10.2 Nueva Compra
 
 **Permiso**: `purchases:create`
 
@@ -467,17 +609,21 @@ Los estados posibles son:
 5. Revisá la lista de productos agregados. Podés eliminar ítems individuales.
 6. En el **Resumen**, verificá subtotal, IVA y total.
 7. Opcionalmente, ingresá un **Monto Pagado** (pago inicial). Dejalo en 0 para marcar la compra como pendiente de pago.
-8. Presioná **Crear Compra**.
+8. **Seleccioná el método de pago**: CASH, TRANSFER, CHECK, ACCOUNT.
+9. Presioná **Crear Compra**.
 
-### 9.3 ¿Qué Ocurre al Crear la Compra?
+> **Nota**: Si seleccionás TRANSFER, el sistema valida que tu Cuenta Bancaria tenga fondos suficientes.
+
+### 10.3 ¿Qué Ocurre al Crear la Compra?
 
 1. Se registra la compra y sus ítems.
 2. Se actualiza el **stock** de cada producto (movimiento tipo `PURCHASE_RECEIPT`).
 3. Se recalcula el **costo promedio** de cada producto.
 4. Se crea automáticamente una **cuenta por pagar** con el saldo pendiente.
 5. Si se ingresó un pago inicial, se registra el movimiento de pago.
+6. Si el método fue TRANSFER, se decrementa la Cuenta Bancaria.
 
-### 9.4 Detalle de Compra
+### 10.4 Detalle de Compra
 
 Hacé clic en **Ver Detalle** para ver:
 
@@ -490,12 +636,12 @@ Hacé clic en **Ver Detalle** para ver:
 
 ---
 
-## 10. Cuentas por Pagar
+## 11. Cuentas por Pagar
 
 **Ruta**: `/dashboard/payables`
 **Permiso requerido**: `purchases:read`
 
-### 10.1 Vista General
+### 11.1 Vista General
 
 Muestra las cuentas por pagar a proveedores con:
 
@@ -503,7 +649,7 @@ Muestra las cuentas por pagar a proveedores con:
 - **Filtro por estado**: Pendiente, Parcial, Pagado, Vencido.
 - Se puede filtrar por proveedor específico (accediendo desde la ficha del proveedor).
 
-### 10.2 Detalle de Cada Cuenta
+### 11.2 Detalle de Cada Cuenta
 
 Cada tarjeta de cuenta por pagar muestra:
 
@@ -515,7 +661,7 @@ Cada tarjeta de cuenta por pagar muestra:
 - Fecha de vencimiento (si tiene).
 - Estado con color indicativo (verde = pagado, amarillo = parcial, rojo = vencido, azul = pendiente).
 
-### 10.3 Registrar un Pago
+### 11.3 Registrar un Pago
 
 **Permiso**: `purchases:update`
 
@@ -528,12 +674,12 @@ Cada tarjeta de cuenta por pagar muestra:
 
 ---
 
-## 11. Inventario
+## 12. Inventario
 
 **Ruta**: `/dashboard/inventory`
 **Permiso requerido**: `inventory:read`
 
-### 11.1 Pestañas
+### 12.1 Pestañas
 
 La página de inventario se organiza en tres pestañas:
 
@@ -559,7 +705,7 @@ Historial de todos los movimientos de inventario recientes:
 - Cantidad.
 - Fecha.
 
-### 11.2 Ajuste Manual de Stock
+### 12.2 Ajuste Manual de Stock
 
 **Permiso**: `inventory:adjust`
 
@@ -569,7 +715,7 @@ Historial de todos los movimientos de inventario recientes:
 4. Ingresá la **razón** del ajuste (ej.: "Conteo físico", "Rotura").
 5. Presioná **Registrar Ajuste**.
 
-### 11.3 Procesar Devolución
+### 12.3 Procesar Devolución
 
 **Permiso**: `inventory:return`
 
@@ -587,14 +733,14 @@ La devolución:
 
 ---
 
-## 12. Reportes
+## 13. Reportes
 
 **Ruta**: `/dashboard/reports`
 **Permiso requerido**: `reports:read`
 
 La sección de reportes ofrece cuatro pestañas con información agregada del inventario.
 
-### 12.1 Movimientos
+### 13.1 Movimientos
 
 Muestra un resumen de todos los movimientos de inventario en un período:
 
@@ -603,7 +749,7 @@ Muestra un resumen de todos los movimientos de inventario en un período:
 - **Lista detallada**: Producto, tipo de movimiento, cantidad, fecha.
 - **Exportar**: Descargá los datos en formato **CSV** o **JSON**.
 
-### 12.2 Alertas de Stock
+### 13.2 Alertas de Stock
 
 Presenta un resumen de alertas de stock bajo:
 
@@ -611,7 +757,7 @@ Presenta un resumen de alertas de stock bajo:
 - **Lista**: Producto, stock actual, stock mínimo, nivel de alerta.
 - **Exportar**: CSV o JSON.
 
-### 12.3 Rotación de Productos
+### 13.3 Rotación de Productos
 
 Clasifica los productos según su velocidad de rotación:
 
@@ -621,7 +767,7 @@ Clasifica los productos según su velocidad de rotación:
 
 Incluye métricas como valor de stock y cantidad de movimientos.
 
-### 12.4 Devoluciones
+### 13.4 Devoluciones
 
 Muestra un informe de devoluciones procesadas:
 
@@ -632,14 +778,14 @@ Muestra un informe de devoluciones procesadas:
 
 ---
 
-## 13. Aprobación de Descuentos
+## 14. Aprobación de Descuentos
 
 **Ruta**: `/dashboard/discount-approvals`
 **Permiso requerido**: `sales:manage`
 
 Cuando un cajero sin permiso `sales:approve_discount` solicita un descuento en el POS, se genera una solicitud de aprobación.
 
-### 13.1 Lista de Solicitudes
+### 14.1 Lista de Solicitudes
 
 Las solicitudes pendientes muestran:
 
@@ -649,13 +795,13 @@ Las solicitudes pendientes muestran:
 - Nombre del usuario que realizó la solicitud.
 - Fecha y hora.
 
-### 13.2 Aprobar un Descuento
+### 14.2 Aprobar un Descuento
 
 1. Revisá los detalles de la solicitud.
 2. Presioná **Aprobar**.
 3. El descuento se aplica y el vendedor puede continuar con la venta.
 
-### 13.3 Rechazar un Descuento
+### 14.3 Rechazar un Descuento
 
 1. Presioná **Rechazar**.
 2. Opcionalmente, ingresá una **razón del rechazo**.
@@ -665,7 +811,7 @@ Las solicitudes pendientes muestran:
 
 ---
 
-## 14. Configuración
+## 15. Configuración
 
 **Ruta**: `/dashboard/settings`
 
@@ -680,7 +826,7 @@ La página de configuración muestra diferentes opciones según tus permisos:
 | **Tipo de Cambio** | `settings:update` | Consultar cotización USD→ARS en tiempo real |
 | **Mi Perfil** | *(todos)* | Editar información personal y cambiar contraseña |
 
-### 14.1 Datos del Negocio
+### 15.1 Datos del Negocio
 
 **Ruta**: `/dashboard/settings/business`
 **Permiso**: `settings:update`
@@ -691,12 +837,12 @@ La página de configuración muestra diferentes opciones según tus permisos:
 
 ---
 
-## 15. Roles y Permisos
+## 16. Roles y Permisos
 
 **Ruta**: `/dashboard/settings/roles`
 **Permiso requerido**: `roles:manage`
 
-### 15.1 Lista de Roles
+### 16.1 Lista de Roles
 
 Muestra todos los roles del negocio. Los roles de sistema (OWNER, ADMIN, CASHIER) están marcados con un ícono de candado y no se pueden eliminar.
 
@@ -705,14 +851,14 @@ Cada tarjeta muestra:
 - Cantidad de permisos asignados.
 - Cantidad de usuarios con ese rol.
 
-### 15.2 Crear un Nuevo Rol
+### 16.2 Crear un Nuevo Rol
 
 1. Presioná **Crear Rol**.
 2. Ingresá un **nombre** (ej.: "Gerente de Ventas") y opcionalmente una **descripción**.
 3. Presioná **Crear Rol**.
 4. Luego, entrá al detalle del rol para asignar permisos.
 
-### 15.3 Detalle y Edición de un Rol
+### 16.3 Detalle y Edición de un Rol
 
 1. Hacé clic en **Ver** en la tarjeta del rol.
 2. Verás la **Información del Rol**: nombre, descripción, cantidad de permisos y usuarios.
@@ -721,7 +867,7 @@ Cada tarjeta muestra:
 5. Activá o desactivá cada permiso con checkboxes.
 6. Presioná **Guardar**.
 
-### 15.4 Módulos y Permisos Disponibles
+### 16.4 Módulos y Permisos Disponibles
 
 | Módulo | Permisos |
 |---|---|
@@ -733,10 +879,12 @@ Cada tarjeta muestra:
 | **settings** | update |
 | **customers** | create, read, update, delete, manage |
 | **cash_register** | read, open, close, manage |
+| **financial_accounts** | create, read, update, delete, manage |
+| **financial_movements** | create, read, manage |
 | **roles** | create, read, update, delete, manage |
 | **users** | create, read, update, delete, manage |
 
-### 15.5 Eliminar un Rol
+### 16.5 Eliminar un Rol
 
 Solo roles personalizados (no de sistema). Presioná el ícono de eliminar y confirmá.
 
@@ -744,12 +892,12 @@ Solo roles personalizados (no de sistema). Presioná el ícono de eliminar y con
 
 ---
 
-## 16. Gestión de Usuarios
+## 17. Gestión de Usuarios
 
 **Ruta**: `/dashboard/settings/users`
 **Permiso requerido**: `users:read`
 
-### 16.1 Lista de Usuarios
+### 17.1 Lista de Usuarios
 
 Tabla con todos los usuarios del negocio mostrando:
 
@@ -758,12 +906,12 @@ Tabla con todos los usuarios del negocio mostrando:
 - Roles asignados (badges de color).
 - Estado (Activo/Inactivo).
 
-### 16.2 Buscar y Filtrar
+### 17.2 Buscar y Filtrar
 
 - **Buscador**: Por email o nombre.
 - **Filtro de estado**: Todos, Activos, Inactivos.
 
-### 16.3 Invitar Nuevo Usuario
+### 17.3 Invitar Nuevo Usuario
 
 **Permiso**: `users:create`
 
@@ -775,13 +923,13 @@ Tabla con todos los usuarios del negocio mostrando:
 3. Presioná **Invitar Usuario**.
 4. El usuario recibirá un email con su contraseña temporal.
 
-### 16.4 Editar Roles Rápidamente
+### 17.4 Editar Roles Rápidamente
 
 **Permiso**: `users:manage`
 
 Desde la tabla de usuarios, presioná el botón **Roles** al lado de un usuario para abrir un diálogo rápido donde podés marcar/desmarcar roles y guardar.
 
-### 16.5 Detalle de Usuario
+### 17.5 Detalle de Usuario
 
 Hacé clic en **Ver** para acceder a la página de detalle donde podés:
 
@@ -792,18 +940,18 @@ Hacé clic en **Ver** para acceder a la página de detalle donde podés:
 
 ---
 
-## 17. Mi Perfil
+## 18. Mi Perfil
 
 **Ruta**: `/dashboard/settings/profile`
 **Permiso**: Todos los usuarios autenticados.
 
-### 17.1 Información Personal
+### 18.1 Información Personal
 
 - Visualizá tu nombre, apellido y email.
 - Presioná **Editar** para modificar nombre y apellido.
 - El email no se puede cambiar desde esta pantalla.
 
-### 17.2 Cambiar Contraseña
+### 18.2 Cambiar Contraseña
 
 1. Ingresá tu **contraseña actual**.
 2. Ingresá la **nueva contraseña** (mínimo 8 caracteres).
@@ -817,23 +965,23 @@ Requisitos:
 
 ---
 
-## 18. Modo Offline
+## 19. Modo Offline
 
 FerreSaaS está diseñado para seguir operando si se pierde la conexión a internet.
 
-### 18.1 ¿Cómo Funciona?
+### 19.1 ¿Cómo Funciona?
 
 - Si se pierde la conexión, aparece un indicador de **"Modo Offline"** en la interfaz.
 - El POS mantiene el carrito, los pagos y los descuentos en estado local del navegador.
 - Las ventas se guardan localmente y se sincronizan automáticamente cuando vuelve la conexión.
 
-### 18.2 Idempotencia
+### 19.2 Idempotencia
 
 - Cada venta se envía con un identificador único (`clientOperationId`).
 - Si la venta ya fue procesada por el servidor (ej.: la conexión se cortó después de enviar pero antes de recibir respuesta), el sistema no la duplica.
 - Esto garantiza que al reintentar, nunca se cobre dos veces la misma operación.
 
-### 18.3 Limitaciones en Modo Offline
+### 19.3 Limitaciones en Modo Offline
 
 - **No se emiten facturas electrónicas**: Quedan pendientes y se procesan automáticamente al recuperar conexión.
 - **No se pueden consultar datos en tiempo real**: Stock, precios y clientes usan la última versión cacheada.
@@ -841,7 +989,7 @@ FerreSaaS está diseñado para seguir operando si se pierde la conexión a inter
 
 ---
 
-## 19. Preguntas Frecuentes
+## 20. Preguntas Frecuentes
 
 ### No puedo acceder al POS
 - Verificá que tengas una **sesión de caja abierta**. Si no hay caja abierta, el POS te redirigirá.

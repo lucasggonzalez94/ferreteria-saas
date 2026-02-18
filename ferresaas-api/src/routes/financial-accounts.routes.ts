@@ -117,7 +117,7 @@ router.post(
  */
 router.put(
   '/:id',
-  requirePermissions('sales:update'),
+  requirePermissions('financial_accounts:update'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;

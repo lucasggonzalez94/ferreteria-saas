@@ -280,6 +280,7 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 | Compras y proveedores | `suppliers-purchases.routes.ts`, `PurchaseService`, `SupplierService`, `PayableService` | Alta de proveedores, registro de compras, actualización de costos promedio, creación de cuentas por pagar (payables) y registro automático de pagos iniciales. |
 | Ventas/POS | `sales.routes.ts`, `SaleService`, `IdempotencyService` | Creación/confirmación de ventas, manejo de `clientOperationId` para idempotencia offline, integración con inventario y facturación (mock o Facturante). |
 | Caja | `cash-register.routes.ts`, `CashRegisterService` | Apertura/cierre de caja, movimientos manuales, resumen por medio de pago y auditoría de sesiones. |
+| Cuentas Financieras | `financial-accounts.routes.ts`, `FinancialAccountService`, `FinancialMovementService` | Gestión de cuentas (CASH, BANK, WALLET, CREDIT_CARD), transferencias entre cuentas, movimientos manuales, validación de fondos. |
 | Clientes y cuenta corriente | `customers.routes.ts`, `Customer` + movimientos en Prisma | CRUD de clientes, saldo corriente, movimientos automáticos al confirmar ventas o procesar devoluciones. |
 | Reportes de inventario | `inventory-reports.routes.ts`, `InventoryReportsService` | Reportes de movimientos, alertas de stock, rotación y devoluciones con agregados y segmentación. |
 
@@ -360,6 +361,25 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
    - Resumen por medio de pago (`/cash-register/:sessionId/summary`) usa `CashRegisterService.calculateSummary`.
    - Cierre (`/cash-register/close`) calcula `expectedAmount`, `difference` y permite exportar reporte imprimible.
 
+### 9.9 Cuentas Financieras
+
+1. **Concepto**: Las cuentas financieras (CASH, BANK, WALLET, CREDIT_CARD) son independientes de la sesión de caja. Registran todos los fondos de la empresa.
+2. **Creación automática**: El seed crea 3 cuentas por defecto:
+   - Caja Principal (CASH): $0
+   - Cuenta Bancaria (BANK): $100,000
+   - MercadoPago (WALLET): $0
+3. **Movimientos automáticos**:
+   - Venta en CASH_ARS → incrementa Caja Principal
+   - Venta en TRANSFER → incrementa Banco
+   - Venta en QR → incrementa MercadoPago
+   - Venta en CARD → incrementa Banco
+4. **Operaciones manuales** (`financial_accounts:manage`):
+   - Crear/editar cuentas: `/financial-accounts` (POST/PUT)
+   - Transferencias: `/financial-accounts/transfer` (POST)
+   - Movimientos manuales: `/financial-accounts/movements` (POST)
+5. **Validación de fondos**: Al crear compras o transferencias, el sistema valida que la cuenta tenga fondos suficientes.
+6. **Resumen y validación**: `/dashboard/financial-accounts/summary` muestra balances en tiempo real y permite validar al cierre de día.
+
 ### 9.6 Clientes y cuenta corriente
 
 1. `customers:read` habilita la sección de Clientes.
@@ -392,6 +412,9 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 | `docs/MULTI_TENANT_*.md` | Análisis del modelo multi-tenant, patrones y ejecutivos. |
 | `docs/SESSION_REFRESH_IMPLEMENTATION.md` | Secuencia completa del refresco silencioso de sesión. |
 | `docs/QA_TEST_CASES.md` | Casos de prueba sugeridos para QA manual. |
+| `docs/CASH_AND_FINANCIAL_ACCOUNTS_CLARIFICATION.md` | Explicación detallada de la diferencia entre Caja y Cuentas Financieras, con flujos completos. |
+| `docs/END_OF_DAY_VALIDATION.md` | Guía paso a paso para validar cuentas al cierre de día, resolver diferencias y registrar extracciones. |
+| `docs/INSTALLATION_GUIDE.md` | Guía completa de instalación del sistema de cuentas financieras con checklist. |
 | `ferresaas_spec.md` | Especificación funcional original (roadmap y decisiones de producto). |
 
 > Consulta estos archivos para ampliar cada dominio sin duplicar contenido. Este manual resume cómo se integran todos los componentes en el flujo diario de la ferretería.
@@ -498,10 +521,26 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 2. Consulta `/v1/audit?entity=...` (o usa Prisma/DB viewer) para confirmar que cada evento registró `action`, `entity`, `before/after`, `userId` e IP.
 3. Prueba el flujo de logout → intenta llamar a cualquier endpoint con el access token previo y verifica que `TokenBlacklistService` impida su uso (`401 TOKEN_REVOKED`).
 
-### 11.12 Modo offline e idempotencia
+### 11.12 Cuentas Financieras
 
-1. En el navegador, marca la casilla “Offline” del panel Network (o desconecta la red brevemente).
-2. En el POS, crea una venta y presiona “Cobrar”. El sistema mostrará un banner de “Modo Offline” y guardará la operación localmente (sin confirmarla).
+1. Accede a **Dashboard → Finanzas** (`financial_accounts:read`).
+2. Verás las 3 cuentas por defecto: Caja Principal, Banco Nación, MercadoPago.
+3. **Crear cuenta**: Presiona **Nueva Cuenta**, selecciona tipo (CASH, BANK, WALLET, CREDIT_CARD) e ingresa datos.
+4. **Transferencias**: Presiona **Transferir**, selecciona origen/destino, ingresa monto y confirma.
+5. **Movimientos manuales**: Presiona **Movimiento Manual**, selecciona cuenta, tipo (INGRESO/EGRESO), monto y descripción.
+6. **Validación de cierre**:
+   - Ve a **Finanzas → Resumen** (`/dashboard/financial-accounts/summary`)
+   - Verifica que cada balance coincida con tu conteo físico/extracto
+   - Si hay diferencia, registra un movimiento manual para ajustar
+7. **Extracciones**: Si retiras dinero de MercadoPago a tu banco:
+   - Opción A: Usa **Transferencias** (recomendado)
+   - Opción B: Registra un **Movimiento Manual** de EGRESO en MercadoPago
+8. **Validación de compras**: Al crear una compra con método TRANSFER, el sistema valida que el Banco tenga fondos suficientes.
+
+### 11.13 Modo offline e idempotencia
+
+1. En el navegador, marca la casilla "Offline" del panel Network (o desconecta la red brevemente).
+2. En el POS, crea una venta y presiona "Cobrar". El sistema mostrará un banner de "Modo Offline" y guardará la operación localmente (sin confirmarla).
 3. Restablece la conexión: el POS reintenta la confirmación. Puedes revisar la consola para ver el `clientOperationId` reutilizado; el backend devolverá la respuesta almacenada si ya se había procesado.
 4. Ingresa en `/cash-register/:sessionId/summary` para asegurarte de que la venta sincronizada aparece con su método de pago.
 
