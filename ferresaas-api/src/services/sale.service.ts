@@ -206,9 +206,9 @@ export class SaleService {
 
     // Calcular vuelto/sobrante teórico
     const changeTheoretical = totalPaid - saleTotal;
-    
+
     // Determinar si hay pagos en efectivo
-    const hasCashPayment = data.payments.some(p => p.method === 'CASH_ARS' || p.method === 'CASH_USD');
+    const hasCashPayment = data.payments.some((p) => p.method === 'CASH_ARS' || p.method === 'CASH_USD');
     const hasAccountPayment = data.payments.some(p => p.method === 'ACCOUNT');
 
     // Obtener sesión de caja abierta (opcional)
@@ -233,6 +233,14 @@ export class SaleService {
       });
 
       // 2. Crear pagos y movimientos financieros
+      // Calcular efectivo neto retenido (pagos en efectivo menos vuelto entregado)
+      const totalCashPaid = data.payments
+        .filter((p) => p.method === 'CASH_ARS' || p.method === 'CASH_USD')
+        .reduce((sum, p) => sum + p.amount, 0);
+      const changeGiven = data.changeGiven || 0;
+      let remainingCashToAllocate = Math.max(totalCashPaid - changeGiven, 0);
+      const totalCashForAllocation = totalCashPaid || 1; // evitar división por cero
+
       for (const payment of data.payments) {
         let exchangeRateId: string | undefined;
 
@@ -253,11 +261,20 @@ export class SaleService {
           exchangeRateId = snapshot.id;
         }
 
+        // Determinar monto efectivo que se retiene para este pago (considerando vuelto)
+        let retainedAmount = payment.amount;
+        if (payment.method === 'CASH_ARS' || payment.method === 'CASH_USD') {
+          const proportion = payment.amount / totalCashForAllocation;
+          const allocated = Math.min(remainingCashToAllocate, payment.amount, remainingCashToAllocate * proportion);
+          retainedAmount = allocated;
+          remainingCashToAllocate -= allocated;
+        }
+
         await tx.payment.create({
           data: {
             saleId,
             method: payment.method,
-            amount: payment.amount,
+            amount: retainedAmount,
             amountUSD: payment.amountUSD,
             exchangeRateId,
             cardBrand: payment.cardBrand,
@@ -282,9 +299,9 @@ export class SaleService {
           });
 
           if (account) {
-            // Actualizar balance de cuenta
+            // Actualizar balance de cuenta con el monto realmente retenido
             const currentBalance = account.balance.toNumber();
-            const newBalance = currentBalance + payment.amount;
+            const newBalance = currentBalance + retainedAmount;
 
             await tx.financialAccount.update({
               where: { id: account.id },
@@ -297,7 +314,7 @@ export class SaleService {
                 businessId,
                 accountId: account.id,
                 type: 'INCOME',
-                amount: payment.amount,
+                amount: retainedAmount,
                 sourceType: 'SALE',
                 sourceId: saleId,
                 description: `Venta #${saleId} - ${payment.method}`,

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Trash2, Printer, Upload, X } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 export default function EditProductPage({
   params,
@@ -180,10 +181,10 @@ export default function EditProductPage({
       categoryId: formData.categoryId || undefined,
       unit: formData.unit,
       isFractional: formData.unit !== "u",
-      cost: parseFloat(formData.cost),
-      price: parseFloat(formData.price),
-      taxRate: parseFloat(formData.taxRate),
-      minStock: formData.minStock ? parseFloat(formData.minStock) : undefined,
+      cost: parseNumericInput(formData.cost),
+      price: parseNumericInput(formData.price),
+      taxRate: parseNumericInput(formData.taxRate),
+      minStock: formData.minStock ? parseNumericInput(formData.minStock) : undefined,
       isActive: formData.isActive,
     });
   };

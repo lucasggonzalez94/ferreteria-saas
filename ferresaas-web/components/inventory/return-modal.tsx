@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 interface ReturnModalProps {
   open: boolean;
@@ -220,7 +221,7 @@ export default function ReturnModal({
                                   onChange={(e) =>
                                     handleUpdateQuantity(
                                       item.productId,
-                                      parseFloat(e.target.value) || 0
+                                      parseNumericInput(e.target.value) || 0
                                     )
                                   }
                                   className="w-24 h-8 text-xs"

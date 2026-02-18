@@ -13,6 +13,7 @@ import { Search, Plus, Minus, Trash2, DollarSign, ArrowLeft, X } from "lucide-re
 import type { Product, Sale, Customer } from "@/types";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -166,6 +167,8 @@ export default function POSPage() {
       setCustomerSearch("");
       setSearch("");
       queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al registrar venta");
@@ -302,7 +305,7 @@ export default function POSPage() {
         saleId: "temp", // Se generará cuando se cree la venta
         productId: discountProductId,
         originalPrice: item.unitPrice,
-        discountedPrice: parseFloat(discountFinalPrice),
+        discountedPrice: parseNumericInput(discountFinalPrice),
         discountReason: discountReason,
       });
 
@@ -310,10 +313,10 @@ export default function POSPage() {
       setCart(
         cart.map((item) => {
           if (item.product.id === discountProductId) {
-            const newSubtotal = item.quantity * parseFloat(discountFinalPrice);
+            const newSubtotal = item.quantity * parseNumericInput(discountFinalPrice);
             return {
               ...item,
-              discountedPrice: parseFloat(discountFinalPrice),
+              discountedPrice: parseNumericInput(discountFinalPrice),
               discountReason: discountReason,
               subtotal: newSubtotal,
             };
@@ -340,7 +343,7 @@ export default function POSPage() {
   const total = subtotal;
 
   const addPayment = () => {
-    const amount = parseFloat(paymentAmount);
+    const amount = parseNumericInput(paymentAmount);
     if (!amount || amount <= 0) {
       toast.error("Ingresa un monto válido");
       return;
@@ -549,7 +552,7 @@ export default function POSPage() {
                               setEditingQuantityValue(e.target.value);
                             }}
                             onBlur={(e) => {
-                              const newQty = parseFloat(e.target.value);
+                              const newQty = parseNumericInput(e.target.value);
                               if (isNaN(newQty) || newQty <= 0) {
                                 removeFromCart(item.product.id);
                               } else if (newQty > item.product.stockQuantity) {
@@ -564,7 +567,7 @@ export default function POSPage() {
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
-                                const newQty = parseFloat(e.currentTarget.value);
+                                const newQty = parseNumericInput(e.currentTarget.value);
                                 if (isNaN(newQty) || newQty <= 0) {
                                   removeFromCart(item.product.id);
                                 } else if (newQty > item.product.stockQuantity) {
@@ -885,9 +888,9 @@ export default function POSPage() {
                           placeholder={change.toFixed(2)}
                           className="text-sm mt-1"
                         />
-                        {changeGiven && Math.abs(parseFloat(changeGiven) - change) > 0.01 && (
+                        {changeGiven && Math.abs(parseNumericInput(changeGiven) - change) > 0.01 && (
                           <p className="text-xs text-amber-600 mt-1">
-                            Diferencia: ${(parseFloat(changeGiven) - change).toFixed(2)}
+                            Diferencia: ${(parseNumericInput(changeGiven) - change).toFixed(2)}
                           </p>
                         )}
                       </div>
@@ -939,7 +942,7 @@ export default function POSPage() {
                   if (!item) return null;
 
                   const originalPrice = Number(item.unitPrice);
-                  const finalPrice = discountFinalPrice ? parseFloat(discountFinalPrice) : originalPrice;
+                  const finalPrice = discountFinalPrice ? parseNumericInput(discountFinalPrice) : originalPrice;
                   const discountAmount = originalPrice - finalPrice;
                   const discountPercent = ((discountAmount / originalPrice) * 100).toFixed(2);
                   const costPrice = Number(item.product.cost);
@@ -1021,7 +1024,7 @@ export default function POSPage() {
                               toast.error("Selecciona un motivo");
                               return;
                             }
-                            applyDiscount(discountProductId, parseFloat(discountFinalPrice), discountReason);
+                            applyDiscount(discountProductId, parseNumericInput(discountFinalPrice), discountReason);
                             toast.success("Descuento aplicado");
                           }}
                           className="flex-1"
@@ -1056,7 +1059,7 @@ export default function POSPage() {
                   if (!item) return null;
 
                   const originalPrice = Number(item.unitPrice);
-                  const finalPrice = discountFinalPrice ? parseFloat(discountFinalPrice) : originalPrice;
+                  const finalPrice = discountFinalPrice ? parseNumericInput(discountFinalPrice) : originalPrice;
                   const discountAmount = originalPrice - finalPrice;
                   const discountPercent = ((discountAmount / originalPrice) * 100).toFixed(2);
 

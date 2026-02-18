@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 interface AdjustmentModalProps {
   open: boolean;
@@ -64,7 +65,7 @@ export default function AdjustmentModal({
       return;
     }
 
-    const qty = parseFloat(quantity);
+    const qty = parseNumericInput(quantity);
     if (isNaN(qty) || qty === 0) {
       alert("La cantidad debe ser un número válido diferente de 0");
       return;

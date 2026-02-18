@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
+import { parseNumericInput } from "@/lib/numeric-input";
 import { DollarSign, AlertCircle, CheckCircle, Clock, Eye } from "lucide-react";
 import Link from "next/link";
 import {
@@ -121,7 +122,7 @@ export default function PayablesPage() {
     mutationFn: async () => {
       if (!selectedPayableId) throw new Error("No payable selected");
       await api.post(`/payables/${selectedPayableId}/payments`, {
-        amount: parseFloat(paymentAmount),
+        amount: parseNumericInput(paymentAmount),
         method: paymentMethod,
         reference: paymentReference || undefined,
       });

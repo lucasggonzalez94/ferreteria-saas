@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 interface FinancialAccount {
   id: string;
@@ -54,7 +55,7 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
       const response = await api.post<any>("/financial-accounts/transfers", {
         fromAccountId,
         toAccountId,
-        amount: parseFloat(amount),
+        amount: parseNumericInput(amount),
         description: description || undefined,
         notes: notes || undefined,
       });
@@ -93,7 +94,7 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
       return;
     }
 
-    const amountNum = parseFloat(amount);
+    const amountNum = parseNumericInput(amount);
     if (!amountNum || amountNum <= 0) {
       toast.error("Ingresa un monto válido");
       return;

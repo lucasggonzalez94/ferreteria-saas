@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 interface CreateAccountModalProps {
   open: boolean;
@@ -49,7 +50,7 @@ export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalPro
         name,
         description: description || undefined,
         currency,
-        initialBalance: initialBalance ? parseFloat(initialBalance) : 0,
+        initialBalance: initialBalance ? parseNumericInput(initialBalance) : 0,
         isDefault,
         bankName: type === "BANK" ? bankName : undefined,
         accountNumber: type === "BANK" ? accountNumber : undefined,

@@ -6,6 +6,7 @@ import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { AuditService } from '../services/audit.service';
+import { FinancialMovementService } from '../services/financial-movement.service';
 import {
   openCashRegisterSchema,
   cashMovementSchema,
@@ -13,9 +14,44 @@ import {
 } from './cash-register.schemas';
 
 const router = Router();
+const movementService = new FinancialMovementService();
 
 // Todas las rutas requieren autenticación y multi-tenant
 router.use(authenticate, multiTenant);
+
+/**
+ * GET /cash-register/suggested-opening
+ * Obtener monto sugerido para apertura (balance actual de cuenta CASH)
+ */
+router.get(
+  '/suggested-opening',
+  requirePermissions('cash_register:open'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+
+      // Obtener cuenta de caja por defecto (tipo CASH)
+      const cashAccount = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      const suggestedAmount = cashAccount?.balance.toNumber() || 0;
+
+      sendSuccess(res, {
+        suggestedAmount,
+        accountId: cashAccount?.id || null,
+        accountName: cashAccount?.name || null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 /**
  * POST /cash-register/open
@@ -42,6 +78,20 @@ router.post(
         throw new AppError(400, 'CASH_REGISTER_ALREADY_OPEN', 'Cash register already open');
       }
 
+      // Obtener cuenta de caja por defecto (tipo CASH)
+      const cashAccount = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      // Calcular diferencia entre monto de apertura y balance actual de cuenta
+      const currentBalance = cashAccount?.balance.toNumber() || 0;
+      const difference = data.openingAmount - currentBalance;
+
       const session = await prisma.cashRegisterSession.create({
         data: {
           businessId: authReq.businessId!,
@@ -51,6 +101,29 @@ router.post(
         },
       });
 
+      // Si hay diferencia con el balance de la cuenta, registrar movimiento de ajuste
+      if (cashAccount && Math.abs(difference) > 0.01) {
+        const adjustmentType = difference > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(difference);
+        const adjustmentDescription = difference > 0 
+          ? `Ingreso detectado al abrir caja: $${adjustmentAmount.toFixed(2)}`
+          : `Retiro detectado al abrir caja: $${adjustmentAmount.toFixed(2)}`;
+
+        await movementService.createMovement(
+          authReq.businessId!,
+          authReq.user!.id,
+          {
+            accountId: cashAccount.id,
+            type: adjustmentType,
+            amount: adjustmentAmount,
+            sourceType: 'CASH_REGISTER_OPEN_ADJUSTMENT',
+            sourceId: session.id,
+            description: adjustmentDescription,
+            notes: `Balance anterior: $${currentBalance.toFixed(2)}, Monto apertura: $${data.openingAmount.toFixed(2)}`,
+          }
+        );
+      }
+
       await AuditService.logCreate(
         authReq.businessId!,
         authReq.user!.id,
@@ -59,7 +132,15 @@ router.post(
         { openingAmount: data.openingAmount }
       );
 
-      sendSuccess(res, session, 201);
+      // Incluir información de diferencia con balance de cuenta
+      const response = {
+        ...session,
+        currentAccountBalance: currentBalance,
+        differenceWithAccount: difference,
+        hasDifference: Math.abs(difference) > 0.01,
+      };
+
+      sendSuccess(res, response, 201);
     } catch (error) {
       next(error);
     }
@@ -100,6 +181,32 @@ router.post(
           reason: data.reason,
         },
       });
+
+      // Obtener cuenta de caja por defecto (tipo CASH)
+      const cashAccount = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      // Registrar movimiento financiero
+      if (cashAccount) {
+        await movementService.createMovement(
+          authReq.businessId!,
+          authReq.user!.id,
+          {
+            accountId: cashAccount.id,
+            type: data.type,
+            amount: data.amount,
+            sourceType: 'CASH_REGISTER_MOVEMENT',
+            sourceId: movement.id,
+            description: data.reason,
+          }
+        );
+      }
 
       await AuditService.log({
         businessId: authReq.businessId!,
@@ -189,6 +296,39 @@ router.post(
           notes: data.notes,
         },
       });
+
+      // Obtener cuenta de caja por defecto (tipo CASH)
+      const cashAccount = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      // Si hay diferencia, registrar movimiento de ajuste en cuentas financieras
+      if (cashAccount && Math.abs(difference) > 0.01) {
+        const adjustmentType = difference > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(difference);
+        const adjustmentDescription = difference > 0 
+          ? `Sobrante en cierre de caja: $${adjustmentAmount.toFixed(2)}`
+          : `Faltante en cierre de caja: $${adjustmentAmount.toFixed(2)}`;
+
+        await movementService.createMovement(
+          authReq.businessId!,
+          authReq.user!.id,
+          {
+            accountId: cashAccount.id,
+            type: adjustmentType,
+            amount: adjustmentAmount,
+            sourceType: 'CASH_REGISTER_DIFFERENCE',
+            sourceId: session.id,
+            description: adjustmentDescription,
+            notes: data.notes,
+          }
+        );
+      }
 
       await AuditService.log({
         businessId: authReq.businessId!,

@@ -15,6 +15,7 @@ import { ArrowLeft, Plus, Trash2, PackagePlus, AlertCircle } from "lucide-react"
 import Link from "next/link";
 import { QuickCreateProductModal } from "@/components/quick-create-product-modal";
 import { toast } from "sonner";
+import { parseNumericInput } from "@/lib/numeric-input";
 import {
   Select,
   SelectContent,
@@ -103,13 +104,13 @@ export default function NewPurchasePage() {
         invoiceNumber: invoiceNumber || undefined,
         items: items.map((item) => ({
           productId: item.productId,
-          quantity: parseFloat(item.quantity.toString()),
-          unitCost: parseFloat(item.unitCost.toString()),
-          taxRate: parseFloat(item.taxRate.toString()),
+          quantity: parseNumericInput(item.quantity.toString()),
+          unitCost: parseNumericInput(item.unitCost.toString()),
+          taxRate: parseNumericInput(item.taxRate.toString()),
         })),
         notes: notes || undefined,
-        amountPaid: amountPaid ? parseFloat(amountPaid) : 0,
-        paymentMethod: amountPaid && parseFloat(amountPaid) > 0 ? paymentMethod : undefined,
+        amountPaid: amountPaid ? parseNumericInput(amountPaid) : 0,
+        paymentMethod: amountPaid && parseNumericInput(amountPaid) > 0 ? paymentMethod : undefined,
       });
       return response.data;
     },
@@ -129,9 +130,9 @@ export default function NewPurchasePage() {
 
     const newItem: PurchaseItem = {
       productId: selectedProductId,
-      quantity: parseFloat(quantity),
-      unitCost: parseFloat(unitCost),
-      taxRate: parseFloat(taxRate),
+      quantity: parseNumericInput(quantity),
+      unitCost: parseNumericInput(unitCost),
+      taxRate: parseNumericInput(taxRate),
     };
 
     setItems([...items, newItem]);

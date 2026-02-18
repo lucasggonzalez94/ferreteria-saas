@@ -25,6 +25,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { parseNumericInput } from "@/lib/numeric-input";
 
 interface FinancialAccount {
   id: string;
@@ -48,13 +49,15 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
   const [notes, setNotes] = useState("");
 
   const selectedAccount = accounts.find((acc) => acc.id === accountId);
+  const amountValue = parseNumericInput(amount);
+  const balanceValue = selectedAccount ? Number(selectedAccount.balance) || 0 : 0;
 
   const movementMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post<any>("/financial-accounts/movements", {
         accountId,
         type,
-        amount: parseFloat(amount),
+        amount: parseNumericInput(amount),
         description,
         notes: notes || undefined,
       });
@@ -88,7 +91,7 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
       return;
     }
 
-    const amountNum = parseFloat(amount);
+    const amountNum = parseNumericInput(amount);
     if (!amountNum || amountNum <= 0) {
       toast.error("Ingresa un monto válido");
       return;
@@ -200,7 +203,7 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
             />
           </div>
 
-          {selectedAccount && amount && parseFloat(amount) > 0 && (
+          {selectedAccount && amount && amountValue > 0 && (
             <div className={`p-3 rounded-md border ${type === "INCOME" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
               <p className={`text-sm font-medium mb-2 ${type === "INCOME" ? "text-green-900" : "text-red-900"}`}>
                 Resumen del Movimiento
@@ -216,15 +219,15 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
                 </div>
                 <div className="flex justify-between">
                   <span>Monto:</span>
-                  <span className="font-medium">{type === "INCOME" ? "+" : "-"}${parseFloat(amount).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-medium">{type === "INCOME" ? "+" : "-"}${amountValue.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className={`border-t ${type === "INCOME" ? "border-green-300" : "border-red-300"} my-2 pt-2`}>
                   <div className="flex justify-between">
                     <span>Nuevo balance:</span>
                     <span className="font-medium">
-                      ${(type === "INCOME" 
-                        ? selectedAccount.balance + parseFloat(amount)
-                        : selectedAccount.balance - parseFloat(amount)
+                      ${(type === "INCOME"
+                        ? balanceValue + amountValue
+                        : balanceValue - amountValue
                       ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                     </span>
                   </div>

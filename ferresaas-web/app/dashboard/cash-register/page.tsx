@@ -59,17 +59,10 @@ export default function CashRegisterPage() {
   const [movementType, setMovementType] = useState<"INCOME" | "EXPENSE">("INCOME");
   const [movementAmount, setMovementAmount] = useState("");
   const [movementReason, setMovementReason] = useState("");
-  const [showSummary, setShowSummary] = useState(false);
   const [showMovementDialog, setShowMovementDialog] = useState(false);
-
-
-  const { data: accounts } = useQuery<any[]>({
-    queryKey: ["financial-accounts"],
-    queryFn: async () => {
-      const response = await api.get<any>("/financial-accounts");
-      return response.data || [];
-    },
-  });
+  const [showDifferenceConfirmation, setShowDifferenceConfirmation] = useState(false);
+  const [pendingOpenAmount, setPendingOpenAmount] = useState<number | null>(null);
+  const [suggestedAmount, setSuggestedAmount] = useState<number>(0);
 
   const { data: session, isLoading } = useQuery({
     queryKey: ["cash-register", "status"],
@@ -79,6 +72,24 @@ export default function CashRegisterPage() {
     },
     refetchInterval: 30000,
   });
+
+  // Obtener monto sugerido para apertura (balance de cuenta CASH)
+  const { data: suggestedOpening } = useQuery({
+    queryKey: ["cash-register", "suggested-opening"],
+    queryFn: async () => {
+      const response = await api.get<any>("/cash-register/suggested-opening");
+      return response.data;
+    },
+    enabled: !session, // Solo cuando no hay sesión abierta
+  });
+
+  // Prellenar el input con el monto sugerido
+  useEffect(() => {
+    if (suggestedOpening?.suggestedAmount !== undefined && !openingAmount) {
+      setOpeningAmount(suggestedOpening.suggestedAmount.toString());
+      setSuggestedAmount(suggestedOpening.suggestedAmount);
+    }
+  }, [suggestedOpening]);
 
   const { data: summary } = useQuery({
     queryKey: ["cash-register", session?.id, "summary"],
@@ -98,10 +109,22 @@ export default function CashRegisterPage() {
       });
       return response.data;
     },
-    onSuccess: () => {
-      toast.success("Caja abierta exitosamente");
+    onSuccess: (data: any) => {
+      // Mostrar alerta si hubo diferencia registrada
+      if (data.hasDifference) {
+        const diffAmount = Math.abs(data.differenceWithAccount);
+        const diffType = data.differenceWithAccount > 0 ? "ingreso" : "retiro";
+        toast.success(
+          `Caja abierta. Se registró ${diffType} de $${diffAmount.toFixed(2)}`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success("Caja abierta exitosamente");
+      }
       setOpeningAmount("");
       setSourceAccountId("");
+      setShowDifferenceConfirmation(false);
+      setPendingOpenAmount(null);
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       setTimeout(() => {
@@ -110,6 +133,8 @@ export default function CashRegisterPage() {
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al abrir caja");
+      setShowDifferenceConfirmation(false);
+      setPendingOpenAmount(null);
     },
   });
 
@@ -164,7 +189,30 @@ export default function CashRegisterPage() {
       toast.error("Ingrese un monto válido");
       return;
     }
-    openMutation.mutate(amount);
+
+    // Verificar si hay diferencia con el balance de la cuenta
+    const difference = amount - suggestedAmount;
+    if (Math.abs(difference) > 0.01) {
+      // Mostrar confirmación de diferencia
+      setPendingOpenAmount(amount);
+      setShowDifferenceConfirmation(true);
+    } else {
+      // No hay diferencia, abrir directamente
+      openMutation.mutate(amount);
+    }
+  };
+
+  const confirmOpenWithDifference = () => {
+    if (pendingOpenAmount !== null) {
+      openMutation.mutate(pendingOpenAmount);
+    }
+  };
+
+  const cancelOpenWithDifference = () => {
+    setShowDifferenceConfirmation(false);
+    setPendingOpenAmount(null);
+    // Restaurar al monto sugerido
+    setOpeningAmount(suggestedAmount.toString());
   };
 
   const handleAddMovement = () => {
@@ -224,6 +272,11 @@ export default function CashRegisterPage() {
                     placeholder="0.00"
                     className="text-lg"
                   />
+                  {suggestedOpening && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Balance actual en cuenta de efectivo: ${suggestedOpening.suggestedAmount.toFixed(2)}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground mt-1">
                     Ingrese el monto en efectivo que tiene en caja para iniciar el día
                   </p>
@@ -513,6 +566,71 @@ export default function CashRegisterPage() {
             </Card>
           </div>
         )}
+
+        {/* Modal de confirmación de diferencia */}
+        <Dialog open={showDifferenceConfirmation} onOpenChange={setShowDifferenceConfirmation}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                Diferencia Detectada
+              </DialogTitle>
+              <DialogDescription>
+                El monto ingresado no coincide con el balance actual de la cuenta de efectivo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Balance en cuenta:</span>
+                    <span className="text-sm font-bold">${suggestedAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">Monto a abrir:</span>
+                    <span className="text-sm font-bold">${pendingOpenAmount?.toFixed(2) || 0}</span>
+                  </div>
+                  <div className="border-t border-yellow-300 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium">Diferencia:</span>
+                      <span className={`text-sm font-bold ${
+                        (pendingOpenAmount || 0) - suggestedAmount > 0 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {(pendingOpenAmount || 0) - suggestedAmount > 0 ? '+' : ''}
+                        ${((pendingOpenAmount || 0) - suggestedAmount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                {(pendingOpenAmount || 0) - suggestedAmount > 0 
+                  ? '⚠️ Se registrará un INGRESO de efectivo en la cuenta financiera.'
+                  : '⚠️ Se registrará un RETIRO de efectivo en la cuenta financiera.'}
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={cancelOpenWithDifference}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={confirmOpenWithDifference}
+                  disabled={openMutation.isPending}
+                  className="flex-1"
+                >
+                  {openMutation.isPending ? "Abriendo..." : "Confirmar y Abrir"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
