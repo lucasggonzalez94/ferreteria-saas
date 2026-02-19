@@ -74,6 +74,12 @@ export class ProductService {
       taxRate: number;
       marginPercent?: number | null;
       minStock?: number | null;
+      pricingMode?: string;
+      targetMargin?: number | null;
+      targetMarkup?: number | null;
+      priceLocked?: boolean;
+      roundingStep?: number;
+      costMethod?: string;
     }
   ) {
     // Generar SKU interno
@@ -119,6 +125,12 @@ export class ProductService {
         suggestedPrice,
         minStock: data.minStock,
         stockQuantity: 0, // Stock inicial en 0
+        pricingMode: data.pricingMode || 'margin',
+        targetMargin: data.targetMargin,
+        targetMarkup: data.targetMarkup,
+        priceLocked: data.priceLocked || false,
+        roundingStep: data.roundingStep || 10,
+        costMethod: data.costMethod || 'avg_weighted',
       },
       include: {
         category: true,
@@ -308,6 +320,12 @@ export class ProductService {
       marginPercent?: number | null;
       minStock?: number | null;
       isActive: boolean;
+      pricingMode?: string;
+      targetMargin?: number | null;
+      targetMarkup?: number | null;
+      priceLocked?: boolean;
+      roundingStep?: number;
+      costMethod?: string;
     }>
   ) {
     // Obtener producto actual

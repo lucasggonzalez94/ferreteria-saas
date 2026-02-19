@@ -281,10 +281,12 @@ export class FinancialMovementService {
    */
   static getAccountTypeByPaymentMethod(method: string): string {
     const mapping: Record<string, string> = {
+      CASH: 'CASH',
       CASH_ARS: 'CASH',
       CASH_USD: 'CASH',
       TRANSFER: 'BANK',
       CARD: 'BANK',
+      CHECK: 'BANK',
       QR: 'WALLET',
     };
 

@@ -5,6 +5,7 @@ import { InventoryService } from './inventory.service';
 import { PayableService } from './payable.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
+import { PricingService } from './pricing.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class PurchaseService {
@@ -70,9 +71,20 @@ export class PurchaseService {
 
     const total = subtotal + tax;
 
+    // Validar fondos disponibles ANTES de crear la compra si hay amountPaid
+    const amountPaid = data.amountPaid || 0;
+    if (amountPaid > 0) {
+      const method = data.paymentMethod || 'CASH';
+      // No validar para CHECK (cheques no requieren fondos inmediatos)
+      if (method !== 'CHECK') {
+        const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
+        const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
+        await this.financialAccountService.validateFunds(account.id, amountPaid);
+      }
+    }
+
     // Crear compra con items en transacción
     // Determinar status basado en amountPaid
-    const amountPaid = data.amountPaid || 0;
     let purchaseStatus = 'CONFIRMED';
     if (amountPaid > 0 && amountPaid < total) {
       purchaseStatus = 'PARTIAL';
@@ -109,6 +121,13 @@ export class PurchaseService {
         })),
       });
 
+      // Almacenar información de cambios de costo para procesar después
+      const costChanges: Array<{
+        productId: string;
+        oldCost: number;
+        newCost: number;
+      }> = [];
+
       // Crear movimientos de inventario para cada item
       for (const item of data.items) {
         await this.inventoryService.createMovement(businessId, userId, {
@@ -119,7 +138,7 @@ export class PurchaseService {
           reason: `Compra #${newPurchase.id}`,
         });
 
-        // Actualizar costo del producto (costo promedio ponderado)
+        // Actualizar costo del producto usando PricingService
         const product = await tx.product.findUnique({
           where: { id: item.productId },
         });
@@ -127,14 +146,29 @@ export class PurchaseService {
         if (product) {
           const currentStock = product.stockQuantity.toNumber();
           const currentCost = product.cost.toNumber();
-          const newStock = currentStock + item.quantity;
 
-          // Costo promedio ponderado
-          const newCost =
-            newStock > 0
-              ? (currentStock * currentCost + item.quantity * item.unitCost) / newStock
-              : item.unitCost;
+          // Calcular nuevo costo según método configurado
+          let newCost: number;
+          if (product.costMethod === 'last_cost') {
+            newCost = item.unitCost;
+          } else {
+            // avg_weighted (por defecto)
+            newCost = PricingService.calculateWeightedAverageCost(
+              currentCost,
+              currentStock,
+              item.unitCost,
+              item.quantity
+            );
+          }
 
+          // Guardar información del cambio de costo
+          costChanges.push({
+            productId: item.productId,
+            oldCost: currentCost,
+            newCost: newCost,
+          });
+
+          // Actualizar costo del producto
           await tx.product.update({
             where: { id: item.productId },
             data: { cost: newCost },
@@ -142,11 +176,43 @@ export class PurchaseService {
         }
       }
 
-      return newPurchase;
+      return { purchase: newPurchase, costChanges };
     });
 
+    // Procesar cambios de costo y generar sugerencias de precio
+    console.log('🛒 [PurchaseService] Procesando cambios de costo para', data.items.length, 'items');
+    try {
+      for (let i = 0; i < data.items.length; i++) {
+        const item = data.items[i];
+        const costChange = purchase.costChanges?.[i];
+
+        console.log('📦 [PurchaseService] Procesando item:', {
+          productId: item.productId,
+          purchaseId: purchase.purchase.id,
+          unitCost: item.unitCost,
+          quantity: item.quantity,
+          oldCost: costChange?.oldCost,
+          newCost: costChange?.newCost,
+        });
+
+        await PricingService.processCostChange({
+          businessId,
+          productId: item.productId,
+          purchaseId: purchase.purchase.id,
+          purchaseCost: item.unitCost,
+          purchaseQuantity: item.quantity,
+          requestedBy: userId,
+          oldCost: costChange?.oldCost,
+          newCost: costChange?.newCost,
+        });
+      }
+    } catch (error) {
+      console.error('❌ [PurchaseService] Error al procesar cambios de costo:', error);
+      throw error; // Re-lanzar el error para que se propague al endpoint
+    }
+
     // Auditoría
-    await AuditService.logCreate(businessId, userId, 'purchases', purchase.id, {
+    await AuditService.logCreate(businessId, userId, 'purchases', purchase.purchase.id, {
       supplierId: data.supplierId,
       total,
       itemsCount: data.items.length,
@@ -157,7 +223,7 @@ export class PurchaseService {
     const pendingAmount = total - amountPaid;
 
     if (pendingAmount > 0) {
-      const payable = await payableService.createFromPurchase(businessId, userId, purchase.id);
+      const payable = await payableService.createFromPurchase(businessId, userId, purchase.purchase.id);
       
       // Si hay un monto pagado, registrar el pago con método específico
       if (amountPaid > 0) {
@@ -184,7 +250,7 @@ export class PurchaseService {
 
     // Obtener compra completa con items
     const fullPurchase = await prisma.purchase.findUnique({
-      where: { id: purchase.id },
+      where: { id: purchase.purchase.id },
       include: {
         supplier: true,
         items: {
@@ -202,7 +268,7 @@ export class PurchaseService {
       },
     });
 
-    return fullPurchase;
+    return fullPurchase || purchase.purchase;
   }
 
   /**

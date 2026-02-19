@@ -41,10 +41,13 @@ export interface PriceHistoryEntry {
   id: string;
   businessId: string;
   productId: string;
+  purchaseId?: string;
   oldCost: number;
   newCost: number;
   oldPrice: number;
   newPrice: number;
+  oldMargin?: number;
+  newMargin?: number;
   reason?: string;
   changedBy?: string;
   createdAt: string;

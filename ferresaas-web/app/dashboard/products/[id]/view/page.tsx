@@ -131,11 +131,11 @@ export default function ProductDetailViewPage() {
   console.log(`${API_BASE}${product?.imageUrl}`);
 
   const { data: priceHistory, isLoading: loadingPriceHistory } = useQuery({
-    queryKey: ["price-history", productId, fromISO, toISO],
+    queryKey: ["price-history", productId],
     queryFn: async () => {
       const res = await api.get<PriceHistoryEntry[]>(
-        `/products/${productId}/price-history`,
-        { params: { from: fromISO, to: toISO } },
+        `/price-suggestions/history/${productId}`,
+        { params: { limit: "50" } },
       );
       return res.data || [];
     },
@@ -578,38 +578,64 @@ export default function ProductDetailViewPage() {
                           <th className="text-right py-2 px-2 font-medium">
                             Costo nuevo
                           </th>
+                          <th className="text-right py-2 px-2 font-medium">
+                            Margen
+                          </th>
                           <th className="text-left py-2 px-2 font-medium">
                             Motivo
                           </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {priceHistory.map((entry) => (
-                          <tr key={entry.id} className="border-b last:border-0">
-                            <td className="py-2 px-2">
-                              {format(
-                                new Date(entry.createdAt),
-                                "dd/MM/yyyy HH:mm",
-                                { locale: es },
-                              )}
-                            </td>
-                            <td className="text-right py-2 px-2">
-                              ${Number(entry.oldPrice).toFixed(2)}
-                            </td>
-                            <td className="text-right py-2 px-2 font-medium">
-                              ${Number(entry.newPrice).toFixed(2)}
-                            </td>
-                            <td className="text-right py-2 px-2">
-                              ${Number(entry.oldCost).toFixed(2)}
-                            </td>
-                            <td className="text-right py-2 px-2 font-medium">
-                              ${Number(entry.newCost).toFixed(2)}
-                            </td>
-                            <td className="py-2 px-2 text-muted-foreground">
-                              {entry.reason || "-"}
-                            </td>
-                          </tr>
-                        ))}
+                        {priceHistory.map((entry) => {
+                          const oldMargin = entry.oldMargin ? Number(entry.oldMargin) : null;
+                          const newMargin = entry.newMargin ? Number(entry.newMargin) : null;
+                          const marginChange = oldMargin !== null && newMargin !== null 
+                            ? newMargin - oldMargin 
+                            : null;
+                          
+                          return (
+                            <tr key={entry.id} className="border-b last:border-0">
+                              <td className="py-2 px-2">
+                                {format(
+                                  new Date(entry.createdAt),
+                                  "dd/MM/yyyy HH:mm",
+                                  { locale: es },
+                                )}
+                              </td>
+                              <td className="text-right py-2 px-2">
+                                ${Number(entry.oldPrice).toFixed(2)}
+                              </td>
+                              <td className="text-right py-2 px-2 font-medium">
+                                ${Number(entry.newPrice).toFixed(2)}
+                              </td>
+                              <td className="text-right py-2 px-2">
+                                ${Number(entry.oldCost).toFixed(2)}
+                              </td>
+                              <td className="text-right py-2 px-2 font-medium">
+                                ${Number(entry.newCost).toFixed(2)}
+                              </td>
+                              <td className="text-right py-2 px-2">
+                                {newMargin !== null ? (
+                                  <span className={marginChange !== null && marginChange !== 0 ? (marginChange > 0 ? "text-green-600" : "text-red-600") : ""}>
+                                    {newMargin.toFixed(1)}%
+                                    {marginChange !== null && marginChange !== 0 && (
+                                      <span className="text-xs ml-1">
+                                        ({marginChange > 0 ? "+" : ""}{marginChange.toFixed(1)})
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : "-"}
+                              </td>
+                              <td className="py-2 px-2 text-muted-foreground">
+                                {entry.reason === "purchase" ? "Compra" : 
+                                 entry.reason === "manual_adjustment" ? "Ajuste manual" :
+                                 entry.reason === "approved_suggestion" ? "Sugerencia aprobada" :
+                                 entry.reason || "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

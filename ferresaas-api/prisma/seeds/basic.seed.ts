@@ -260,6 +260,17 @@ async function main() {
       update: {},
       create: { resource: 'users', action: 'manage', description: 'Gestionar usuarios y roles' },
     }),
+    // Pricing (Gestión de precios)
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'pricing', action: 'approve' } },
+      update: {},
+      create: { resource: 'pricing', action: 'approve', description: 'Aprobar cambios de precio sugeridos' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'pricing', action: 'view_suggestions' } },
+      update: {},
+      create: { resource: 'pricing', action: 'view_suggestions', description: 'Ver sugerencias de precio pendientes' },
+    }),
   ]);
 
   console.log(`✅ Created ${permissions.length} permissions`);
@@ -332,34 +343,11 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const adminPermissionKeys = [
-    'products:read',
-    'products:update',
-    'sales:create',
-    'sales:read',
-    'sales:approve_discount',
-    'inventory:read',
-    'inventory:adjust',
-    'inventory:manage',
-    'inventory:return',
-    'reports:read',
-    'settings:update',
-    'cash_register:read',
-    'cash_register:open',
-    'cash_register:close',
-    'cash_register:manage',
-    'customers:read',
-    'customers:create',
-  ];
-
   await prisma.rolePermission.createMany({
-    data: adminPermissionKeys
-      .map((key) => permissionMap[key])
-      .filter(Boolean)
-      .map((permissionId) => ({
-        roleId: adminRole.id,
-        permissionId: permissionId!,
-      })),
+    data: permissions.map((p) => ({
+      roleId: adminRole.id,
+      permissionId: p.id,
+    })),
     skipDuplicates: true,
   });
 
@@ -446,8 +434,14 @@ async function main() {
       cost: 5000,
       price: 8000,
       taxRate: 21,
+      marginPercent: 37.5,
       stockQuantity: 3,
       minStock: 5,
+      pricingMode: 'margin',
+      targetMargin: 37.5,
+      priceLocked: false,
+      roundingStep: 10,
+      costMethod: 'avg_weighted',
     },
     {
       internalSku: 'FER-00002',
@@ -457,8 +451,14 @@ async function main() {
       cost: 3000,
       price: 5000,
       taxRate: 21,
+      marginPercent: 40,
       stockQuantity: 8,
       minStock: 10,
+      pricingMode: 'margin',
+      targetMargin: 40,
+      priceLocked: false,
+      roundingStep: 10,
+      costMethod: 'avg_weighted',
     },
     {
       internalSku: 'FER-00003',
@@ -470,8 +470,14 @@ async function main() {
       cost: 500,
       price: 800,
       taxRate: 21,
+      marginPercent: 37.5,
       stockQuantity: 100,
       minStock: 50,
+      pricingMode: 'margin',
+      targetMargin: 37.5,
+      priceLocked: false,
+      roundingStep: 10,
+      costMethod: 'avg_weighted',
     },
   ];
 

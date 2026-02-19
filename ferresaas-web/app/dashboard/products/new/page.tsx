@@ -51,6 +51,11 @@ export default function NewProductPage() {
     taxRate: "21",
     marginPercent: "",
     minStock: "",
+    pricingMode: "margin",
+    targetMargin: "",
+    priceLocked: false,
+    roundingStep: "10",
+    costMethod: "avg_weighted",
   });
 
   const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
@@ -61,6 +66,11 @@ export default function NewProductPage() {
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    targetMargin?: string;
+    targetMarkup?: string;
+    marginPercent?: string;
+  }>({});
 
   const resetCategoryForm = () => {
     setCategoryForm({ name: "", description: "" });
@@ -187,10 +197,144 @@ export default function NewProductPage() {
     }
   };
 
+  // Validar targetMargin en tiempo real
+  const validateTargetMargin = (value: string, mode: string) => {
+    const errors = { ...validationErrors };
+    
+    if (mode === "margin") {
+      if (!value) {
+        errors.targetMargin = "El Margen Objetivo es requerido";
+      } else {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+          errors.targetMargin = "Ingresa un número válido";
+        } else if (numValue <= 0) {
+          errors.targetMargin = "El margen debe ser mayor a 0% (ej: 37.5)";
+        } else if (numValue >= 100) {
+          errors.targetMargin = "El margen debe ser menor a 100%. Máximo 99.9%";
+        } else {
+          delete errors.targetMargin;
+        }
+      }
+    } else {
+      delete errors.targetMargin;
+    }
+    
+    setValidationErrors(errors);
+  };
+
+  // Validar targetMarkup en tiempo real
+  const validateTargetMarkup = (value: string, mode: string) => {
+    const errors = { ...validationErrors };
+    
+    if (mode === "markup") {
+      if (!value) {
+        errors.targetMarkup = "El Markup Objetivo es requerido";
+      } else {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+          errors.targetMarkup = "Ingresa un número válido";
+        } else if (numValue <= 0) {
+          errors.targetMarkup = "El markup debe ser mayor a 0% (ej: 60)";
+        } else {
+          delete errors.targetMarkup;
+        }
+      }
+    } else {
+      delete errors.targetMarkup;
+    }
+    
+    setValidationErrors(errors);
+  };
+
+  // Validar margen actual (marginPercent) en tiempo real
+  const validateMarginPercent = (value: string) => {
+    const errors = { ...validationErrors };
+    
+    if (value) {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        errors.marginPercent = "Ingresa un número válido";
+      } else if (numValue < 0 || numValue >= 100) {
+        errors.marginPercent = "El margen debe ser menor a 100%. Máximo 99.9%";
+      } else {
+        delete errors.marginPercent;
+      }
+    } else {
+      delete errors.marginPercent;
+    }
+    
+    setValidationErrors(errors);
+  };
+
+  // Manejar cambio de marginPercent
+  const handleMarginPercentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, marginPercent: value });
+    validateMarginPercent(value);
+  };
+
+  // Manejar cambio de targetMargin
+  const handleTargetMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, targetMargin: value });
+    validateTargetMargin(value, formData.pricingMode);
+  };
+
+  // Manejar cambio de targetMarkup (mismo campo, diferente validación)
+  const handleTargetMarkupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, targetMargin: value });
+    validateTargetMarkup(value, formData.pricingMode);
+  };
+
+  // Calcular margen equivalente a partir de markup
+  const calculateEquivalentMargin = (markup: number): number => {
+    if (markup <= 0) return 0;
+    return (markup / (1 + markup)) * 100;
+  };
+
+  // Calcular markup equivalente a partir de margen
+  const calculateEquivalentMarkup = (margin: number): number => {
+    if (margin <= 0 || margin >= 100) return 0;
+    return (margin / (100 - margin)) * 100;
+  };
+
+  // Manejar cambio de pricingMode
+  const handlePricingModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const mode = e.target.value;
+    setFormData({ ...formData, pricingMode: mode });
+    // Validar el campo objetivo según el nuevo modo
+    if (mode === "margin") {
+      validateTargetMargin(formData.targetMargin, mode);
+    } else if (mode === "markup") {
+      validateTargetMarkup(formData.targetMargin, mode);
+    } else {
+      setValidationErrors({});
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    createMutation.mutate({
+    // Si hay errores de validación, no permitir envío
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error("Por favor corrige los errores en el formulario");
+      return;
+    }
+
+    // Validación final para modos que requieren valor objetivo
+    if (formData.pricingMode === "margin" && !formData.targetMargin) {
+      toast.error("Debes configurar un Margen Objetivo para el modo 'Mantener Margen'");
+      return;
+    }
+
+    if (formData.pricingMode === "markup" && !formData.targetMargin) {
+      toast.error("Debes configurar un Markup Objetivo para el modo 'Mantener Markup'");
+      return;
+    }
+
+    const payload = {
       name: formData.name,
       barcode: formData.barcode || undefined,
       description: formData.description || undefined,
@@ -202,7 +346,15 @@ export default function NewProductPage() {
       taxRate: parseFloat(formData.taxRate),
       marginPercent: formData.marginPercent ? parseFloat(formData.marginPercent) : undefined,
       minStock: formData.minStock ? parseFloat(formData.minStock) : undefined,
-    });
+      pricingMode: formData.pricingMode,
+      targetMargin: formData.targetMargin ? parseFloat(formData.targetMargin) : undefined,
+      priceLocked: formData.priceLocked,
+      roundingStep: parseInt(formData.roundingStep),
+      costMethod: formData.costMethod,
+    };
+    
+    console.log("📤 Enviando producto al backend:", payload);
+    createMutation.mutate(payload);
   };
 
   return (
@@ -367,11 +519,15 @@ export default function NewProductPage() {
                     type="number"
                     step="0.01"
                     value={formData.marginPercent}
-                    onChange={(e) =>
-                      setFormData({ ...formData, marginPercent: e.target.value })
-                    }
+                    onChange={handleMarginPercentChange}
                     placeholder="Ej: 30"
+                    className={validationErrors.marginPercent ? "border-red-500" : ""}
                   />
+                  {validationErrors.marginPercent && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {validationErrors.marginPercent}
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-2">
@@ -402,6 +558,105 @@ export default function NewProductPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Fórmula: Precio = Costo × (1 + Margen%) × (1 + IVA%)
                   </p>
+                </div>
+
+                <div className="col-span-2">
+                  <h3 className="text-sm font-semibold mb-3 mt-4">Configuración de Pricing Automático</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="pricingMode">Modo de Pricing</Label>
+                      <select
+                        id="pricingMode"
+                        value={formData.pricingMode}
+                        onChange={handlePricingModeChange}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="fixed">Precio Fijo</option>
+                        <option value="margin">Mantener Margen</option>
+                        <option value="markup">Mantener Markup</option>
+                        <option value="suggest">Solo Sugerir</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Define cómo se recalcula el precio al cambiar el costo
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="targetMargin">
+                        {formData.pricingMode === "markup" ? "Markup Objetivo (%)" : "Margen Objetivo (%)"}
+                      </Label>
+                      <Input
+                        id="targetMargin"
+                        type="number"
+                        step="0.01"
+                        value={formData.targetMargin}
+                        onChange={formData.pricingMode === "markup" ? handleTargetMarkupChange : handleTargetMarginChange}
+                        placeholder={formData.pricingMode === "markup" ? "Ej: 60" : "Ej: 37.5"}
+                        className={validationErrors.targetMargin || validationErrors.targetMarkup ? "border-red-500" : ""}
+                        disabled={formData.pricingMode === "fixed"}
+                      />
+                      {(validationErrors.targetMargin || validationErrors.targetMarkup) && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors.targetMargin || validationErrors.targetMarkup}
+                        </p>
+                      )}
+                      {formData.targetMargin && !validationErrors.targetMargin && !validationErrors.targetMarkup && (
+                        <p className="text-xs text-muted-foreground mt-2 p-2 bg-blue-50 rounded">
+                          {formData.pricingMode === "markup" 
+                            ? `📊 Equivalente: Margen ${calculateEquivalentMargin(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                            : `📊 Equivalente: Markup ${calculateEquivalentMarkup(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                          }
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="roundingStep">Redondeo de Precio</Label>
+                      <select
+                        id="roundingStep"
+                        value={formData.roundingStep}
+                        onChange={(e) =>
+                          setFormData({ ...formData, roundingStep: e.target.value })
+                        }
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="1">Sin redondeo</option>
+                        <option value="10">Múltiplo de 10</option>
+                        <option value="50">Múltiplo de 50</option>
+                        <option value="100">Múltiplo de 100</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="costMethod">Método de Costo</Label>
+                      <select
+                        id="costMethod"
+                        value={formData.costMethod}
+                        onChange={(e) =>
+                          setFormData({ ...formData, costMethod: e.target.value })
+                        }
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="avg_weighted">Costo Promedio Ponderado</option>
+                        <option value="last_cost">Último Costo</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-2 flex items-center gap-2">
+                      <input
+                        id="priceLocked"
+                        type="checkbox"
+                        checked={formData.priceLocked}
+                        onChange={(e) =>
+                          setFormData({ ...formData, priceLocked: e.target.checked })
+                        }
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="priceLocked" className="text-sm">
+                        Precio congelado (no permitir cambios automáticos)
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="col-span-2">

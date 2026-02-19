@@ -26,6 +26,8 @@ import permissionsRoutes from './routes/permissions.routes';
 import usersRoutes from './routes/users.routes';
 import userRolesRoutes from './routes/user-roles.routes';
 import financialAccountsRoutes from './routes/financial-accounts.routes';
+import priceSuggestionsRoutes from './routes/price-suggestions.routes';
+import approvalsRoutes from './routes/approvals.routes';
 
 const app = express();
 
@@ -108,6 +110,8 @@ app.use('/v1/permissions', permissionsRoutes);
 app.use('/v1/users', usersRoutes); // CRUD de usuarios
 app.use('/v1/users', userRolesRoutes); // Asignación de roles a usuarios
 app.use('/v1/financial-accounts', financialAccountsRoutes);
+app.use('/v1/price-suggestions', priceSuggestionsRoutes);
+app.use('/v1/approvals', approvalsRoutes);
 
 // 404 handler
 app.use((_req, res) => {

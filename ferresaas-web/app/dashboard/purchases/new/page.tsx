@@ -63,16 +63,18 @@ export default function NewPurchasePage() {
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [fundError, setFundError] = useState<string>("");
 
   useEffect(() => {
     if (!canCreatePurchase) {
       router.push("/dashboard");
       return;
     }
-  }, [canCreatePurchase, router]);
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+  }, [canCreatePurchase, router, queryClient]);
 
-  const { data: suppliers, isLoading: isLoadingSuppliers } = useQuery<any[]>({
-    queryKey: ["suppliers-list"],
+  const { data: suppliers, isLoading: isLoadingSuppliers, error: suppliersError, refetch: refetchSuppliers } = useQuery<any[]>({
+    queryKey: ["suppliers"],
     queryFn: async () => {
       const response = await api.get<any>("/suppliers", {
         params: { limit: 1000 },
@@ -88,6 +90,15 @@ export default function NewPurchasePage() {
       const response = await api.get<any>("/products", {
         params: { limit: 1000 },
       });
+      return response.data || [];
+    },
+    enabled: canCreatePurchase,
+  });
+
+  const { data: financialAccounts } = useQuery<any[]>({
+    queryKey: ["financial-accounts"],
+    queryFn: async () => {
+      const response = await api.get<any>("/financial-accounts");
       return response.data || [];
     },
     enabled: canCreatePurchase,
@@ -118,9 +129,72 @@ export default function NewPurchasePage() {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["purchases-summary"] });
       queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
+      toast.success("Compra creada exitosamente");
       router.push(`/dashboard/purchases/${data.id}`);
     },
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Error al crear la compra";
+      toast.error(errorMessage);
+      console.error("Error creating purchase:", error);
+    },
   });
+
+  // Validar fondos en tiempo real
+  const validateFundsRealtime = (amount: string, method: string) => {
+    if (!amount || parseNumericInput(amount) === 0) {
+      setFundError("");
+      return;
+    }
+
+    const paidAmount = parseNumericInput(amount);
+    
+    // No validar para CHECK (cheques no requieren fondos inmediatos)
+    if (method === "CHECK") {
+      setFundError("");
+      return;
+    }
+
+    // Obtener tipo de cuenta según método de pago
+    const accountTypeMap: Record<string, string> = {
+      CASH: "CASH",
+      TRANSFER: "BANK",
+      CHECK: "BANK",
+    };
+    const accountType = accountTypeMap[method] || "BANK";
+    
+    // Buscar cuenta por defecto del tipo
+    const account = financialAccounts?.find(
+      (acc: any) => acc.type === accountType && acc.isDefault && acc.isActive
+    );
+    
+    if (!account) {
+      setFundError(`No hay cuenta de ${accountType} configurada`);
+      return;
+    }
+    
+    const balance = Number(account.balance) || 0;
+    if (balance < paidAmount) {
+      setFundError(
+        `⚠️ Fondos insuficientes. Disponible: $${balance.toFixed(2)}, Ingresado: $${paidAmount.toFixed(2)}`
+      );
+    } else {
+      setFundError("");
+    }
+  };
+
+  // Manejar cambio de monto pagado
+  const handleAmountPaidChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAmountPaid(value);
+    validateFundsRealtime(value, paymentMethod);
+  };
+
+  // Manejar cambio de método de pago
+  const handlePaymentMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const method = e.target.value;
+    setPaymentMethod(method);
+    validateFundsRealtime(amountPaid, method);
+  };
 
   const handleAddItem = () => {
     if (!selectedProductId || !quantity || !unitCost) {
@@ -156,6 +230,42 @@ export default function NewPurchasePage() {
       toast.error("Agrega al menos un producto");
       return;
     }
+
+    // Validar fondos si hay monto pagado
+    const paidAmount = amountPaid ? parseNumericInput(amountPaid) : 0;
+    if (paidAmount > 0) {
+      const method = paymentMethod || "CASH";
+      
+      // No validar para CHECK (cheques no requieren fondos inmediatos)
+      if (method !== "CHECK") {
+        // Obtener tipo de cuenta según método de pago
+        const accountTypeMap: Record<string, string> = {
+          CASH: "CASH",
+          TRANSFER: "BANK",
+          CHECK: "BANK",
+        };
+        const accountType = accountTypeMap[method] || "BANK";
+        
+        // Buscar cuenta por defecto del tipo
+        const account = financialAccounts?.find(
+          (acc: any) => acc.type === accountType && acc.isDefault && acc.isActive
+        );
+        
+        if (!account) {
+          toast.error(`No hay cuenta de ${accountType} configurada`);
+          return;
+        }
+        
+        const balance = Number(account.balance) || 0;
+        if (balance < paidAmount) {
+          toast.error(
+            `Fondos insuficientes. Disponible: $${balance.toFixed(2)}, Requerido: $${paidAmount.toFixed(2)}`
+          );
+          return;
+        }
+      }
+    }
+
     createMutation.mutate();
   };
 
@@ -198,17 +308,41 @@ export default function NewPurchasePage() {
               <CardTitle>Proveedor</CardTitle>
             </CardHeader>
             <CardContent>
+              {suppliersError && (
+                <div className="w-full p-3 rounded-md border border-destructive bg-destructive/10 text-sm text-destructive mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Error al cargar proveedores</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchSuppliers()}
+                    className="w-full"
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              )}
               <Label htmlFor="supplier">Selecciona un proveedor *</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un proveedor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers?.map((supplier: Supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
+                  {suppliers && suppliers.length > 0 ? (
+                    suppliers.map((supplier: Supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      <AlertCircle className="h-4 w-4 mx-auto mb-2" />
+                      <p>No hay proveedores registrados</p>
+                      <p className="text-xs mt-1">Crea uno en la sección de Proveedores</p>
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </CardContent>
@@ -468,12 +602,17 @@ export default function NewPurchasePage() {
                     type="number"
                     step="0.01"
                     value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
+                    onChange={handleAmountPaidChange}
                     placeholder="0.00"
+                    className={fundError ? "border-red-500" : ""}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Déjalo vacío o en 0 para marcar como pendiente de pago
-                  </p>
+                  {fundError ? (
+                    <p className="text-sm text-red-500 mt-1">{fundError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Dejar en blanco o 0 para crear compra pendiente de pago
+                    </p>
+                  )}
                 </div>
 
                 {amountPaid && parseFloat(amountPaid) > 0 && (
@@ -482,7 +621,7 @@ export default function NewPurchasePage() {
                     <select
                       id="paymentMethod"
                       value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      onChange={handlePaymentMethodChange}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <option value="CASH">Efectivo</option>
@@ -516,7 +655,12 @@ export default function NewPurchasePage() {
           <div className="flex gap-4">
             <Button
               type="submit"
-              disabled={createMutation.isPending || items.length === 0}
+              disabled={
+                createMutation.isPending || 
+                items.length === 0 || 
+                !supplierId ||
+                fundError !== ""
+              }
               className="flex-1"
             >
               {createMutation.isPending ? "Guardando..." : "Crear Compra"}

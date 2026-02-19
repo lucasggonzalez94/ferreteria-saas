@@ -29,7 +29,10 @@ import {
   Save,
   X,
   Wallet,
+  PieChart,
 } from "lucide-react";
+import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
+import { NotificationBadge } from "@/components/ui/notification-badge";
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
@@ -61,6 +64,10 @@ export default function DashboardPage() {
   const canAccessPayables = user?.permissions?.includes("purchases:read");
   const canAccessReports = user?.permissions?.includes("reports:read");
   const canApproveDiscounts = user?.permissions?.includes("sales:manage");
+  const canApprovePrices = user?.permissions?.includes("pricing:approve");
+
+  // Obtener conteos de aprobaciones pendientes
+  const { data: approvalCounts } = useApprovalCounts();
 
   // Obtener datos del dashboard solo si tiene permisos
   const { data: dashboardData } = useQuery({
@@ -187,6 +194,7 @@ export default function DashboardPage() {
       { id: "finances", label: "Finanzas", href: "/dashboard/financial-accounts", icon: <Wallet className="h-6 w-6" />, allowed: !!(user?.permissions?.includes("financial_accounts:read")) },
       { id: "purchases", label: "Compras", href: "/dashboard/purchases", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPurchases },
       { id: "payables", label: "Cuentas por Pagar", href: "/dashboard/payables", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessPayables },
+      { id: "prices", label: "Aprobación de Precios", href: "/dashboard/price-suggestions", icon: <PieChart className="h-6 w-6" />, allowed: !!canApprovePrices },
       { id: "discounts", label: "Aprobación de Descuentos", href: "/dashboard/discount-approvals", icon: <CheckCircle className="h-6 w-6" />, allowed: !!canApproveDiscounts },
       { id: "reports", label: "Reportes", href: "/dashboard/reports", icon: <BarChart3 className="h-6 w-6" />, allowed: !!canAccessReports },
     ];
@@ -217,6 +225,7 @@ export default function DashboardPage() {
     canAccessPurchases,
     canAccessSuppliers,
     canAccessPayables,
+    canApprovePrices,
     canApproveDiscounts,
     canAccessReports,
   ]);
@@ -345,31 +354,44 @@ export default function DashboardPage() {
           <CardContent>
             {quickActions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {quickActions.map((action) => (
-                  <div
-                    key={action.id}
-                    draggable={isEditingQuickActions}
-                    onDragStart={() => handleDragStart(action.id)}
-                    onDragOver={(e) => handleDragOver(e, action.id)}
-                    onDragEnd={handleDragEnd}
-                    className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
-                  >
-                    {isEditingQuickActions && (
-                      <div className="absolute top-2 right-2 text-muted-foreground">
-                        <GripVertical className="h-4 w-4" />
-                      </div>
-                    )}
-                    <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
-                      <Button
-                        variant="outline"
-                        className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed" : ""}`}
-                      >
-                        {action.icon}
-                        <span>{action.label}</span>
-                      </Button>
-                    </Link>
-                  </div>
-                ))}
+                {quickActions.map((action) => {
+                  const showBadge = 
+                    (action.id === "discounts" && approvalCounts && approvalCounts.discounts > 0) ||
+                    (action.id === "prices" && approvalCounts && approvalCounts.prices > 0);
+                  
+                  const badgeCount = 
+                    action.id === "discounts" ? approvalCounts?.discounts || 0 :
+                    action.id === "prices" ? approvalCounts?.prices || 0 : 0;
+
+                  return (
+                    <div
+                      key={action.id}
+                      draggable={isEditingQuickActions}
+                      onDragStart={() => handleDragStart(action.id)}
+                      onDragOver={(e) => handleDragOver(e, action.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
+                    >
+                      {isEditingQuickActions && (
+                        <div className="absolute top-2 right-2 text-muted-foreground z-10">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+                      )}
+                      {showBadge && !isEditingQuickActions && (
+                        <NotificationBadge count={badgeCount} />
+                      )}
+                      <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
+                        <Button
+                          variant="outline"
+                          className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed" : ""}`}
+                        >
+                          {action.icon}
+                          <span>{action.label}</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center justify-center py-8 text-muted-foreground">

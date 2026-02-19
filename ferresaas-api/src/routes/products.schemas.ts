@@ -12,8 +12,20 @@ export const createProductSchema = z.object({
   cost: z.number().positive(),
   price: z.number().positive(),
   taxRate: z.number().min(0).max(100).default(21),
-  marginPercent: z.number().min(0).max(1000).nullable().optional(),
+  marginPercent: z.number().min(0).max(100).refine(val => val > 0 && val < 100, {
+    message: "El margen debe estar entre 0 y 100 (exclusivo)"
+  }).nullable().optional(),
   minStock: z.number().min(0).nullable().optional(),
+  pricingMode: z.enum(['fixed', 'margin', 'markup', 'suggest']).default('margin').optional(),
+  targetMargin: z.number().refine(val => val > 0 && val < 100, {
+    message: "El margen objetivo debe estar entre 0 y 100 (exclusivo)"
+  }).nullable().optional(),
+  targetMarkup: z.number().refine(val => val > 0, {
+    message: "El markup objetivo debe ser mayor a 0"
+  }).nullable().optional(),
+  priceLocked: z.boolean().default(false).optional(),
+  roundingStep: z.number().int().positive().default(10).optional(),
+  costMethod: z.enum(['avg_weighted', 'last_cost']).default('avg_weighted').optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
@@ -30,9 +42,21 @@ export const updateProductSchema = z.object({
   cost: z.number().positive().optional(),
   price: z.number().positive().optional(),
   taxRate: z.number().min(0).max(100).optional(),
-  marginPercent: z.number().min(0).max(1000).nullable().optional(),
+  marginPercent: z.number().min(0).max(100).refine(val => val > 0 && val < 100, {
+    message: "El margen debe estar entre 0 y 100 (exclusivo)"
+  }).nullable().optional(),
   minStock: z.number().min(0).nullable().optional(),
   isActive: z.boolean().optional(),
+  pricingMode: z.enum(['fixed', 'margin', 'markup', 'suggest']).optional(),
+  targetMargin: z.number().refine(val => val > 0 && val < 100, {
+    message: "El margen objetivo debe estar entre 0 y 100 (exclusivo)"
+  }).nullable().optional(),
+  targetMarkup: z.number().refine(val => val > 0, {
+    message: "El markup objetivo debe ser mayor a 0"
+  }).nullable().optional(),
+  priceLocked: z.boolean().optional(),
+  roundingStep: z.number().int().positive().optional(),
+  costMethod: z.enum(['avg_weighted', 'last_cost']).optional(),
 });
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;

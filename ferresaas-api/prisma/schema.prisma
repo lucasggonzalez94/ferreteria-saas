@@ -58,6 +58,7 @@ model Business {
   refreshTokenSessions RefreshTokenSession[]
   discountApprovals   DiscountApproval[]
   priceHistories      PriceHistory[]
+  priceSuggestions    PriceSuggestion[]
   cashMovements       CashMovement[]
   accountMovements    AccountMovement[]
   supplierPayables    SupplierPayable[]
@@ -266,6 +267,14 @@ model Product {
   marginPercent  Decimal? @db.Decimal(5, 2) // Margen de ganancia %
   suggestedPrice Decimal? @db.Decimal(12, 2) // Precio sugerido calculado
   
+  // Configuración de pricing automático
+  pricingMode    String?  @default("margin") // fixed, margin, markup, suggest
+  targetMargin   Decimal? @db.Decimal(5, 2)  // Margen objetivo %
+  targetMarkup   Decimal? @db.Decimal(5, 2)  // Markup objetivo %
+  priceLocked    Boolean  @default(false)     // Precio congelado (no permite cambios automáticos)
+  roundingStep   Int      @default(10)        // Redondeo de precio (10, 50, 100)
+  costMethod     String   @default("avg_weighted") // avg_weighted, last_cost
+  
   // Stock
   stockQuantity Decimal  @db.Decimal(12, 3) @default(0)
   minStock      Decimal? @db.Decimal(12, 3)
@@ -289,6 +298,7 @@ model Product {
   parent             Product?            @relation("ProductVariants", fields: [parentId], references: [id])
   variants           Product[]           @relation("ProductVariants")
   priceHistory       PriceHistory[]
+  priceSuggestions   PriceSuggestion[]
   inventoryMovements InventoryMovement[]
   purchaseItems      PurchaseItem[]
   saleItems          SaleItem[]
@@ -306,11 +316,16 @@ model PriceHistory {
   id         String  @id @default(cuid())
   businessId String
   productId  String
-  oldCost    Decimal @db.Decimal(12, 2)
-  newCost    Decimal @db.Decimal(12, 2)
-  oldPrice   Decimal @db.Decimal(12, 2)
-  newPrice   Decimal @db.Decimal(12, 2)
-  reason     String?
+  purchaseId String? // Referencia a la compra que originó el cambio
+  
+  oldCost    Decimal  @db.Decimal(12, 2)
+  newCost    Decimal  @db.Decimal(12, 2)
+  oldPrice   Decimal  @db.Decimal(12, 2)
+  newPrice   Decimal  @db.Decimal(12, 2)
+  oldMargin  Decimal? @db.Decimal(5, 2) // Margen anterior %
+  newMargin  Decimal? @db.Decimal(5, 2) // Margen nuevo %
+  
+  reason     String? // purchase, manual_adjustment, approved_suggestion
   changedBy  String? // userId
   
   createdAt DateTime @default(now())
@@ -321,7 +336,52 @@ model PriceHistory {
   
   @@index([businessId])
   @@index([productId])
+  @@index([purchaseId])
   @@map("price_history")
+}
+
+model PriceSuggestion {
+  id          String  @id @default(cuid())
+  businessId  String
+  productId   String
+  purchaseId  String? // Compra que originó la sugerencia
+  
+  oldCost     Decimal @db.Decimal(12, 2)
+  newCost     Decimal @db.Decimal(12, 2)
+  oldPrice    Decimal @db.Decimal(12, 2)
+  suggestedPrice Decimal @db.Decimal(12, 2)
+  oldMargin   Decimal @db.Decimal(5, 2)
+  newMargin   Decimal @db.Decimal(5, 2)
+  
+  pricingMode String  // Modo usado para calcular (margin, markup)
+  reason      String? // Motivo de la sugerencia
+  
+  status      String  @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  requestedBy String  // userId que originó (ej: quien hizo la compra)
+  requestedAt DateTime @default(now())
+  
+  approvedBy  String? // userId con permiso pricing:approve
+  approvedAt  DateTime?
+  
+  rejectedBy  String?
+  rejectedAt  DateTime?
+  rejectionReason String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  
+  @@index([businessId])
+  @@index([productId])
+  @@index([purchaseId])
+  @@index([status])
+  @@index([requestedAt])
+  @@map("price_suggestions")
 }
 
 // ============================================================================
@@ -414,6 +474,7 @@ model Purchase {
   items    PurchaseItem[]
   attachments PurchaseAttachment[]
   payables SupplierPayable[]
+  priceSuggestions PriceSuggestion[]
   
   @@index([businessId])
   @@index([supplierId])
