@@ -30,6 +30,7 @@ import {
   X,
   Wallet,
   PieChart,
+  RefreshCw,
 } from "lucide-react";
 import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
 import { NotificationBadge } from "@/components/ui/notification-badge";
@@ -67,10 +68,10 @@ export default function DashboardPage() {
   const canApprovePrices = user?.permissions?.includes("pricing:approve");
 
   // Obtener conteos de aprobaciones pendientes
-  const { data: approvalCounts } = useApprovalCounts();
+  const { data: approvalCounts, refetch: refetchApprovalCounts, isRefetching } = useApprovalCounts();
 
   // Obtener datos del dashboard solo si tiene permisos
-  const { data: dashboardData } = useQuery({
+  const { data: dashboardData, refetch: refetchDashboardData } = useQuery({
     queryKey: ["dashboard", canViewSales, canViewProducts, canViewCustomers, canViewInventory],
     queryFn: async () => {
       try {
@@ -251,6 +252,18 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              title="Refrescar datos"
+              onClick={() => {
+                refetchApprovalCounts();
+                refetchDashboardData();
+              }}
+              disabled={isRefetching}
+            >
+              <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
+            </Button>
             <Link href="/dashboard/settings">
               <Button variant="outline" size="icon" title="Configuración">
                 <Settings className="h-5 w-5" />
