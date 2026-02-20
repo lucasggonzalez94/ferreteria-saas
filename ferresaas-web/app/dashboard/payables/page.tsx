@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
-import { DollarSign, AlertCircle, CheckCircle, Clock, Eye } from "lucide-react";
+import { DollarSign, AlertCircle, CheckCircle, Clock, Eye, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -91,7 +92,7 @@ export default function PayablesPage() {
     }
   }, [canViewPayables, router]);
 
-  const { data: payablesData, isLoading } = useQuery<
+  const { data: payablesData, isLoading, refetch: refetchPayables, isFetching: isFetchingPayables } = useQuery<
     PayablesResponse | undefined
   >({
     queryKey: ["payables", page, status, supplierId],
@@ -109,7 +110,7 @@ export default function PayablesPage() {
     enabled: canViewPayables,
   });
 
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery({
     queryKey: ["payables-summary"],
     queryFn: async () => {
       const response = await api.get<any>("/payables/summary");
@@ -183,7 +184,7 @@ export default function PayablesPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-start justify-between mb-8">
           <Header
             title="Cuentas por Pagar"
             link={
@@ -208,6 +209,22 @@ export default function PayablesPage() {
               ) : null
             }
           />
+
+          <Tooltip content="Refrescar datos">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["payables"] });
+                queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
+                refetchPayables();
+                refetchSummary();
+              }}
+              disabled={isFetchingPayables || isFetchingSummary}
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetchingPayables || isFetchingSummary ? "animate-spin" : ""}`} />
+            </Button>
+          </Tooltip>
         </div>
 
         {/* Stats */}

@@ -17,6 +17,7 @@ import {
   Eye,
   FileText,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function CashRegisterPage() {
   const router = useRouter();
@@ -64,7 +66,7 @@ export default function CashRegisterPage() {
   const [pendingOpenAmount, setPendingOpenAmount] = useState<number | null>(null);
   const [suggestedAmount, setSuggestedAmount] = useState<number>(0);
 
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading, refetch: refetchSession, isFetching: isFetchingSession } = useQuery({
     queryKey: ["cash-register", "status"],
     queryFn: async () => {
       const response = await api.get<any>("/cash-register/status");
@@ -91,7 +93,7 @@ export default function CashRegisterPage() {
     }
   }, [suggestedOpening]);
 
-  const { data: summary } = useQuery({
+  const { data: summary, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery({
     queryKey: ["cash-register", session?.id, "summary"],
     queryFn: async () => {
       if (!session?.id) return null;
@@ -249,7 +251,26 @@ export default function CashRegisterPage() {
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
-        <Header title="Caja" />
+        <div className="flex items-center justify-between mb-4">
+          <Header title="Caja" />
+          {session && (
+            <Tooltip content="Refrescar datos" placement="bottom">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+                  queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+                  refetchSession();
+                  refetchSummary();
+                }}
+                disabled={isFetchingSession || isFetchingSummary}
+              >
+                <RefreshCw className={`h-5 w-5 ${isFetchingSession || isFetchingSummary ? "animate-spin" : ""}`} />
+              </Button>
+            </Tooltip>
+          )}
+        </div>
 
         {!session ? (
           <Card>

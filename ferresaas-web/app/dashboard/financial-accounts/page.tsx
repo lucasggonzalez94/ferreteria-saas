@@ -16,6 +16,7 @@ import {
   CreditCard,
   Plus,
   ArrowLeftRight,
+  RefreshCw,
   TrendingUp,
   Star,
 } from "lucide-react";
@@ -117,7 +118,7 @@ export default function FinancialAccountsPage() {
   };
 
   // Fetch accounts
-  const { data: accounts, isLoading } = useQuery<FinancialAccount[]>({
+  const { data: accounts, isLoading, refetch: refetchAccounts, isFetching: isFetchingAccounts } = useQuery<FinancialAccount[]>({
     queryKey: ["financial-accounts"],
     queryFn: async () => {
       const response = await api.get<any>("/financial-accounts");
@@ -127,7 +128,7 @@ export default function FinancialAccountsPage() {
   });
 
   // Fetch summary
-  const { data: summary } = useQuery<any>({
+  const { data: summary, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery<any>({
     queryKey: ["financial-accounts-summary"],
     queryFn: async () => {
       const response = await api.get<any>("/financial-accounts/summary");
@@ -166,12 +167,30 @@ export default function FinancialAccountsPage() {
         title="Cuentas Financieras"
         description="Gestiona tus cuentas de efectivo, bancos y billeteras virtuales"
         actions={
-          canCreate && (
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Cuenta
-            </Button>
-          )
+          <div className="flex items-center gap-2">
+            <Tooltip content="Refrescar datos">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+                  queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+                  refetchAccounts();
+                  refetchSummary();
+                }}
+                disabled={isFetchingAccounts || isFetchingSummary}
+              >
+                <RefreshCw className={`h-4 w-4 ${isFetchingAccounts || isFetchingSummary ? "animate-spin" : ""}`} />
+              </Button>
+            </Tooltip>
+
+            {canCreate && (
+              <Button onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva Cuenta
+              </Button>
+            )}
+          </div>
         }
       />
 
