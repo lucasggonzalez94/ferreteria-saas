@@ -7,6 +7,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   Wallet,
   Building2,
@@ -22,7 +24,6 @@ import Header from "@/components/ui/header";
 import { CreateAccountModal } from "@/components/financial-accounts/create-account-modal";
 import { TransferModal } from "@/components/financial-accounts/transfer-modal";
 import { MovementModal } from "@/components/financial-accounts/movement-modal";
-import { ActionsMenu } from "@/components/ui/actions-menu";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -293,29 +294,32 @@ export default function FinancialAccountsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {canUpdate && (
-                            <button
-                              onClick={() =>
-                                updateMutation.mutate({
-                                  id: account.id,
-                                  data: { isDefault: !account.isDefault },
-                                })
-                              }
-                              disabled={updateMutation.isPending}
-                              className="p-1 hover:bg-muted rounded transition-colors disabled:opacity-50"
-                              title={
+                            <Tooltip
+                              content={
                                 account.isDefault
                                   ? "Quitar de favoritos"
                                   : "Agregar a favoritos"
                               }
                             >
-                              <Star
-                                className={`h-5 w-5 ${
-                                  account.isDefault
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "text-muted-foreground"
-                                }`}
-                              />
-                            </button>
+                              <button
+                                onClick={() =>
+                                  updateMutation.mutate({
+                                    id: account.id,
+                                    data: { isDefault: !account.isDefault },
+                                  })
+                                }
+                                disabled={updateMutation.isPending}
+                                className="p-1 hover:bg-muted rounded transition-colors disabled:opacity-50"
+                              >
+                                <Star
+                                  className={`h-5 w-5 ${
+                                    account.isDefault
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "text-muted-foreground"
+                                  }`}
+                                />
+                              </button>
+                            </Tooltip>
                           )}
                           {(canUpdate || canDelete) && (
                             <ActionsMenu

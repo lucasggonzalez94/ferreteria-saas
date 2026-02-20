@@ -13,6 +13,7 @@ import { ArrowLeft, Trash2, Printer, Upload, X } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function EditProductPage({
   params,
@@ -396,32 +397,34 @@ export default function EditProductPage({
           linkLabel="Volver"
           actions={
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                title="Imprimir Etiqueta"
-                onClick={handlePrintLabel}
-                disabled={isPrinting}
-              >
-                <Printer className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="icon"
-                title="Eliminar Producto"
-                onClick={() => {
-                  if (
-                    // TODO: Mostrar modal customizado
-                    window.confirm(
-                      "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
-                    )
-                  ) {
-                    deleteMutation.mutate();
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <Tooltip content="Imprimir Etiqueta">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePrintLabel}
+                  disabled={isPrinting}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+              <Tooltip content="Eliminar Producto">
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => {
+                    if (
+                      // TODO: Mostrar modal customizado
+                      window.confirm(
+                        "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
+                      )
+                    ) {
+                      deleteMutation.mutate();
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </Tooltip>
             </div>
           }
         />

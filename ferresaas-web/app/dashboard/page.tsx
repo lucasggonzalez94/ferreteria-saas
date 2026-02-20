@@ -31,12 +31,17 @@ import {
   Wallet,
   PieChart,
   RefreshCw,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
+import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
 import { NotificationBadge } from "@/components/ui/notification-badge";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
+  const isOnline = useConnectionStatus();
   const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [quickActions, setQuickActions] = useState<Array<{
     id: string;
@@ -252,22 +257,40 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              title="Refrescar datos"
-              onClick={() => {
-                refetchApprovalCounts();
-                refetchDashboardData();
-              }}
-              disabled={isRefetching}
-            >
-              <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
-            </Button>
-            <Link href="/dashboard/settings">
-              <Button variant="outline" size="icon" title="Configuración">
-                <Settings className="h-5 w-5" />
+            <Tooltip content={isOnline ? "Conectado" : "Sin conexión (offline)"}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                aria-label={isOnline ? "Conectado a internet" : "Sin conexión a internet - Modo offline"}
+                disabled
+                className={isOnline ? "text-green-600" : "text-red-600"}
+              >
+                {isOnline ? (
+                  <Wifi className="h-5 w-5" />
+                ) : (
+                  <WifiOff className="h-5 w-5" />
+                )}
               </Button>
+            </Tooltip>
+            <Tooltip content="Refrescar datos">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => {
+                  refetchApprovalCounts();
+                  refetchDashboardData();
+                }}
+                disabled={isRefetching}
+              >
+                <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
+              </Button>
+            </Tooltip>
+            <Link href="/dashboard/settings">
+              <Tooltip content="Configuración">
+                <Button variant="outline" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Tooltip>
             </Link>
             <Button variant="outline" onClick={logout}>
               Cerrar Sesión
