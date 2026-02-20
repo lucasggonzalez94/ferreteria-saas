@@ -268,8 +268,13 @@ export default function CashRegisterPage() {
                     type="number"
                     step="0.01"
                     value={openingAmount}
+                    onFocus={() => {
+                      if (openingAmount === "0") {
+                        setOpeningAmount("");
+                      }
+                    }}
                     onChange={(e) => setOpeningAmount(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0,00"
                     className="text-lg"
                   />
                   {suggestedOpening && (
@@ -453,7 +458,7 @@ export default function CashRegisterPage() {
                           step="0.01"
                           value={movementAmount}
                           onChange={(e) => setMovementAmount(e.target.value)}
-                          placeholder="0.00"
+                          placeholder="0,00"
                         />
                       </div>
 
@@ -533,7 +538,7 @@ export default function CashRegisterPage() {
                       step="0.01"
                       value={closingAmount}
                       onChange={(e) => setClosingAmount(e.target.value)}
-                      placeholder="0.00"
+                      placeholder="0,00"
                       className="text-lg"
                     />
                     <p className="text-sm text-muted-foreground mt-1">

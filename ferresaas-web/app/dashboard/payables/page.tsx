@@ -221,7 +221,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${isLoading ? "0.00" : (summary.totalPayable || 0).toFixed(2)}
+                ${isLoading ? "0,00" : (summary.totalPayable || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>
@@ -235,7 +235,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">
-                ${isLoading ? "0.00" : (summary.totalPending || 0).toFixed(2)}
+                ${isLoading ? "0,00" : (summary.totalPending || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>
@@ -249,7 +249,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${isLoading ? "0.00" : (summary.totalPaid || 0).toFixed(2)}
+                ${isLoading ? "0,00" : (summary.totalPaid || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>

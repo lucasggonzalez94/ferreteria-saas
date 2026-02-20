@@ -752,7 +752,7 @@ export default function POSPage() {
                     step="0.01"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0,00"
                     className="text-sm"
                   />
                 </div>
@@ -766,7 +766,7 @@ export default function POSPage() {
                       step="0.01"
                       value={amountUSD}
                       onChange={(e) => setAmountUSD(e.target.value)}
-                      placeholder="0.00"
+                      placeholder="0,00"
                       className="text-sm"
                     />
                   </div>
@@ -796,7 +796,7 @@ export default function POSPage() {
                         step="0.01"
                         value={financialCost}
                         onChange={(e) => setFinancialCost(e.target.value)}
-                        placeholder="0.00"
+                        placeholder="0,00"
                         className="text-sm"
                       />
                     </div>

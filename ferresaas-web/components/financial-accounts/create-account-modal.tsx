@@ -161,7 +161,7 @@ export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalPro
                 step="0.01"
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
-                placeholder="0.00"
+                placeholder="0,00"
               />
             </div>
           </div>

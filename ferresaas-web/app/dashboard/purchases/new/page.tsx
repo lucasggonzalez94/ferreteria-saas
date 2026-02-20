@@ -458,7 +458,7 @@ export default function NewPurchasePage() {
                     step="0.01"
                     value={unitCost}
                     onChange={(e) => setUnitCost(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0,00"
                   />
                 </div>
 
@@ -603,7 +603,7 @@ export default function NewPurchasePage() {
                     step="0.01"
                     value={amountPaid}
                     onChange={handleAmountPaidChange}
-                    placeholder="0.00"
+                    placeholder="0,00"
                     className={fundError ? "border-red-500" : ""}
                   />
                   {fundError ? (

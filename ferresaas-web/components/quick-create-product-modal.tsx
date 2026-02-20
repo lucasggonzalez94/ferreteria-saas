@@ -272,7 +272,7 @@ export function QuickCreateProductModal({
                 step="0.01"
                 value={formData.cost}
                 onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                placeholder="0.00"
+                placeholder="0,00"
                 required
               />
             </div>
@@ -285,7 +285,7 @@ export function QuickCreateProductModal({
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="0.00"
+                placeholder="0,00"
                 required
               />
             </div>

@@ -170,7 +170,7 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
+              placeholder="0,00"
               required
             />
           </div>
