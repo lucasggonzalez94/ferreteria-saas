@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, TrendingDown, RefreshCw, ArrowLeft } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface PriceSuggestion {
   id: string;
@@ -50,6 +52,7 @@ interface PriceSuggestion {
 }
 
 export default function PriceSuggestionsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -60,14 +63,23 @@ export default function PriceSuggestionsPage() {
   const canApprove = user?.permissions?.includes("pricing:approve");
   const canView = user?.permissions?.includes("pricing:view_suggestions");
 
-  const { data: suggestions, isLoading } = useQuery({
-    queryKey: ["price-suggestions"],
+  useEffect(() => {
+    if (!canApprove) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canApprove, router]);
+
+  const { data: suggestionsData, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["price-suggestions", "PENDING"],
     queryFn: async () => {
-      const response = await api.get<PriceSuggestion[]>("/price-suggestions");
-      return response.data || [];
+      const response = await api.get<any>("/price-suggestions?status=PENDING");
+      return response.data;
     },
     enabled: canView,
   });
+
+  const suggestions = suggestionsData?.data || [];
 
   const approveMutation = useMutation({
     mutationFn: async (suggestionId: string) => {
@@ -102,13 +114,7 @@ export default function PriceSuggestionsPage() {
   });
 
   const handleApprove = (suggestion: PriceSuggestion) => {
-    if (
-      window.confirm(
-        `¿Aprobar cambio de precio para ${suggestion.product.name}?`,
-      )
-    ) {
-      approveMutation.mutate(suggestion.id);
-    }
+    approveMutation.mutate(suggestion.id);
   };
 
   const handleRejectClick = (suggestion: PriceSuggestion) => {
@@ -125,162 +131,117 @@ export default function PriceSuggestionsPage() {
     }
   };
 
-  if (!canView) {
-    return (
-      <div className="p-8">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              No tienes permisos para ver sugerencias de precio.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  const pendingSuggestions =
-    suggestions?.filter((s) => s.status === "PENDING") || [];
-
   return (
     <div className="p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Header
           title="Sugerencias de Precio"
           description="Revisar y aprobar cambios de precio sugeridos"
         />
 
-        {pendingSuggestions.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">
-                No hay sugerencias de precio pendientes.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {pendingSuggestions.map((suggestion) => {
-              const costChange = suggestion.newCost - suggestion.oldCost;
-              const priceChange =
-                suggestion.suggestedPrice - suggestion.oldPrice;
-              const marginChange = suggestion.newMargin - suggestion.oldMargin;
+        {/* Contenido */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              Solicitudes Pendientes ({suggestions.length})
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              {isFetching ? "Actualizando..." : "Refrescar"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <LoadingSpinner text="Cargando sugerencias..." />
+            ) : suggestions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No hay sugerencias de precio pendientes
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {suggestions.map((suggestion: PriceSuggestion) => {
+                  const costChange = suggestion.newCost - suggestion.oldCost;
+                  const priceChange =
+                    suggestion.suggestedPrice - suggestion.oldPrice;
+                  const marginChange = suggestion.newMargin - suggestion.oldMargin;
 
-              return (
-                <Card key={suggestion.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          {suggestion.product.name}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          SKU: {suggestion.product.internalSku}
-                          {suggestion.product.barcode &&
-                            ` • Código: ${suggestion.product.barcode}`}
-                        </p>
-                        {suggestion.purchase && (
+                  return (
+                    <div
+                      key={suggestion.id}
+                      className="border rounded-lg p-4 space-y-3"
+                    >
+                      {/* Encabezado */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-lg">
+                            {suggestion.product.name}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
-                            Compra: {suggestion.purchase.supplier.name}
-                            {suggestion.purchase.invoiceNumber &&
-                              ` • Factura: ${suggestion.purchase.invoiceNumber}`}
+                            SKU: {suggestion.product.internalSku}
+                            {suggestion.product.barcode &&
+                              ` • Código: ${suggestion.product.barcode}`}
                           </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(suggestion.requestedAt).toLocaleString(
-                            "es-AR",
+                          {suggestion.purchase && (
+                            <p className="text-sm text-muted-foreground">
+                              Compra: {suggestion.purchase.supplier.name}
+                              {suggestion.purchase.invoiceNumber &&
+                                ` • Factura: ${suggestion.purchase.invoiceNumber}`}
+                            </p>
                           )}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Modo:{" "}
-                          {suggestion.pricingMode === "margin"
-                            ? "Margen"
-                            : "Markup"}
-                        </p>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <p>
+                            {new Date(suggestion.requestedAt).toLocaleString(
+                              "es-AR",
+                            )}
+                          </p>
+                          <p className="mt-1">
+                            Modo:{" "}
+                            {suggestion.pricingMode === "margin"
+                              ? "Margen"
+                              : "Markup"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-6 mb-4">
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">Costo</h4>
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Anterior: ${Number(suggestion.oldCost).toFixed(2)}
-                          </p>
-                          <p className="text-sm font-semibold">
-                            Nuevo: ${Number(suggestion.newCost).toFixed(2)}
-                          </p>
-                          <p
-                            className={`text-xs flex items-center gap-1 ${costChange > 0 ? "text-red-600" : "text-green-600"}`}
-                          >
+
+                      {/* Detalles de precios */}
+                      <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Costo anterior</p>
+                          <p className="font-medium">${Number(suggestion.oldCost).toFixed(2)}</p>
+                          <p className={`text-xs flex items-center gap-1 mt-1 ${costChange > 0 ? "text-red-600" : "text-green-600"}`}>
                             {costChange > 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            {costChange > 0 ? "+" : ""}${costChange.toFixed(2)}{" "}
-                            (
-                            {((costChange / suggestion.oldCost) * 100).toFixed(
-                              1,
-                            )}
-                            %)
+                            {costChange > 0 ? "+" : ""}${costChange.toFixed(2)} ({((costChange / suggestion.oldCost) * 100).toFixed(1)}%)
                           </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">
-                          Precio de Venta
-                        </h4>
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Actual: ${Number(suggestion.oldPrice).toFixed(2)}
-                          </p>
-                          <p className="text-sm font-semibold text-blue-600">
-                            Sugerido: ${Number(suggestion.suggestedPrice).toFixed(2)}
-                          </p>
-                          <p
-                            className={`text-xs flex items-center gap-1 ${priceChange > 0 ? "text-blue-600" : "text-orange-600"}`}
-                          >
+                        <div>
+                          <p className="text-xs text-muted-foreground">Precio actual</p>
+                          <p className="font-medium">${Number(suggestion.oldPrice).toFixed(2)}</p>
+                          <p className={`text-xs flex items-center gap-1 mt-1 ${priceChange > 0 ? "text-blue-600" : "text-orange-600"}`}>
                             {priceChange > 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
                               <TrendingDown className="h-3 w-3" />
                             )}
-                            {priceChange > 0 ? "+" : ""}$
-                            {priceChange.toFixed(2)} (
-                            {(
-                              (priceChange / suggestion.oldPrice) *
-                              100
-                            ).toFixed(1)}
-                            %)
+                            {priceChange > 0 ? "+" : ""}${priceChange.toFixed(2)} ({((priceChange / suggestion.oldPrice) * 100).toFixed(1)}%)
                           </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">Margen</h4>
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Anterior: {Number(suggestion.oldMargin).toFixed(1)}%
-                          </p>
-                          <p className="text-sm font-semibold">
-                            Nuevo: {Number(suggestion.newMargin).toFixed(1)}%
-                          </p>
-                          <p
-                            className={`text-xs flex items-center gap-1 ${marginChange >= 0 ? "text-green-600" : "text-red-600"}`}
-                          >
+                        <div>
+                          <p className="text-xs text-muted-foreground">Margen</p>
+                          <p className="font-medium">{Number(suggestion.oldMargin).toFixed(1)}%</p>
+                          <p className={`text-xs flex items-center gap-1 mt-1 ${marginChange >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {marginChange >= 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
@@ -291,24 +252,34 @@ export default function PriceSuggestionsPage() {
                           </p>
                         </div>
                       </div>
-                    </div>
 
-                    {suggestion.reason && (
-                      <div className="mb-4 p-3 bg-muted rounded-md">
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-semibold">Motivo:</span>{" "}
-                          {suggestion.reason}
+                      {/* Precio sugerido destacado */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-700 font-medium">Precio sugerido</p>
+                        <p className="text-lg font-semibold text-blue-600">
+                          ${Number(suggestion.suggestedPrice).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Nuevo margen: {Number(suggestion.newMargin).toFixed(1)}%
                         </p>
                       </div>
-                    )}
 
-                    {canApprove && (
-                      <div className="flex gap-2 justify-end">
+                      {/* Motivo */}
+                      {suggestion.reason && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Motivo</p>
+                          <p className="text-sm">{suggestion.reason}</p>
+                        </div>
+                      )}
+
+                      {/* Acciones */}
+                      <div className="flex gap-2 pt-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleRejectClick(suggestion)}
                           disabled={rejectMutation.isPending}
+                          className="flex-1"
                         >
                           <XCircle className="h-4 w-4 mr-2" />
                           Rechazar
@@ -317,18 +288,19 @@ export default function PriceSuggestionsPage() {
                           size="sm"
                           onClick={() => handleApprove(suggestion)}
                           disabled={approveMutation.isPending}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Aprobar y Aplicar
+                          {approveMutation.isPending ? "Aprobando..." : "Aprobar y Aplicar"}
                         </Button>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
           <DialogContent>
