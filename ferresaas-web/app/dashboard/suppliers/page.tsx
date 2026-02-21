@@ -39,6 +39,7 @@ interface Supplier {
   phone?: string;
   address?: string;
   paymentTerms?: string;
+  paymentTermDays?: number;
   creditLimit?: number;
   currentBalance: number;
   isActive: boolean;
@@ -67,6 +68,7 @@ interface SupplierFormData {
   phone?: string;
   address?: string;
   paymentTerms?: string;
+  paymentTermDays?: number | string;
   paymentMethods?: string;
   creditLimit?: number | string;
   contactName?: string;
@@ -306,6 +308,24 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="paymentTermDays">Plazo de Pago (días)</Label>
+                    <Input
+                      id="paymentTermDays"
+                      type="number"
+                      min="0"
+                      placeholder="Ej: 30 (0 = contado)"
+                      value={formData.paymentTermDays || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          paymentTermDays: e.target.value
+                            ? parseInt(e.target.value)
+                            : undefined,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="creditLimit">Límite de Crédito</Label>
                     <Input
                       id="creditLimit"
@@ -439,6 +459,16 @@ export default function SuppliersPage() {
                           {supplier._count?.purchases || 0}
                         </p>
                       </div>
+                      {supplier.paymentTermDays !== undefined && supplier.paymentTermDays !== null && (
+                        <div>
+                          <p className="text-muted-foreground">
+                            Plazo Pago
+                          </p>
+                          <p className="font-semibold">
+                            {supplier.paymentTermDays === 0 ? "Contado" : `${supplier.paymentTermDays} días`}
+                          </p>
+                        </div>
+                      )}
                       {supplier.paymentTerms && (
                         <div>
                           <p className="text-muted-foreground">

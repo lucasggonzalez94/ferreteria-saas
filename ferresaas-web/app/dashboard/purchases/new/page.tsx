@@ -64,6 +64,7 @@ export default function NewPurchasePage() {
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [fundError, setFundError] = useState<string>("");
+  const [dueDate, setDueDate] = useState("");
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -104,6 +105,27 @@ export default function NewPurchasePage() {
     enabled: canCreatePurchase,
   });
 
+  // Calcular dueDate automáticamente cuando se selecciona un proveedor
+  useEffect(() => {
+    if (supplierId && suppliers && suppliers.length > 0) {
+      const selectedSupplier = suppliers.find((s: any) => s.id === supplierId);
+      if (selectedSupplier && selectedSupplier.paymentTermDays && selectedSupplier.paymentTermDays > 0) {
+        // Calcular fecha de vencimiento: hoy + paymentTermDays
+        const calculatedDate = new Date();
+        calculatedDate.setDate(calculatedDate.getDate() + selectedSupplier.paymentTermDays);
+        
+        // Convertir a formato YYYY-MM-DD para el input type="date"
+        const year = calculatedDate.getFullYear();
+        const month = String(calculatedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(calculatedDate.getDate()).padStart(2, '0');
+        setDueDate(`${year}-${month}-${day}`);
+      } else {
+        // Si no hay plazo definido, limpiar el campo
+        setDueDate("");
+      }
+    }
+  }, [supplierId, suppliers]);
+
   console.log("Current products state:", products);
   console.log("Products length:", products?.length);
   console.log("isLoadingProducts:", isLoadingProducts);
@@ -122,6 +144,7 @@ export default function NewPurchasePage() {
         notes: notes || undefined,
         amountPaid: amountPaid ? parseNumericInput(amountPaid) : 0,
         paymentMethod: amountPaid && parseNumericInput(amountPaid) > 0 ? paymentMethod : undefined,
+        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       });
       return response.data;
     },
@@ -362,6 +385,29 @@ export default function NewPurchasePage() {
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   placeholder="Ej: FAC-001"
                 />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="dueDate">Fecha de Vencimiento (opcional)</Label>
+                  {dueDate && (
+                    <button
+                      type="button"
+                      onClick={() => setDueDate("")}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Si no especificas, se usará el plazo del proveedor (si está configurado)
+                </p>
               </div>
               <div>
                 <Label htmlFor="notes">Notas</Label>

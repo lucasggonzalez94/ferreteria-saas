@@ -8,6 +8,7 @@ export const createSupplierSchema = z.object({
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   paymentTerms: z.string().max(100).optional(),
+  paymentTermDays: z.number().int().min(0).optional(),
   paymentMethods: z.string().optional(), // JSON string
   creditLimit: z.number().positive().optional(),
   contactName: z.string().max(200).optional(),
@@ -24,6 +25,7 @@ export const updateSupplierSchema = z.object({
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   paymentTerms: z.string().max(100).nullable().optional(),
+  paymentTermDays: z.number().int().min(0).nullable().optional(),
   paymentMethods: z.string().nullable().optional(),
   creditLimit: z.number().positive().nullable().optional(),
   contactName: z.string().max(200).nullable().optional(),
@@ -50,6 +52,7 @@ export const createPurchaseSchema = z.object({
   notes: z.string().max(1000).optional(),
   amountPaid: z.number().min(0).optional(),
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
+  dueDate: z.string().datetime().optional(), // ISO 8601 datetime string
 });
 
 export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;

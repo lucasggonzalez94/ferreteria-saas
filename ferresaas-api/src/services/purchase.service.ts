@@ -37,6 +37,7 @@ export class PurchaseService {
       notes?: string;
       amountPaid?: number;
       paymentMethod?: string; // CASH, TRANSFER, CHECK
+      dueDate?: string; // ISO 8601 datetime string (opcional)
     }
   ) {
     // Verificar que el proveedor existe y pertenece al negocio
@@ -223,7 +224,19 @@ export class PurchaseService {
     const pendingAmount = total - amountPaid;
 
     if (pendingAmount > 0) {
-      const payable = await payableService.createFromPurchase(businessId, userId, purchase.purchase.id);
+      // Calcular fecha de vencimiento: usar la personalizada o la del proveedor
+      let dueDate: Date | undefined;
+      
+      if (data.dueDate) {
+        // Usar la fecha personalizada si se proporciona
+        dueDate = new Date(data.dueDate);
+      } else if (supplier.paymentTermDays && supplier.paymentTermDays > 0) {
+        // Usar el plazo del proveedor si está configurado
+        dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + supplier.paymentTermDays);
+      }
+
+      const payable = await payableService.createFromPurchase(businessId, userId, purchase.purchase.id, dueDate);
       
       // Si hay un monto pagado, registrar el pago con método específico
       if (amountPaid > 0) {
