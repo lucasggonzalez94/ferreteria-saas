@@ -198,16 +198,9 @@ export class ProductService {
       where.isActive = filters.active;
     }
 
-    // Filtro por stock bajo
+    // Filtro por stock bajo - solo productos con minStock definido y stock <= minStock
     if (filters.lowStock) {
-      where.AND = [
-        { minStock: { not: null } },
-        {
-          stockQuantity: {
-            lte: prisma.product.fields.minStock,
-          },
-        },
-      ];
+      where.minStock = { not: null };
     }
 
     // Filtro por precio
@@ -245,7 +238,39 @@ export class ProductService {
         break;
     }
 
-    // Ejecutar queries en paralelo
+    // Si el filtro de bajo stock está activo, obtener todos los productos y filtrar en memoria
+    // porque Prisma no soporta comparación directa entre campos
+    if (filters.lowStock) {
+      const allProducts = await prisma.product.findMany({
+        where,
+        include: {
+          category: true,
+          brand: true,
+        },
+        orderBy,
+      });
+
+      // Filtrar productos donde stockQuantity <= minStock
+      const filteredProducts = allProducts.filter(
+        (product) => product.minStock !== null && product.stockQuantity <= product.minStock
+      );
+
+      const total = filteredProducts.length;
+      const paginatedProducts = filteredProducts.slice(skip, skip + limit);
+
+      return {
+        items: paginatedProducts,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasMore: page * limit < total,
+        },
+      };
+    }
+
+    // Ejecutar queries en paralelo para otros filtros
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
