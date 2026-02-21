@@ -281,13 +281,18 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
-      const { supplierId, status, startDate, endDate, page, limit } = req.query;
+      const { supplierId, status, startDate, endDate, dueDateFrom, dueDateTo, search, minAmount, maxAmount, page, limit } = req.query;
 
       const result = await payableService.list(authReq.businessId!, {
         supplierId: supplierId as string | undefined,
         status: status as string | undefined,
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
+        dueDateFrom: dueDateFrom ? new Date(dueDateFrom as string) : undefined,
+        dueDateTo: dueDateTo ? new Date(dueDateTo as string) : undefined,
+        search: search as string | undefined,
+        minAmount: minAmount ? parseFloat(minAmount as string) : undefined,
+        maxAmount: maxAmount ? parseFloat(maxAmount as string) : undefined,
         page: page ? parseInt(page as string) : undefined,
         limit: limit ? parseInt(limit as string) : undefined,
       });

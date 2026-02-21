@@ -11,7 +11,14 @@ import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
-import { DollarSign, AlertCircle, CheckCircle, Clock, Eye, RefreshCw } from "lucide-react";
+import {
+  DollarSign,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Eye,
+  RefreshCw,
+} from "lucide-react";
 import Link from "next/link";
 import {
   Dialog,
@@ -23,13 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface Payable {
   id: string;
@@ -64,6 +64,11 @@ interface PayablesResponse {
   };
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 export default function PayablesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,7 +79,13 @@ export default function PayablesPage() {
   const canUpdatePayables = user?.permissions?.includes("purchases:update");
 
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState("PENDING");
+  const [status, setStatus] = useState<string>("");
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [dueDateFrom, setDueDateFrom] = useState("");
+  const [dueDateTo, setDueDateTo] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPayableId, setSelectedPayableId] = useState<string | null>(
     null,
@@ -82,20 +93,53 @@ export default function PayablesPage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("TRANSFER");
   const [paymentReference, setPaymentReference] = useState("");
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
-  const supplierId = searchParams.get("supplierId");
+  const urlSupplierId = searchParams.get("supplierId");
 
   useEffect(() => {
     if (!canViewPayables) {
       router.push("/dashboard");
       return;
     }
-  }, [canViewPayables, router]);
+    if (urlSupplierId) {
+      setSupplierId(urlSupplierId);
+    }
+  }, [canViewPayables, router, urlSupplierId]);
 
-  const { data: payablesData, isLoading, refetch: refetchPayables, isFetching: isFetchingPayables } = useQuery<
-    PayablesResponse | undefined
-  >({
-    queryKey: ["payables", page, status, supplierId],
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const response = await api.get<any>("/suppliers", {
+          params: { limit: 1000 },
+        });
+        setSuppliers(response.data?.data || []);
+      } catch (error) {
+        console.error("Error fetching suppliers:", error);
+      }
+    };
+    if (canViewPayables) {
+      fetchSuppliers();
+    }
+  }, [canViewPayables]);
+
+  const {
+    data: payablesData,
+    isLoading,
+    refetch: refetchPayables,
+    isFetching: isFetchingPayables,
+  } = useQuery<PayablesResponse | undefined>({
+    queryKey: [
+      "payables",
+      page,
+      status,
+      supplierId,
+      search,
+      dueDateFrom,
+      dueDateTo,
+      minAmount,
+      maxAmount,
+    ],
     queryFn: async () => {
       const response = await api.get<any>("/payables", {
         params: {
@@ -103,6 +147,11 @@ export default function PayablesPage() {
           limit: 10,
           ...(status && { status }),
           ...(supplierId && { supplierId }),
+          ...(search && { search }),
+          ...(dueDateFrom && { dueDateFrom }),
+          ...(dueDateTo && { dueDateTo }),
+          ...(minAmount && { minAmount: parseNumericInput(minAmount) }),
+          ...(maxAmount && { maxAmount: parseNumericInput(maxAmount) }),
         },
       });
       return response.data as PayablesResponse;
@@ -110,7 +159,11 @@ export default function PayablesPage() {
     enabled: canViewPayables,
   });
 
-  const { data: summaryData, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery({
+  const {
+    data: summaryData,
+    refetch: refetchSummary,
+    isFetching: isFetchingSummary,
+  } = useQuery({
     queryKey: ["payables-summary"],
     queryFn: async () => {
       const response = await api.get<any>("/payables/summary");
@@ -150,10 +203,19 @@ export default function PayablesPage() {
   const summary = summaryData || {};
 
   // Obtener nombre del proveedor filtrado
-  const supplierName =
-    supplierId && payables.length > 0 ? payables[0].supplier.name : null;
+  const supplierName = supplierId
+    ? suppliers.find((s) => s.id === supplierId)?.name
+    : null;
 
-  const handleClearFilter = () => {
+  const handleClearFilters = () => {
+    setStatus("");
+    setSupplierId("");
+    setSearch("");
+    setDueDateFrom("");
+    setDueDateTo("");
+    setMinAmount("");
+    setMaxAmount("");
+    setPage(1);
     router.push("/dashboard/payables");
   };
 
@@ -184,48 +246,36 @@ export default function PayablesPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-start justify-between mb-8">
-          <Header
-            title="Cuentas por Pagar"
-            link={
-              supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"
-            }
-            linkLabel={
-              supplierId ? "Volver al Proveedor" : "Volver al Dashboard"
-            }
-            actions={
-              supplierId && supplierName ? (
-                <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                  <span className="text-sm text-blue-700">
-                    Filtrado por: <strong>{supplierName}</strong>
-                  </span>
-                  <button
-                    onClick={handleClearFilter}
-                    className="text-blue-600 hover:text-blue-800 font-semibold ml-2"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : null
-            }
-          />
-
-          <Tooltip content="Refrescar datos">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["payables"] });
-                queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
-                refetchPayables();
-                refetchSummary();
-              }}
-              disabled={isFetchingPayables || isFetchingSummary}
-            >
-              <RefreshCw className={`h-4 w-4 ${isFetchingPayables || isFetchingSummary ? "animate-spin" : ""}`} />
-            </Button>
-          </Tooltip>
-        </div>
+        <Header
+          title="Cuentas por Pagar"
+          link={
+            supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"
+          }
+          linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"}
+          actions={
+            <div className="flex items-center gap-2">
+              <Tooltip content="Refrescar datos">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ["payables"] });
+                    queryClient.invalidateQueries({
+                      queryKey: ["payables-summary"],
+                    });
+                    refetchPayables();
+                    refetchSummary();
+                  }}
+                  disabled={isFetchingPayables || isFetchingSummary}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isFetchingPayables || isFetchingSummary ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              </Tooltip>
+            </div>
+          }
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -290,34 +340,120 @@ export default function PayablesPage() {
             <CardTitle className="text-base">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="status">Estado</Label>
-                <Select
-                  value={status || "PENDING"}
-                  onValueChange={(value) => {
-                    setStatus(value);
+                <select
+                  id="status"
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value);
                     setPage(1);
                   }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PENDING">Pendiente</SelectItem>
-                    <SelectItem value="PARTIAL">Parcial</SelectItem>
-                    <SelectItem value="PAID">Pagado</SelectItem>
-                    <SelectItem value="OVERDUE">Vencido</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="">Todos los estados</option>
+                  <option value="PENDING">Pendiente</option>
+                  <option value="PARTIAL">Parcial</option>
+                  <option value="PAID">Pagado</option>
+                  <option value="OVERDUE">Vencido</option>
+                </select>
               </div>
+
+              <div>
+                <Label htmlFor="supplier">Proveedor</Label>
+                <select
+                  id="supplier"
+                  value={supplierId}
+                  onChange={(e) => {
+                    setSupplierId(e.target.value);
+                    setPage(1);
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Todos los proveedores</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="search">Buscar Proveedor</Label>
+                <Input
+                  id="search"
+                  placeholder="Nombre del proveedor..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dueDateFrom">Vencimiento Desde</Label>
+                <Input
+                  id="dueDateFrom"
+                  type="date"
+                  value={dueDateFrom}
+                  onChange={(e) => {
+                    setDueDateFrom(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dueDateTo">Vencimiento Hasta</Label>
+                <Input
+                  id="dueDateTo"
+                  type="date"
+                  value={dueDateTo}
+                  onChange={(e) => {
+                    setDueDateTo(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="minAmount">Monto Mínimo</Label>
+                <Input
+                  id="minAmount"
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
+                  value={minAmount}
+                  onChange={(e) => {
+                    setMinAmount(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="maxAmount">Monto Máximo</Label>
+                <Input
+                  id="maxAmount"
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
+                  value={maxAmount}
+                  onChange={(e) => {
+                    setMaxAmount(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setStatus("PENDING");
-                    setPage(1);
-                  }}
+                  onClick={handleClearFilters}
+                  className="w-full"
                 >
                   Limpiar Filtros
                 </Button>
@@ -471,28 +607,21 @@ export default function PayablesPage() {
                                     <Label htmlFor="method">
                                       Método de Pago *
                                     </Label>
-                                    <Select
+                                    <select
+                                      id="method"
                                       value={paymentMethod}
-                                      onValueChange={setPaymentMethod}
+                                      onChange={(e) =>
+                                        setPaymentMethod(e.target.value)
+                                      }
+                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="CASH">
-                                          Efectivo
-                                        </SelectItem>
-                                        <SelectItem value="TRANSFER">
-                                          Transferencia
-                                        </SelectItem>
-                                        <SelectItem value="CHECK">
-                                          Cheque
-                                        </SelectItem>
-                                        <SelectItem value="CARD">
-                                          Tarjeta
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                      <option value="CASH">Efectivo</option>
+                                      <option value="TRANSFER">
+                                        Transferencia
+                                      </option>
+                                      <option value="CHECK">Cheque</option>
+                                      <option value="CARD">Tarjeta</option>
+                                    </select>
                                   </div>
                                   <div>
                                     <Label htmlFor="reference">

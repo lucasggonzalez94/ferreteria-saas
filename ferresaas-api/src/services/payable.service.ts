@@ -65,6 +65,11 @@ export class PayableService {
       status?: string;
       startDate?: Date;
       endDate?: Date;
+      dueDateFrom?: Date;
+      dueDateTo?: Date;
+      search?: string;
+      minAmount?: number;
+      maxAmount?: number;
       page?: number;
       limit?: number;
     }
@@ -83,6 +88,26 @@ export class PayableService {
       if (filters.startDate) createdAtFilter.gte = filters.startDate;
       if (filters.endDate) createdAtFilter.lte = filters.endDate;
       where.createdAt = createdAtFilter;
+    }
+
+    if (filters.dueDateFrom || filters.dueDateTo) {
+      const dueDateFilter: Record<string, Date> = {};
+      if (filters.dueDateFrom) dueDateFilter.gte = filters.dueDateFrom;
+      if (filters.dueDateTo) dueDateFilter.lte = filters.dueDateTo;
+      where.dueDate = dueDateFilter;
+    }
+
+    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
+      const amountFilter: Record<string, number> = {};
+      if (filters.minAmount !== undefined) amountFilter.gte = filters.minAmount;
+      if (filters.maxAmount !== undefined) amountFilter.lte = filters.maxAmount;
+      where.amount = amountFilter;
+    }
+
+    if (filters.search) {
+      where.supplier = {
+        name: { contains: filters.search, mode: 'insensitive' },
+      };
     }
 
     const [payables, total] = await Promise.all([
