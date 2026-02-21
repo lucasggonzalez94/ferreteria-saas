@@ -80,23 +80,39 @@ export class InventoryReportsService {
       prisma.inventoryMovement.count({ where }),
     ]);
 
-    // Calcular totales por tipo
-    const totals = await prisma.inventoryMovement.groupBy({
-      by: ['type'],
-      where,
-      _sum: {
-        quantity: true,
-      },
-    });
+    // Calcular totales por tipo Y unidad (para evitar sumar metros + unidades + kilos)
+    const totalsRaw = await prisma.$queryRaw<Array<{
+      type: string;
+      unit: string;
+      total_quantity: Prisma.Decimal;
+    }>>`
+      SELECT 
+        im.type,
+        p.unit,
+        SUM(im.quantity) as total_quantity
+      FROM inventory_movements im
+      INNER JOIN products p ON im.product_id = p.id
+      WHERE im.business_id = ${businessId}
+        ${filters.type ? Prisma.sql`AND im.type = ${filters.type}` : Prisma.empty}
+        ${filters.productId ? Prisma.sql`AND im.product_id = ${filters.productId}` : Prisma.empty}
+        ${filters.startDate ? Prisma.sql`AND im.created_at >= ${filters.startDate}` : Prisma.empty}
+        ${filters.endDate ? Prisma.sql`AND im.created_at <= ${filters.endDate}` : Prisma.empty}
+      GROUP BY im.type, p.unit
+      ORDER BY im.type, p.unit
+    `;
 
-    const totalsByType = totals.reduce<Record<string, number>>((acc, item) => {
-      acc[item.type] = item._sum.quantity?.toNumber() || 0;
+    // Estructurar totales por tipo -> unidad -> cantidad
+    const totalsByTypeAndUnit = totalsRaw.reduce<Record<string, Record<string, number>>>((acc, item) => {
+      if (!acc[item.type]) {
+        acc[item.type] = {};
+      }
+      acc[item.type][item.unit] = Number(item.total_quantity);
       return acc;
     }, {});
 
     return {
       items: movements,
-      totals: totalsByType,
+      totals: totalsByTypeAndUnit,
       meta: {
         page,
         limit,

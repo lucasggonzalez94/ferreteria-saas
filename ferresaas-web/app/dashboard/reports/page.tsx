@@ -19,11 +19,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ReportFilters } from "@/components/reports/report-filters";
+import { SalesReport } from "@/components/reports/sales-report";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function ReportsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [dateRange, setDateRange] = useState<{ startDate: string; endDate: string }>({ 
+    startDate: "", 
+    endDate: "" 
+  });
 
   const canViewReports = user?.permissions?.includes("reports:read");
 
@@ -40,13 +47,14 @@ export default function ReportsPage() {
     queryFn: async () => {
       const response = await api.get<any>("/inventory-reports/movements", {
         params: {
-          startDate: dateRange.start || undefined,
-          endDate: dateRange.end || undefined,
+          startDate: dateRange.startDate || undefined,
+          endDate: dateRange.endDate || undefined,
           limit: 100,
         },
       });
       return response.data || { items: [], totals: {} };
     },
+    enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
 
   // Reporte 2: Alertas de Stock
@@ -64,13 +72,14 @@ export default function ReportsPage() {
     queryFn: async () => {
       const response = await api.get<any>("/inventory-reports/rotation", {
         params: {
-          startDate: dateRange.start || undefined,
-          endDate: dateRange.end || undefined,
+          startDate: dateRange.startDate || undefined,
+          endDate: dateRange.endDate || undefined,
           limit: 50,
         },
       });
       return response.data || { items: [], summary: {} };
     },
+    enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
 
   // Reporte 4: Devoluciones
@@ -79,71 +88,110 @@ export default function ReportsPage() {
     queryFn: async () => {
       const response = await api.get<any>("/inventory-reports/returns", {
         params: {
-          startDate: dateRange.start || undefined,
-          endDate: dateRange.end || undefined,
+          startDate: dateRange.startDate || undefined,
+          endDate: dateRange.endDate || undefined,
           limit: 100,
         },
       });
       return response.data || { items: [], summary: {} };
     },
+    enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
 
-  // Función para exportar a CSV
-  const exportToCSV = (data: any[], filename: string) => {
-    if (!data || data.length === 0) {
-      alert("No hay datos para exportar");
-      return;
+  // Reporte 5: Ventas
+  const { data: salesReport, isLoading: salesLoading } = useQuery({
+    queryKey: ["reports", "sales", dateRange],
+    queryFn: async () => {
+      const response = await api.get<any>("/sales-reports/summary", {
+        params: {
+          startDate: dateRange.startDate || undefined,
+          endDate: dateRange.endDate || undefined,
+          compareWithPrevious: true,
+        },
+      });
+      return response.data;
+    },
+    enabled: !!dateRange.startDate && !!dateRange.endDate,
+  });
+
+  // Función para exportar a PDF
+  const exportToPDF = async (endpoint: string, filename: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (dateRange.startDate) params.append('startDate', dateRange.startDate);
+      if (dateRange.endDate) params.append('endDate', dateRange.endDate);
+
+      const queryString = params.toString();
+      const fullEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+
+      const blob = await api.getBlob(fullEndpoint);
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al exportar PDF:', error);
+      alert('Error al generar el PDF. Por favor, intenta nuevamente.');
     }
-
-    const headers = Object.keys(data[0]);
-    const csv = [
-      headers.join(","),
-      ...data.map((row) =>
-        headers
-          .map((header) => {
-            const value = row[header];
-            if (typeof value === "string" && value.includes(",")) {
-              return `"${value}"`;
-            }
-            return value;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  // Función para exportar a JSON
-  const exportToJSON = (data: any, filename: string) => {
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}_${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
   };
 
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <Header title="Reportes de Inventario" />
+        
+        <ReportFilters 
+          onFilterChange={setDateRange}
+          defaultPreset="30d"
+        />
 
-        <Tabs defaultValue="movements" className="w-full">
+        <Tabs defaultValue="sales" className="w-full">
           <TabsList>
+            <TabsTrigger value="sales">Ventas</TabsTrigger>
             <TabsTrigger value="movements">Movimientos</TabsTrigger>
             <TabsTrigger value="alerts">Alertas</TabsTrigger>
             <TabsTrigger value="rotation">Rotación</TabsTrigger>
             <TabsTrigger value="returns">Devoluciones</TabsTrigger>
           </TabsList>
+
+          {/* Reporte 0: Ventas */}
+          <TabsContent value="sales">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Reporte de Ventas</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/sales-reports/summary/pdf",
+                        "reporte-ventas"
+                      )
+                    }
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {salesLoading ? (
+                  <LoadingSpinner text="Cargando reporte de ventas..." />
+                ) : salesReport ? (
+                  <SalesReport data={salesReport} />
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No hay datos de ventas en el período seleccionado
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Reporte 1: Movimientos */}
           <TabsContent value="movements">
@@ -151,31 +199,20 @@ export default function ReportsPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Movimientos de Inventario</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToCSV(
-                          movementsReport?.items || [],
-                          "movimientos-inventario"
-                        )
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToJSON(movementsReport, "movimientos-inventario")
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      JSON
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/inventory-reports/movements/pdf",
+                        "movimientos-inventario"
+                      )
+                    }
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -183,15 +220,15 @@ export default function ReportsPage() {
                   <LoadingSpinner text="Cargando movimientos..." />
                 ) : movementsReport?.items && movementsReport.items.length > 0 ? (
                   <div className="space-y-4">
-                    {movementsReport.totals && (
-                      <div className="grid grid-cols-4 gap-4">
+                    {movementsReport.totals && Object.keys(movementsReport.totals).length > 0 && (
+                      <div className="space-y-3">
                         {Object.entries(movementsReport.totals).map(
-                          ([type, total]: [string, any]) => (
+                          ([type, unitTotals]: [string, any]) => (
                             <div
                               key={type}
-                              className="p-3 bg-blue-50 rounded-lg border border-blue-200"
+                              className="p-4 bg-blue-50 rounded-lg border border-blue-200"
                             >
-                              <p className="text-sm text-blue-600 font-medium">
+                              <p className="text-sm text-blue-600 font-semibold mb-2">
                                 {type === "SALE"
                                   ? "Ventas"
                                   : type === "PURCHASE_RECEIPT"
@@ -200,9 +237,21 @@ export default function ReportsPage() {
                                   ? "Devoluciones"
                                   : "Ajustes"}
                               </p>
-                              <p className="text-xl font-bold text-blue-900">
-                                {Number(total).toFixed(2)}
-                              </p>
+                              <div className="space-y-1">
+                                {Object.entries(unitTotals).map(([unit, quantity]: [string, any]) => (
+                                  <div key={unit} className="flex items-baseline gap-2">
+                                    <span className="text-lg font-bold text-blue-900">
+                                      {Number(quantity).toFixed(2)}
+                                    </span>
+                                    <span className="text-sm text-blue-700">
+                                      {unit === "u" ? "unidades" : 
+                                       unit === "mt" ? "metros" : 
+                                       unit === "kg" ? "kilogramos" : 
+                                       unit === "lt" ? "litros" : unit}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )
                         )}
@@ -217,6 +266,7 @@ export default function ReportsPage() {
                             <TableHead>Tipo</TableHead>
                             <TableHead>Producto</TableHead>
                             <TableHead className="text-right">Cantidad</TableHead>
+                            <TableHead>Unidad</TableHead>
                             <TableHead>Motivo</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -224,9 +274,7 @@ export default function ReportsPage() {
                           {movementsReport.items.map((movement: any) => (
                             <TableRow key={movement.id}>
                               <TableCell className="text-sm">
-                                {new Date(movement.createdAt).toLocaleDateString(
-                                  "es-AR"
-                                )}
+                                {format(new Date(movement.createdAt), "dd/MM/yyyy", { locale: es })}
                               </TableCell>
                               <TableCell>
                                 <span
@@ -254,6 +302,13 @@ export default function ReportsPage() {
                                 {movement.quantity > 0 ? "+" : ""}
                                 {Number(movement.quantity).toFixed(2)}
                               </TableCell>
+                              <TableCell className="text-sm">
+                                {movement.product.unit === "u" ? "unidades" : 
+                                 movement.product.unit === "mt" ? "metros" : 
+                                 movement.product.unit === "kg" ? "kilogramos" : 
+                                 movement.product.unit === "lt" ? "litros" : 
+                                 movement.product.unit}
+                              </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
                                 {movement.reason || "-"}
                               </TableCell>
@@ -278,31 +333,19 @@ export default function ReportsPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Alertas de Stock</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToCSV(
-                          alertsReport?.items || [],
-                          "alertas-stock"
-                        )
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToJSON(alertsReport, "alertas-stock")
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      JSON
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/inventory-reports/stock-alerts/pdf",
+                        "alertas-stock"
+                      )
+                    }
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -364,7 +407,11 @@ export default function ReportsPage() {
                           </div>
                           <div className="text-right">
                             <p className="font-medium">
-                              {Number(alert.stockQuantity).toFixed(2)} {alert.unit}
+                              {Number(alert.stockQuantity).toFixed(2)}{" "}
+                              {alert.unit === "u" ? "unidades" : 
+                               alert.unit === "mt" ? "metros" : 
+                               alert.unit === "kg" ? "kilogramos" : 
+                               alert.unit === "lt" ? "litros" : alert.unit}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {alert.alertMessage}
@@ -389,31 +436,20 @@ export default function ReportsPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Rotación de Inventario</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToCSV(
-                          rotationReport?.items || [],
-                          "rotacion-inventario"
-                        )
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToJSON(rotationReport, "rotacion-inventario")
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      JSON
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/inventory-reports/rotation/pdf",
+                        "rotacion-inventario"
+                      )
+                    }
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -524,31 +560,20 @@ export default function ReportsPage() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Devoluciones</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToCSV(
-                          returnsReport?.items || [],
-                          "devoluciones"
-                        )
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportToJSON(returnsReport, "devoluciones")
-                      }
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      JSON
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/inventory-reports/returns/pdf",
+                        "devoluciones"
+                      )
+                    }
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -608,9 +633,7 @@ export default function ReportsPage() {
                           {returnsReport.items.map((returnItem: any) => (
                             <TableRow key={returnItem.id}>
                               <TableCell className="text-sm">
-                                {new Date(returnItem.createdAt).toLocaleDateString(
-                                  "es-AR"
-                                )}
+                                {format(new Date(returnItem.createdAt), "dd/MM/yyyy", { locale: es })}
                               </TableCell>
                               <TableCell>{returnItem.product.name}</TableCell>
                               <TableCell className="text-right">

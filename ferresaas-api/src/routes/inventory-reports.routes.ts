@@ -1,14 +1,18 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { InventoryReportsService } from '../services/inventory-reports.service';
+import { PDFGeneratorService } from '../services/pdf-generator.service';
 import { sendSuccess } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
+import { prisma } from '../config/database';
+import { format } from 'date-fns';
 
 const router = Router();
 const reportsService = new InventoryReportsService();
+const pdfService = new PDFGeneratorService();
 
 // Todas las rutas requieren autenticación y multi-tenant
 router.use(authenticate, multiTenant);
@@ -19,13 +23,29 @@ const reportFiltersSchema = z.object({
   endDate: z.string().datetime().optional(),
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
-});
+}).refine(
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return new Date(data.startDate) <= new Date(data.endDate);
+    }
+    return true;
+  },
+  { message: 'La fecha de inicio debe ser menor o igual a la fecha de fin' }
+);
 
 const rotationFiltersSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
-});
+}).refine(
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return new Date(data.startDate) <= new Date(data.endDate);
+    }
+    return true;
+  },
+  { message: 'La fecha de inicio debe ser menor o igual a la fecha de fin' }
+);
 
 const returnsFiltersSchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -33,7 +53,15 @@ const returnsFiltersSchema = z.object({
   customerId: z.string().cuid().optional(),
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
-});
+}).refine(
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return new Date(data.startDate) <= new Date(data.endDate);
+    }
+    return true;
+  },
+  { message: 'La fecha de inicio debe ser menor o igual a la fecha de fin' }
+);
 
 /**
  * GET /inventory-reports/movements
@@ -137,6 +165,219 @@ router.get(
         byCustomer: result.byCustomer,
         summary: result.summary,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /inventory-reports/movements/pdf
+ * Exportar movimientos de inventario a PDF
+ */
+router.get(
+  '/movements/pdf',
+  requirePermissions('reports:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const filters = reportFiltersSchema.parse(req.query);
+
+      const [result, business] = await Promise.all([
+        reportsService.getMovementsReport(authReq.businessId!, {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+          page: filters.page,
+          limit: filters.limit,
+        }),
+        prisma.business.findUnique({
+          where: { id: authReq.businessId! },
+          select: { name: true, cuit: true, address: true, phone: true },
+        }),
+      ]);
+
+      if (!business) {
+        return res.status(404).json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Negocio no encontrado' } });
+      }
+
+      const pdf = await pdfService.generateMovementsPDF(
+        {
+          name: business.name,
+          cuit: business.cuit,
+          address: business.address ?? undefined,
+          phone: business.phone ?? undefined,
+        },
+        { items: result.items, totals: result.totals },
+        {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+        }
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="movimientos-inventario-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+      );
+      res.send(pdf);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /inventory-reports/stock-alerts/pdf
+ * Exportar alertas de stock a PDF
+ */
+router.get(
+  '/stock-alerts/pdf',
+  requirePermissions('reports:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+
+      const [result, business] = await Promise.all([
+        reportsService.getStockAlertsReport(authReq.businessId!),
+        prisma.business.findUnique({
+          where: { id: authReq.businessId! },
+          select: { name: true, cuit: true, address: true, phone: true },
+        }),
+      ]);
+
+      if (!business) {
+        return res.status(404).json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Negocio no encontrado' } });
+      }
+
+      const pdf = await pdfService.generateStockAlertsPDF(
+        {
+          name: business.name,
+          cuit: business.cuit,
+          address: business.address ?? undefined,
+          phone: business.phone ?? undefined,
+        },
+        {
+          items: result.items,
+          summary: result.summary,
+        }
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="alertas-stock-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+      );
+      res.send(pdf);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /inventory-reports/rotation/pdf
+ * Exportar rotación de inventario a PDF
+ */
+router.get(
+  '/rotation/pdf',
+  requirePermissions('reports:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const filters = rotationFiltersSchema.parse(req.query);
+
+      const [result, business] = await Promise.all([
+        reportsService.getRotationReport(authReq.businessId!, {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+          limit: filters.limit,
+        }),
+        prisma.business.findUnique({
+          where: { id: authReq.businessId! },
+          select: { name: true, cuit: true, address: true, phone: true },
+        }),
+      ]);
+
+      if (!business) {
+        return res.status(404).json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Negocio no encontrado' } });
+      }
+
+      const pdf = await pdfService.generateRotationPDF(
+        {
+          name: business.name,
+          cuit: business.cuit,
+          address: business.address ?? undefined,
+          phone: business.phone ?? undefined,
+        },
+        { items: result.items, summary: result.summary },
+        {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+        }
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="rotacion-inventario-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+      );
+      res.send(pdf);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /inventory-reports/returns/pdf
+ * Exportar devoluciones a PDF
+ */
+router.get(
+  '/returns/pdf',
+  requirePermissions('reports:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const filters = returnsFiltersSchema.parse(req.query);
+
+      const [result, business] = await Promise.all([
+        reportsService.getReturnsReport(authReq.businessId!, {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+          customerId: filters.customerId,
+          page: filters.page,
+          limit: filters.limit,
+        }),
+        prisma.business.findUnique({
+          where: { id: authReq.businessId! },
+          select: { name: true, cuit: true, address: true, phone: true },
+        }),
+      ]);
+
+      if (!business) {
+        return res.status(404).json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Negocio no encontrado' } });
+      }
+
+      const pdf = await pdfService.generateReturnsPDF(
+        {
+          name: business.name,
+          cuit: business.cuit,
+          address: business.address ?? undefined,
+          phone: business.phone ?? undefined,
+        },
+        { items: result.items, summary: result.summary },
+        {
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+        }
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="devoluciones-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+      );
+      res.send(pdf);
     } catch (error) {
       next(error);
     }
