@@ -271,6 +271,48 @@ async function main() {
       update: {},
       create: { resource: 'pricing', action: 'view_suggestions', description: 'Ver sugerencias de precio pendientes' },
     }),
+    // Brands (Marcas)
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'brands', action: 'create' } },
+      update: {},
+      create: { resource: 'brands', action: 'create', description: 'Crear marcas' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'brands', action: 'read' } },
+      update: {},
+      create: { resource: 'brands', action: 'read', description: 'Ver marcas' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'brands', action: 'update' } },
+      update: {},
+      create: { resource: 'brands', action: 'update', description: 'Editar marcas' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'brands', action: 'delete' } },
+      update: {},
+      create: { resource: 'brands', action: 'delete', description: 'Eliminar marcas' },
+    }),
+    // Categories (Categorías)
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'categories', action: 'create' } },
+      update: {},
+      create: { resource: 'categories', action: 'create', description: 'Crear categorías' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'categories', action: 'read' } },
+      update: {},
+      create: { resource: 'categories', action: 'read', description: 'Ver categorías' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'categories', action: 'update' } },
+      update: {},
+      create: { resource: 'categories', action: 'update', description: 'Editar categorías' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'categories', action: 'delete' } },
+      update: {},
+      create: { resource: 'categories', action: 'delete', description: 'Eliminar categorías' },
+    }),
   ]);
 
   console.log(`✅ Created ${permissions.length} permissions`);

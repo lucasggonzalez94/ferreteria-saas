@@ -11,20 +11,30 @@ export class ApprovalsController {
   async getPendingCount(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const businessId = req.businessId!;
+      const userPermissions = req.user?.permissions || [];
 
+      // Verificar permisos del usuario
+      const canApproveDiscounts = userPermissions.includes('sales:approve_discount');
+      const canViewPriceSuggestions = userPermissions.includes('pricing:view_suggestions');
+
+      // Solo contar si el usuario tiene los permisos correspondientes
       const [discountCount, priceCount] = await Promise.all([
-        prisma.discountApproval.count({
-          where: {
-            businessId,
-            status: 'PENDING',
-          },
-        }),
-        prisma.priceSuggestion.count({
-          where: {
-            businessId,
-            status: 'PENDING',
-          },
-        }),
+        canApproveDiscounts
+          ? prisma.discountApproval.count({
+              where: {
+                businessId,
+                status: 'PENDING',
+              },
+            })
+          : Promise.resolve(0),
+        canViewPriceSuggestions
+          ? prisma.priceSuggestion.count({
+              where: {
+                businessId,
+                status: 'PENDING',
+              },
+            })
+          : Promise.resolve(0),
       ]);
 
       sendSuccess(res, {

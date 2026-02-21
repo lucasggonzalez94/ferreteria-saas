@@ -64,22 +64,22 @@ export default function PriceSuggestionsPage() {
   const canView = user?.permissions?.includes("pricing:view_suggestions");
 
   useEffect(() => {
-    if (!canApprove) {
+    // Requiere al menos uno de los dos permisos
+    if (!canApprove && !canView) {
       router.push("/dashboard");
       return;
     }
-  }, [canApprove, router]);
+  }, [canApprove, canView, router]);
 
-  const { data: suggestionsData, isLoading, isFetching, refetch } = useQuery({
+  const { data: suggestions = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["price-suggestions", "PENDING"],
     queryFn: async () => {
-      const response = await api.get<any>("/price-suggestions?status=PENDING");
-      return response.data;
+      const response = await api.get<PriceSuggestion[]>("/price-suggestions?status=PENDING");
+      // api.get retorna ApiResponse<T> = { success: boolean, data: T }
+      return response.data || [];
     },
     enabled: canView,
   });
-
-  const suggestions = suggestionsData?.data || [];
 
   const approveMutation = useMutation({
     mutationFn: async (suggestionId: string) => {

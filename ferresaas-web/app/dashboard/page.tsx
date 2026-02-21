@@ -58,6 +58,14 @@ export default function DashboardPage() {
     if (logo) setBusinessLogo(logo);
   };
 
+  useEffect(() => {
+    handleLogoUpdate();
+    window.addEventListener("businessLogoChanged", handleLogoUpdate);
+    return () => {
+      window.removeEventListener("businessLogoChanged", handleLogoUpdate);
+    };
+  }, []);
+
   // Validaciones de permisos
   const canViewSales = user?.permissions?.includes("sales:read");
   const canViewProducts = user?.permissions?.includes("products:read");
