@@ -17,6 +17,7 @@ import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { ImageIcon } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
 
@@ -31,6 +32,7 @@ export default function ProductsPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState("name-asc");
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; productId: string }>({ open: false, productId: "" });
 
   const canViewProducts = user?.permissions?.includes("products:read");
   const canCreateProducts = user?.permissions?.includes("products:create");
@@ -293,12 +295,7 @@ export default function ProductsPage() {
                           {
                             label: "Eliminar",
                             onClick: () => {
-                              const confirmDelete = window.confirm(
-                                "¿Eliminar este producto? Esta acción no se puede deshacer."
-                              );
-                              if (confirmDelete) {
-                                deleteMutation.mutate(product.id);
-                              }
+                              setDeleteDialog({ open: true, productId: product.id });
                             },
                             disabled: deleteMutation.isPending,
                             variant: "danger",
@@ -357,6 +354,16 @@ export default function ProductsPage() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={() => deleteMutation.mutate(deleteDialog.productId)}
+        title="Eliminar Producto"
+        description="¿Eliminar este producto? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

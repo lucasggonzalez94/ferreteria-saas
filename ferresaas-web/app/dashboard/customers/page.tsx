@@ -15,11 +15,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { ActionsMenu } from "@/components/ui/actions-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function CustomersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; customerId: string; customerName: string }>({ open: false, customerId: "", customerName: "" });
 
   const canViewCustomers = user?.permissions?.includes("customers:read");
   const canCreateCustomers = user?.permissions?.includes("customers:create");
@@ -91,13 +93,11 @@ export default function CustomersPage() {
   });
 
   const handleDeleteCustomer = (customerId: string, customerName: string) => {
-    if (
-      window.confirm(
-        `¿Estás seguro de que deseas eliminar a ${customerName}? Esta acción no se puede deshacer.`
-      )
-    ) {
-      deleteMutation.mutate(customerId);
-    }
+    setDeleteDialog({ open: true, customerId, customerName });
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate(deleteDialog.customerId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -379,6 +379,16 @@ export default function CustomersPage() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={confirmDelete}
+        title="Eliminar Cliente"
+        description={`¿Estás seguro de que deseas eliminar a ${deleteDialog.customerName}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

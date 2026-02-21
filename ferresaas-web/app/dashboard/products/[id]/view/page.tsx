@@ -28,6 +28,7 @@ import { useParams, useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { format, subDays, subYears, startOfYear, startOfMonth } from "date-fns";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { es } from "date-fns/locale";
 import {
   LineChart,
@@ -98,6 +99,7 @@ export default function ProductDetailViewPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   const productId = params.id as string;
 
@@ -240,13 +242,7 @@ export default function ProductDetailViewPage() {
   };
 
   const handleDelete = () => {
-    if (
-      window.confirm(
-        "¿Eliminar este producto? Esta acción no se puede deshacer.",
-      )
-    ) {
-      deleteMutation.mutate();
-    }
+    setDeleteDialog(true);
   };
 
   // Preparar datos para gráfico de precios
@@ -895,6 +891,16 @@ export default function ProductDetailViewPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog}
+        onOpenChange={setDeleteDialog}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Eliminar Producto"
+        description="¿Eliminar este producto? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

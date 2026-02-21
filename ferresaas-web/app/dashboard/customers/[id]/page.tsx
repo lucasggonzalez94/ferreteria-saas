@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function CustomerDetailPage({
   params,
@@ -18,6 +19,7 @@ export default function CustomerDetailPage({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ["customer", params.id],
@@ -41,17 +43,11 @@ export default function CustomerDetailPage({
   });
 
   const handleDelete = () => {
-    if (
-      window.confirm(
-        `¿Estás seguro de que deseas eliminar a ${
-          customer?.type === "COMPANY"
-            ? customer?.companyName
-            : `${customer?.firstName} ${customer?.lastName}`
-        }? Esta acción no se puede deshacer.`
-      )
-    ) {
-      deleteMutation.mutate();
-    }
+    setDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate();
   };
 
   if (isLoading) {
@@ -191,6 +187,20 @@ export default function CustomerDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog}
+        onOpenChange={setDeleteDialog}
+        onConfirm={confirmDelete}
+        title="Eliminar Cliente"
+        description={`¿Estás seguro de que deseas eliminar a ${
+          customer?.type === "COMPANY"
+            ? customer?.companyName
+            : `${customer?.firstName} ${customer?.lastName}`
+        }? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
 import { Tooltip } from "@/components/ui/tooltip";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function EditProductPage({
   params,
@@ -24,6 +25,7 @@ export default function EditProductPage({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     barcode: "",
@@ -411,16 +413,7 @@ export default function EditProductPage({
                 <Button
                   variant="destructive"
                   size="icon"
-                  onClick={() => {
-                    if (
-                      // TODO: Mostrar modal customizado
-                      window.confirm(
-                        "¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.",
-                      )
-                    ) {
-                      deleteMutation.mutate();
-                    }
-                  }}
+                  onClick={() => setDeleteDialog(true)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -795,6 +788,16 @@ export default function EditProductPage({
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog}
+        onOpenChange={setDeleteDialog}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Eliminar Producto"
+        description="¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

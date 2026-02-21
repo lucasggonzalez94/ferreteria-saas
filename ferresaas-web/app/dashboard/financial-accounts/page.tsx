@@ -27,6 +27,7 @@ import { TransferModal } from "@/components/financial-accounts/transfer-modal";
 import { MovementModal } from "@/components/financial-accounts/movement-modal";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface FinancialAccount {
   id: string;
@@ -64,6 +65,7 @@ export default function FinancialAccountsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; accountId: string; accountName: string }>({ open: false, accountId: "", accountName: "" });
 
   const canRead = user?.permissions?.includes("financial_accounts:read");
   const canCreate = user?.permissions?.includes("financial_accounts:create");
@@ -108,13 +110,11 @@ export default function FinancialAccountsPage() {
   });
 
   const handleDeleteAccount = (accountId: string, accountName: string) => {
-    if (
-      window.confirm(
-        `¿Estás seguro de que deseas eliminar la cuenta "${accountName}"?`
-      )
-    ) {
-      deleteMutation.mutate(accountId);
-    }
+    setDeleteDialog({ open: true, accountId, accountName });
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate(deleteDialog.accountId);
   };
 
   // Fetch accounts
@@ -458,6 +458,15 @@ export default function FinancialAccountsPage() {
         open={showMovementModal}
         onOpenChange={setShowMovementModal}
         accounts={activeAccounts}
+      />
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={confirmDelete}
+        title="Eliminar Cuenta"
+        description={`¿Estás seguro de que deseas eliminar la cuenta "${deleteDialog.accountName}"?`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
       />
     </div>
   );
