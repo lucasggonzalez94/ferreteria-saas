@@ -3,18 +3,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import {
   Select,
   SelectContent,
@@ -109,138 +101,124 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Transferir Dinero</DialogTitle>
-          <DialogDescription>
-            Transfiere dinero entre tus cuentas financieras
-          </DialogDescription>
-        </DialogHeader>
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Transferencia entre Cuentas"
+      description="Transfiere dinero entre tus cuentas financieras"
+      onSubmit={handleSubmit}
+      isLoading={transferMutation.isPending}
+      submitText="Realizar Transferencia"
+      maxWidth="lg"
+    >
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="fromAccount">Cuenta Origen *</Label>
+          <Select value={fromAccountId || undefined} onValueChange={setFromAccountId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona cuenta origen" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.name} - ${account.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {fromAccount && (
+            <p className="text-xs text-muted-foreground mt-1">
+              💡 Disponible: ${fromAccount.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+            </p>
+          )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="fromAccount">Cuenta Origen *</Label>
-            <Select value={fromAccountId || undefined} onValueChange={setFromAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta origen" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
+        <div className="flex justify-center">
+          <ArrowRight className="h-6 w-6 text-muted-foreground" />
+        </div>
+
+        <div>
+          <Label htmlFor="toAccount">Cuenta Destino *</Label>
+          <Select value={toAccountId || undefined} onValueChange={setToAccountId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona cuenta destino" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter((acc) => acc.id !== fromAccountId)
+                .map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.name} - ${account.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            {fromAccount && (
-              <p className="text-xs text-muted-foreground mt-1">
-                💡 Disponible: ${fromAccount.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-              </p>
-            )}
-          </div>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <div className="flex justify-center">
-            <ArrowRight className="h-6 w-6 text-muted-foreground" />
-          </div>
+        <div>
+          <Label htmlFor="amount">Monto *</Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0,00"
+            required
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="toAccount">Cuenta Destino *</Label>
-            <Select value={toAccountId || undefined} onValueChange={setToAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta destino" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts
-                  .filter((acc) => acc.id !== fromAccountId)
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} - ${account.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div>
+          <Label htmlFor="description">Descripción</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ej: Transferencia para caja"
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="amount">Monto *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0,00"
-              required
-            />
-          </div>
+        <div>
+          <Label htmlFor="notes">Notas</Label>
+          <Textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notas adicionales (opcional)"
+            rows={2}
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="description">Descripción</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ej: Transferencia para caja"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notas</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notas adicionales (opcional)"
-              rows={2}
-            />
-          </div>
-
-          {fromAccount && toAccount && amount && parseFloat(amount) > 0 && (
-            <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-              <p className="text-sm font-medium text-blue-900 mb-2">Resumen de Transferencia</p>
-              <div className="space-y-1 text-sm text-blue-700">
+        {fromAccount && toAccount && amount && parseFloat(amount) > 0 && (
+          <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+            <p className="text-sm font-medium text-blue-900 mb-2">Resumen de Transferencia</p>
+            <div className="space-y-1 text-sm text-blue-700">
+              <div className="flex justify-between">
+                <span>Desde:</span>
+                <span className="font-medium">{fromAccount.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Hacia:</span>
+                <span className="font-medium">{toAccount.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Monto:</span>
+                <span className="font-medium">${parseFloat(amount).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="border-t border-blue-300 my-2 pt-2">
                 <div className="flex justify-between">
-                  <span>Desde:</span>
-                  <span className="font-medium">{fromAccount.name}</span>
+                  <span>Nuevo balance origen:</span>
+                  <span className="font-medium">${(fromAccount.balance - parseFloat(amount)).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Hacia:</span>
-                  <span className="font-medium">{toAccount.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Monto:</span>
-                  <span className="font-medium">${parseFloat(amount).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="border-t border-blue-300 my-2 pt-2">
-                  <div className="flex justify-between">
-                    <span>Nuevo balance origen:</span>
-                    <span className="font-medium">${(fromAccount.balance - parseFloat(amount)).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Nuevo balance destino:</span>
-                    <span className="font-medium">${(toAccount.balance + parseFloat(amount)).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
-                  </div>
+                  <span>Nuevo balance destino:</span>
+                  <span className="font-medium">${(toAccount.balance + parseFloat(amount)).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={transferMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={transferMutation.isPending}>
-              {transferMutation.isPending ? "Transfiriendo..." : "Transferir"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+        )}
+      </div>
+    </FormModal>
   );
 }

@@ -13,7 +13,6 @@ import Header from "@/components/ui/header";
 import {
   Building2,
   Plus,
-  Search,
   Edit,
   Trash2,
   Eye,
@@ -30,6 +29,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchBar } from "@/components/ui/search-bar";
+import { Pagination } from "@/components/ui/pagination";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 
 interface Supplier {
   id: string;
@@ -77,13 +79,20 @@ interface SupplierFormData {
 
 export default function SuppliersPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const canViewSuppliers = user?.permissions?.includes("purchases:read");
-  const canCreateSupplier = user?.permissions?.includes("purchases:create");
-  const canUpdateSupplier = user?.permissions?.includes("purchases:update");
-  const canDeleteSupplier = user?.permissions?.includes("purchases:delete");
+  usePermissionGuard("purchases:read");
+  const {
+    canRead: canViewSuppliers,
+    canCreate: canCreateSupplier,
+    canUpdate: canUpdateSupplier,
+    canDelete: canDeleteSupplier,
+  } = usePermissions({
+    canRead: "purchases:read",
+    canCreate: "purchases:create",
+    canUpdate: "purchases:update",
+    canDelete: "purchases:delete",
+  });
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -94,13 +103,6 @@ export default function SuppliersPage() {
   const [formData, setFormData] = useState<SupplierFormData>({
     name: "",
   });
-
-  useEffect(() => {
-    if (!canViewSuppliers) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewSuppliers, router]);
 
   const { data: suppliersData, isLoading, error } = useQuery<SuppliersApiResponse | undefined>({
     queryKey: ["suppliers", search, page],
@@ -203,18 +205,15 @@ export default function SuppliersPage() {
 
         {/* Search and Actions */}
         <div className="flex gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre, CUIT o email..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-10"
-            />
-          </div>
+          <SearchBar
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder="Buscar por nombre, CUIT o email..."
+            className="flex-1"
+          />
           {canCreateSupplier && (
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
@@ -502,27 +501,13 @@ export default function SuppliersPage() {
             </div>
 
             {/* Pagination */}
-            {(meta.totalPages || 0) > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Anterior
-                </Button>
-                <span className="flex items-center px-4">
-                  Página {page} de {meta.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={!meta.hasMore}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={meta.totalPages || 0}
+              hasMore={meta.hasMore}
+              onPageChange={setPage}
+              className="mt-6"
+            />
           </>
         ) : (
           <Card>

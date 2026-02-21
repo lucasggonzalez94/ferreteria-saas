@@ -10,28 +10,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Search, User } from "lucide-react";
+import { ArrowLeft, Plus, User } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchBar } from "@/components/ui/search-bar";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 
 export default function CustomersPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; customerId: string; customerName: string }>({ open: false, customerId: "", customerName: "" });
+  const deleteDialog = useConfirmDialog<{ id: string; name: string }>();
 
-  const canViewCustomers = user?.permissions?.includes("customers:read");
-  const canCreateCustomers = user?.permissions?.includes("customers:create");
-
-  useEffect(() => {
-    if (!canViewCustomers) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewCustomers, router]);
+  usePermissionGuard("customers:read");
+  const {
+    canRead: canViewCustomers,
+    canCreate: canCreateCustomers,
+  } = usePermissions({
+    canRead: "customers:read",
+    canCreate: "customers:create",
+  });
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     type: "PERSON" as "PERSON" | "COMPANY",
@@ -52,6 +53,7 @@ export default function CustomersPage() {
       const response = await api.get<any[]>(`/customers?q=${search}`);
       return response.data || [];
     },
+    enabled: canViewCustomers,
   });
 
   const createMutation = useMutation({
@@ -93,11 +95,14 @@ export default function CustomersPage() {
   });
 
   const handleDeleteCustomer = (customerId: string, customerName: string) => {
-    setDeleteDialog({ open: true, customerId, customerName });
+    deleteDialog.open({ id: customerId, name: customerName });
   };
 
   const confirmDelete = () => {
-    deleteMutation.mutate(deleteDialog.customerId);
+    if (deleteDialog.data) {
+      deleteMutation.mutate(deleteDialog.data.id);
+      deleteDialog.close();
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -270,15 +275,11 @@ export default function CustomersPage() {
         {/* Search */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, CUIT, email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nombre, CUIT, email..."
+            />
           </CardContent>
         </Card>
 
@@ -381,11 +382,11 @@ export default function CustomersPage() {
       </div>
 
       <ConfirmDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        open={deleteDialog.isOpen}
+        onOpenChange={(open) => !open && deleteDialog.close()}
         onConfirm={confirmDelete}
         title="Eliminar Cliente"
-        description={`¿Estás seguro de que deseas eliminar a ${deleteDialog.customerName}? Esta acción no se puede deshacer.`}
+        description={`¿Estás seguro de que deseas eliminar a ${deleteDialog.data?.name}? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         cancelText="Cancelar"
       />

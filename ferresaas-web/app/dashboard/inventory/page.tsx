@@ -10,6 +10,7 @@ import { AlertTriangle, Plus, TrendingDown, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import {
   Table,
   TableBody,
@@ -24,21 +25,19 @@ import ReturnModal from "@/components/inventory/return-modal";
 
 export default function InventoryPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  usePermissionGuard("inventory:read");
+  const {
+    canRead: canViewInventory,
+    canManage: canManageInventory,
+  } = usePermissions({
+    canRead: "inventory:read",
+    canManage: "inventory:manage",
+  });
+
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-
-  const canViewInventory = user?.permissions?.includes("inventory:read");
-  const canAdjust = user?.permissions?.includes("inventory:adjust");
-  const canReturn = user?.permissions?.includes("inventory:return");
-
-  useEffect(() => {
-    if (!canViewInventory) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewInventory, router]);
 
   // Obtener productos con stock
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -137,7 +136,7 @@ export default function InventoryPage() {
         <div className="flex justify-between items-center mb-8">
           <Header title="Inventario" />
           <div className="flex gap-2">
-            {canAdjust && (
+            {canManageInventory && (
               <Button
                 onClick={() => setAdjustmentOpen(true)}
                 className="gap-2"
@@ -146,7 +145,7 @@ export default function InventoryPage() {
                 Ajuste Manual
               </Button>
             )}
-            {canReturn && (
+            {canManageInventory && (
               <Button
                 onClick={() => setReturnOpen(true)}
                 variant="outline"
@@ -413,20 +412,20 @@ export default function InventoryPage() {
       </div>
 
       {/* Modales */}
-      {canAdjust && (
+      {canManageInventory && (
         <AdjustmentModal
           open={adjustmentOpen}
           onOpenChange={setAdjustmentOpen}
-          onSubmit={(data: any) => adjustmentMutation.mutate(data)}
+          onSubmit={(data) => adjustmentMutation.mutate(data)}
           isLoading={adjustmentMutation.isPending}
         />
       )}
 
-      {canReturn && (
+      {canManageInventory && (
         <ReturnModal
           open={returnOpen}
           onOpenChange={setReturnOpen}
-          onSubmit={(data: any) => returnMutation.mutate(data)}
+          onSubmit={(data) => returnMutation.mutate(data)}
           isLoading={returnMutation.isPending}
         />
       )}

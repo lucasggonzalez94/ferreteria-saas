@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { Tooltip } from "@/components/ui/tooltip";
+import { StatCard } from "@/components/ui/stat-card";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 import {
   Wallet,
   Building2,
@@ -59,22 +62,29 @@ const accountTypeLabels = {
 };
 
 export default function FinancialAccountsPage() {
-  const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; accountId: string; accountName: string }>({ open: false, accountId: "", accountName: "" });
+  const deleteDialog = useConfirmDialog<{ id: string; name: string }>();
 
-  const canRead = user?.permissions?.includes("financial_accounts:read");
-  const canCreate = user?.permissions?.includes("financial_accounts:create");
-  const canUpdate = user?.permissions?.includes("financial_accounts:update");
-  const canDelete = user?.permissions?.includes("financial_accounts:delete");
-  const canManage =
-    user?.permissions?.includes("financial_accounts:manage") ||
-    canCreate ||
-    canUpdate;
+  usePermissionGuard("financial_accounts:read");
+  const {
+    canRead,
+    canCreate,
+    canUpdate,
+    canDelete,
+    canManage: hasManagePermission,
+  } = usePermissions({
+    canRead: "financial_accounts:read",
+    canCreate: "financial_accounts:create",
+    canUpdate: "financial_accounts:update",
+    canDelete: "financial_accounts:delete",
+    canManage: "financial_accounts:manage",
+  });
+
+  const canManage = hasManagePermission || canCreate || canUpdate;
 
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -110,11 +120,14 @@ export default function FinancialAccountsPage() {
   });
 
   const handleDeleteAccount = (accountId: string, accountName: string) => {
-    setDeleteDialog({ open: true, accountId, accountName });
+    deleteDialog.open({ id: accountId, name: accountName });
   };
 
   const confirmDelete = () => {
-    deleteMutation.mutate(deleteDialog.accountId);
+    if (deleteDialog.data) {
+      deleteMutation.mutate(deleteDialog.data.id);
+      deleteDialog.close();
+    }
   };
 
   // Fetch accounts
@@ -136,19 +149,6 @@ export default function FinancialAccountsPage() {
     },
     enabled: canRead,
   });
-
-  if (!canRead) {
-    return (
-      <div className="p-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-4">Acceso Denegado</h2>
-          <p className="text-muted-foreground">
-            No tienes permisos para ver las cuentas financieras.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -197,56 +197,35 @@ export default function FinancialAccountsPage() {
       <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Balance Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                $
-                {totalBalance.toLocaleString("es-AR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Balance Total"
+            value={`$${totalBalance.toLocaleString("es-AR", {
+              minimumFractionDigits: 2,
+            })}`}
+          />
 
           {summary?.byType &&
             Object.entries(summary.byType).map(
-              ([type, data]: [string, any]) => (
-                <Card key={type}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                      {accountTypeIcons[
-                        type as keyof typeof accountTypeIcons
-                      ] &&
-                        (() => {
-                          const Icon =
-                            accountTypeIcons[
-                              type as keyof typeof accountTypeIcons
-                            ];
-                          return <Icon className="h-4 w-4" />;
-                        })()}
-                      {accountTypeLabels[
+              ([type, data]: [string, any]) => {
+                const Icon = accountTypeIcons[
+                  type as keyof typeof accountTypeIcons
+                ];
+                return (
+                  <StatCard
+                    key={type}
+                    title={
+                      accountTypeLabels[
                         type as keyof typeof accountTypeLabels
-                      ] || type}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      $
-                      {data.total.toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {data.count} cuenta{data.count !== 1 ? "s" : ""}
-                    </p>
-                  </CardContent>
-                </Card>
-              ),
+                      ] || type
+                    }
+                    value={`$${data.total.toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}`}
+                    icon={Icon}
+                    description={`${data.count} cuenta${data.count !== 1 ? "s" : ""}`}
+                  />
+                );
+              },
             )}
         </div>
 
@@ -460,11 +439,11 @@ export default function FinancialAccountsPage() {
         accounts={activeAccounts}
       />
       <ConfirmDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        open={deleteDialog.isOpen}
+        onOpenChange={(open) => !open && deleteDialog.close()}
         onConfirm={confirmDelete}
         title="Eliminar Cuenta"
-        description={`¿Estás seguro de que deseas eliminar la cuenta "${deleteDialog.accountName}"?`}
+        description={`¿Estás seguro de que deseas eliminar la cuenta "${deleteDialog.data?.name}"?`}
         confirmText="Eliminar"
         cancelText="Cancelar"
       />

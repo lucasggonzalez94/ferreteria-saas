@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,12 +18,14 @@ import { toast } from "sonner";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import { ImageIcon } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchBar } from "@/components/ui/search-bar";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -32,17 +34,16 @@ export default function ProductsPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState("name-asc");
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; productId: string }>({ open: false, productId: "" });
+  const deleteDialog = useConfirmDialog<{ id: string; name: string }>();
 
-  const canViewProducts = user?.permissions?.includes("products:read");
-  const canCreateProducts = user?.permissions?.includes("products:create");
-
-  useEffect(() => {
-    if (!canViewProducts) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewProducts, router]);
+  usePermissionGuard("products:read");
+  const {
+    canRead: canViewProducts,
+    canCreate: canCreateProducts,
+  } = usePermissions({
+    canRead: "products:read",
+    canCreate: "products:create",
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: [
@@ -70,6 +71,7 @@ export default function ProductsPage() {
       });
       return response.data || [];
     },
+    enabled: canViewProducts,
   });
 
   const { data: categories } = useQuery({
@@ -78,6 +80,7 @@ export default function ProductsPage() {
       const response = await api.get<any[]>("/categories");
       return response.data || [];
     },
+    enabled: canViewProducts,
   });
 
   const clearFilters = () => {
@@ -130,15 +133,11 @@ export default function ProductsPage() {
         {/* Search */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, SKU o código de barras..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nombre, SKU o código de barras..."
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
               <div>
                 <Label className="text-sm text-muted-foreground">Categoría</Label>
@@ -295,7 +294,7 @@ export default function ProductsPage() {
                           {
                             label: "Eliminar",
                             onClick: () => {
-                              setDeleteDialog({ open: true, productId: product.id });
+                              deleteDialog.open({ id: product.id, name: product.name });
                             },
                             disabled: deleteMutation.isPending,
                             variant: "danger",
@@ -356,11 +355,16 @@ export default function ProductsPage() {
       </div>
 
       <ConfirmDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
-        onConfirm={() => deleteMutation.mutate(deleteDialog.productId)}
+        open={deleteDialog.isOpen}
+        onOpenChange={(open) => !open && deleteDialog.close()}
+        onConfirm={() => {
+          if (deleteDialog.data) {
+            deleteMutation.mutate(deleteDialog.data.id);
+            deleteDialog.close();
+          }
+        }}
         title="Eliminar Producto"
-        description="¿Eliminar este producto? Esta acción no se puede deshacer."
+        description={`¿Eliminar "${deleteDialog.data?.name}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         cancelText="Cancelar"
       />

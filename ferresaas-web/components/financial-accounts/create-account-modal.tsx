@@ -3,18 +3,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import {
   Select,
   SelectContent,
@@ -92,16 +84,17 @@ export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Crear Nueva Cuenta Financiera</DialogTitle>
-          <DialogDescription>
-            Agrega una nueva cuenta para gestionar tus finanzas
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Crear Nueva Cuenta Financiera"
+      description="Agrega una nueva cuenta para gestionar tus finanzas"
+      onSubmit={handleSubmit}
+      isLoading={createMutation.isPending}
+      submitText="Crear Cuenta"
+      maxWidth="2xl"
+    >
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
             <Label htmlFor="type">Tipo de Cuenta *</Label>
             <Select value={type} onValueChange={setType}>
@@ -221,22 +214,7 @@ export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalPro
               </div>
             </div>
           )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={createMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creando..." : "Crear Cuenta"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }

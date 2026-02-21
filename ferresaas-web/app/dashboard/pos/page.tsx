@@ -14,6 +14,9 @@ import type { Product, Sale, Customer } from "@/types";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
+import { usePermissionGuard } from "@/lib/hooks/usePermissionGuard";
+import { ProductSelector } from "@/components/shared/product-selector";
+import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -40,19 +43,9 @@ export default function POSPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const canAccessPOS = user?.permissions?.includes("sales:create");
-
-  useEffect(() => {
-    if (!canAccessPOS) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canAccessPOS, router]);
-  const [search, setSearch] = useState("");
+  usePermissionGuard("sales:create");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'CASH_ARS' | 'CASH_USD' | 'CARD' | 'TRANSFER' | 'QR' | 'ACCOUNT'>('CASH_ARS');
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -70,23 +63,9 @@ export default function POSPage() {
   const [discountApprovalModalOpen, setDiscountApprovalModalOpen] = useState(false);
   const [approverPassword, setApproverPassword] = useState("");
   const [discountApprovalLoading, setDiscountApprovalLoading] = useState(false);
-  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
-  // Obtener permisos del usuario
-  useEffect(() => {
-    const getPermissions = async () => {
-      try {
-        const response = await api.get<any>("/auth/me");
-        setUserPermissions(response.data?.user?.permissions || []);
-      } catch (error) {
-        console.error("Error fetching permissions:", error);
-      }
-    };
-    getPermissions();
-  }, []);
-
-  const canApproveDiscounts = userPermissions.includes('sales:approve_discount');
+  const canApproveDiscounts = user?.permissions?.includes('sales:approve_discount') ?? false;
 
   // Validar que la caja esté abierta
   const { data: cashRegisterStatus, isLoading: isCashStatusLoading } = useQuery({
@@ -105,31 +84,6 @@ export default function POSPage() {
     }
   }, [cashRegisterStatus, isCashStatusLoading, router]);
 
-  // Buscar productos
-  const { data: products } = useQuery({
-    queryKey: ["products", search],
-    queryFn: async () => {
-      if (!search || search.length < 2) return [];
-      const response = await api.get<Product[]>(
-        `/products?q=${search}&active=true`,
-      );
-      return response.data || [];
-    },
-    enabled: search.length >= 2,
-  });
-
-  // Buscar clientes
-  const { data: customers } = useQuery({
-    queryKey: ["customers", customerSearch],
-    queryFn: async () => {
-      if (!customerSearch || customerSearch.length < 1) return [];
-      const response = await api.get<Customer[]>(
-        `/customers?q=${customerSearch}`,
-      );
-      return response.data || [];
-    },
-    enabled: customerSearch.length >= 1,
-  });
 
   // Crear venta
   const createSaleMutation = useMutation({
@@ -164,8 +118,6 @@ export default function POSPage() {
       setFinancialCost("");
       setPaymentNotes("");
       setSelectedCustomer(null);
-      setCustomerSearch("");
-      setSearch("");
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
@@ -216,8 +168,6 @@ export default function POSPage() {
         },
       ]);
     }
-
-    setSearch("");
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
@@ -454,49 +404,12 @@ export default function POSPage() {
                 <CardTitle>Buscar Producto</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nombre, SKU o código..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Search Results */}
-                {products && products.length > 0 && (
-                  <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                    {products.map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => addToCart(product)}
-                        className="p-3 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex gap-3 items-center">
-                          {product.imageUrl && (
-                            <img
-                              src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
-                              alt={product.name}
-                              className="w-16 h-16 object-cover rounded-md border border-gray-200 flex-shrink-0"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              SKU: {product.internalSku} | Stock:{" "}
-                              {product.stockQuantity} {product.unit}
-                            </p>
-                            <p className="font-semibold mt-1">
-                              ${Number(product.price).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <ProductSelector
+                  onSelect={addToCart}
+                  showStock={true}
+                  showImage={true}
+                  filterActive={true}
+                />
               </CardContent>
             </Card>
 
@@ -647,53 +560,32 @@ export default function POSPage() {
                 <CardTitle>Cliente</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="relative">
-                  <Input
-                    placeholder="Buscar cliente..."
-                    value={selectedCustomer ? (selectedCustomer.type === 'COMPANY' ? selectedCustomer.companyName : `${selectedCustomer.firstName} ${selectedCustomer.lastName}`) : customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value);
-                      setShowCustomerDropdown(true);
-                    }}
-                    onFocus={() => setShowCustomerDropdown(true)}
-                    className="text-sm"
-                  />
-
-                  {selectedCustomer && (
-                    <button
-                      onClick={() => {
-                        setSelectedCustomer(null);
-                        setCustomerSearch("");
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                    </button>
-                  )}
-
-                  {showCustomerDropdown && customerSearch && customers && customers.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-                      {customers.map((customer) => (
-                        <button
-                          key={customer.id}
-                          onClick={() => {
-                            setSelectedCustomer(customer);
-                            setCustomerSearch("");
-                            setShowCustomerDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b last:border-b-0 text-sm"
-                        >
-                          <p className="font-medium">
-                            {customer.type === 'COMPANY' ? customer.companyName : `${customer.firstName} ${customer.lastName}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {customer.email || customer.phone || 'Sin contacto'}
-                          </p>
-                        </button>
-                      ))}
+                <EntityAutocomplete<Customer>
+                  value={selectedCustomer}
+                  onChange={setSelectedCustomer}
+                  fetchFn={async (search) => {
+                    const response = await api.get<Customer[]>(`/customers?q=${search}`);
+                    return response.data || [];
+                  }}
+                  displayFn={(customer) =>
+                    customer.type === 'COMPANY'
+                      ? customer.companyName || ''
+                      : `${customer.firstName} ${customer.lastName}`
+                  }
+                  placeholder="Buscar cliente..."
+                  renderItem={(customer) => (
+                    <div>
+                      <p className="font-medium">
+                        {customer.type === 'COMPANY'
+                          ? customer.companyName
+                          : `${customer.firstName} ${customer.lastName}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {customer.email || customer.phone || 'Sin contacto'}
+                      </p>
                     </div>
                   )}
-                </div>
+                />
 
                 {selectedCustomer && (
                   <div className="space-y-2">

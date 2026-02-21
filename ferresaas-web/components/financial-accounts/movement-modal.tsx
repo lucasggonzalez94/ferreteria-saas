@@ -3,18 +3,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import {
   Select,
   SelectContent,
@@ -111,16 +103,17 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Registrar Movimiento Manual</DialogTitle>
-          <DialogDescription>
-            Registra un ingreso o egreso manual en una cuenta
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Registrar Movimiento Manual"
+      description="Registra un ingreso o egreso manual en una cuenta"
+      onSubmit={handleSubmit}
+      isLoading={movementMutation.isPending}
+      submitText="Registrar Movimiento"
+      maxWidth="lg"
+    >
+      <div className="space-y-4">
           <div>
             <Label htmlFor="account">Cuenta *</Label>
             <Select value={accountId || undefined} onValueChange={setAccountId}>
@@ -235,22 +228,7 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
               </div>
             </div>
           )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={movementMutation.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={movementMutation.isPending}>
-              {movementMutation.isPending ? "Registrando..." : "Registrar Movimiento"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </FormModal>
   );
 }

@@ -14,13 +14,14 @@ import {
   DollarSign,
   Plus,
   Eye,
-  Search,
-  Calendar,
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";
+import { StatCard } from "@/components/ui/stat-card";
+import { Pagination } from "@/components/ui/pagination";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 
 interface Purchase {
   id: string;
@@ -54,10 +55,15 @@ interface PurchasesResponse {
 export default function PurchasesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
 
-  const canViewPurchases = user?.permissions?.includes("purchases:read");
-  const canCreatePurchase = user?.permissions?.includes("purchases:create");
+  usePermissionGuard("purchases:read");
+  const {
+    canRead: canViewPurchases,
+    canCreate: canCreatePurchase,
+  } = usePermissions({
+    canRead: "purchases:read",
+    canCreate: "purchases:create",
+  });
 
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState("");
@@ -71,13 +77,6 @@ export default function PurchasesPage() {
       setSelectedSupplierId(supplierId);
     }
   }, [supplierId]);
-
-  useEffect(() => {
-    if (!canViewPurchases) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewPurchases, router]);
 
   const { data: purchasesData, isLoading } = useQuery<PurchasesResponse | undefined>({
     queryKey: ["purchases", page, startDate, endDate, supplierId],
@@ -181,59 +180,27 @@ export default function PurchasesPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Compras
-              </CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? "..." : meta.total || 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Proveedores
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? "..." : uniqueSuppliers}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monto Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${isLoading ? "0,00" : totalAmount.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pendiente Pagar
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-amber-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                ${isLoading ? "0,00" : (summary.totalPending || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Total Compras"
+            value={isLoading ? "..." : meta.total || 0}
+            icon={ShoppingCart}
+          />
+          <StatCard
+            title="Proveedores"
+            value={isLoading ? "..." : uniqueSuppliers}
+            icon={Package}
+          />
+          <StatCard
+            title="Monto Total"
+            value={isLoading ? "0,00" : `$${totalAmount.toFixed(2)}`}
+            icon={DollarSign}
+          />
+          <StatCard
+            title="Pendiente Pagar"
+            value={isLoading ? "0,00" : `$${(summary.totalPending || 0).toFixed(2)}`}
+            icon={DollarSign}
+            valueClassName="text-amber-600"
+          />
         </div>
 
         {/* Filters */}
@@ -369,27 +336,13 @@ export default function PurchasesPage() {
             </div>
 
             {/* Pagination */}
-            {meta.totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Anterior
-                </Button>
-                <span className="flex items-center px-4">
-                  Página {page} de {meta.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={!meta.hasMore}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={meta.totalPages}
+              hasMore={meta.hasMore}
+              onPageChange={setPage}
+              className="mt-6"
+            />
           </>
         ) : (
           <Card>
