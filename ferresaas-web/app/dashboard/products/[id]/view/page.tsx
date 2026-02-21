@@ -248,14 +248,16 @@ export default function ProductDetailViewPage() {
   // Preparar datos para gráfico de precios
   const priceChartData = useMemo(
     () =>
-      (priceHistory || []).map((entry) => ({
-        date: format(new Date(entry.createdAt), "dd/MM/yy"),
-        fullDate: format(new Date(entry.createdAt), "dd/MM/yyyy HH:mm", {
-          locale: es,
-        }),
-        precio: Number(entry.newPrice),
-        costo: Number(entry.newCost),
-      })),
+      (priceHistory || [])
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .map((entry) => ({
+          date: format(new Date(entry.createdAt), "dd/MM/yy"),
+          fullDate: format(new Date(entry.createdAt), "dd/MM/yyyy HH:mm", {
+            locale: es,
+          }),
+          precio: Number(entry.newPrice),
+          costo: Number(entry.newCost),
+        })),
     [priceHistory],
   );
 
@@ -298,10 +300,16 @@ export default function ProductDetailViewPage() {
       ? (((product.price - product.cost) / product.cost) * 100).toFixed(1)
       : "N/A";
 
+  const stockQuantityNumber = Number(product.stockQuantity);
+  const minStockNumber =
+    product.minStock !== undefined && product.minStock !== null
+      ? Number(product.minStock)
+      : null;
+
   const isLowStock =
-    product.minStock !== undefined &&
-    product.minStock !== null &&
-    product.stockQuantity <= product.minStock;
+    minStockNumber !== null && !Number.isNaN(stockQuantityNumber)
+      ? stockQuantityNumber <= minStockNumber
+      : false;
 
   return (
     <div className="p-8">
