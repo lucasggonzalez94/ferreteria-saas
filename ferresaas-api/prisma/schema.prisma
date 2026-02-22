@@ -55,6 +55,7 @@ model Business {
   auditLogs           AuditLog[]
   idempotencyKeys     IdempotencyKey[]
   exchangeRateSnapshots ExchangeRateSnapshot[]
+  exchangeRateConfig  ExchangeRateConfig?
   refreshTokenSessions RefreshTokenSession[]
   discountApprovals   DiscountApproval[]
   priceHistories      PriceHistory[]
@@ -464,6 +465,10 @@ model Purchase {
   amountPaid  Decimal  @db.Decimal(12, 2) @default(0)
   payableId   String?
   
+  // Soporte multi-moneda
+  currency       String  @default("ARS") // ARS o USD
+  exchangeRateId String? // Si fue en USD
+  
   notes       String?
   
   createdAt DateTime @default(now())
@@ -476,6 +481,7 @@ model Purchase {
   attachments PurchaseAttachment[]
   payables SupplierPayable[]
   priceSuggestions PriceSuggestion[]
+  exchangeRate ExchangeRateSnapshot? @relation(fields: [exchangeRateId], references: [id])
   
   @@index([businessId])
   @@index([supplierId])
@@ -559,6 +565,11 @@ model SupplierPayment {
   method     String  // CASH, TRANSFER, CHECK, CARD
   reference  String? // Número de cheque, referencia de transferencia
   
+  // Soporte multi-moneda
+  currency       String  @default("ARS")
+  amountUSD      Decimal? @db.Decimal(12, 2)
+  exchangeRateId String?
+  
   paidAt     DateTime @default(now())
   recordedBy String  // userId
   
@@ -569,6 +580,7 @@ model SupplierPayment {
   // Relaciones
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   payable  SupplierPayable @relation(fields: [payableId], references: [id], onDelete: Cascade)
+  exchangeRate ExchangeRateSnapshot? @relation(fields: [exchangeRateId], references: [id])
   
   @@index([businessId])
   @@index([payableId])
@@ -732,6 +744,16 @@ model CashRegisterSession {
   expectedAmount Decimal? @db.Decimal(12, 2)
   difference    Decimal? @db.Decimal(12, 2)
   
+  // Soporte USD en caja
+  openingAmountUSD  Decimal? @db.Decimal(12, 2)
+  closingAmountUSD  Decimal? @db.Decimal(12, 2)
+  expectedAmountUSD Decimal? @db.Decimal(12, 2)
+  differenceUSD     Decimal? @db.Decimal(12, 2)
+  
+  // Snapshots de cotización
+  openingExchangeRateId String?
+  closingExchangeRateId String?
+  
   openedAt  DateTime @default(now())
   closedAt  DateTime?
   
@@ -742,6 +764,8 @@ model CashRegisterSession {
   user     User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   sales    Sale[]
   movements CashMovement[]
+  openingExchangeRate ExchangeRateSnapshot? @relation("OpeningRate", fields: [openingExchangeRateId], references: [id])
+  closingExchangeRate ExchangeRateSnapshot? @relation("ClosingRate", fields: [closingExchangeRateId], references: [id])
   
   @@index([businessId])
   @@index([userId])
@@ -887,17 +911,63 @@ model ExchangeRateSnapshot {
   toCurrency   String @default("ARS")
   rate         Decimal @db.Decimal(12, 4)
   
-  source    String  // dolarapi, manual, etc.
+  // Nuevos campos
+  dollarType   String  @default("oficial") // oficial, blue, tarjeta, mep, ccl, cripto
+  buyRate      Decimal? @db.Decimal(12, 4) // Precio de compra
+  sellRate     Decimal? @db.Decimal(12, 4) // Precio de venta
+  
+  source    String  // argentinadatos, manual, etc.
   
   createdAt DateTime @default(now())
   
   // Relaciones
   business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   payments Payment[]
+  purchases Purchase[]
+  supplierPayments SupplierPayment[]
+  cashRegisterOpenings CashRegisterSession[] @relation("OpeningRate")
+  cashRegisterClosings CashRegisterSession[] @relation("ClosingRate")
   
   @@index([businessId])
   @@index([createdAt])
   @@map("exchange_rate_snapshots")
+}
+
+// ============================================================================
+// EXCHANGE RATE CONFIG
+// ============================================================================
+
+model ExchangeRateConfig {
+  id          String   @id @default(cuid())
+  businessId  String   @unique
+  
+  // Habilitar/deshabilitar USD globalmente
+  usdEnabled  Boolean  @default(false)
+  
+  // Tipo de dólar: oficial, blue, tarjeta, mep, ccl, cripto
+  dollarType  String   @default("oficial")
+  
+  // Margen adicional sobre cotización (%)
+  marginPercent Decimal @db.Decimal(5, 2) @default(0)
+  
+  // Actualización automática
+  autoUpdate  Boolean  @default(true)
+  updateIntervalMinutes Int @default(30)
+  
+  // Cotización manual (fallback)
+  manualRate  Decimal? @db.Decimal(12, 4)
+  useManualRate Boolean @default(false)
+  
+  // Última actualización
+  lastUpdated DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@map("exchange_rate_configs")
 }
 
 // ============================================================================

@@ -7,6 +7,7 @@ import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { AuditService } from '../services/audit.service';
 import { FinancialMovementService } from '../services/financial-movement.service';
+import { CashRegisterService } from '../services/cash-register.service';
 import {
   openCashRegisterSchema,
   cashMovementSchema,
@@ -21,7 +22,7 @@ router.use(authenticate, multiTenant);
 
 /**
  * GET /cash-register/suggested-opening
- * Obtener monto sugerido para apertura (balance actual de cuenta CASH)
+ * Obtener monto sugerido para apertura (balance actual de cuentas CASH en ARS y USD)
  */
 router.get(
   '/suggested-opening',
@@ -30,22 +31,38 @@ router.get(
     try {
       const authReq = req as AuthRequest;
 
-      // Obtener cuenta de caja por defecto (tipo CASH)
-      const cashAccount = await prisma.financialAccount.findFirst({
+      // Obtener cuenta de caja ARS por defecto
+      const cashAccountARS = await prisma.financialAccount.findFirst({
         where: {
           businessId: authReq.businessId!,
           type: 'CASH',
+          currency: 'ARS',
           isDefault: true,
           isActive: true,
         },
       });
 
-      const suggestedAmount = cashAccount?.balance.toNumber() || 0;
+      // Obtener cuenta de caja USD por defecto
+      const cashAccountUSD = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          currency: 'USD',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      const suggestedAmountARS = cashAccountARS?.balance.toNumber() || 0;
+      const suggestedAmountUSD = cashAccountUSD?.balance.toNumber() || 0;
 
       sendSuccess(res, {
-        suggestedAmount,
-        accountId: cashAccount?.id || null,
-        accountName: cashAccount?.name || null,
+        suggestedAmount: suggestedAmountARS,
+        suggestedAmountUSD,
+        accountIdARS: cashAccountARS?.id || null,
+        accountNameARS: cashAccountARS?.name || null,
+        accountIdUSD: cashAccountUSD?.id || null,
+        accountNameUSD: cashAccountUSD?.name || null,
       });
     } catch (error) {
       next(error);
@@ -78,19 +95,37 @@ router.post(
         throw new AppError(400, 'CASH_REGISTER_ALREADY_OPEN', 'Cash register already open');
       }
 
-      // Obtener cuenta de caja por defecto (tipo CASH)
-      const cashAccount = await prisma.financialAccount.findFirst({
+      // Guardar snapshot de tipo de cambio al abrir
+      const exchangeRateSnapshotId = await CashRegisterService.saveOpeningExchangeRate(authReq.businessId!);
+
+      // Obtener cuentas de caja por defecto (ARS y USD)
+      const cashAccountARS = await prisma.financialAccount.findFirst({
         where: {
           businessId: authReq.businessId!,
           type: 'CASH',
+          currency: 'ARS',
           isDefault: true,
           isActive: true,
         },
       });
 
-      // Calcular diferencia entre monto de apertura y balance actual de cuenta
-      const currentBalance = cashAccount?.balance.toNumber() || 0;
-      const difference = data.openingAmount - currentBalance;
+      const cashAccountUSD = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          currency: 'USD',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      // Calcular diferencias
+      const currentBalanceARS = cashAccountARS?.balance.toNumber() || 0;
+      const differenceARS = data.openingAmount - currentBalanceARS;
+
+      const openingAmountUSD = data.openingAmountUSD || 0;
+      const currentBalanceUSD = cashAccountUSD?.balance.toNumber() || 0;
+      const differenceUSD = openingAmountUSD - currentBalanceUSD;
 
       const session = await prisma.cashRegisterSession.create({
         data: {
@@ -98,28 +133,53 @@ router.post(
           userId: authReq.user!.id,
           status: 'OPEN',
           openingAmount: data.openingAmount,
+          openingAmountUSD: openingAmountUSD > 0 ? openingAmountUSD : null,
+          openingExchangeRateId: exchangeRateSnapshotId,
         },
       });
 
-      // Si hay diferencia con el balance de la cuenta, registrar movimiento de ajuste
-      if (cashAccount && Math.abs(difference) > 0.01) {
-        const adjustmentType = difference > 0 ? 'INCOME' : 'EXPENSE';
-        const adjustmentAmount = Math.abs(difference);
-        const adjustmentDescription = difference > 0 
-          ? `Ingreso detectado al abrir caja: $${adjustmentAmount.toFixed(2)}`
-          : `Retiro detectado al abrir caja: $${adjustmentAmount.toFixed(2)}`;
+      // Ajustes para cuenta ARS
+      if (cashAccountARS && Math.abs(differenceARS) > 0.01) {
+        const adjustmentType = differenceARS > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(differenceARS);
+        const adjustmentDescription = differenceARS > 0 
+          ? `Ingreso detectado al abrir caja: $${adjustmentAmount.toFixed(2)} ARS`
+          : `Retiro detectado al abrir caja: $${adjustmentAmount.toFixed(2)} ARS`;
 
         await movementService.createMovement(
           authReq.businessId!,
           authReq.user!.id,
           {
-            accountId: cashAccount.id,
+            accountId: cashAccountARS.id,
             type: adjustmentType,
             amount: adjustmentAmount,
             sourceType: 'CASH_REGISTER_OPEN_ADJUSTMENT',
             sourceId: session.id,
             description: adjustmentDescription,
-            notes: `Balance anterior: $${currentBalance.toFixed(2)}, Monto apertura: $${data.openingAmount.toFixed(2)}`,
+            notes: `Balance anterior: $${currentBalanceARS.toFixed(2)}, Monto apertura: $${data.openingAmount.toFixed(2)}`,
+          }
+        );
+      }
+
+      // Ajustes para cuenta USD
+      if (cashAccountUSD && openingAmountUSD > 0 && Math.abs(differenceUSD) > 0.01) {
+        const adjustmentType = differenceUSD > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(differenceUSD);
+        const adjustmentDescription = differenceUSD > 0 
+          ? `Ingreso detectado al abrir caja: $${adjustmentAmount.toFixed(2)} USD`
+          : `Retiro detectado al abrir caja: $${adjustmentAmount.toFixed(2)} USD`;
+
+        await movementService.createMovement(
+          authReq.businessId!,
+          authReq.user!.id,
+          {
+            accountId: cashAccountUSD.id,
+            type: adjustmentType,
+            amount: adjustmentAmount,
+            sourceType: 'CASH_REGISTER_OPEN_ADJUSTMENT',
+            sourceId: session.id,
+            description: adjustmentDescription,
+            notes: `Balance anterior: $${currentBalanceUSD.toFixed(2)}, Monto apertura: $${openingAmountUSD.toFixed(2)}`,
           }
         );
       }
@@ -129,15 +189,21 @@ router.post(
         authReq.user!.id,
         'cash_register',
         session.id,
-        { openingAmount: data.openingAmount }
+        { 
+          openingAmount: data.openingAmount,
+          openingAmountUSD,
+          exchangeRateSnapshotId,
+        }
       );
 
-      // Incluir información de diferencia con balance de cuenta
       const response = {
         ...session,
-        currentAccountBalance: currentBalance,
-        differenceWithAccount: difference,
-        hasDifference: Math.abs(difference) > 0.01,
+        currentAccountBalanceARS: currentBalanceARS,
+        currentAccountBalanceUSD: currentBalanceUSD,
+        differenceWithAccountARS: differenceARS,
+        differenceWithAccountUSD: differenceUSD,
+        hasDifferenceARS: Math.abs(differenceARS) > 0.01,
+        hasDifferenceUSD: Math.abs(differenceUSD) > 0.01,
       };
 
       sendSuccess(res, response, 201);
@@ -252,7 +318,13 @@ router.post(
           movements: true,
           sales: {
             where: { status: 'CONFIRMED' },
-            include: { payments: true },
+            include: { 
+              payments: {
+                include: {
+                  exchangeRate: true,
+                },
+              },
+            },
           },
         },
       });
@@ -261,28 +333,38 @@ router.post(
         throw new AppError(400, 'NO_OPEN_CASH_REGISTER', 'No open cash register found');
       }
 
-      // Calcular monto esperado
-      let expectedAmount = session.openingAmount.toNumber();
+      // Guardar snapshot de tipo de cambio al cerrar
+      const closingExchangeRateId = await CashRegisterService.saveClosingExchangeRate(authReq.businessId!);
+
+      // Calcular monto esperado en ARS
+      let expectedAmountARS = session.openingAmount.toNumber();
+
+      // Calcular monto esperado en USD
+      let expectedAmountUSD = session.openingAmountUSD?.toNumber() || 0;
 
       // Sumar ventas en efectivo
       session.sales.forEach((sale) => {
         sale.payments.forEach((payment) => {
           if (payment.method === 'CASH_ARS') {
-            expectedAmount += payment.amount.toNumber();
+            expectedAmountARS += payment.amount.toNumber();
+          } else if (payment.method === 'CASH_USD' && payment.amountUSD) {
+            expectedAmountUSD += payment.amountUSD.toNumber();
           }
         });
       });
 
-      // Sumar/restar movimientos
+      // Sumar/restar movimientos (asumimos ARS por ahora)
       session.movements.forEach((movement) => {
         if (movement.type === 'INCOME') {
-          expectedAmount += movement.amount.toNumber();
+          expectedAmountARS += movement.amount.toNumber();
         } else {
-          expectedAmount -= movement.amount.toNumber();
+          expectedAmountARS -= movement.amount.toNumber();
         }
       });
 
-      const difference = data.closingAmount - expectedAmount;
+      const differenceARS = data.closingAmount - expectedAmountARS;
+      const closingAmountUSD = data.closingAmountUSD || 0;
+      const differenceUSD = closingAmountUSD - expectedAmountUSD;
 
       // Cerrar sesión
       const closedSession = await prisma.cashRegisterSession.update({
@@ -290,36 +372,74 @@ router.post(
         data: {
           status: 'CLOSED',
           closingAmount: data.closingAmount,
-          expectedAmount,
-          difference,
+          closingAmountUSD: closingAmountUSD > 0 ? closingAmountUSD : null,
+          expectedAmount: expectedAmountARS,
+          expectedAmountUSD: expectedAmountUSD > 0 ? expectedAmountUSD : null,
+          difference: differenceARS,
+          differenceUSD: Math.abs(differenceUSD) > 0.01 ? differenceUSD : null,
           closedAt: new Date(),
+          closingExchangeRateId,
           notes: data.notes,
         },
       });
 
-      // Obtener cuenta de caja por defecto (tipo CASH)
-      const cashAccount = await prisma.financialAccount.findFirst({
+      // Obtener cuentas de caja por defecto (ARS y USD)
+      const cashAccountARS = await prisma.financialAccount.findFirst({
         where: {
           businessId: authReq.businessId!,
           type: 'CASH',
+          currency: 'ARS',
           isDefault: true,
           isActive: true,
         },
       });
 
-      // Si hay diferencia, registrar movimiento de ajuste en cuentas financieras
-      if (cashAccount && Math.abs(difference) > 0.01) {
-        const adjustmentType = difference > 0 ? 'INCOME' : 'EXPENSE';
-        const adjustmentAmount = Math.abs(difference);
-        const adjustmentDescription = difference > 0 
-          ? `Sobrante en cierre de caja: $${adjustmentAmount.toFixed(2)}`
-          : `Faltante en cierre de caja: $${adjustmentAmount.toFixed(2)}`;
+      const cashAccountUSD = await prisma.financialAccount.findFirst({
+        where: {
+          businessId: authReq.businessId!,
+          type: 'CASH',
+          currency: 'USD',
+          isDefault: true,
+          isActive: true,
+        },
+      });
+
+      // Ajuste para diferencia en ARS
+      if (cashAccountARS && Math.abs(differenceARS) > 0.01) {
+        const adjustmentType = differenceARS > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(differenceARS);
+        const adjustmentDescription = differenceARS > 0 
+          ? `Sobrante en cierre de caja: $${adjustmentAmount.toFixed(2)} ARS`
+          : `Faltante en cierre de caja: $${adjustmentAmount.toFixed(2)} ARS`;
 
         await movementService.createMovement(
           authReq.businessId!,
           authReq.user!.id,
           {
-            accountId: cashAccount.id,
+            accountId: cashAccountARS.id,
+            type: adjustmentType,
+            amount: adjustmentAmount,
+            sourceType: 'CASH_REGISTER_DIFFERENCE',
+            sourceId: session.id,
+            description: adjustmentDescription,
+            notes: data.notes,
+          }
+        );
+      }
+
+      // Ajuste para diferencia en USD
+      if (cashAccountUSD && Math.abs(differenceUSD) > 0.01) {
+        const adjustmentType = differenceUSD > 0 ? 'INCOME' : 'EXPENSE';
+        const adjustmentAmount = Math.abs(differenceUSD);
+        const adjustmentDescription = differenceUSD > 0 
+          ? `Sobrante en cierre de caja: $${adjustmentAmount.toFixed(2)} USD`
+          : `Faltante en cierre de caja: $${adjustmentAmount.toFixed(2)} USD`;
+
+        await movementService.createMovement(
+          authReq.businessId!,
+          authReq.user!.id,
+          {
+            accountId: cashAccountUSD.id,
             type: adjustmentType,
             amount: adjustmentAmount,
             sourceType: 'CASH_REGISTER_DIFFERENCE',
@@ -338,8 +458,11 @@ router.post(
         entityId: session.id,
         after: {
           closingAmount: data.closingAmount,
-          expectedAmount,
-          difference,
+          closingAmountUSD,
+          expectedAmountARS,
+          expectedAmountUSD,
+          differenceARS,
+          differenceUSD,
         },
       });
 

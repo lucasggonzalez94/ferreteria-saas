@@ -2,13 +2,17 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { FinancialAccountService } from './financial-account.service';
+import { ExchangeRateService } from './exchange-rate.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { logger } from '../config/logger';
 
 export class FinancialMovementService {
   private accountService: FinancialAccountService;
+  private exchangeRateService: ExchangeRateService;
 
   constructor() {
     this.accountService = new FinancialAccountService();
+    this.exchangeRateService = new ExchangeRateService();
   }
 
   /**
@@ -70,7 +74,7 @@ export class FinancialMovementService {
   }
 
   /**
-   * Crear transferencia entre cuentas
+   * Crear transferencia entre cuentas (con soporte para conversión de moneda)
    */
   async createTransfer(
     businessId: string,
@@ -94,6 +98,51 @@ export class FinancialMovementService {
     // Validar fondos en cuenta origen
     await this.accountService.validateFunds(data.fromAccountId, data.amount);
 
+    // Determinar si necesitamos conversión de moneda
+    const needsConversion = fromAccount.currency !== toAccount.currency;
+    let convertedAmount = data.amount;
+    let exchangeRateSnapshot: any = null;
+
+    if (needsConversion) {
+      logger.info({
+        fromCurrency: fromAccount.currency,
+        toCurrency: toAccount.currency,
+        amount: data.amount,
+      }, 'Transfer requires currency conversion');
+
+      // Obtener tipo de cambio y convertir
+      const conversion = await this.accountService.convertAmount(
+        businessId,
+        data.amount,
+        fromAccount.currency,
+        toAccount.currency
+      );
+
+      convertedAmount = conversion.amount;
+
+      // Guardar snapshot del tipo de cambio usado
+      const rate = await this.exchangeRateService.getRate(businessId);
+      exchangeRateSnapshot = await prisma.exchangeRateSnapshot.create({
+        data: {
+          businessId,
+          fromCurrency: fromAccount.currency,
+          toCurrency: toAccount.currency,
+          rate: conversion.rate,
+          buyRate: rate.buyRate,
+          sellRate: rate.sellRate,
+          dollarType: rate.dollarType,
+          source: conversion.source,
+        },
+      });
+
+      logger.info({
+        originalAmount: data.amount,
+        convertedAmount,
+        rate: conversion.rate,
+        snapshotId: exchangeRateSnapshot.id,
+      }, 'Currency conversion completed for transfer');
+    }
+
     // Crear movimientos en transacción
     const movements = await prisma.$transaction(async (tx) => {
       // Actualizar balances
@@ -104,11 +153,16 @@ export class FinancialMovementService {
       );
       const toBalance = await this.accountService.updateBalance(
         data.toAccountId,
-        data.amount,
+        convertedAmount,
         'add'
       );
 
-      // Crear movimiento de salida (EXPENSE en cuenta origen)
+      const baseDescription = data.description || '';
+      const conversionNote = needsConversion
+        ? ` (${data.amount.toFixed(2)} ${fromAccount.currency} → ${convertedAmount.toFixed(2)} ${toAccount.currency})`
+        : '';
+
+      // Crear movimiento de salida en cuenta origen
       const expenseMovement = await tx.financialMovement.create({
         data: {
           businessId,
@@ -117,23 +171,23 @@ export class FinancialMovementService {
           amount: new Decimal(data.amount),
           transferFromAccountId: data.fromAccountId,
           transferToAccountId: data.toAccountId,
-          description: data.description || `Transferencia a ${toAccount.name}`,
+          description: baseDescription || `Transferencia a ${toAccount.name}${conversionNote}`,
           notes: data.notes,
           balanceAfter: fromBalance,
           createdBy: userId,
         },
       });
 
-      // Crear movimiento de entrada (INCOME en cuenta destino)
+      // Crear movimiento de entrada en cuenta destino
       const incomeMovement = await tx.financialMovement.create({
         data: {
           businessId,
           accountId: data.toAccountId,
           type: 'TRANSFER',
-          amount: new Decimal(data.amount),
+          amount: new Decimal(convertedAmount),
           transferFromAccountId: data.fromAccountId,
           transferToAccountId: data.toAccountId,
-          description: data.description || `Transferencia desde ${fromAccount.name}`,
+          description: baseDescription || `Transferencia desde ${fromAccount.name}${conversionNote}`,
           notes: data.notes,
           balanceAfter: toBalance,
           createdBy: userId,

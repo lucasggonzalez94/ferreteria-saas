@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Abrir caja
 export const openCashRegisterSchema = z.object({
   openingAmount: z.number().min(0),
+  openingAmountUSD: z.number().min(0).optional(),
 });
 
 export type OpenCashRegisterInput = z.infer<typeof openCashRegisterSchema>;
@@ -20,6 +21,7 @@ export type CashMovementInput = z.infer<typeof cashMovementSchema>;
 // Cerrar caja
 export const closeCashRegisterSchema = z.object({
   closingAmount: z.number().min(0),
+  closingAmountUSD: z.number().min(0).optional(),
   notes: z.string().max(1000).optional(),
 });
 

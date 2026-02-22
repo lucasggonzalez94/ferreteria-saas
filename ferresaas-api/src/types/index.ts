@@ -76,9 +76,15 @@ export interface ExchangeRate {
   fromCurrency: string;
   toCurrency: string;
   rate: number;
+  buyRate?: number;
+  sellRate?: number;
   source: string;
+  dollarType: string;
   timestamp: Date;
 }
+
+// Re-exportar tipos de exchange-rate
+export * from './exchange-rate.types';
 
 // Facturación
 export interface CreateVoucherInput {

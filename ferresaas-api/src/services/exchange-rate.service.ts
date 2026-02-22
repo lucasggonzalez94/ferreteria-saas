@@ -2,61 +2,235 @@ import { prisma } from '../config/database';
 import { redisClient } from '../config/redis';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
-import { ExchangeRate } from '../types';
+import { AppError } from '../utils/response';
+import { ExchangeRate, ArgentinaDatosQuote, ConversionResult } from '../types/exchange-rate.types';
 
 export class ExchangeRateService {
-  private cacheKey = 'exchange_rate:usd_ars';
+  private apiUrl = 'https://argentinadatos.com/v1/cotizaciones/dolares';
+  
+  private getCacheKey(businessId: string): string {
+    return `exchange_rate:${businessId}:usd_ars`;
+  }
 
   /**
-   * Obtener tasa de cambio USD→ARS
+   * Obtener configuración de tipo de cambio del negocio
+   */
+  async getConfig(businessId: string) {
+    let config = await prisma.exchangeRateConfig.findUnique({
+      where: { businessId },
+    });
+
+    // Si no existe, crear configuración por defecto
+    if (!config) {
+      config = await prisma.exchangeRateConfig.create({
+        data: {
+          businessId,
+          usdEnabled: false,
+          dollarType: 'oficial',
+          marginPercent: 0,
+          autoUpdate: true,
+          updateIntervalMinutes: 30,
+          useManualRate: false,
+        },
+      });
+    }
+
+    return config;
+  }
+
+  /**
+   * Actualizar configuración
+   */
+  async updateConfig(
+    businessId: string,
+    data: {
+      usdEnabled?: boolean;
+      dollarType?: string;
+      marginPercent?: number;
+      autoUpdate?: boolean;
+      updateIntervalMinutes?: number;
+      manualRate?: number;
+      useManualRate?: boolean;
+    }
+  ) {
+    const config = await prisma.exchangeRateConfig.upsert({
+      where: { businessId },
+      create: {
+        businessId,
+        usdEnabled: data.usdEnabled ?? false,
+        dollarType: data.dollarType ?? 'oficial',
+        marginPercent: data.marginPercent ?? 0,
+        autoUpdate: data.autoUpdate ?? true,
+        updateIntervalMinutes: data.updateIntervalMinutes ?? 30,
+        manualRate: data.manualRate,
+        useManualRate: data.useManualRate ?? false,
+        lastUpdated: new Date(),
+      },
+      update: {
+        ...data,
+        lastUpdated: new Date(),
+      },
+    });
+
+    // Limpiar cache al actualizar configuración
+    await this.clearCache(businessId);
+
+    return config;
+  }
+
+  /**
+   * Obtener todas las cotizaciones disponibles de ArgentinaDatos
+   */
+  async getAllRates(): Promise<ArgentinaDatosQuote[]> {
+    try {
+      const response = await fetch(this.apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`ArgentinaDatos API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data as ArgentinaDatosQuote[];
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch rates from ArgentinaDatos');
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener cotización específica por tipo
+   */
+  async getRateByType(dollarType: string): Promise<ArgentinaDatosQuote> {
+    const rates = await this.getAllRates();
+    const rate = rates.find(r => r.casa === dollarType);
+
+    if (!rate) {
+      throw new AppError(404, 'DOLLAR_TYPE_NOT_FOUND', `Dollar type "${dollarType}" not found`);
+    }
+
+    return rate;
+  }
+
+  /**
+   * Verificar si un rate está fresco (en minutos)
+   */
+  private isFresh(rate: ExchangeRate, maxAgeMinutes: number): boolean {
+    const ageMinutes = (Date.now() - new Date(rate.timestamp).getTime()) / (1000 * 60);
+    return ageMinutes < maxAgeMinutes;
+  }
+
+  /**
+   * Obtener cotización según configuración del negocio con fallback multi-nivel
    */
   async getRate(businessId: string): Promise<ExchangeRate> {
-    // 1. Intentar obtener de cache
-    const cached = await this.getFromCache();
-    if (cached) {
+    const config = await this.getConfig(businessId);
+
+    // Si está configurado para usar cotización manual, usarla directamente
+    if (config.useManualRate && config.manualRate) {
+      return {
+        fromCurrency: 'USD',
+        toCurrency: 'ARS',
+        rate: this.applyMargin(config.manualRate.toNumber(), config.marginPercent.toNumber()),
+        buyRate: config.manualRate.toNumber(),
+        sellRate: config.manualRate.toNumber(),
+        source: 'manual_config',
+        dollarType: config.dollarType,
+        timestamp: config.lastUpdated,
+      };
+    }
+
+    // NIVEL 1: Intentar obtener de cache (< 30 min)
+    const cached = await this.getFromCache(businessId);
+    if (cached && this.isFresh(cached, 30)) {
       logger.debug('Exchange rate retrieved from cache');
       return cached;
     }
 
-    // 2. Intentar obtener de API externa
+    // NIVEL 2: Intentar obtener de API externa
     try {
-      const rate = await this.fetchFromApi();
+      const allRates = await this.getAllRates();
+      const selectedRate = allRates.find(r => r.casa === config.dollarType);
+
+      if (!selectedRate) {
+        throw new Error(`Dollar type ${config.dollarType} not found in API response`);
+      }
+
+      const rate: ExchangeRate = {
+        fromCurrency: 'USD',
+        toCurrency: 'ARS',
+        rate: this.applyMargin(selectedRate.venta, config.marginPercent.toNumber()),
+        buyRate: selectedRate.compra,
+        sellRate: selectedRate.venta,
+        source: 'argentinadatos',
+        dollarType: config.dollarType,
+        timestamp: new Date(selectedRate.fechaActualizacion),
+      };
 
       // Guardar en cache
-      await this.saveToCache(rate);
+      await this.saveToCache(businessId, rate);
 
       // Guardar snapshot en DB
       await this.saveSnapshot(businessId, rate);
 
       return rate;
-    } catch (error) {
-      logger.warn({ error }, 'Failed to fetch exchange rate from API');
+    } catch (apiError) {
+      logger.warn({ error: apiError }, 'Failed to fetch exchange rate from API');
 
-      // 3. Fallback: último valor de la DB
+      // NIVEL 3: Intentar último snapshot (< 24 horas)
       const lastSnapshot = await this.getLastSnapshot(businessId);
-      if (lastSnapshot) {
-        logger.info('Using last exchange rate snapshot from database');
-        return lastSnapshot;
+      if (lastSnapshot && this.isFresh(lastSnapshot, 1440)) { // 24 horas
+        logger.info('Using last exchange rate snapshot from database (< 24h)');
+        return {
+          ...lastSnapshot,
+          source: 'last_snapshot_fallback',
+        };
       }
 
-      // 4. Fallback final: valor configurado
-      logger.warn('Using fallback exchange rate from config');
-      return {
-        fromCurrency: 'USD',
-        toCurrency: 'ARS',
-        rate: env.exchangeRate.fallbackRate,
-        source: 'fallback_config',
-        timestamp: new Date(),
-      };
+      // NIVEL 4: Usar cotización manual si está configurada (aunque no esté activada)
+      if (config.manualRate) {
+        logger.warn('Using manual rate as fallback (API failed, no recent snapshot)');
+        return {
+          fromCurrency: 'USD',
+          toCurrency: 'ARS',
+          rate: this.applyMargin(config.manualRate.toNumber(), config.marginPercent.toNumber()),
+          buyRate: config.manualRate.toNumber(),
+          sellRate: config.manualRate.toNumber(),
+          source: 'manual_fallback',
+          dollarType: config.dollarType,
+          timestamp: config.lastUpdated,
+        };
+      }
+
+      // NIVEL 5: Si hay snapshot viejo (> 24h), usarlo con advertencia
+      if (lastSnapshot) {
+        logger.warn('Using stale exchange rate snapshot (> 24h old)');
+        return {
+          ...lastSnapshot,
+          source: 'stale_snapshot_fallback',
+        };
+      }
+
+      // NIVEL 6: Todo falló - lanzar error especial con flag para input manual
+      throw new AppError(
+        503,
+        'EXCHANGE_RATE_UNAVAILABLE',
+        'No se pudo obtener la cotización. Por favor, ingrese manualmente.',
+        {
+          requiresManualInput: true,
+          lastKnownRate: lastSnapshot,
+          apiError: apiError instanceof Error ? apiError.message : 'Unknown error',
+        }
+      );
     }
   }
 
   /**
-   * Obtener de cache (Redis o in-memory)
+   * Obtener de cache (Redis)
    */
-  private async getFromCache(): Promise<ExchangeRate | null> {
+  private async getFromCache(businessId: string): Promise<ExchangeRate | null> {
     try {
-      const cached = await redisClient.get(this.cacheKey);
+      const cacheKey = this.getCacheKey(businessId);
+      const cached = await redisClient.get(cacheKey);
       if (!cached) return null;
 
       return JSON.parse(cached);
@@ -69,42 +243,36 @@ export class ExchangeRateService {
   /**
    * Guardar en cache
    */
-  private async saveToCache(rate: ExchangeRate): Promise<void> {
+  private async saveToCache(businessId: string, rate: ExchangeRate): Promise<void> {
     try {
-      await (redisClient as any).setex(this.cacheKey, env.exchangeRate.cacheTtlSeconds, JSON.stringify(rate));
+      const cacheKey = this.getCacheKey(businessId);
+      await (redisClient as any).setex(cacheKey, env.exchangeRate.cacheTtlSeconds, JSON.stringify(rate));
     } catch (error) {
       logger.error({ error }, 'Failed to save exchange rate to cache');
     }
   }
 
   /**
-   * Obtener de DolarAPI
+   * Limpiar cache
    */
-  private async fetchFromApi(): Promise<ExchangeRate> {
-    // DolarAPI: https://dolarapi.com/docs/
-    const response = await fetch('https://dolarapi.com/v1/dolares/blue');
-
-    if (!response.ok) {
-      throw new Error(`DolarAPI returned ${response.status}`);
+  private async clearCache(businessId: string): Promise<void> {
+    try {
+      const cacheKey = this.getCacheKey(businessId);
+      await redisClient.del(cacheKey);
+    } catch (error) {
+      logger.error({ error }, 'Failed to clear exchange rate cache');
     }
-
-    const data = await response.json() as any;
-
-    // Formato DolarAPI: { "compra": 1000, "venta": 1020, "fecha": "..." }
-    // Usamos el precio de venta
-    const rate: ExchangeRate = {
-      fromCurrency: 'USD',
-      toCurrency: 'ARS',
-      rate: parseFloat(data.venta),
-      source: 'dolarapi',
-      timestamp: new Date(),
-    };
-
-    return rate;
   }
 
   /**
-   * Guardar snapshot en DB
+   * Aplicar margen sobre cotización
+   */
+  private applyMargin(rate: number, marginPercent: number): number {
+    return rate * (1 + marginPercent / 100);
+  }
+
+  /**
+   * Guardar snapshot en base de datos
    */
   private async saveSnapshot(businessId: string, rate: ExchangeRate): Promise<void> {
     try {
@@ -114,12 +282,50 @@ export class ExchangeRateService {
           fromCurrency: rate.fromCurrency,
           toCurrency: rate.toCurrency,
           rate: rate.rate,
+          buyRate: rate.buyRate,
+          sellRate: rate.sellRate,
+          dollarType: rate.dollarType,
           source: rate.source,
         },
       });
     } catch (error) {
       logger.error({ error }, 'Failed to save exchange rate snapshot');
     }
+  }
+
+  /**
+   * Guardar snapshot manual ingresado por usuario
+   */
+  async saveManualSnapshot(
+    businessId: string,
+    data: {
+      rate: number;
+      buyRate?: number;
+      sellRate?: number;
+    }
+  ): Promise<ExchangeRate> {
+    const config = await this.getConfig(businessId);
+
+    const rate: ExchangeRate = {
+      fromCurrency: 'USD',
+      toCurrency: 'ARS',
+      rate: this.applyMargin(data.rate, config.marginPercent.toNumber()),
+      buyRate: data.buyRate || data.rate,
+      sellRate: data.sellRate || data.rate,
+      source: 'manual_user_input',
+      dollarType: config.dollarType,
+      timestamp: new Date(),
+    };
+
+    // Guardar en DB
+    await this.saveSnapshot(businessId, rate);
+
+    // Guardar en cache
+    await this.saveToCache(businessId, rate);
+
+    logger.info({ businessId, rate: data.rate }, 'Manual exchange rate saved');
+
+    return rate;
   }
 
   /**
@@ -137,7 +343,10 @@ export class ExchangeRateService {
       fromCurrency: snapshot.fromCurrency,
       toCurrency: snapshot.toCurrency,
       rate: snapshot.rate.toNumber(),
+      buyRate: snapshot.buyRate?.toNumber(),
+      sellRate: snapshot.sellRate?.toNumber(),
       source: snapshot.source,
+      dollarType: snapshot.dollarType,
       timestamp: snapshot.createdAt,
     };
   }
@@ -148,17 +357,77 @@ export class ExchangeRateService {
   async convertUsdToArs(
     businessId: string,
     amountUsd: number
-  ): Promise<{
-    amountArs: number;
-    rate: number;
-    source: string;
-  }> {
+  ): Promise<ConversionResult> {
     const exchangeRate = await this.getRate(businessId);
 
     return {
+      amountUsd,
       amountArs: amountUsd * exchangeRate.rate,
       rate: exchangeRate.rate,
       source: exchangeRate.source,
+      dollarType: exchangeRate.dollarType,
+    };
+  }
+
+  /**
+   * Convertir ARS a USD
+   */
+  async convertArsToUsd(
+    businessId: string,
+    amountArs: number
+  ): Promise<ConversionResult> {
+    const exchangeRate = await this.getRate(businessId);
+
+    return {
+      amountArs,
+      amountUsd: amountArs / exchangeRate.rate,
+      rate: exchangeRate.rate,
+      source: exchangeRate.source,
+      dollarType: exchangeRate.dollarType,
+    };
+  }
+
+  /**
+   * Obtener estado del sistema de cotizaciones
+   */
+  async getStatus(businessId: string): Promise<{
+    apiAvailable: boolean;
+    lastUpdate: Date | null;
+    currentSource: string;
+    isStale: boolean;
+    staleSince: number | null; // minutos
+    lastKnownRate: ExchangeRate | null;
+  }> {
+    let apiAvailable = false;
+    let currentRate: ExchangeRate | null = null;
+
+    // Intentar verificar API
+    try {
+      await this.getAllRates();
+      apiAvailable = true;
+    } catch (error) {
+      apiAvailable = false;
+    }
+
+    // Obtener rate actual (puede ser de cache, snapshot, etc.)
+    try {
+      currentRate = await this.getRate(businessId);
+    } catch (error) {
+      // No hay rate disponible
+    }
+
+    const lastSnapshot = await this.getLastSnapshot(businessId);
+    const ageMinutes = lastSnapshot
+      ? (Date.now() - new Date(lastSnapshot.timestamp).getTime()) / (1000 * 60)
+      : null;
+
+    return {
+      apiAvailable,
+      lastUpdate: lastSnapshot?.timestamp || null,
+      currentSource: currentRate?.source || 'none',
+      isStale: ageMinutes ? ageMinutes > 60 : true, // > 1 hora es stale
+      staleSince: ageMinutes,
+      lastKnownRate: currentRate,
     };
   }
 }
