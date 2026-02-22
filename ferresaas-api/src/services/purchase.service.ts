@@ -2,7 +2,6 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { InventoryService } from './inventory.service';
-import { PayableService } from './payable.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
 import { PricingService } from './pricing.service';
@@ -177,7 +176,106 @@ export class PurchaseService {
         }
       }
 
-      return { purchase: newPurchase, costChanges };
+      // Crear cuenta por pagar
+      const pendingAmount = total - amountPaid;
+      let payable = null;
+      
+      if (pendingAmount > 0 || amountPaid > 0) {
+        // Calcular fecha de vencimiento
+        let dueDate: Date | undefined;
+        
+        if (data.dueDate) {
+          dueDate = new Date(data.dueDate);
+        } else if (supplier.paymentTermDays && supplier.paymentTermDays > 0) {
+          dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + supplier.paymentTermDays);
+        }
+
+        payable = await tx.supplierPayable.create({
+          data: {
+            businessId,
+            supplierId: data.supplierId,
+            purchaseId: newPurchase.id,
+            amount: new Decimal(total),
+            paidAmount: new Decimal(amountPaid),
+            status: amountPaid >= total ? 'PAID' : amountPaid > 0 ? 'PARTIAL' : 'PENDING',
+            dueDate,
+          },
+        });
+
+        // Si hay pago inicial, registrar el pago y actualizar balance
+        if (amountPaid > 0) {
+          const method = data.paymentMethod || 'CASH';
+          
+          // Crear registro de pago
+          const payment = await tx.supplierPayment.create({
+            data: {
+              businessId,
+              payableId: payable.id,
+              amount: new Decimal(amountPaid),
+              method,
+              notes: 'Pago inicial al crear la compra',
+              recordedBy: userId,
+            },
+          });
+
+          // Actualizar saldo del proveedor
+          const currentSupplierBalance = supplier.currentBalance.toNumber();
+          const newSupplierBalance = Math.max(0, currentSupplierBalance + pendingAmount);
+          await tx.supplier.update({
+            where: { id: data.supplierId },
+            data: { currentBalance: new Decimal(newSupplierBalance) },
+          });
+
+          // Actualizar balance de cuenta financiera (excepto para CHECK)
+          if (method !== 'CHECK') {
+            const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
+            const account = await tx.financialAccount.findFirst({
+              where: {
+                businessId,
+                type: accountType,
+                isDefault: true,
+                isActive: true,
+              },
+            });
+
+            if (account) {
+              const currentBalance = account.balance.toNumber();
+              const newAccountBalance = currentBalance - amountPaid;
+
+              await tx.financialAccount.update({
+                where: { id: account.id },
+                data: { balance: newAccountBalance },
+              });
+
+              // Crear movimiento financiero
+              await tx.financialMovement.create({
+                data: {
+                  businessId,
+                  accountId: account.id,
+                  type: 'EXPENSE',
+                  amount: new Decimal(amountPaid),
+                  sourceType: 'SUPPLIER_PAYMENT',
+                  sourceId: payment.id,
+                  description: `Pago a proveedor - ${method}`,
+                  balanceAfter: newAccountBalance,
+                  createdBy: userId,
+                },
+              });
+            }
+          }
+        } else {
+          // Si no hay pago inicial, solo actualizar el saldo del proveedor
+          const currentSupplierBalance = supplier.currentBalance.toNumber();
+          const newSupplierBalance = currentSupplierBalance + total;
+          await tx.supplier.update({
+            where: { id: data.supplierId },
+            data: { currentBalance: new Decimal(newSupplierBalance) },
+          });
+        }
+      }
+
+      return { purchase: newPurchase, costChanges, payableId: payable?.id };
     });
 
     // Procesar cambios de costo y generar sugerencias de precio
@@ -218,48 +316,6 @@ export class PurchaseService {
       total,
       itemsCount: data.items.length,
     });
-
-    // Crear automáticamente la cuenta por pagar
-    const payableService = new PayableService();
-    const pendingAmount = total - amountPaid;
-
-    if (pendingAmount > 0) {
-      // Calcular fecha de vencimiento: usar la personalizada o la del proveedor
-      let dueDate: Date | undefined;
-      
-      if (data.dueDate) {
-        // Usar la fecha personalizada si se proporciona
-        dueDate = new Date(data.dueDate);
-      } else if (supplier.paymentTermDays && supplier.paymentTermDays > 0) {
-        // Usar el plazo del proveedor si está configurado
-        dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + supplier.paymentTermDays);
-      }
-
-      const payable = await payableService.createFromPurchase(businessId, userId, purchase.purchase.id, dueDate);
-      
-      // Si hay un monto pagado, registrar el pago con método específico
-      if (amountPaid > 0) {
-        const method = data.paymentMethod || 'CASH';
-        
-        // Validar fondos disponibles antes de registrar el pago
-        if (method !== 'CHECK') {
-          const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
-          const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
-          await this.financialAccountService.validateFunds(account.id, amountPaid);
-        }
-        
-        await payableService.recordPayment(
-          businessId,
-          userId,
-          payable.id,
-          amountPaid,
-          method,
-          undefined,
-          'Pago inicial al crear la compra'
-        );
-      }
-    }
 
     // Obtener compra completa con items
     const fullPurchase = await prisma.purchase.findUnique({

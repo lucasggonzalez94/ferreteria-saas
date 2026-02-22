@@ -154,6 +154,8 @@ export default function NewPurchasePage() {
       queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
       queryClient.invalidateQueries({ queryKey: ["approval-counts"] });
       queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
       toast.success("Compra creada exitosamente");
       router.push(`/dashboard/purchases/${data.id}`);
     },
