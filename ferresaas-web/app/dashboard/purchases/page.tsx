@@ -31,6 +31,11 @@ interface Purchase {
   tax: number;
   total: number;
   amountPaid?: number;
+  currency?: string;
+  exchangeRate?: {
+    rate: number;
+    source: string;
+  };
   createdAt: string;
   supplier: {
     id: string;

@@ -5,17 +5,20 @@ import { InventoryService } from './inventory.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
 import { PricingService } from './pricing.service';
+import { ExchangeRateService } from './exchange-rate.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class PurchaseService {
   private inventoryService: InventoryService;
   private financialAccountService: FinancialAccountService;
   private financialMovementService: FinancialMovementService;
+  private exchangeRateService: ExchangeRateService;
 
   constructor() {
     this.inventoryService = new InventoryService();
     this.financialAccountService = new FinancialAccountService();
     this.financialMovementService = new FinancialMovementService();
+    this.exchangeRateService = new ExchangeRateService();
   }
 
   /**
@@ -27,6 +30,7 @@ export class PurchaseService {
     data: {
       supplierId: string;
       invoiceNumber?: string;
+      currency?: string; // ARS o USD
       items: Array<{
         productId: string;
         quantity: number;
@@ -50,6 +54,30 @@ export class PurchaseService {
 
     if (supplier.businessId !== businessId) {
       throw new AppError(403, 'FORBIDDEN', 'Access denied');
+    }
+
+    // Determinar moneda (por defecto ARS)
+    const currency = data.currency || 'ARS';
+    
+    // Si es USD, obtener y guardar snapshot de tipo de cambio
+    let exchangeRateId: string | undefined;
+    if (currency === 'USD') {
+      const rate = await this.exchangeRateService.getRate(businessId);
+      
+      const snapshot = await prisma.exchangeRateSnapshot.create({
+        data: {
+          businessId,
+          fromCurrency: 'USD',
+          toCurrency: 'ARS',
+          rate: rate.rate,
+          buyRate: rate.buyRate,
+          sellRate: rate.sellRate,
+          dollarType: rate.dollarType,
+          source: rate.source,
+        },
+      });
+      
+      exchangeRateId = snapshot.id;
     }
 
     // Calcular totales
@@ -98,6 +126,8 @@ export class PurchaseService {
       const newPurchase = await tx.purchase.create({
         data: {
           businessId,
+          currency,
+          exchangeRateId,
           supplierId: data.supplierId,
           invoiceNumber: data.invoiceNumber,
           status: purchaseStatus,
@@ -198,6 +228,7 @@ export class PurchaseService {
             purchaseId: newPurchase.id,
             amount: new Decimal(total),
             paidAmount: new Decimal(amountPaid),
+            currency,
             status: amountPaid >= total ? 'PAID' : amountPaid > 0 ? 'PARTIAL' : 'PENDING',
             dueDate,
           },
@@ -213,6 +244,9 @@ export class PurchaseService {
               businessId,
               payableId: payable.id,
               amount: new Decimal(amountPaid),
+              currency,
+              amountUSD: currency === 'USD' ? new Decimal(amountPaid) : undefined,
+              exchangeRateId: currency === 'USD' ? exchangeRateId : undefined,
               method,
               notes: 'Pago inicial al crear la compra',
               recordedBy: userId,

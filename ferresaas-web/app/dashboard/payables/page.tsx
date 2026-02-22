@@ -35,6 +35,7 @@ interface Payable {
   id: string;
   amount: number;
   paidAmount: number;
+  currency?: string;
   status: string;
   dueDate?: string;
   supplier: {
@@ -44,10 +45,13 @@ interface Payable {
   purchase?: {
     id: string;
     invoiceNumber?: string;
+    currency?: string;
   };
   payments: Array<{
     id: string;
     amount: number;
+    currency?: string;
+    amountUSD?: number;
     method: string;
     paidAt: string;
   }>;

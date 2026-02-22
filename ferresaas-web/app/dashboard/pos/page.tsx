@@ -17,6 +17,9 @@ import { parseNumericInput } from "@/lib/numeric-input";
 import { usePermissionGuard } from "@/lib/hooks/usePermissionGuard";
 import { ProductSelector } from "@/components/shared/product-selector";
 import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
+import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFallback";
+import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
+import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -66,6 +69,19 @@ export default function POSPage() {
   const queryClient = useQueryClient();
 
   const canApproveDiscounts = user?.permissions?.includes('sales:approve_discount') ?? false;
+
+  // Hook para tipo de cambio con fallback
+  const {
+    rate: exchangeRate,
+    isLoading: isLoadingRate,
+    showManualModal,
+    lastKnownRate,
+    handleUseLastKnown,
+    handleManualRate,
+    handleCancel,
+    isStale,
+    isFallback,
+  } = useExchangeRateWithFallback();
 
   // Validar que la caja esté abierta
   const { data: cashRegisterStatus, isLoading: isCashStatusLoading } = useQuery({
@@ -310,7 +326,7 @@ export default function POSPage() {
     };
 
     if (paymentMethod === 'CASH_USD') {
-      const usd = parseFloat(amountUSD);
+      const usd = parseNumericInput(amountUSD);
       if (!usd || usd <= 0) {
         toast.error("Ingresa el monto en USD");
         return;
@@ -391,7 +407,30 @@ export default function POSPage() {
 
   return (
     <div className="p-8">
+      {/* Modal de fallback para tipo de cambio */}
+      <ManualExchangeRateModal
+        isOpen={showManualModal}
+        dollarType={exchangeRate?.dollarType || 'blue'}
+        onCancel={handleCancel}
+        onUseLastKnown={handleUseLastKnown}
+        onManualInput={handleManualRate}
+        lastKnownRate={lastKnownRate}
+      />
+
       <div className="max-w-7xl mx-auto">
+        {/* Banner de advertencia si la cotización está desactualizada */}
+        {(isStale || isFallback) && exchangeRate && (
+          <div className="mb-4">
+            <StaleRateBanner
+              rate={exchangeRate}
+              onRetry={() => window.location.reload()}
+              onUpdateManually={() => {
+                // El hook ya maneja el modal manual
+              }}
+              isRetrying={false}
+            />
+          </div>
+        )}
         <Header
           title="Punto de Venta"
         />
@@ -651,16 +690,58 @@ export default function POSPage() {
 
                 {/* USD específico para CASH_USD */}
                 {paymentMethod === 'CASH_USD' && (
-                  <div>
-                    <label className="text-sm font-medium">Monto USD</label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={amountUSD}
-                      onChange={(e) => setAmountUSD(e.target.value)}
-                      placeholder="0,00"
-                      className="text-sm"
-                    />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium">Monto USD *</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={amountUSD}
+                        onChange={(e) => {
+                          const usd = e.target.value;
+                          setAmountUSD(usd);
+                          // Calcular ARS automáticamente
+                          if (usd && exchangeRate) {
+                            const usdNum = parseNumericInput(usd);
+                            const arsAmount = usdNum * exchangeRate.rate;
+                            setPaymentAmount(arsAmount.toFixed(2));
+                          } else {
+                            setPaymentAmount("");
+                          }
+                        }}
+                        placeholder="0,00"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {/* Calculadora automática */}
+                    {amountUSD && exchangeRate && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs font-medium text-blue-900 mb-2">💱 Conversión Automática</p>
+                        <div className="space-y-1 text-xs text-blue-700">
+                          <div className="flex justify-between">
+                            <span>Monto USD:</span>
+                            <span className="font-medium">${parseNumericInput(amountUSD).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Tipo de cambio:</span>
+                            <span className="font-medium">1 USD = ${exchangeRate.rate.toFixed(2)} ARS</span>
+                          </div>
+                          <div className="flex justify-between border-t border-blue-300 pt-1 mt-1">
+                            <span>Equivalente ARS:</span>
+                            <span className="font-medium">${paymentAmount}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px]">
+                            <span>Fuente:</span>
+                            <span>{exchangeRate.source === 'argentinadatos' ? 'ArgentinaDatos' : exchangeRate.source}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {isLoadingRate && (
+                      <p className="text-xs text-muted-foreground">Cargando tipo de cambio...</p>
+                    )}
                   </div>
                 )}
 
@@ -723,7 +804,7 @@ export default function POSPage() {
                     <p className="text-xs font-medium text-muted-foreground">Pagos agregados:</p>
                     {payments.map((payment, index) => (
                       <div key={index} className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">
                             {payment.method === 'CASH_ARS' && 'Efectivo ARS'}
                             {payment.method === 'CASH_USD' && 'Efectivo USD'}
@@ -732,11 +813,17 @@ export default function POSPage() {
                             {payment.method === 'QR' && 'QR'}
                             {payment.method === 'ACCOUNT' && 'Cuenta Corriente'}
                           </p>
-                          <p className="text-xs text-muted-foreground">${payment.amount.toFixed(2)}</p>
+                          {payment.method === 'CASH_USD' && payment.amountUSD ? (
+                            <div className="text-xs text-muted-foreground">
+                              <p>${payment.amountUSD.toFixed(2)} USD → ${payment.amount.toFixed(2)} ARS</p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">${payment.amount.toFixed(2)}</p>
+                          )}
                         </div>
                         <button
                           onClick={() => removePayment(index)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-800 ml-2"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

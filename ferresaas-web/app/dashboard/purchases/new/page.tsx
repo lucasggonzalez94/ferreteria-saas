@@ -24,6 +24,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Header from "@/components/ui/header";
+import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFallback";
+import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
+import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Supplier {
   id: string;
@@ -65,6 +69,20 @@ export default function NewPurchasePage() {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [fundError, setFundError] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
+  const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
+
+  // Hook para tipo de cambio con fallback
+  const {
+    rate: exchangeRate,
+    isLoading: isLoadingRate,
+    showManualModal,
+    lastKnownRate,
+    handleUseLastKnown,
+    handleManualRate,
+    handleCancel,
+    isStale,
+    isFallback,
+  } = useExchangeRateWithFallback();
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -135,6 +153,7 @@ export default function NewPurchasePage() {
       const response = await api.post<any>("/purchases", {
         supplierId,
         invoiceNumber: invoiceNumber || undefined,
+        currency,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: parseNumericInput(item.quantity.toString()),
@@ -325,8 +344,30 @@ export default function NewPurchasePage() {
 
   return (
     <div className="p-8">
+      {/* Modal de fallback para tipo de cambio */}
+      <ManualExchangeRateModal
+        isOpen={showManualModal}
+        dollarType={exchangeRate?.dollarType || 'blue'}
+        onCancel={handleCancel}
+        onUseLastKnown={handleUseLastKnown}
+        onManualInput={handleManualRate}
+        lastKnownRate={lastKnownRate}
+      />
+
       <div className="max-w-7xl mx-auto">
         <Header title="Nueva Compra" link="/dashboard/purchases" linkLabel="Volver a Compras" />
+
+        {/* Banner de advertencia si la cotización está desactualizada */}
+        {currency === 'USD' && (isStale || isFallback) && exchangeRate && (
+          <div className="mb-4">
+            <StaleRateBanner
+              rate={exchangeRate}
+              onRetry={() => window.location.reload()}
+              onUpdateManually={() => {}}
+              isRetrying={false}
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Supplier Selection */}
@@ -381,6 +422,36 @@ export default function NewPurchasePage() {
               <CardTitle>Detalles de la Compra</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="currency">Moneda *</Label>
+                <Select value={currency} onValueChange={(value: "ARS" | "USD") => setCurrency(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">Pesos Argentinos (ARS)</SelectItem>
+                    <SelectItem value="USD">Dólares (USD)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {currency === 'USD' && exchangeRate && (
+                  <Alert className="mt-2">
+                    <AlertDescription className="text-xs">
+                      <div className="flex justify-between items-center">
+                        <span>Tipo de cambio actual:</span>
+                        <span className="font-medium">1 USD = ${exchangeRate.rate.toFixed(2)} ARS</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span>Fuente:</span>
+                        <span className="text-muted-foreground">{exchangeRate.source === 'argentinadatos' ? 'ArgentinaDatos' : exchangeRate.source}</span>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {currency === 'USD' && isLoadingRate && (
+                  <p className="text-xs text-muted-foreground mt-1">Cargando tipo de cambio...</p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="invoiceNumber">Número de Factura</Label>
                 <Input
@@ -628,21 +699,42 @@ export default function NewPurchasePage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold">
-                  ${totals.subtotal.toFixed(2)}
+                  ${totals.subtotal.toFixed(2)} {currency}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">IVA Total</span>
                 <span className="font-semibold">
-                  ${totals.tax.toFixed(2)}
+                  ${totals.tax.toFixed(2)} {currency}
                 </span>
               </div>
               <div className="border-t pt-4 flex justify-between">
                 <span className="font-semibold">Total</span>
                 <span className="text-lg font-bold">
-                  ${totals.total.toFixed(2)}
+                  ${totals.total.toFixed(2)} {currency}
                 </span>
               </div>
+
+              {/* Calculadora de conversión USD -> ARS */}
+              {currency === 'USD' && exchangeRate && totals.total > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-blue-900 mb-2">💱 Conversión a Pesos</p>
+                  <div className="space-y-2 text-sm text-blue-700">
+                    <div className="flex justify-between">
+                      <span>Total en USD:</span>
+                      <span className="font-medium">${totals.total.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tipo de cambio:</span>
+                      <span className="font-medium">1 USD = ${exchangeRate.rate.toFixed(2)} ARS</span>
+                    </div>
+                    <div className="flex justify-between border-t border-blue-300 pt-2 mt-2">
+                      <span className="font-semibold">Equivalente en ARS:</span>
+                      <span className="font-bold">${(totals.total * exchangeRate.rate).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="border-t pt-4 space-y-4">
                 <div>

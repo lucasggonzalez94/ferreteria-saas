@@ -535,6 +535,9 @@ model SupplierPayable {
   amount     Decimal @db.Decimal(12, 2)
   paidAmount Decimal @db.Decimal(12, 2) @default(0)
   
+  // Soporte multi-moneda
+  currency   String  @default("ARS") // ARS o USD
+  
   dueDate    DateTime?
   status     String  @default("PENDING") // PENDING, PARTIAL, PAID, OVERDUE, CANCELLED
   
