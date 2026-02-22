@@ -207,22 +207,82 @@ Esta es la pantalla principal para los cajeros.
 
 1.  Ve a **Punto de Venta**.
 2.  **Abrir Caja**: Antes de vender, el sistema te pedirá abrir la caja con un monto inicial (ej: $5000 para cambio).
+    - Opcionalmente, ingresa también un monto inicial en USD si tenés dólares en caja.
+    - El sistema guarda automáticamente un snapshot del tipo de cambio al momento de apertura.
 3.  **Agregar Productos**:
     - Puedes escanear códigos de barras (si tienes lector).
     - O buscar por nombre escribiendo en el buscador.
 4.  **Cobrar**:
     - Presiona `F9` o el botón "Cobrar".
-    - Selecciona el método de pago (Efectivo, Tarjeta, etc.).
+    - Selecciona el método de pago:
+      - **Efectivo ARS**: Ingresa el monto en pesos
+      - **Efectivo USD**: Ingresa el monto en dólares → El sistema convierte automáticamente al tipo de cambio vigente
+      - **Tarjeta, Transferencia, QR**: Como de costumbre
     - Si el cliente necesita factura A, selecciónalo en el desplegable de cliente.
-5.  **Confirmar**: El sistema generará el ticket (o factura electrónica si está configurado) y registrará la venta.
+    - Si pagás en USD, verás una calculadora que muestra:
+      - Monto USD ingresado
+      - Tipo de cambio actual (1 USD = $X ARS)
+      - Equivalente en ARS
+      - Fuente de la cotización
+5.  **Confirmar**: El sistema generará el ticket (o factura electrónica si está configurado) y registrará la venta con snapshot del tipo de cambio si fue en USD.
 
 ### Paso 5: Cerrar Caja
 
-Al final del día, ve al POS y selecciona "Cerrar Caja". El sistema te dará un resumen de ventas en efectivo, tarjetas, etc. para que compares con el dinero físico.
+Al final del día, ve al POS y selecciona "Cerrar Caja". El sistema te dará un resumen de ventas:
+- **Efectivo ARS**: Monto total en pesos
+- **Efectivo USD**: Monto total en dólares (si hubo pagos en USD)
+- **Tarjetas, Transferencias, QR**: Como de costumbre
+
+Ingresa los montos reales contados en caja (ARS y USD por separado) y el sistema calcula automáticamente las diferencias por moneda.
 
 ---
 
 ## 🌐 6. Características Avanzadas
+
+### Soporte Multi-Moneda (ARS y USD)
+
+FerreSaaS soporta operaciones en pesos argentinos (ARS) y dólares estadounidenses (USD) en todas las áreas críticas:
+
+#### ¿Dónde puedo usar USD?
+
+1. **POS (Ventas)**: Acepta pagos en USD con conversión automática
+2. **Caja**: Abre y cierra con montos en ARS y USD por separado
+3. **Cuentas Financieras**: Crea cuentas en USD, transfiere entre monedas
+4. **Compras**: Registra compras en USD con calculadora de conversión
+5. **Cuentas por Pagar**: Paga a proveedores en USD
+
+#### Sistema de Tipo de Cambio con Fallback
+
+El sistema obtiene automáticamente el tipo de cambio USD→ARS desde **ArgentinaDatos** en tiempo real.
+
+**Si la API no está disponible**, el sistema usa automáticamente (en orden):
+1. **Cache en memoria** (últimos 2 minutos)
+2. **Último snapshot guardado** en la base de datos
+3. **Entrada manual** (si el usuario la proporciona)
+
+**Resultado**: El sistema **NUNCA se bloquea** por falta de cotización. Siempre hay una forma de operar.
+
+#### Cómo usar USD en el POS
+
+1. En el panel de pagos, selecciona **Efectivo USD**
+2. Ingresa el **monto en dólares**
+3. El sistema muestra automáticamente:
+   - Tipo de cambio vigente
+   - Equivalente en ARS
+   - Fuente (ArgentinaDatos, cache, snapshot, manual)
+4. Confirma la venta
+
+El sistema guarda un **snapshot del tipo de cambio** usado en cada transacción para auditoría completa.
+
+#### Configurar Tipo de Cambio Manual
+
+Si necesitas ingresar una cotización manualmente:
+1. Ve a **Configuración → Tipo de Cambio**
+2. Presiona **Ingresar Cotización Manual**
+3. Ingresa el tipo de cambio (ej: 1050)
+4. Presiona **Guardar**
+
+Esta cotización se usa como fallback si la API falla.
 
 ### Modo Offline (Sin Internet)
 
@@ -230,6 +290,7 @@ FerreSaaS está diseñado para seguir vendiendo aunque se corte internet.
 
 - **¿Cómo funciona?**: Si se cae la conexión, verás un indicador de "Modo Offline" arriba a la derecha.
 - **Ventas**: Puedes seguir cobrando normalmente. Las ventas se guardan en tu navegador.
+- **Pagos en USD**: El sistema usa el último tipo de cambio conocido (cache o snapshot) para convertir automáticamente.
 - **Reconexión**: Apenas vuelva internet, el sistema enviará automáticamente todas las ventas guardadas al servidor.
 - **Importante**: En modo offline NO se emiten facturas electrónicas AFIP (quedan pendientes y se facturan solas al volver internet).
 
@@ -279,8 +340,9 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 | Inventario | `inventory.routes.ts`, `inventory.schemas.ts`, `InventoryService` | Movimientos transaccionales (ventas, compras, devoluciones, ajustes), validación de stock negativo, consultas de stock mínimo. |
 | Compras y proveedores | `suppliers-purchases.routes.ts`, `PurchaseService`, `SupplierService`, `PayableService` | Alta de proveedores, registro de compras, actualización de costos promedio, creación de cuentas por pagar (payables) y registro automático de pagos iniciales. |
 | Ventas/POS | `sales.routes.ts`, `SaleService`, `IdempotencyService` | Creación/confirmación de ventas, manejo de `clientOperationId` para idempotencia offline, integración con inventario y facturación (mock o Facturante). |
-| Caja | `cash-register.routes.ts`, `CashRegisterService` | Apertura/cierre de caja, movimientos manuales, resumen por medio de pago y auditoría de sesiones. |
-| Cuentas Financieras | `financial-accounts.routes.ts`, `FinancialAccountService`, `FinancialMovementService` | Gestión de cuentas (CASH, BANK, WALLET, CREDIT_CARD), transferencias entre cuentas, movimientos manuales, validación de fondos. |
+| Caja | `cash-register.routes.ts`, `CashRegisterService` | Apertura/cierre de caja con soporte ARS/USD, movimientos manuales, resumen por medio de pago, snapshots de tipo de cambio y auditoría de sesiones. |
+| Cuentas Financieras | `financial-accounts.routes.ts`, `FinancialAccountService`, `FinancialMovementService` | Gestión de cuentas (CASH, BANK, WALLET, CREDIT_CARD) en ARS o USD, transferencias entre monedas con conversión automática, movimientos manuales, validación de fondos. |
+| Tipo de Cambio | `exchange-rate.routes.ts`, `ExchangeRateService` | Obtención automática de cotización USD→ARS desde ArgentinaDatos, sistema de fallback multi-nivel (cache, snapshot, manual), snapshots históricos para auditoría. |
 | Clientes y cuenta corriente | `customers.routes.ts`, `Customer` + movimientos en Prisma | CRUD de clientes, saldo corriente, movimientos automáticos al confirmar ventas o procesar devoluciones. |
 | Reportes de inventario | `inventory-reports.routes.ts`, `InventoryReportsService` | Reportes de movimientos, alertas de stock, rotación y devoluciones con agregados y segmentación. |
 
@@ -339,46 +401,58 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
    - `GET /inventory/low-stock` y `/inventory-reports/stock-alerts` exponen alertas con niveles `CRITICAL/WARNING`.
 3. **Frontend**: pestañas de Inventario (`alerts`, `products`, `movements`) muestran datos en tiempo real y permiten abrir modales de ajustes/devoluciones.
 
-### 9.4 Compras, proveedores y cuentas por pagar
+### 9.4 Compras, proveedores y cuentas por pagar (con soporte USD)
 
 1. Usuario con `purchases:create` registra una compra desde **Dashboard → Compras**.
-2. Backend valida proveedor, calcula subtotal/impuestos, crea la compra + items en transacción.
-3. `InventoryService` crea movimientos `PURCHASE_RECEIPT` y recalcula el costo promedio del producto.
-4. `PayableService` crea automáticamente la cuenta por pagar y, si se ingresó un pago inicial, registra el movimiento correspondiente.
-5. El listado de compras muestra estado (`PENDING`, `PARTIAL`, `PAID`) y enlaces al proveedor.
+2. Selecciona la **moneda**: ARS o USD
+   - Si selecciona USD, el sistema muestra el tipo de cambio vigente
+   - Todos los precios se ingresan en la moneda seleccionada
+3. Backend valida proveedor, calcula subtotal/impuestos, crea la compra + items en transacción.
+4. Si la compra es en USD, guarda un **snapshot del tipo de cambio** para auditoría.
+5. `InventoryService` crea movimientos `PURCHASE_RECEIPT` y recalcula el costo promedio del producto.
+6. `PayableService` crea automáticamente la cuenta por pagar (en la moneda original) y, si se ingresó un pago inicial, registra el movimiento correspondiente.
+7. El listado de compras muestra estado (`PENDING`, `PARTIAL`, `PAID`), moneda y enlaces al proveedor.
+8. Al registrar pagos a proveedores en USD, el sistema guarda un snapshot del tipo de cambio usado.
 
-### 9.5 Ventas/POS y caja
+### 9.5 Ventas/POS y caja (con soporte USD)
 
 1. **Precondición**: abrir caja (`cash_register:open`). El POS bloquea operaciones si `/cash-register/status` devuelve `null`.
+   - Al abrir, opcionalmente ingresa montos iniciales en ARS y USD
+   - Sistema guarda snapshot del tipo de cambio
 2. **POS**:
    - Búsqueda rápida (`/products?q=...`).
    - Carrito local con cantidades, descuentos y modal de aprobación (permiso `sales:approve_discount`).
    - Pagos múltiples: efectivo ARS/USD, tarjetas, transferencias, QR o cuenta corriente.
+   - **Pagos en USD**: Calculadora automática que muestra conversión en tiempo real
    - `createSaleMutation` crea la venta (borrador) y luego la confirma con pagos (`/sales/:id/confirm`).
-3. **Confirmación**: `SaleService.confirm` valida stock, descuenta inventario, actualiza caja, dispara facturación (mock o Facturante) y registra auditoría.
+3. **Confirmación**: `SaleService.confirm` valida stock, descuenta inventario, actualiza caja, guarda snapshot de tipo de cambio si hay pagos USD, dispara facturación (mock o Facturante) y registra auditoría.
 4. **Caja**:
    - Movimientos manuales (`/cash-register/move`) piden tipo, monto y motivo.
-   - Resumen por medio de pago (`/cash-register/:sessionId/summary`) usa `CashRegisterService.calculateSummary`.
-   - Cierre (`/cash-register/close`) calcula `expectedAmount`, `difference` y permite exportar reporte imprimible.
+   - Resumen por medio de pago (`/cash-register/:sessionId/summary`) usa `CashRegisterService.calculateSummary` y agrupa por ARS/USD.
+   - Cierre (`/cash-register/close`) calcula `expectedAmount` y `difference` por separado para ARS y USD, guarda snapshot de tipo de cambio, permite exportar reporte imprimible.
 
-### 9.9 Cuentas Financieras
+### 9.9 Cuentas Financieras (con soporte ARS/USD)
 
-1. **Concepto**: Las cuentas financieras (CASH, BANK, WALLET, CREDIT_CARD) son independientes de la sesión de caja. Registran todos los fondos de la empresa.
-2. **Creación automática**: El seed crea 3 cuentas por defecto:
+1. **Concepto**: Las cuentas financieras (CASH, BANK, WALLET, CREDIT_CARD) son independientes de la sesión de caja. Registran todos los fondos de la empresa en ARS o USD.
+2. **Creación automática**: El seed crea 3 cuentas por defecto (todas en ARS):
    - Caja Principal (CASH): $0
    - Cuenta Bancaria (BANK): $100,000
    - MercadoPago (WALLET): $0
-3. **Movimientos automáticos**:
-   - Venta en CASH_ARS → incrementa Caja Principal
-   - Venta en TRANSFER → incrementa Banco
-   - Venta en QR → incrementa MercadoPago
-   - Venta en CARD → incrementa Banco
-4. **Operaciones manuales** (`financial_accounts:manage`):
-   - Crear/editar cuentas: `/financial-accounts` (POST/PUT)
+3. **Crear cuentas en USD**: Desde **Dashboard → Finanzas → Nueva Cuenta**, selecciona moneda USD para crear cuentas en dólares.
+4. **Movimientos automáticos**:
+   - Venta en CASH_ARS → incrementa Caja Principal (ARS)
+   - Venta en CASH_USD → incrementa Caja Principal (USD)
+   - Venta en TRANSFER → incrementa Banco (ARS)
+   - Venta en QR → incrementa MercadoPago (ARS)
+   - Venta en CARD → incrementa Banco (ARS)
+5. **Operaciones manuales** (`financial_accounts:manage`):
+   - Crear/editar cuentas: `/financial-accounts` (POST/PUT) con selección de moneda
    - Transferencias: `/financial-accounts/transfer` (POST)
+     - Si transfiere entre monedas diferentes, el sistema muestra conversión automática
+     - Guarda snapshot del tipo de cambio para auditoría
    - Movimientos manuales: `/financial-accounts/movements` (POST)
-5. **Validación de fondos**: Al crear compras o transferencias, el sistema valida que la cuenta tenga fondos suficientes.
-6. **Resumen y validación**: `/dashboard/financial-accounts/summary` muestra balances en tiempo real y permite validar al cierre de día.
+6. **Validación de fondos**: Al crear compras o transferencias, el sistema valida que la cuenta tenga fondos suficientes en la moneda correspondiente.
+7. **Resumen y validación**: `/dashboard/financial-accounts/summary` muestra balances en ARS y USD por separado, permitiendo validar al cierre de día.
 
 ### 9.6 Clientes y cuenta corriente
 
@@ -537,12 +611,61 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
    - Opción B: Registra un **Movimiento Manual** de EGRESO en MercadoPago
 8. **Validación de compras**: Al crear una compra con método TRANSFER, el sistema valida que el Banco tenga fondos suficientes.
 
-### 11.13 Modo offline e idempotencia
+### 11.13 Tipo de Cambio USD y Sistema de Fallback
+
+1. Ve a **Dashboard → Configuración → Tipo de Cambio** (`settings:update`).
+2. Verás la cotización actual:
+   - **Tipo de cambio vigente** (ej: 1 USD = $1,050 ARS)
+   - **Fuente**: ArgentinaDatos, cache, snapshot o manual
+   - **Última actualización**: Cuándo se obtuvo
+3. Presiona **Actualizar** para forzar una actualización inmediata desde ArgentinaDatos.
+4. **Sistema de Fallback**:
+   - Si ArgentinaDatos no responde, el sistema intenta cache (últimos 2 minutos)
+   - Si no hay cache, usa el último snapshot guardado
+   - Si no hay snapshot, muestra un modal para ingresar manualmente
+   - El sistema **NUNCA se bloquea**
+5. **Cotización Manual**:
+   - Presiona **Ingresar Cotización Manual**
+   - Ingresa el tipo de cambio (ej: 1050)
+   - Presiona **Guardar**
+   - Esta cotización se usa como fallback si la API falla
+
+### 11.14 Compras en USD
+
+1. Ve a **Dashboard → Compras → Nueva Compra**.
+2. Selecciona un proveedor.
+3. **Selecciona la moneda**: ARS o USD
+   - Si seleccionas USD, verás el tipo de cambio vigente
+4. Agrega productos con precios en la moneda seleccionada.
+5. En el **Resumen**, verás:
+   - Subtotal, IVA y Total en la moneda seleccionada
+   - Si es USD, una **calculadora de conversión** que muestra el equivalente en ARS
+6. Registra un pago inicial (opcional) y presiona **Crear Compra**.
+7. El sistema guarda un snapshot del tipo de cambio si fue en USD.
+
+### 11.15 Caja con USD
+
+1. Ve a **Dashboard → Caja**.
+2. **Abrir Caja**:
+   - Ingresa **Monto Inicial (ARS)**
+   - Opcionalmente, ingresa **Monto Inicial (USD)** si tenés dólares
+   - Presiona **Abrir Caja**
+3. Durante la jornada, el resumen muestra:
+   - **Efectivo ARS**: Monto acumulado en pesos
+   - **Efectivo USD**: Monto acumulado en dólares
+4. **Cerrar Caja**:
+   - Ingresa **Monto Final (ARS)**: Lo que contaste en pesos
+   - Ingresa **Monto Final (USD)**: Lo que contaste en dólares
+   - El sistema calcula diferencias por separado para ARS y USD
+   - Guarda snapshot del tipo de cambio para auditoría
+
+### 11.16 Modo offline e idempotencia
 
 1. En el navegador, marca la casilla "Offline" del panel Network (o desconecta la red brevemente).
 2. En el POS, crea una venta y presiona "Cobrar". El sistema mostrará un banner de "Modo Offline" y guardará la operación localmente (sin confirmarla).
+   - Si pagás en USD, el sistema usa el último tipo de cambio conocido (cache o snapshot)
 3. Restablece la conexión: el POS reintenta la confirmación. Puedes revisar la consola para ver el `clientOperationId` reutilizado; el backend devolverá la respuesta almacenada si ya se había procesado.
-4. Ingresa en `/cash-register/:sessionId/summary` para asegurarte de que la venta sincronizada aparece con su método de pago.
+4. Ingresa en `/cash-register/:sessionId/summary` para asegurarte de que la venta sincronizada aparece con su método de pago y conversión USD correcta.
 
 ---
 

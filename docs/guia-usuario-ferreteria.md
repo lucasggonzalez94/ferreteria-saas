@@ -217,18 +217,20 @@ La caja controla el flujo de dinero físico y digital durante la jornada.
 **Permiso**: `cash_register:open`
 
 1. Si no hay sesión de caja activa, se muestra el formulario **Abrir Caja**.
-2. Ingresá el **monto inicial** (dinero en efectivo con el que iniciás la jornada).
-3. Presioná **Abrir Caja**.
-4. Serás redirigido automáticamente al POS.
+2. Ingresá el **monto inicial en ARS** (dinero en efectivo con el que iniciás la jornada).
+3. Opcionalmente, ingresá el **monto inicial en USD** si tenés dólares en caja.
+4. El sistema guarda automáticamente un **snapshot del tipo de cambio** al momento de apertura.
+5. Presioná **Abrir Caja**.
+6. Serás redirigido automáticamente al POS.
 
 ### 5.2 Sesión Activa
 
 Con la caja abierta, la pantalla muestra:
 
-- **Resumen por Medio de Pago**: Efectivo ARS, USD, Tarjeta, Transferencia, QR. Cada uno con el monto acumulado.
+- **Resumen por Medio de Pago**: Efectivo ARS, Efectivo USD, Tarjeta, Transferencia, QR. Cada uno con el monto acumulado.
 - **Movimientos**: Historial de ingresos y egresos manuales.
 - **Fecha y hora de apertura**.
-- **Monto inicial**.
+- **Montos iniciales**: ARS y USD (si corresponde).
 
 ### 5.3 Registrar Movimientos Manuales
 
@@ -253,11 +255,14 @@ Antes de cerrar, podés generar un reporte imprimible:
 **Permiso**: `cash_register:close`
 
 1. Presioná **Cerrar Caja**.
-2. Ingresá el **monto real** contado en caja.
-3. El sistema calcula:
+2. Ingresá el **monto real contado en ARS**.
+3. Si tenés USD en caja, ingresá el **monto real en USD**.
+4. El sistema calcula para cada moneda:
    - **Monto esperado**: monto inicial + ventas en efectivo + ingresos manuales − egresos manuales.
    - **Diferencia**: monto real − monto esperado (sobrante o faltante).
-4. Confirmá el cierre.
+5. El sistema guarda un **snapshot del tipo de cambio** al cierre para auditoría.
+6. Si hay diferencias, registra automáticamente **ajustes** en las cuentas financieras.
+7. Confirmá el cierre.
 
 ### 5.6 Historial de Caja
 
@@ -310,11 +315,14 @@ El sistema crea automáticamente 3 cuentas:
    - **BANK**: Cuenta bancaria
    - **WALLET**: Billetera virtual (MercadoPago, Ualá, etc.)
    - **CREDIT_CARD**: Tarjeta de crédito
-3. Completá los datos:
-   - **Nombre**: Ej. "Banco Santander", "Ualá"
+3. Seleccioná la **moneda**: ARS o USD
+4. Completá los datos:
+   - **Nombre**: Ej. "Banco Santander", "Ualá", "Caja USD"
    - **Descripción**: Opcional
    - Para WALLET: Seleccioná el **Proveedor** (MercadoPago, Ualá, Naranja X, etc.)
-4. Presioná **Crear Cuenta**.
+5. Presioná **Crear Cuenta**.
+
+> **Nota**: Podés tener cuentas en ARS y USD simultáneamente. Cada una mantiene su balance independiente.
 
 ### 6.4 Transferencias Entre Cuentas
 
@@ -327,12 +335,22 @@ Transfiere dinero de una cuenta a otra (ej.: retiro de MercadoPago a Banco):
    - **Cuenta Origen**: De dónde sale el dinero
    - **Cuenta Destino**: A dónde va el dinero
    - **Monto**: Cantidad a transferir
-3. Presioná **Transferir**.
+3. Si las cuentas tienen **monedas diferentes** (ej.: ARS a USD):
+   - El sistema muestra automáticamente la **conversión**
+   - Muestra el **tipo de cambio vigente**
+   - Indica la **fuente** de la cotización
+4. Presioná **Transferir**.
 
-**Ejemplo**: Retiraste $50,000 de MercadoPago a tu banco:
-- Cuenta Origen: MercadoPago
-- Cuenta Destino: Banco Nación
+**Ejemplo 1 - Misma moneda**: Retiraste $50,000 de MercadoPago a tu banco:
+- Cuenta Origen: MercadoPago (ARS)
+- Cuenta Destino: Banco Nación (ARS)
 - Monto: $50,000
+
+**Ejemplo 2 - Conversión USD→ARS**: Convertís $100 USD a ARS:
+- Cuenta Origen: Caja USD
+- Cuenta Destino: Caja Principal (ARS)
+- Monto: $100 USD
+- Sistema muestra: 1 USD = $1,050 ARS → Recibirás $105,000 ARS
 
 ### 6.5 Movimientos Manuales
 
@@ -599,18 +617,25 @@ Los estados posibles son:
 
 1. Presioná **Nueva Compra**.
 2. **Seleccioná un proveedor** de la lista desplegable.
-3. Opcionalmente, ingresá el **número de factura** del proveedor y **notas**.
-4. **Agregar productos**:
+3. **Seleccioná la moneda**: ARS o USD
+   - Si seleccionás USD, el sistema muestra el **tipo de cambio vigente**
+   - Todos los precios se ingresan en la moneda seleccionada
+4. Opcionalmente, ingresá el **número de factura** del proveedor y **notas**.
+5. **Agregar productos**:
    - Seleccioná un producto del desplegable.
    - Ingresá **cantidad**, **precio unitario** e **IVA %** (por defecto 21%).
    - Presioná **Agregar**.
    - Repetí para cada producto de la compra.
    - Si el producto no existe, usá el botón **Nuevo** para crearlo rápidamente sin salir de la pantalla.
-5. Revisá la lista de productos agregados. Podés eliminar ítems individuales.
-6. En el **Resumen**, verificá subtotal, IVA y total.
-7. Opcionalmente, ingresá un **Monto Pagado** (pago inicial). Dejalo en 0 para marcar la compra como pendiente de pago.
-8. **Seleccioná el método de pago**: CASH, TRANSFER, CHECK, ACCOUNT.
-9. Presioná **Crear Compra**.
+6. Revisá la lista de productos agregados. Podés eliminar ítems individuales.
+7. En el **Resumen**, verificá subtotal, IVA y total en la moneda seleccionada.
+8. Si seleccionaste **USD**, verás una **calculadora de conversión** que muestra:
+   - Total en USD
+   - Tipo de cambio actual
+   - Equivalente en ARS
+9. Opcionalmente, ingresá un **Monto Pagado** (pago inicial). Dejalo en 0 para marcar la compra como pendiente de pago.
+10. **Seleccioná el método de pago**: CASH, TRANSFER, CHECK, ACCOUNT.
+11. Presioná **Crear Compra**.
 
 > **Nota**: Si seleccionás TRANSFER, el sistema valida que tu Cuenta Bancaria tenga fondos suficientes.
 
@@ -668,9 +693,13 @@ Cada tarjeta de cuenta por pagar muestra:
 1. En una cuenta que no esté completamente pagada, presioná **Registrar Pago**.
 2. Completá:
    - **Monto a Pagar**: Se pre-carga con el monto pendiente, pero podés ingresar un pago parcial.
+   - **Moneda**: La moneda se muestra automáticamente según la compra original
    - **Método de Pago**: Efectivo, Transferencia, Cheque, Tarjeta.
    - **Referencia** (opcional): Número de cheque, referencia de transferencia, etc.
-3. Presioná **Registrar Pago**.
+3. Si el pago es en **USD**:
+   - El sistema guarda un **snapshot del tipo de cambio** usado
+   - Permite auditoría completa de la conversión
+4. Presioná **Registrar Pago**.
 
 ---
 
@@ -825,6 +854,41 @@ La página de configuración muestra diferentes opciones según tus permisos:
 | **Facturación** | `settings:update` | Configuración del proveedor de facturación electrónica |
 | **Tipo de Cambio** | `settings:update` | Consultar cotización USD→ARS en tiempo real |
 | **Mi Perfil** | *(todos)* | Editar información personal y cambiar contraseña |
+
+### 15.0 Tipo de Cambio USD
+
+**Ruta**: `/dashboard/settings/exchange-rate`
+**Permiso**: `settings:update`
+
+El sistema obtiene automáticamente el tipo de cambio USD→ARS en tiempo real desde ArgentinaDatos.
+
+#### Cotización Actual
+
+Muestra:
+- **Tipo de cambio vigente** (ej: 1 USD = $1,050 ARS)
+- **Fuente**: De dónde viene (ArgentinaDatos, cache, snapshot, manual)
+- **Última actualización**: Cuándo se obtuvo
+- **Botón Actualizar**: Fuerza una actualización inmediata
+
+#### Sistema de Fallback
+
+Si la API no está disponible, el sistema usa automáticamente:
+
+1. **Cache en memoria** (últimos 2 minutos)
+2. **Último snapshot guardado** en la base de datos
+3. **Entrada manual** (si no hay snapshot)
+
+El sistema **nunca se bloquea** por falta de cotización. Siempre hay una forma de operar.
+
+#### Cotización Manual
+
+Si necesitás ingresar una cotización manualmente:
+
+1. Presioná **Ingresar Cotización Manual**
+2. Ingresá el **tipo de cambio** (ej: 1050)
+3. Presioná **Guardar**
+
+Esta cotización se usa como fallback si la API falla.
 
 ### 15.1 Datos del Negocio
 
