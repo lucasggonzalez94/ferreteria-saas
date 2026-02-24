@@ -537,24 +537,131 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 
 ### 11.6 Proveedores y Compras
 
-1. Dirígete a **Dashboard → Proveedores** y crea uno nuevo con datos de contacto.
-2. Abre **Compras → Nueva compra** (`purchases:create`). Selecciona el proveedor, añade productos, impuestos y un pago inicial parcial.
-3. Tras guardar, valida:
-   - En la lista de compras, la columna estado debe indicar `PARTIAL`.
-   - Cada producto ajusta su costo promedio y stock (ver Inventario → Movimientos con tipo `PURCHASE_RECEIPT`).
-   - Se creó una cuenta por pagar con el saldo restante (consultable vía API `/payables`).
+#### Crear Proveedor
+
+1. Dirígete a **Dashboard → Proveedores** (`purchases:read`).
+2. Presiona **Nuevo Proveedor** (`purchases:create`).
+3. Completa el formulario:
+   - **Nombre**: Obligatorio (ej: "Ferretería Central S.A.")
+   - **CUIT**: Opcional (ej: "30-12345678-9")
+   - **Email**: Opcional con validación (ej: "ventas@ferreteriacentral.com")
+   - **Teléfono**: Opcional (ej: "011-4567-8900")
+   - **Dirección**: Opcional, multilínea (ej: "Av. Corrientes 1234, CABA")
+   - **Condiciones de Pago**: Opcional, texto libre (ej: "30 días fecha de factura")
+   - **Plazo de Pago (días)**: Opcional, número (ej: 30, o 0 para contado)
+   - **Límite de Crédito**: Opcional, número (ej: 500000)
+4. Presiona **Guardar**.
+5. Verifica que:
+   - El proveedor aparece en la lista
+   - Muestra los datos correctamente
+   - La búsqueda funciona por nombre, CUIT o email
+
+#### Editar Proveedor
+
+6. Presiona el ícono de **edición** (lápiz) en la tarjeta del proveedor.
+7. Modifica campos (ej: cambiar teléfono, actualizar límite de crédito).
+8. Presiona **Guardar**.
+9. Verifica que los cambios se reflejen en la lista.
+
+#### Ver Detalle de Proveedor
+
+10. Presiona el ícono de **ojo** en la tarjeta del proveedor.
+11. Verifica que muestra:
+    - **Tarjetas de estadísticas**: Total Compras, Total Adeudado, Pendiente, Última Compra
+    - **Información completa**: CUIT, email, teléfono, dirección, condiciones, límite
+    - **Botones de acción**: Ver Compras, Cuentas por Pagar
+
+#### Eliminar Proveedor
+
+12. Intenta eliminar un proveedor **sin compras**:
+    - Presiona ícono de **papelera**
+    - Confirma eliminación
+    - Verifica que se elimina correctamente
+13. Intenta eliminar un proveedor **con compras**:
+    - Presiona ícono de **papelera**
+    - Confirma eliminación
+    - Verifica que muestra error: "Cannot delete supplier with purchases"
+
+#### Crear Compra
+
+14. Abre **Compras → Nueva compra** (`purchases:create`).
+15. Selecciona el proveedor creado anteriormente.
+16. Añade productos, impuestos y un pago inicial parcial.
+17. Tras guardar, valida:
+    - En la lista de compras, la columna estado debe indicar `PARTIAL`.
+    - Cada producto ajusta su costo promedio y stock (ver Inventario → Movimientos con tipo `PURCHASE_RECEIPT`).
+    - Se genera una cuenta por pagar automáticamente (ve a **Cuentas por Pagar**).
+18. Registra un pago adicional desde **Cuentas por Pagar** y verifica que el estado cambie a `PAID` cuando se pague el total.
 
 ### 11.7 Caja (apertura, movimientos y cierre)
 
-1. Accede a **Dashboard → Caja** (`cash_register:read`). Si no hay sesión activa, se muestra el formulario “Abrir caja”.
-2. **Abrir caja** (`cash_register:open`): ingresa un monto inicial y confirma. Serás redirigido automáticamente al POS.
-3. Regresa a Caja para revisar:
-   - Resumen de ventas (debe estar en cero si aún no vendiste).
-   - Contador de movimientos.
-   - Fecha/hora de apertura.
-4. Registra movimientos manuales (Ingreso/Egreso) desde el diálogo y revisa cómo aparecen en el resumen.
-5. Antes de cerrar el día, usa **Generar reporte** para abrir `/dashboard/cash-register/report?...` y confírmalo con `Ctrl+P`.
-6. **Cerrar caja** (`cash_register:close`): ingresa monto real y verifica que el sistema calcule `expectedAmount` y `difference`.
+#### Abrir Caja
+
+1. Accede a **Dashboard → Caja** (`cash_register:read`). Si no hay sesión activa, se muestra el formulario "Abrir caja".
+2. El sistema sugiere automáticamente el **balance actual** de las cuentas CASH:
+   - **Monto Inicial (ARS)**: Balance de la cuenta de efectivo en pesos (prellenado)
+   - **Monto Inicial (USD)**: Balance de la cuenta de efectivo en dólares (si existe, prellenado)
+3. **Abrir caja** (`cash_register:open`): 
+   - Podés modificar los montos sugeridos si hay diferencias físicas
+   - Si hay diferencia vs balance de cuenta, aparece modal de confirmación
+   - Confirma y el sistema registra automáticamente INGRESO/RETIRO si hay diferencia
+   - Serás redirigido automáticamente al POS
+4. Verifica en el toast que aparece si se registraron ajustes automáticos
+
+#### Sesión Activa
+
+5. Regresa a Caja para revisar:
+   - **Monto Inicial**: El monto con el que abriste
+   - **Ventas**: Cantidad de ventas confirmadas
+   - **Movimientos**: Cantidad de movimientos manuales
+   - **Resumen por Medio de Pago**: Tabla con CASH_ARS, CASH_USD, CARD, TRANSFER, QR
+   - **Movimientos Manuales**: Historial de ingresos/egresos
+
+#### Registrar Movimientos Manuales
+
+6. Registra movimientos manuales (Ingreso/Egreso) desde el botón **Registrar Movimiento**:
+   - Selecciona tipo (INCOME/EXPENSE)
+   - Ingresa monto y motivo
+   - El sistema crea el movimiento en caja y en la cuenta CASH automáticamente
+   - Revisa cómo aparece en el resumen
+
+#### Generar Reporte
+
+7. Antes de cerrar el día, usa **Reporte** para abrir `/dashboard/cash-register/report?...`:
+   - Se abre en nueva ventana con formato imprimible
+   - Incluye: información de sesión, resumen de ventas, desglose por medio de pago, movimientos manuales
+   - Presiona `Ctrl+P` para imprimir o guardar como PDF
+
+#### Cerrar Caja
+
+8. **Cerrar caja** (`cash_register:close`):
+   - La pantalla muestra **Montos Esperados** (apertura + ventas + movimientos)
+   - Ingresa **Monto Final (ARS)**: El total que contaste en pesos
+   - Ingresa **Monto Final (USD)**: El total que contaste en dólares (si aplica)
+   - El sistema calcula automáticamente la **Diferencia** para cada moneda
+   - Opcionalmente, ingresa **Notas** explicando discrepancias
+   - Confirma el cierre
+   - El sistema:
+     - Calcula diferencias finales
+     - Registra automáticamente INGRESO/EGRESO para diferencias > $0.01
+     - Guarda snapshot de tipo de cambio
+     - Marca sesión como CLOSED
+   - Verifica en el toast que el cierre fue exitoso
+
+#### Validar Cálculos
+
+9. Verifica que el sistema calcule correctamente:
+   - `expectedAmount = openingAmount + ventas_CASH + ingresos_manuales - egresos_manuales`
+   - `difference = closingAmount - expectedAmount`
+   - Diferencias se registran automáticamente en cuentas financieras
+
+#### Historial de Caja
+
+10. Ve a **Dashboard → Caja → Historial** (`cash_register:read`):
+    - Muestra últimas 50 sesiones ordenadas por fecha
+    - Columnas: Cajero, Abierta, Monto Inicial, Estado
+    - Presiona **Ver Detalles** para abrir modal con resumen completo
+    - Presiona **Descargar Reporte** para generar reporte imprimible
 
 ### 11.8 POS y ventas completas
 
@@ -597,19 +704,96 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 
 ### 11.12 Cuentas Financieras
 
+#### Visualizar Cuentas
+
 1. Accede a **Dashboard → Finanzas** (`financial_accounts:read`).
-2. Verás las 3 cuentas por defecto: Caja Principal, Banco Nación, MercadoPago.
-3. **Crear cuenta**: Presiona **Nueva Cuenta**, selecciona tipo (CASH, BANK, WALLET, CREDIT_CARD) e ingresa datos.
-4. **Transferencias**: Presiona **Transferir**, selecciona origen/destino, ingresa monto y confirma.
-5. **Movimientos manuales**: Presiona **Movimiento Manual**, selecciona cuenta, tipo (INGRESO/EGRESO), monto y descripción.
-6. **Validación de cierre**:
-   - Ve a **Finanzas → Resumen** (`/dashboard/financial-accounts/summary`)
-   - Verifica que cada balance coincida con tu conteo físico/extracto
-   - Si hay diferencia, registra un movimiento manual para ajustar
-7. **Extracciones**: Si retiras dinero de MercadoPago a tu banco:
-   - Opción A: Usa **Transferencias** (recomendado)
-   - Opción B: Registra un **Movimiento Manual** de EGRESO en MercadoPago
-8. **Validación de compras**: Al crear una compra con método TRANSFER, el sistema valida que el Banco tenga fondos suficientes.
+2. Verás:
+   - **Balance Total**: Suma de todos los balances (convertidos a ARS si hay USD)
+   - **Tarjetas por Tipo**: Resumen de CASH, BANK, WALLET, CREDIT_CARD
+   - **Botones de Acción**:
+     - **Resumen Detallado**: Abre vista con movimientos del día y validación
+     - **Transferir entre Cuentas**: Abre modal para transferencias (si tienes permisos)
+     - **Registrar Movimiento**: Abre modal para ingresos/egresos manuales (si tienes permisos)
+   - **Cuentas Activas**: Grilla con todas las cuentas
+     - Nombre, tipo, balance, descripción
+     - Datos bancarios (si aplica)
+     - Proveedor de billetera (si aplica)
+     - Botón de estrella para marcar como favorita
+     - Acciones: Ver Detalle, Editar, Eliminar
+
+#### Crear Cuenta
+
+3. **Crear cuenta** (`financial_accounts:create`):
+   - Presiona **Nueva Cuenta**
+   - Selecciona **Tipo**: CASH, BANK, WALLET o CREDIT_CARD
+   - Ingresa **Nombre**: Debe ser único (ej: "Banco Santander", "Caja USD")
+   - Selecciona **Moneda**: ARS o USD
+   - Completa datos opcionales:
+     - Descripción
+     - Monto Inicial
+     - Marcar como Favorita (isDefault)
+   - Si BANK: Ingresa nombre del banco y número de cuenta
+   - Si WALLET: Selecciona proveedor (MercadoPago, Ualá, etc.)
+   - Presiona **Crear Cuenta**
+
+#### Transferencias Entre Cuentas
+
+4. **Transferencias** (`financial_accounts:manage`):
+   - Presiona **Transferir entre Cuentas**
+   - Selecciona:
+     - **Cuenta Origen**: De dónde sale el dinero
+     - **Cuenta Destino**: A dónde va el dinero
+     - **Monto**: Cantidad a transferir
+     - **Descripción**: Opcional
+   - Si monedas diferentes:
+     - Sistema muestra conversión automática
+     - Muestra tipo de cambio vigente y fuente
+   - Presiona **Transferir**
+   - Sistema valida fondos, actualiza balances, guarda snapshot de tipo de cambio
+
+#### Movimientos Manuales
+
+5. **Movimientos manuales** (`financial_accounts:manage`):
+   - Presiona **Registrar Movimiento**
+   - Selecciona:
+     - **Cuenta**: Dónde registrar
+     - **Tipo**: INCOME (ingreso) o EXPENSE (egreso)
+     - **Monto**: Cantidad positiva
+     - **Descripción**: Motivo (ej: "Comisión bancaria", "Extracción")
+   - Sistema valida fondos (si EXPENSE)
+   - Presiona **Registrar Movimiento**
+
+#### Editar Cuenta
+
+6. **Editar cuenta** (`financial_accounts:update`):
+   - Presiona **Editar** en la cuenta
+   - Modifica campos:
+     - Nombre, descripción
+     - Datos bancarios (si BANK)
+     - Proveedor (si WALLET)
+     - Marcar como favorita
+     - Activar/desactivar
+   - Presiona **Guardar Cambios**
+
+#### Validación de Cierre
+
+7. **Validación de cierre**:
+   - Ve a **Finanzas → Resumen** (o desde página principal)
+   - Verifica cada balance:
+     - **Caja Principal**: Cuenta el efectivo físico
+     - **Banco**: Revisa extracto bancario
+     - **MercadoPago**: Abre app y compara balance
+   - Si hay diferencia:
+     - Registra **Movimiento Manual** para ajustar
+     - Tipo: INGRESO (si contaste más) o EGRESO (si contaste menos)
+     - Descripción: "Ajuste de cierre"
+
+#### Validación de Compras
+
+8. **Validación de compras**:
+   - Al crear compra con método TRANSFER, sistema valida que Banco tenga fondos
+   - Si fondos insuficientes, muestra error y no permite crear compra
+   - Esto previene sobregiros accidentales
 
 ### 11.13 Tipo de Cambio USD y Sistema de Fallback
 

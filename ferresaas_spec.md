@@ -274,23 +274,86 @@ Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
 
 ---
 
-### 7.4 Compras + Proveedores
+### 7.4 Proveedores
+
+**Descripción**
+
+Módulo para gestionar proveedores de la ferretería. Permite registrar datos de contacto, condiciones de pago, límites de crédito y consultar estadísticas de compras y cuentas por pagar.
+
+**Reglas**
+
+- Nombre obligatorio, resto de campos opcionales
+- Búsqueda por nombre, CUIT o email (case-insensitive)
+- No se puede eliminar proveedor con compras asociadas
+- Campo `paymentTermDays` para cálculo automático de vencimientos
+- Campo `currentBalance` calculado desde cuentas por pagar
+- Auditoría completa en create, update, delete
 
 **Criterios de aceptación**
 
-- CRUD proveedores.
+- **Creación de proveedor**:
+  - Nombre (obligatorio, 1-200 caracteres)
+  - CUIT (opcional, máx. 20 caracteres)
+  - Email (opcional, validación de formato)
+  - Teléfono (opcional, máx. 50 caracteres)
+  - Dirección (opcional, máx. 500 caracteres)
+  - Condiciones de pago (opcional, texto libre, máx. 100 caracteres)
+  - Plazo de pago en días (opcional, número ≥ 0, 0 = contado)
+  - Límite de crédito (opcional, número positivo)
+  - Estado activo/inactivo
+
+- **Listado**:
+  - Paginación (10 por página, máx. 100)
+  - Búsqueda por nombre, CUIT o email
+  - Filtro por estado (activo/inactivo)
+  - Muestra cantidad de compras por proveedor
+  - Muestra balance adeudado actual
+  - Ordenado por nombre ascendente
+
+- **Detalle del proveedor**:
+  - Estadísticas: total compras, monto total, total adeudado, total pagado, pendiente, última compra
+  - Información de contacto completa
+  - Enlaces a compras y cuentas por pagar filtradas
+
+- **Edición**:
+  - Todos los campos editables
+  - Auditoría con before/after
+
+- **Eliminación**:
+  - Validación: NO debe tener compras asociadas
+  - Error si tiene compras: "Cannot delete supplier with purchases"
+  - Auditoría completa
+
+**Endpoints**
+
+- GET /suppliers (listar con paginación y búsqueda)
+- POST /suppliers (crear proveedor)
+- GET /suppliers/:id (obtener proveedor con estadísticas)
+- PUT /suppliers/:id (actualizar proveedor)
+- DELETE /suppliers/:id (eliminar proveedor)
+
+---
+
+### 7.5 Compras
+
+**Descripción**
+
+Módulo para registrar compras a proveedores. Genera movimientos de stock, actualiza costos promedio y crea cuentas por pagar automáticamente.
+
+**Criterios de aceptación**
+
 - Registrar compra con items:
   - producto, cantidad, costo unitario, impuestos, total
 - Al confirmar compra:
   - genera movimientos de stock
   - actualiza costo promedio (configurable: costo último vs promedio ponderado)
+  - crea cuenta por pagar automáticamente
 
 **Endpoints**
 
-- GET/POST/PUT/DELETE /suppliers
-- POST /purchases
-- GET /purchases
-- GET /purchases/:id
+- POST /purchases (crear compra)
+- GET /purchases (listar compras)
+- GET /purchases/:id (obtener compra)
 
 ---
 
@@ -344,30 +407,136 @@ Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
 
 ### 7.6 Caja (apertura/cierre/arqueo)
 
+**Descripción**
+
+Módulo de control de efectivo físico y digital durante la jornada. Cada usuario (cajero) abre una sesión de caja al inicio del turno y la cierra al final, registrando todas las transacciones y movimientos manuales.
+
 **Reglas**
 
-- Cada usuario (cajero) abre una caja por turno.
+- Cada usuario (cajero) abre una caja por turno (una sesión OPEN por usuario a la vez).
 - No se puede confirmar venta si no hay caja abierta (configurable; default SÍ).
-- Cierre diario con arqueo.
+- Cierre diario con arqueo (cálculo de diferencias).
+- Soporte multi-moneda: ARS y USD simultáneamente.
+- Snapshots de tipo de cambio al abrir y cerrar (para auditoría).
+- Ajustes automáticos en cuentas financieras para diferencias detectadas.
 
 **Criterios de aceptación**
 
-- Apertura: monto inicial ARS.
-- Movimientos de caja: ventas, retiros, ingresos manuales.
-- Cierre: resumen por medio de pago + diferencia.
-- Auditoría total.
+- **Apertura**: 
+  - Monto inicial ARS (obligatorio)
+  - Monto inicial USD (opcional)
+  - Sugerencia automática de balance de cuenta CASH
+  - Detección de diferencia vs balance de cuenta
+  - Registro automático de INGRESO/RETIRO si hay diferencia
+  - Snapshot de tipo de cambio
+  
+- **Movimientos de caja**: 
+  - Ventas (automáticas al confirmar venta en POS)
+  - Retiros/ingresos manuales (INCOME/EXPENSE)
+  - Registro en cuentas financieras
+  
+- **Cierre**: 
+  - Resumen por medio de pago (CASH_ARS, CASH_USD, CARD, TRANSFER, QR)
+  - Cálculo de monto esperado (apertura + ventas + movimientos)
+  - Cálculo de diferencia (real - esperado) por moneda
+  - Registro automático de INGRESO/EGRESO para diferencias
+  - Snapshot de tipo de cambio
+  - Notas opcionales para explicar discrepancias
+  
+- **Historial**: 
+  - Listado de todas las sesiones (OPEN y CLOSED)
+  - Detalles de cada sesión
+  - Reporte imprimible
+  
+- **Auditoría total**: 
+  - Todos los cambios registrados con usuario, timestamp, before/after
+  - Snapshots de tipo de cambio para conversiones USD
 
 **Endpoints**
 
-- POST /cash-register/open
-- POST /cash-register/move (ingreso/egreso manual)
-- POST /cash-register/close
-- GET /cash-register/status
-- GET /cash-register/history
+- GET /cash-register/suggested-opening (obtener balance sugerido)
+- POST /cash-register/open (abrir caja)
+- POST /cash-register/move (registrar movimiento manual)
+- POST /cash-register/close (cerrar caja)
+- GET /cash-register/status (obtener sesión abierta)
+- GET /cash-register/history (historial de sesiones)
+- GET /cash-register/:sessionId/summary (resumen de sesión)
 
 ---
 
-### 7.7 Clientes + Cuenta corriente
+### 7.7 Cuentas Financieras (gestión de fondos)
+
+**Descripción**
+
+Módulo para gestionar todas las cuentas de fondos de la empresa (efectivo, bancos, billeteras virtuales, tarjetas). Independiente de la sesión de caja, se actualiza automáticamente con cada venta y permite transferencias entre cuentas con soporte multi-moneda.
+
+**Reglas**
+
+- Cuentas por tipo: CASH, BANK, WALLET, CREDIT_CARD
+- Soporte multi-moneda: ARS y USD simultáneamente
+- Una cuenta por defecto por tipo y moneda
+- Validación de fondos antes de EXPENSE o transferencia
+- Conversión automática de moneda en transferencias
+- Snapshots de tipo de cambio para auditoría
+- Balances nunca pueden ser negativos
+
+**Criterios de aceptación**
+
+- **Creación de cuentas**:
+  - Tipo (CASH, BANK, WALLET, CREDIT_CARD)
+  - Nombre único por negocio
+  - Moneda (ARS o USD)
+  - Descripción opcional
+  - Monto inicial opcional
+  - Marcar como favorita (isDefault)
+  - Datos específicos por tipo (banco, proveedor, etc.)
+
+- **Visualización**:
+  - Listado de cuentas activas
+  - Balance total (convertido a ARS si hay USD)
+  - Resumen por tipo
+  - Detalle de cada cuenta
+  - Movimientos del día
+
+- **Transferencias**:
+  - Entre cuentas del mismo negocio
+  - Validación de fondos
+  - Conversión automática si monedas diferentes
+  - Snapshot de tipo de cambio
+  - Movimientos en ambas cuentas
+
+- **Movimientos manuales**:
+  - INCOME o EXPENSE
+  - Validación de fondos (si EXPENSE)
+  - Actualización de balance
+  - Descripción y auditoría
+
+- **Edición**:
+  - Cambiar nombre, descripción, datos bancarios
+  - Marcar/desmarcar como favorita
+  - Activar/desactivar cuenta
+  - Validación de nombre único
+
+- **Auditoría total**:
+  - Todos los cambios registrados
+  - Snapshots de tipo de cambio para conversiones
+
+**Endpoints**
+
+- GET /financial-accounts (listar cuentas)
+- GET /financial-accounts/summary (resumen de balances)
+- GET /financial-accounts/:id (obtener cuenta)
+- POST /financial-accounts (crear cuenta)
+- PUT /financial-accounts/:id (actualizar cuenta)
+- DELETE /financial-accounts/:id (eliminar cuenta)
+- GET /financial-accounts/:accountId/movements (movimientos de cuenta)
+- GET /financial-accounts/:accountId/summary (resumen de movimientos)
+- POST /financial-accounts/movements (crear movimiento manual)
+- POST /financial-accounts/transfers (crear transferencia)
+
+---
+
+### 7.8 Clientes + Cuenta corriente
 
 **Criterios de aceptación**
 
@@ -388,7 +557,52 @@ Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
 
 ---
 
-### 7.8 Reportes avanzados + Dashboard
+### 7.8 Dashboard Principal
+
+**Descripción**
+
+El dashboard es la pantalla principal tras iniciar sesión. Proporciona un resumen rápido del estado del negocio con estadísticas clave y accesos rápidos a funcionalidades principales.
+
+**Componentes**
+
+1. **Tarjetas de Estadísticas** (hasta 4, según permisos):
+   - **Ventas de Hoy**: Suma de `total` de ventas confirmadas del día actual (requiere `sales:read`)
+   - **Productos**: Conteo de productos activos (requiere `products:read`)
+   - **Clientes**: Conteo de clientes registrados (requiere `customers:read`)
+   - **Stock Bajo**: Conteo de productos donde `stockQuantity < minStock` (requiere `products:read` + `inventory:read`)
+
+2. **Accesos Rápidos** (botones dinámicos según permisos):
+   - Caja, POS, Productos, Clientes, Inventario, Proveedores, Finanzas, Compras, Cuentas por Pagar, Aprobación de Precios, Aprobación de Descuentos, Reportes
+   - Cada botón solo aparece si el usuario tiene el permiso correspondiente
+   - Soporta reordenamiento mediante drag-and-drop (persistencia en localStorage)
+
+3. **Badges de Notificación**:
+   - Aprobación de Descuentos: muestra conteo si hay solicitudes pendientes (requiere `sales:manage`)
+   - Aprobación de Precios: muestra conteo si hay sugerencias pendientes (requiere `pricing:approve`)
+
+4. **Indicadores**:
+   - Estado de conexión (online/offline)
+   - Botón de refrescar datos manualmente
+
+**Criterios de aceptación**
+
+- Validación de permisos para cada tarjeta y botón
+- Cálculo correcto de "Ventas de Hoy" (solo confirmadas, solo del día actual)
+- Conteos de aprobaciones pendientes actualizados en tiempo real
+- Soporte offline: indicador visual de estado de conexión
+- Persistencia de orden de accesos rápidos en localStorage
+- Logo del negocio mostrado en header (evento `businessLogoChanged`)
+
+**Endpoints consumidos**
+
+- GET /sales (para calcular ventas de hoy)
+- GET /products (para contar productos y stock bajo)
+- GET /customers (para contar clientes)
+- GET /approvals/pending-count (para badges de notificación)
+
+---
+
+### 7.9 Reportes avanzados
 
 **KPIs mínimos (avanzado)**
 
@@ -406,7 +620,7 @@ Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
 
 - Filtros: rango fechas, usuario, cliente, categoría, proveedor, medio pago.
 - Export CSV de cada reporte.
-- Dashboard con widgets.
+- Reportes con widgets y gráficos.
 
 **Endpoints**
 

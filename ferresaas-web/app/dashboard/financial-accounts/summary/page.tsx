@@ -53,12 +53,18 @@ const accountTypeLabels = {
 
 export default function FinancialAccountsSummaryPage() {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
 
   const canRead = user?.permissions?.includes("financial_accounts:read");
 
   // Fetch accounts
-  const { data: accounts, isLoading, refetch } = useQuery<FinancialAccount[]>({
+  const {
+    data: accounts,
+    isLoading,
+    refetch,
+  } = useQuery<FinancialAccount[]>({
     queryKey: ["financial-accounts"],
     queryFn: async () => {
       const response = await api.get<any>("/financial-accounts");
@@ -81,7 +87,9 @@ export default function FinancialAccountsSummaryPage() {
   const { data: movements } = useQuery<FinancialMovement[]>({
     queryKey: ["financial-movements", selectedDate],
     queryFn: async () => {
-      const response = await api.get<any>(`/financial-accounts/movements?date=${selectedDate}`);
+      const response = await api.get<any>(
+        `/financial-accounts/movements?date=${selectedDate}`,
+      );
       return response.data || [];
     },
     enabled: canRead,
@@ -112,33 +120,33 @@ export default function FinancialAccountsSummaryPage() {
   const totalBalance = summary?.totalBalance || 0;
 
   // Agrupar movimientos por cuenta
-  const movementsByAccount = (movements || []).reduce((acc: any, movement: FinancialMovement) => {
-    if (!acc[movement.accountId]) {
-      acc[movement.accountId] = [];
-    }
-    acc[movement.accountId].push(movement);
-    return acc;
-  }, {});
+  const movementsByAccount = (movements || []).reduce(
+    (acc: any, movement: FinancialMovement) => {
+      if (!acc[movement.accountId]) {
+        acc[movement.accountId] = [];
+      }
+      acc[movement.accountId].push(movement);
+      return acc;
+    },
+    {},
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header title="Resumen de Cuentas Financieras" />
-
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Resumen Financiero</h1>
-            <p className="text-muted-foreground">
-              Estado actual de todas tus cuentas financieras
-            </p>
-          </div>
+    <div className="p-8 max-w-7xl mx-auto">
+      <Header
+        title="Resumen Financiero"
+        description="Estado actual de todas tus cuentas financieras"
+        actions={
           <Button onClick={() => refetch()} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
           </Button>
-        </div>
+        }
+        link="/dashboard/financial-accounts"
+        linkLabel="Volver Finanzas"
+      />
 
+      <div className="space-y-6">
         {/* Total Balance Card */}
         <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
           <CardHeader>
@@ -146,7 +154,10 @@ export default function FinancialAccountsSummaryPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold text-blue-900">
-              ${totalBalance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+              $
+              {totalBalance.toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })}
             </div>
             <p className="text-sm text-blue-700 mt-2">
               Suma de todas las cuentas activas
@@ -159,17 +170,29 @@ export default function FinancialAccountsSummaryPage() {
           <h2 className="text-xl font-semibold">Cuentas por Tipo</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {activeAccounts.map((account) => {
-              const Icon = accountTypeIcons[account.type as keyof typeof accountTypeIcons] || Wallet;
+              const Icon =
+                accountTypeIcons[
+                  account.type as keyof typeof accountTypeIcons
+                ] || Wallet;
               const accountMovements = movementsByAccount[account.id] || [];
               const dayIncome = accountMovements
                 .filter((m: FinancialMovement) => m.type === "INCOME")
-                .reduce((sum: number, m: FinancialMovement) => sum + m.amount, 0);
+                .reduce(
+                  (sum: number, m: FinancialMovement) => sum + m.amount,
+                  0,
+                );
               const dayExpense = accountMovements
                 .filter((m: FinancialMovement) => m.type === "EXPENSE")
-                .reduce((sum: number, m: FinancialMovement) => sum + m.amount, 0);
+                .reduce(
+                  (sum: number, m: FinancialMovement) => sum + m.amount,
+                  0,
+                );
 
               return (
-                <Card key={account.id} className="hover:shadow-lg transition-shadow">
+                <Card
+                  key={account.id}
+                  className="hover:shadow-lg transition-shadow"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -177,9 +200,15 @@ export default function FinancialAccountsSummaryPage() {
                           <Icon className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <CardTitle className="text-base">{account.name}</CardTitle>
+                          <CardTitle className="text-base">
+                            {account.name}
+                          </CardTitle>
                           <p className="text-xs text-muted-foreground">
-                            {accountTypeLabels[account.type as keyof typeof accountTypeLabels]}
+                            {
+                              accountTypeLabels[
+                                account.type as keyof typeof accountTypeLabels
+                              ]
+                            }
                           </p>
                         </div>
                       </div>
@@ -188,16 +217,23 @@ export default function FinancialAccountsSummaryPage() {
                   <CardContent className="space-y-3">
                     {/* Balance */}
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Balance Actual</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Balance Actual
+                      </p>
                       <p className="text-2xl font-bold">
-                        ${account.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                        $
+                        {account.balance.toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                        })}
                       </p>
                     </div>
 
                     {/* Day Summary */}
                     {(dayIncome > 0 || dayExpense > 0) && (
                       <div className="border-t pt-3 space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Movimientos Hoy</p>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Movimientos Hoy
+                        </p>
                         {dayIncome > 0 && (
                           <div className="flex items-center justify-between text-sm">
                             <span className="flex items-center gap-1 text-green-600">
@@ -205,7 +241,10 @@ export default function FinancialAccountsSummaryPage() {
                               Ingresos
                             </span>
                             <span className="font-medium text-green-600">
-                              +${dayIncome.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                              +$
+                              {dayIncome.toLocaleString("es-AR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </span>
                           </div>
                         )}
@@ -216,7 +255,10 @@ export default function FinancialAccountsSummaryPage() {
                               Egresos
                             </span>
                             <span className="font-medium text-red-600">
-                              -${dayExpense.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                              -$
+                              {dayExpense.toLocaleString("es-AR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </span>
                           </div>
                         )}
@@ -224,7 +266,11 @@ export default function FinancialAccountsSummaryPage() {
                     )}
 
                     <Link href={`/dashboard/financial-accounts/${account.id}`}>
-                      <Button variant="outline" size="sm" className="w-full mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                      >
                         Ver Detalle
                       </Button>
                     </Link>
@@ -252,7 +298,9 @@ export default function FinancialAccountsSummaryPage() {
               <CardContent className="pt-6">
                 <div className="space-y-3">
                   {movements.map((movement) => {
-                    const account = activeAccounts.find((a) => a.id === movement.accountId);
+                    const account = activeAccounts.find(
+                      (a) => a.id === movement.accountId,
+                    );
                     const isIncome = movement.type === "INCOME";
 
                     return (
@@ -267,14 +315,22 @@ export default function FinancialAccountsSummaryPage() {
                             }`}
                           >
                             {isIncome ? (
-                              <TrendingUp className={`h-4 w-4 text-green-600`} />
+                              <TrendingUp
+                                className={`h-4 w-4 text-green-600`}
+                              />
                             ) : (
-                              <TrendingDown className={`h-4 w-4 text-red-600`} />
+                              <TrendingDown
+                                className={`h-4 w-4 text-red-600`}
+                              />
                             )}
                           </div>
                           <div className="flex-1">
-                            <p className="font-medium text-sm">{movement.description}</p>
-                            <p className="text-xs text-muted-foreground">{account?.name}</p>
+                            <p className="font-medium text-sm">
+                              {movement.description}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {account?.name}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -283,12 +339,15 @@ export default function FinancialAccountsSummaryPage() {
                               isIncome ? "text-green-600" : "text-red-600"
                             }`}
                           >
-                            {isIncome ? "+" : "-"}${movement.amount.toLocaleString("es-AR", {
+                            {isIncome ? "+" : "-"}$
+                            {movement.amount.toLocaleString("es-AR", {
                               minimumFractionDigits: 2,
                             })}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(movement.createdAt).toLocaleTimeString("es-AR")}
+                            {new Date(movement.createdAt).toLocaleTimeString(
+                              "es-AR",
+                            )}
                           </p>
                         </div>
                       </div>
@@ -316,7 +375,8 @@ export default function FinancialAccountsSummaryPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-amber-800">
-              Al final del día, verifica que los balances coincidan con tu conteo físico:
+              Al final del día, verifica que los balances coincidan con tu
+              conteo físico:
             </p>
 
             <div className="space-y-2">
@@ -328,7 +388,10 @@ export default function FinancialAccountsSummaryPage() {
                   <span className="font-medium">{account.name}</span>
                   <div className="text-right">
                     <p className="font-bold">
-                      ${account.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      $
+                      {account.balance.toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                      })}
                     </p>
                     <input
                       type="number"
@@ -344,7 +407,9 @@ export default function FinancialAccountsSummaryPage() {
             <div className="bg-white p-3 rounded-lg border-2 border-amber-300">
               <p className="text-sm font-medium mb-2">Validación:</p>
               <ul className="text-sm space-y-1 text-amber-900">
-                <li>✓ Verifica que el efectivo contado = Balance de Caja Principal</li>
+                <li>
+                  ✓ Verifica que el efectivo contado = Balance de Caja Principal
+                </li>
                 <li>✓ Verifica que las transferencias = Balance de Banco</li>
                 <li>✓ Verifica que los QR = Balance de MercadoPago</li>
                 <li>✓ Si todo cuadra, puedes cerrar la caja</li>

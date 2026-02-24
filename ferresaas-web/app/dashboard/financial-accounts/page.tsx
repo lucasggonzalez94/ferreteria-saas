@@ -22,8 +22,8 @@ import {
   RefreshCw,
   TrendingUp,
   Star,
+  BarChart3,
 } from "lucide-react";
-import Link from "next/link";
 import Header from "@/components/ui/header";
 import { CreateAccountModal } from "@/components/financial-accounts/create-account-modal";
 import { TransferModal } from "@/components/financial-accounts/transfer-modal";
@@ -230,24 +230,33 @@ export default function FinancialAccountsPage() {
         </div>
 
         {/* Quick Actions */}
-        {canManage && (
-          <div className="flex gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowTransferModal(true)}
-            >
-              <ArrowLeftRight className="h-4 w-4 mr-2" />
-              Transferir entre Cuentas
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowMovementModal(true)}
-            >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Registrar Movimiento
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-4 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/financial-accounts/summary")}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Resumen Detallado
+          </Button>
+          {canManage && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setShowTransferModal(true)}
+              >
+                <ArrowLeftRight className="h-4 w-4 mr-2" />
+                Transferir entre Cuentas
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowMovementModal(true)}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Registrar Movimiento
+              </Button>
+            </>
+          )}
+        </div>
 
         {/* Accounts List */}
         <div className="space-y-4">

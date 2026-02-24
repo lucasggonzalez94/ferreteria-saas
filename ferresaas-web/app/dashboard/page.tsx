@@ -427,7 +427,7 @@ export default function DashboardPage() {
                       <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
                         <Button
                           variant="outline"
-                          className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed" : ""}`}
+                          className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed cursor-grab active:cursor-grabbing" : ""}`}
                         >
                           {action.icon}
                           <span>{action.label}</span>
