@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
             return (
               <Link key={setting.href} href={setting.href}>
-                <Card className="hover:bg-slate-50 transition-colors cursor-pointer h-full">
+                <Card className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer h-full">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       {setting.icon}

@@ -265,25 +265,10 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Tooltip content={isOnline ? "Conectado" : "Sin conexión (offline)"}>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                aria-label={isOnline ? "Conectado a internet" : "Sin conexión a internet - Modo offline"}
-                disabled
-                className={isOnline ? "text-green-600" : "text-red-600"}
-              >
-                {isOnline ? (
-                  <Wifi className="h-5 w-5" />
-                ) : (
-                  <WifiOff className="h-5 w-5" />
-                )}
-              </Button>
-            </Tooltip>
             <Tooltip content="Refrescar datos">
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => {
                   refetchApprovalCounts();
                   refetchDashboardData();
@@ -293,16 +278,6 @@ export default function DashboardPage() {
                 <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
               </Button>
             </Tooltip>
-            <Link href="/dashboard/settings">
-              <Tooltip content="Configuración">
-                <Button variant="outline" size="icon">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </Tooltip>
-            </Link>
-            <Button variant="outline" onClick={logout}>
-              Cerrar Sesión
-            </Button>
           </div>
         </div>
 

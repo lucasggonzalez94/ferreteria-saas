@@ -1,18 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Edit2, Check, X } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Edit2, Check, X, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "next-themes";
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [editingPersonal, setEditingPersonal] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName || "");
   const [lastName, setLastName] = useState(user?.lastName || "");
@@ -24,6 +28,10 @@ export default function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleUpdatePersonal = async () => {
     if (!firstName.trim()) {
@@ -205,6 +213,31 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* Apariencia */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Apariencia</CardTitle>
+            <CardDescription>
+              Personaliza la apariencia de la aplicación
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium">Tema</label>
+                <p className="text-sm text-muted-foreground">
+                  {mounted ? (
+                    theme === "dark" ? "Modo oscuro activado" : "Modo claro activado"
+                  ) : (
+                    "Cargando..."
+                  )}
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Cambio de contraseña */}
         <Card>
           <CardHeader>
@@ -328,13 +361,13 @@ export default function ProfilePage() {
         </Card>
 
         {/* Información de seguridad */}
-        <Card className="mt-6 bg-blue-50 border-blue-200">
+        <Card className="mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <div className="text-blue-600 mt-0.5">ℹ️</div>
+              <div className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ️</div>
               <div>
-                <p className="text-sm font-medium text-blue-900">Consejos de Seguridad</p>
-                <ul className="text-xs text-blue-800 mt-2 space-y-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Consejos de Seguridad</p>
+                <ul className="text-xs text-blue-800 dark:text-blue-200 mt-2 space-y-1">
                   <li>• Usa una contraseña única y fuerte</li>
                   <li>• No compartas tu contraseña con nadie</li>
                   <li>• Cambia tu contraseña regularmente</li>

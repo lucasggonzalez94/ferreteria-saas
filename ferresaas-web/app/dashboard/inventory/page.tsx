@@ -114,19 +114,19 @@ export default function InventoryPage() {
   const getAlertColor = (level: string) => {
     switch (level) {
       case "CRITICAL":
-        return "bg-red-50 border-red-200";
+        return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800";
       case "WARNING":
-        return "bg-yellow-50 border-yellow-200";
+        return "bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800";
       default:
-        return "bg-gray-50 border-gray-200";
+        return "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700";
     }
   };
 
   const getAlertIcon = (level: string) => {
     return level === "CRITICAL" ? (
-      <AlertTriangle className="h-5 w-5 text-red-600" />
+      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
     ) : (
-      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+      <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
     );
   };
 
@@ -180,16 +180,16 @@ export default function InventoryPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                        <p className="text-sm text-red-600 font-medium">
+                      <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
+                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">
                           Críticas
                         </p>
                         <p className="text-2xl font-bold text-red-700">
                           {alerts.summary?.critical || 0}
                         </p>
                       </div>
-                      <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <p className="text-sm text-yellow-600 font-medium">
+                      <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
                           Advertencias
                         </p>
                         <p className="text-2xl font-bold text-yellow-700">

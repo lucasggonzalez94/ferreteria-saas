@@ -354,24 +354,24 @@ export default function ReportsPage() {
                 ) : alertsReport?.items && alertsReport.items.length > 0 ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                        <p className="text-sm text-red-600 font-medium">
+                      <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
+                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">
                           Críticas
                         </p>
                         <p className="text-2xl font-bold text-red-700">
                           {alertsReport.summary?.critical || 0}
                         </p>
                       </div>
-                      <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <p className="text-sm text-yellow-600 font-medium">
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
                           Advertencias
                         </p>
                         <p className="text-2xl font-bold text-yellow-700">
                           {alertsReport.summary?.warning || 0}
                         </p>
                       </div>
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-600 font-medium">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                           Total
                         </p>
                         <p className="text-2xl font-bold text-blue-700">
@@ -386,16 +386,16 @@ export default function ReportsPage() {
                           key={alert.id}
                           className={`flex justify-between items-center p-4 rounded-lg border ${
                             alert.alertLevel === "CRITICAL"
-                              ? "bg-red-50 border-red-200"
-                              : "bg-yellow-50 border-yellow-200"
+                              ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                              : "bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800"
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <AlertTriangle
                               className={`h-5 w-5 ${
                                 alert.alertLevel === "CRITICAL"
-                                  ? "text-red-600"
-                                  : "text-yellow-600"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-yellow-600 dark:text-yellow-400"
                               }`}
                             />
                             <div>
@@ -459,35 +459,35 @@ export default function ReportsPage() {
                   <div className="space-y-4">
                     {rotationReport.summary && (
                       <div className="grid grid-cols-4 gap-4">
-                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                          <p className="text-sm text-green-600 font-medium">
+                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
                             Rápidos
                           </p>
                           <p className="text-2xl font-bold text-green-700">
                             {rotationReport.summary.fast}
                           </p>
                         </div>
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <p className="text-sm text-blue-600 font-medium">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                             Normales
                           </p>
                           <p className="text-2xl font-bold text-blue-700">
                             {rotationReport.summary.normal}
                           </p>
                         </div>
-                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                          <p className="text-sm text-yellow-600 font-medium">
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                          <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
                             Lentos
                           </p>
                           <p className="text-2xl font-bold text-yellow-700">
                             {rotationReport.summary.slow}
                           </p>
                         </div>
-                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                          <p className="text-sm text-purple-600 font-medium">
+                        <div className="p-3 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
+                          <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
                             Valor Total
                           </p>
-                          <p className="text-2xl font-bold text-purple-700">
+                          <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                             ${rotationReport.summary.totalStockValue.toFixed(2)}
                           </p>
                         </div>
@@ -599,19 +599,19 @@ export default function ReportsPage() {
                             {returnsReport.summary.totalQuantity.toFixed(2)}
                           </p>
                         </div>
-                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                          <p className="text-sm text-green-600 font-medium">
+                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
                             Valor Total
                           </p>
-                          <p className="text-2xl font-bold text-green-700">
+                          <p className="text-2xl font-bold text-green-700 dark:text-green-300">
                             ${returnsReport.summary.totalReturnValue.toFixed(2)}
                           </p>
                         </div>
-                        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                          <p className="text-sm text-orange-600 font-medium">
+                        <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
+                          <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                             Promedio
                           </p>
-                          <p className="text-2xl font-bold text-orange-700">
+                          <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
                             ${returnsReport.summary.averageReturnValue.toFixed(2)}
                           </p>
                         </div>

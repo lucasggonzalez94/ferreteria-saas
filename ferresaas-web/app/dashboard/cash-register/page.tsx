@@ -597,33 +597,33 @@ export default function CashRegisterPage() {
               <CardContent>
                 <div className="space-y-4">
                   {summary && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <p className="font-semibold mb-3 text-blue-900">Montos Esperados</p>
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                      <p className="font-semibold mb-3 text-blue-900 dark:text-blue-100">Montos Esperados</p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Esperado (ARS)</p>
-                          <p className="text-lg font-bold">
+                          <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
                             ${Number(summary.expectedAmount).toFixed(2)}
                           </p>
                         </div>
                         {summary.expectedAmountUSD > 0 && (
                           <div>
                             <p className="text-muted-foreground">Esperado (USD)</p>
-                            <p className="text-lg font-bold">
+                            <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
                               ${Number(summary.expectedAmountUSD).toFixed(2)}
                             </p>
                           </div>
                         )}
                       </div>
                       {closingAmount && (
-                        <div className="grid grid-cols-2 gap-4 text-sm mt-3 pt-3 border-t border-blue-300">
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-3 pt-3 border-t border-blue-300 dark:border-blue-700">
                           <div>
                             <p className="text-muted-foreground">Diferencia (ARS)</p>
                             <p
                               className={`text-lg font-bold ${
                                 parseFloat(closingAmount) - summary.expectedAmount === 0
-                                  ? "text-green-600"
-                                  : "text-orange-600"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-orange-600 dark:text-orange-400"
                               }`}
                             >
                               ${(parseFloat(closingAmount) - summary.expectedAmount).toFixed(2)}
@@ -635,8 +635,8 @@ export default function CashRegisterPage() {
                               <p
                                 className={`text-lg font-bold ${
                                   parseFloat(closingAmountUSD) - summary.expectedAmountUSD === 0
-                                    ? "text-green-600"
-                                    : "text-orange-600"
+                                    ? "text-green-600 dark:text-green-400"
+                                    : "text-orange-600 dark:text-orange-400"
                                 }`}
                               >
                                 ${(parseFloat(closingAmountUSD) - summary.expectedAmountUSD).toFixed(2)}
@@ -721,7 +721,7 @@ export default function CashRegisterPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Balance en cuenta:</span>

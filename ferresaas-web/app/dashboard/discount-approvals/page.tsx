@@ -257,8 +257,8 @@ export default function DiscountApprovalsPage() {
 
                     {/* Alerta si está por debajo del costo */}
                     {approval.discountedPrice < approval.product.cost && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-xs text-red-700">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                        <p className="text-xs text-red-700 dark:text-red-300">
                           <span className="font-medium">⚠️ Advertencia:</span> El precio solicitado está por debajo del precio de costo.
                         </p>
                       </div>
