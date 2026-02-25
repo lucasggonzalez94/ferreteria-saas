@@ -585,13 +585,49 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 #### Crear Compra
 
 14. Abre **Compras → Nueva compra** (`purchases:create`).
-15. Selecciona el proveedor creado anteriormente.
-16. Añade productos, impuestos y un pago inicial parcial.
-17. Tras guardar, valida:
-    - En la lista de compras, la columna estado debe indicar `PARTIAL`.
-    - Cada producto ajusta su costo promedio y stock (ver Inventario → Movimientos con tipo `PURCHASE_RECEIPT`).
-    - Se genera una cuenta por pagar automáticamente (ve a **Cuentas por Pagar**).
-18. Registra un pago adicional desde **Cuentas por Pagar** y verifica que el estado cambie a `PAID` cuando se pague el total.
+15. **Selecciona proveedor**: Elige el proveedor creado anteriormente.
+16. Verifica que:
+    - Si el proveedor tiene `paymentTermDays` configurado, la fecha de vencimiento se calcula automáticamente
+    - Ejemplo: Proveedor con 30 días → fecha = hoy + 30 días
+17. **Selecciona moneda**: ARS o USD
+    - Si seleccionas USD, verifica que muestra el tipo de cambio actual
+18. **Agrega productos**:
+    - Selecciona producto, ingresa cantidad, precio unitario, IVA %
+    - Presiona "Agregar"
+    - Repite para agregar múltiples productos
+    - Prueba el botón "Nuevo" para crear un producto rápido sin salir
+19. **Verifica resumen**:
+    - Subtotal, IVA, Total calculados correctamente
+    - Si USD, verifica calculadora de conversión a ARS
+20. **Pago inicial** (opcional):
+    - Ingresa monto parcial (ej: 50% del total)
+    - Selecciona método: CASH, TRANSFER o CHECK
+    - Verifica validación de fondos en tiempo real:
+      - Si CASH: valida cuenta CASH
+      - Si TRANSFER: valida cuenta BANK
+      - Si CHECK: no valida fondos
+    - Si fondos insuficientes, verifica que muestra error
+21. Presiona **Crear Compra**.
+22. Tras guardar, valida:
+    - Redirige a vista de detalle de la compra
+    - Estado muestra `PARTIAL` (si pago parcial) o `PENDING` (si sin pago)
+    - En **Inventario → Movimientos**:
+      - Cada producto tiene movimiento tipo `PURCHASE_RECEIPT`
+      - Stock incrementado correctamente
+    - En **Productos**:
+      - Costo del producto actualizado (último costo o promedio ponderado)
+    - En **Cuentas por Pagar**:
+      - Cuenta por pagar creada automáticamente
+      - Monto total correcto
+      - Monto pagado correcto
+      - Saldo pendiente = Total - Pagado
+      - Fecha de vencimiento calculada
+    - En **Finanzas** (si hubo pago):
+      - Cuenta financiera decrementada (CASH o BANK)
+      - Movimiento financiero tipo EXPENSE creado
+    - En **Proveedor**:
+      - Balance actualizado con saldo pendiente
+23. Registra un pago adicional desde **Cuentas por Pagar** y verifica que el estado cambie a `PAID` cuando se pague el total.
 
 ### 11.7 Caja (apertura, movimientos y cierre)
 

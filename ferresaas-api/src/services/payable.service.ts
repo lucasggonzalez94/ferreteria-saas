@@ -81,7 +81,15 @@ export class PayableService {
     const where: Record<string, unknown> = { businessId };
 
     if (filters.supplierId) where.supplierId = filters.supplierId;
-    if (filters.status) where.status = filters.status;
+    if (filters.status) {
+      // Soportar múltiples estados separados por coma
+      const statuses = filters.status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        where.status = statuses[0];
+      } else if (statuses.length > 1) {
+        where.status = { in: statuses };
+      }
+    }
 
     if (filters.startDate || filters.endDate) {
       const createdAtFilter: Record<string, Date> = {};

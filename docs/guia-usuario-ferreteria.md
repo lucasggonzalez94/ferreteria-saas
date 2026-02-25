@@ -1138,67 +1138,304 @@ Pendiente: $40,000
 
 ### 10.1 Lista de Compras
 
-Muestra todas las compras registradas con:
+La página principal muestra todas las compras registradas con:
 
-- **Tarjetas resumen**: Total de compras, proveedores, monto total, pendiente de pagar.
-- **Filtros**: Por proveedor, fecha desde/hasta.
-- **Lista de compras**: Cada una muestra número de factura, proveedor, fecha, monto total, cantidad de productos y estado.
+**Tarjetas de Resumen (4):**
+- **Total Compras**: Cantidad total de compras registradas
+- **Proveedores**: Cantidad de proveedores únicos con compras
+- **Monto Total**: Suma de totales de todas las compras visibles
+- **Pendiente Pagar**: Total pendiente de pago a proveedores
 
-Los estados posibles son:
+**Filtros:**
+- **Proveedor**: Selector desplegable con todos los proveedores
+  - Al seleccionar, muestra badge azul "Filtrado por: {nombre}"
+  - Botón ✕ para limpiar filtro
+- **Fecha Desde**: Filtra compras desde esta fecha
+- **Fecha Hasta**: Filtra compras hasta esta fecha
+- **Botón "Limpiar Filtros"**: Resetea todos los filtros
 
-| Estado | Significado |
-|---|---|
-| **Pendiente** | No se ha realizado ningún pago |
-| **Parcial** | Se pagó una parte del total |
-| **Pagado** | Compra completamente saldada |
+**Lista de Compras:**
+
+Cada tarjeta muestra:
+- **Número de Factura** o ID corto (primeros 8 caracteres)
+- **Proveedor**: Nombre del proveedor
+- **Fecha**: Fecha de creación en formato DD/MM/YYYY
+- **Total**: Monto total de la compra
+- **Estado**: Badge con color según estado
+- **Detalles**: Cantidad de productos, Subtotal, IVA
+- **Botón "Ver Detalle"**: Abre vista completa de la compra
+
+**Estados Posibles:**
+
+| Estado | Color | Significado |
+|---|---|---|
+| **Pendiente** | Amarillo | No se ha realizado ningún pago |
+| **Parcialmente Pagada** | Azul | Se pagó una parte del total |
+| **Pagada** | Verde | Compra completamente saldada |
+| **Confirmada** | Gris | Compra confirmada (estado interno) |
+| **Cancelada** | Rojo | Compra cancelada |
+
+**Paginación:**
+- 10 compras por página
+- Navegación entre páginas
+- Ordenadas por fecha descendente (más recientes primero)
 
 ### 10.2 Nueva Compra
 
+**Ruta**: `/dashboard/purchases/new`
 **Permiso**: `purchases:create`
 
-1. Presioná **Nueva Compra**.
-2. **Seleccioná un proveedor** de la lista desplegable.
-3. **Seleccioná la moneda**: ARS o USD
-   - Si seleccionás USD, el sistema muestra el **tipo de cambio vigente**
-   - Todos los precios se ingresan en la moneda seleccionada
-4. Opcionalmente, ingresá el **número de factura** del proveedor y **notas**.
-5. **Agregar productos**:
-   - Seleccioná un producto del desplegable.
-   - Ingresá **cantidad**, **precio unitario** e **IVA %** (por defecto 21%).
-   - Presioná **Agregar**.
-   - Repetí para cada producto de la compra.
-   - Si el producto no existe, usá el botón **Nuevo** para crearlo rápidamente sin salir de la pantalla.
-6. Revisá la lista de productos agregados. Podés eliminar ítems individuales.
-7. En el **Resumen**, verificá subtotal, IVA y total en la moneda seleccionada.
-8. Si seleccionaste **USD**, verás una **calculadora de conversión** que muestra:
-   - Total en USD
-   - Tipo de cambio actual
-   - Equivalente en ARS
-9. Opcionalmente, ingresá un **Monto Pagado** (pago inicial). Dejalo en 0 para marcar la compra como pendiente de pago.
-10. **Seleccioná el método de pago**: CASH, TRANSFER, CHECK, ACCOUNT.
-11. Presioná **Crear Compra**.
+#### Pasos
 
-> **Nota**: Si seleccionás TRANSFER, el sistema valida que tu Cuenta Bancaria tenga fondos suficientes.
+1. Presioná **Nueva Compra** desde la lista de compras.
+
+#### 1. Seleccionar Proveedor
+
+2. **Seleccioná un proveedor** de la lista desplegable (obligatorio).
+3. Al seleccionar un proveedor:
+   - Si tiene `paymentTermDays` configurado, el sistema **calcula automáticamente** la fecha de vencimiento
+   - Ejemplo: Si el proveedor tiene 30 días de plazo, la fecha será hoy + 30 días
+   - Podés modificar la fecha calculada manualmente si es necesario
+
+#### 2. Detalles de la Compra
+
+4. **Seleccioná la moneda**: ARS (Pesos Argentinos) o USD (Dólares)
+   - **Si seleccionás USD**:
+     - El sistema muestra el **tipo de cambio vigente** automáticamente
+     - Fuente: ArgentinaDatos (con sistema de fallback)
+     - Todos los precios se ingresan en USD
+     - Se guarda un snapshot del tipo de cambio para auditoría
+   - **Si seleccionás ARS**:
+     - Todos los precios se ingresan en pesos
+
+5. Opcionalmente, ingresá:
+   - **Número de Factura**: Número de factura del proveedor (ej: "FAC-001")
+   - **Fecha de Vencimiento**: Se pre-llena automáticamente si el proveedor tiene plazo configurado
+     - Podés modificarla o limpiarla
+     - Si no especificás, se usa el plazo del proveedor
+   - **Notas**: Notas adicionales sobre la compra
+
+#### 3. Agregar Productos
+
+6. **Seleccioná un producto** del desplegable.
+   - Si el producto no existe, presioná el botón **Nuevo** (ícono +)
+   - Se abre un **modal de creación rápida** sin salir de la pantalla
+   - Creá el producto y se selecciona automáticamente
+
+7. Ingresá los datos del producto:
+   - **Cantidad**: Cantidad comprada (acepta decimales)
+   - **Precio Unitario**: Costo por unidad en la moneda seleccionada
+   - **IVA %**: Porcentaje de IVA (por defecto 21%)
+
+8. Presioná **Agregar** para añadir el producto a la lista.
+
+9. Repetí los pasos 6-8 para cada producto de la compra.
+
+10. **Lista de Productos Agregados**:
+    - Muestra todos los productos con: nombre, SKU, cantidad, precio, IVA, subtotal, total
+    - Podés **eliminar** items individuales con el ícono de papelera
+
+#### 4. Resumen y Totales
+
+11. En la sección **Resumen**, verificá:
+    - **Subtotal**: Suma de (cantidad × precio unitario) de todos los productos
+    - **IVA Total**: Suma de impuestos de todos los productos
+    - **Total**: Subtotal + IVA en la moneda seleccionada
+
+12. **Si seleccionaste USD**, verás una **Calculadora de Conversión**:
+    - Total en USD
+    - Tipo de cambio actual (1 USD = X ARS)
+    - **Equivalente en ARS**: Conversión automática para referencia
+
+#### 5. Pago Inicial (Opcional)
+
+13. Opcionalmente, ingresá un **Monto Pagado** (pago inicial):
+    - Dejalo en 0 o vacío para crear compra **completamente pendiente**
+    - Ingresá un monto parcial para crear compra **parcialmente pagada**
+    - Ingresá el total completo para crear compra **pagada**
+
+14. **Validación de Fondos en Tiempo Real**:
+    - Mientras escribís el monto, el sistema valida fondos disponibles
+    - Muestra error inmediato si fondos insuficientes
+    - Ejemplo: "⚠️ Fondos insuficientes. Disponible: $50,000.00, Ingresado: $75,000.00"
+
+15. Si ingresaste un monto > 0, **seleccioná el método de pago**:
+    - **Efectivo (CASH)**: Valida cuenta CASH por defecto
+    - **Transferencia (TRANSFER)**: Valida cuenta BANK por defecto
+    - **Cheque (CHECK)**: No valida fondos (cheques diferidos)
+
+16. **Saldo Pendiente**:
+    - El sistema muestra automáticamente el saldo pendiente
+    - Cálculo: Total - Monto Pagado
+
+#### 6. Crear Compra
+
+17. Presioná **Crear Compra**.
+
+18. El sistema valida:
+    - ✅ Proveedor seleccionado
+    - ✅ Al menos un producto agregado
+    - ✅ Fondos suficientes si hay pago (excepto CHECK)
+
+19. Al éxito:
+    - Muestra mensaje "Compra creada exitosamente"
+    - Redirige a la vista de detalle de la compra
 
 ### 10.3 ¿Qué Ocurre al Crear la Compra?
 
-1. Se registra la compra y sus ítems.
-2. Se actualiza el **stock** de cada producto (movimiento tipo `PURCHASE_RECEIPT`).
-3. Se recalcula el **costo promedio** de cada producto.
-4. Se crea automáticamente una **cuenta por pagar** con el saldo pendiente.
-5. Si se ingresó un pago inicial, se registra el movimiento de pago.
-6. Si el método fue TRANSFER, se decrementa la Cuenta Bancaria.
+El sistema ejecuta las siguientes acciones **automáticamente** en una transacción atómica:
+
+#### 1. Registro de la Compra
+
+- Se crea el registro de compra con todos los datos
+- Se guardan todos los items (productos) de la compra
+- Si es USD, se guarda un **snapshot del tipo de cambio** para auditoría histórica
+
+#### 2. Actualización de Inventario
+
+- Para cada producto:
+  - Se crea un **movimiento de inventario** tipo `PURCHASE_RECEIPT`
+  - Se **incrementa el stock** del producto
+  - Visible en **Inventario → Movimientos**
+
+#### 3. Recálculo de Costos
+
+- Para cada producto, el sistema **recalcula el costo** según el método configurado:
+  - **Último Costo** (`last_cost`): Usa el precio de esta compra
+  - **Promedio Ponderado** (`avg_weighted`): Calcula promedio ponderado
+    - Fórmula: `(costo_actual × stock_actual + precio_compra × cantidad_compra) / (stock_actual + cantidad_compra)`
+
+#### 4. Generación de Sugerencias de Precio
+
+- Si el costo del producto cambió significativamente:
+  - El sistema genera automáticamente una **sugerencia de precio**
+  - Visible en **Dashboard → Aprobaciones → Sugerencias de Precio**
+  - Requiere aprobación manual para actualizar el precio de venta
+
+#### 5. Creación de Cuenta por Pagar
+
+- Se crea automáticamente una **Cuenta por Pagar** (`SupplierPayable`):
+  - Monto total de la compra
+  - Monto pagado (si hay pago inicial)
+  - Saldo pendiente
+  - **Fecha de vencimiento**:
+    - Si ingresaste fecha manualmente, usa esa
+    - Si no, usa `paymentTermDays` del proveedor
+    - Ejemplo: Proveedor con 30 días → vence en 30 días desde hoy
+  - Estado: PENDING, PARTIAL o PAID según pago inicial
+  - Visible en **Dashboard → Cuentas por Pagar**
+
+#### 6. Actualización del Balance del Proveedor
+
+- Se actualiza el `currentBalance` del proveedor:
+  - Si no hay pago: balance += total
+  - Si hay pago parcial: balance += saldo pendiente
+  - Si pago completo: balance no cambia
+
+#### 7. Registro de Pago (si hay pago inicial)
+
+- Se crea un registro de `SupplierPayment`:
+  - Monto pagado
+  - Método de pago
+  - Referencia a la cuenta por pagar
+  - Si es USD, guarda snapshot de tipo de cambio
+
+#### 8. Actualización de Cuenta Financiera (si hay pago)
+
+- **Si método es CASH**:
+  - Decrementa la cuenta CASH por defecto
+  - Crea movimiento financiero tipo EXPENSE
+- **Si método es TRANSFER**:
+  - Decrementa la cuenta BANK por defecto
+  - Crea movimiento financiero tipo EXPENSE
+- **Si método es CHECK**:
+  - No afecta cuentas financieras inmediatamente
+  - El cheque se registra como pendiente
+
+#### 9. Auditoría
+
+- Se registra la acción completa en el log de auditoría
+- Incluye: usuario, fecha, proveedor, total, cantidad de items
 
 ### 10.4 Detalle de Compra
 
-Hacé clic en **Ver Detalle** para ver:
+**Ruta**: `/dashboard/purchases/[id]`
+**Permiso**: `purchases:read`
 
-- Información del proveedor (con enlace directo a su ficha).
-- Lista de productos con cantidad, precio unitario, IVA y subtotal.
-- Notas de la compra.
-- Resumen financiero (subtotal, IVA, total).
-- Información de pago (monto pagado y saldo pendiente).
-- Estado actual de la compra.
+#### Acceso
+
+Hacé clic en **Ver Detalle** en la tarjeta de una compra para ver su información completa.
+
+#### Información Mostrada
+
+**Header:**
+- Número de factura o ID corto
+- Fecha de creación
+- Botón "Volver a Compras"
+
+**Sección Principal:**
+
+1. **Card "Información del Proveedor"**:
+   - Nombre del proveedor (con enlace a su ficha)
+   - Email (si está cargado)
+   - Teléfono (si está cargado)
+
+2. **Card "Productos"**:
+   - Cantidad de productos
+   - Lista completa de items:
+     - Nombre del producto
+     - SKU interno
+     - Cantidad y unidad
+     - Precio unitario
+     - IVA %
+     - Subtotal del item
+
+3. **Card "Notas"** (si existen):
+   - Notas ingresadas al crear la compra
+
+**Sidebar:**
+
+1. **Card "Resumen"**:
+   - Subtotal
+   - IVA
+   - **Total**
+
+2. **Card "Información de Pago"**:
+   - Monto Pagado
+   - **Saldo Pendiente** (con color):
+     - Verde si está pagado
+     - Amarillo si hay saldo pendiente
+
+3. **Card "Estado"**:
+   - Badge con estado actual y color
+
+4. **Botón "Ver Proveedor"**:
+   - Redirige a `/dashboard/suppliers/{id}`
+
+#### Ejemplo de Detalle
+
+```
+Compra #FAC-001
+15/02/2026
+
+Proveedor: Ferretería Central S.A.
+Email: ventas@ferreteriacentral.com
+Tel: 011-4567-8900
+
+Productos (3):
+- Tornillos 1/4" × 100 unidades × $50.00 = $5,000.00
+- Tuercas 1/4" × 100 unidades × $30.00 = $3,000.00
+- Arandelas × 200 unidades × $10.00 = $2,000.00
+
+Subtotal: $10,000.00
+IVA (21%): $2,100.00
+Total: $12,100.00
+
+Monto Pagado: $5,000.00
+Saldo Pendiente: $7,100.00
+
+Estado: Parcialmente Pagada
+```
 
 ---
 

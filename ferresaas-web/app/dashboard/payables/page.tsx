@@ -132,7 +132,7 @@ export default function PayablesPage() {
     isLoading,
     refetch: refetchPayables,
     isFetching: isFetchingPayables,
-  } = useQuery<PayablesResponse | undefined>({
+  } = useQuery<PayablesResponse>({
     queryKey: [
       "payables",
       page,
@@ -158,7 +158,28 @@ export default function PayablesPage() {
           ...(maxAmount && { maxAmount: parseNumericInput(maxAmount) }),
         },
       });
-      return response.data as PayablesResponse;
+      
+      // La respuesta del API wrapper tiene estructura: { success: true, data: [...], meta: {...} }
+      // Pero response.data ya contiene { data: [...], meta: {...} }
+      const apiData = Array.isArray(response.data) ? response.data : (response.data.data || response.data);
+      const apiMeta = !Array.isArray(response.data) ? response.data.meta : undefined;
+      
+      // Convertir strings numéricos a números
+      const payables = apiData.map((payable: any) => ({
+        ...payable,
+        amount: Number(payable.amount),
+        paidAmount: Number(payable.paidAmount),
+        payments: payable.payments.map((payment: any) => ({
+          ...payment,
+          amount: Number(payment.amount),
+          amountUSD: payment.amountUSD ? Number(payment.amountUSD) : null,
+        })),
+      }));
+      
+      return {
+        data: payables,
+        meta: apiMeta,
+      } as PayablesResponse;
     },
     enabled: canViewPayables,
   });
@@ -171,7 +192,7 @@ export default function PayablesPage() {
     queryKey: ["payables-summary"],
     queryFn: async () => {
       const response = await api.get<any>("/payables/summary");
-      return response.data;
+      return response.data.data || {};
     },
     enabled: canViewPayables,
   });
@@ -201,7 +222,7 @@ export default function PayablesPage() {
     page: 1,
     limit: 10,
     total: 0,
-    totalPages: 0,
+    totalPages: 1,
     hasMore: false,
   };
   const summary = summaryData || {};
@@ -292,7 +313,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${isLoading ? "0,00" : (summary.totalPayable || 0).toFixed(2)}
+                ${!summaryData ? "0,00" : (summary.totalPayable || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>
@@ -306,7 +327,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">
-                ${isLoading ? "0,00" : (summary.totalPending || 0).toFixed(2)}
+                ${!summaryData ? "0,00" : (summary.totalPending || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>
@@ -320,7 +341,7 @@ export default function PayablesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                ${isLoading ? "0,00" : (summary.totalPaid || 0).toFixed(2)}
+                ${!summaryData ? "0,00" : (summary.totalPaid || 0).toFixed(2)}
               </div>
             </CardContent>
           </Card>

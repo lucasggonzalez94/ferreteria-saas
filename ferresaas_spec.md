@@ -338,22 +338,82 @@ Módulo para gestionar proveedores de la ferretería. Permite registrar datos de
 
 **Descripción**
 
-Módulo para registrar compras a proveedores. Genera movimientos de stock, actualiza costos promedio y crea cuentas por pagar automáticamente.
+Módulo para registrar compras a proveedores con soporte multi-moneda (ARS/USD). Genera movimientos de stock, actualiza costos promedio, crea cuentas por pagar automáticamente y genera sugerencias de precio cuando el costo cambia significativamente.
+
+**Reglas**
+
+- Soporte para moneda ARS o USD
+- Snapshot de tipo de cambio si es USD
+- Validación de fondos antes de crear compra (excepto CHECK)
+- Cálculo automático de fecha de vencimiento basado en `paymentTermDays` del proveedor
+- Actualización atómica de stock y costos en transacción
+- Generación automática de cuenta por pagar
+- Actualización de balance del proveedor
+- Sugerencias de precio automáticas si costo cambia
 
 **Criterios de aceptación**
 
-- Registrar compra con items:
-  - producto, cantidad, costo unitario, impuestos, total
-- Al confirmar compra:
-  - genera movimientos de stock
-  - actualiza costo promedio (configurable: costo último vs promedio ponderado)
-  - crea cuenta por pagar automáticamente
+- **Creación de compra**:
+  - Proveedor (obligatorio, debe pertenecer al negocio)
+  - Moneda: ARS o USD (por defecto ARS)
+  - Número de factura (opcional)
+  - Fecha de vencimiento (opcional, se calcula automáticamente)
+  - Notas (opcional, máx. 1000 caracteres)
+  - Items (mínimo 1):
+    - Producto (obligatorio, debe existir)
+    - Cantidad (positivo, acepta decimales)
+    - Precio unitario (positivo)
+    - IVA % (0-100, por defecto 21)
+  - Pago inicial (opcional):
+    - Monto pagado (≥ 0)
+    - Método: CASH, TRANSFER, CHECK
+    - Validación de fondos (excepto CHECK)
+
+- **Cálculos automáticos**:
+  - Subtotal = Σ(cantidad × precio unitario)
+  - IVA = Σ((subtotal × tasa IVA) / 100)
+  - Total = Subtotal + IVA
+  - Saldo pendiente = Total - Monto pagado
+
+- **Estados de compra**:
+  - PENDING: amountPaid = 0
+  - PARTIAL: 0 < amountPaid < total
+  - PAID: amountPaid ≥ total
+  - CONFIRMED: estado interno
+  - CANCELLED: compra cancelada
+
+- **Side-effects al crear**:
+  - Incrementa stock de productos (movimiento PURCHASE_RECEIPT)
+  - Recalcula costo según método:
+    - `last_cost`: usa precio de compra
+    - `avg_weighted`: calcula promedio ponderado
+  - Genera sugerencias de precio si costo cambia
+  - Crea cuenta por pagar con fecha de vencimiento
+  - Actualiza balance del proveedor
+  - Si hay pago:
+    - Crea registro de pago
+    - Decrementa cuenta financiera (excepto CHECK)
+    - Crea movimiento financiero tipo EXPENSE
+  - Si USD: guarda snapshot de tipo de cambio
+  - Auditoría completa
+
+- **Listado**:
+  - Paginación (10 por página, máx. 100)
+  - Filtros: proveedor, rango de fechas
+  - Incluye: proveedor, cantidad de items
+  - Ordenado por fecha descendente
+
+- **Detalle**:
+  - Información completa del proveedor
+  - Lista de items con productos
+  - Resumen financiero
+  - Estado de pago
 
 **Endpoints**
 
+- GET /purchases (listar con paginación y filtros)
 - POST /purchases (crear compra)
-- GET /purchases (listar compras)
-- GET /purchases/:id (obtener compra)
+- GET /purchases/:id (obtener compra completa)
 
 ---
 
