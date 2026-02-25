@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
-import { parseNumericInput } from "@/lib/numeric-input";
 
 interface QuickCreateProductModalProps {
   open: boolean;

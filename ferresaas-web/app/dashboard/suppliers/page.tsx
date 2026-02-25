@@ -10,15 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
-import {
-  Building2,
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  AlertCircle,
-} from "lucide-react";
-import Link from "next/link";
+import { Building2, Plus, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 interface Supplier {
   id: string;
@@ -413,45 +406,37 @@ export default function SuppliersPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        {supplier.currentBalance > 0 && (
-                          <div className="flex items-center gap-2 mb-2 text-amber-600">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-sm font-semibold">
-                              ${supplier.currentBalance.toFixed(2)} adeudado
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <Link href={`/dashboard/suppliers/${supplier.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          {canUpdateSupplier && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(supplier)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canDeleteSupplier && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteClick(supplier.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <ActionsMenu
+                          actions={[
+                            {
+                              label: "Ver detalle",
+                              onClick: () => router.push(`/dashboard/suppliers/${supplier.id}`),
+                            },
+                            ...(canUpdateSupplier
+                              ? [
+                                  {
+                                    label: "Editar",
+                                    onClick: () => handleEdit(supplier),
+                                  },
+                                ]
+                              : []),
+                            ...(canDeleteSupplier
+                              ? [
+                                  {
+                                    label: "Eliminar",
+                                    onClick: () => handleDeleteClick(supplier.id),
+                                    disabled: deleteMutation.isPending,
+                                    variant: "danger" as const,
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Compras</p>
                         <p className="font-semibold">
@@ -485,6 +470,14 @@ export default function SuppliersPage() {
                           </p>
                           <p className="font-semibold">
                             ${Number(supplier.creditLimit).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+                      {supplier.currentBalance > 0 && (
+                        <div>
+                          <p className="text-muted-foreground">Adeudado</p>
+                          <p className="font-semibold text-amber-600">
+                            ${supplier.currentBalance.toFixed(2)}
                           </p>
                         </div>
                       )}
