@@ -192,7 +192,7 @@ export default function PayablesPage() {
     queryKey: ["payables-summary"],
     queryFn: async () => {
       const response = await api.get<any>("/payables/summary");
-      return response.data.data || {};
+      return response.data || {};
     },
     enabled: canViewPayables,
   });
@@ -597,7 +597,7 @@ export default function PayablesPage() {
                                   Registrar Pago
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-900 text-foreground dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-lg">
                                 <DialogHeader>
                                   <DialogTitle>Registrar Pago</DialogTitle>
                                   <DialogDescription>

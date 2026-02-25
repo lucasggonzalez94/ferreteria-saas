@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -643,14 +644,12 @@ export default function NewProductPage() {
                     </div>
 
                     <div className="col-span-2 flex items-center gap-2">
-                      <input
+                      <Checkbox
                         id="priceLocked"
-                        type="checkbox"
                         checked={formData.priceLocked}
-                        onChange={(e) =>
-                          setFormData({ ...formData, priceLocked: e.target.checked })
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, priceLocked: Boolean(checked) })
                         }
-                        className="h-4 w-4"
                       />
                       <Label htmlFor="priceLocked" className="text-sm">
                         Precio congelado (no permitir cambios automáticos)

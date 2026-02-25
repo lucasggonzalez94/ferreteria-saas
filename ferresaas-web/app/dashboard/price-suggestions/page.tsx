@@ -211,7 +211,7 @@ export default function PriceSuggestionsPage() {
                       </div>
 
                       {/* Detalles de precios */}
-                      <div className="grid grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                         <div>
                           <p className="text-xs text-muted-foreground">Costo anterior</p>
                           <p className="font-medium">${Number(suggestion.oldCost).toFixed(2)}</p>
@@ -241,7 +241,11 @@ export default function PriceSuggestionsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground">Margen</p>
                           <p className="font-medium">{Number(suggestion.oldMargin).toFixed(1)}%</p>
-                          <p className={`text-xs flex items-center gap-1 mt-1 ${marginChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          <p
+                            className={`text-xs flex items-center gap-1 mt-1 ${
+                              marginChange >= 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
                             {marginChange >= 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
@@ -254,17 +258,16 @@ export default function PriceSuggestionsPage() {
                       </div>
 
                       {/* Precio sugerido destacado */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs text-blue-700 font-medium">Precio sugerido</p>
-                        <p className="text-lg font-semibold text-blue-600">
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <p className="text-xs text-blue-700 dark:text-blue-200 font-medium">Precio sugerido</p>
+                        <p className="text-lg font-semibold text-blue-600 dark:text-blue-300">
                           ${Number(suggestion.suggestedPrice).toFixed(2)}
                         </p>
-                        <p className="text-xs text-blue-600 mt-1">
+                        <p className="text-xs text-blue-600 dark:text-blue-300">
                           Nuevo margen: {Number(suggestion.newMargin).toFixed(1)}%
                         </p>
                       </div>
 
-                      {/* Motivo */}
                       {suggestion.reason && (
                         <div>
                           <p className="text-xs text-muted-foreground">Motivo</p>

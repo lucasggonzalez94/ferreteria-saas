@@ -8,6 +8,13 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Search, Plus, Minus, Trash2, DollarSign, ArrowLeft, X } from "lucide-react";
 import type { Product, Sale, Customer } from "@/types";
@@ -659,20 +666,24 @@ export default function POSPage() {
                 {/* Método de pago */}
                 <div>
                   <label className="text-sm font-medium">Método de Pago</label>
-                  <select
+                  <Select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    onValueChange={(value) => setPaymentMethod(value as any)}
                   >
-                    <option value="CASH_ARS">Efectivo ARS</option>
-                    <option value="CASH_USD">Efectivo USD</option>
-                    <option value="CARD">Tarjeta</option>
-                    <option value="TRANSFER">Transferencia</option>
-                    <option value="QR">QR</option>
-                    <option value="ACCOUNT" disabled={!selectedCustomer}>
-                      {selectedCustomer ? 'Cuenta Corriente' : 'Cuenta Corriente (requiere cliente)'}
-                    </option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona método" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH_ARS">Efectivo ARS</SelectItem>
+                      <SelectItem value="CASH_USD">Efectivo USD</SelectItem>
+                      <SelectItem value="CARD">Tarjeta</SelectItem>
+                      <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                      <SelectItem value="QR">QR</SelectItem>
+                      <SelectItem value="ACCOUNT" disabled={!selectedCustomer}>
+                        {selectedCustomer ? "Cuenta Corriente" : "Cuenta Corriente (requiere cliente)"}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Monto */}
@@ -750,17 +761,17 @@ export default function POSPage() {
                   <>
                     <div>
                       <label className="text-sm font-medium">Marca de Tarjeta</label>
-                      <select
-                        value={cardBrand}
-                        onChange={(e) => setCardBrand(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                      >
-                        <option value="">Selecciona marca...</option>
-                        <option value="VISA">Visa</option>
-                        <option value="MASTERCARD">Mastercard</option>
-                        <option value="AMEX">American Express</option>
-                        <option value="OTRO">Otro</option>
-                      </select>
+                      <Select value={cardBrand} onValueChange={setCardBrand}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona marca" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VISA">Visa</SelectItem>
+                          <SelectItem value="MASTERCARD">Mastercard</SelectItem>
+                          <SelectItem value="AMEX">American Express</SelectItem>
+                          <SelectItem value="OTRO">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <label className="text-sm font-medium">Costo Financiero (opcional)</label>
@@ -966,18 +977,20 @@ export default function POSPage() {
 
                       <div>
                         <label className="text-sm font-medium">Motivo del descuento</label>
-                        <select
+                        <Select
                           value={discountReason}
-                          onChange={(e) => setDiscountReason(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                          onValueChange={setDiscountReason}
                         >
-                          <option value="">Selecciona un motivo</option>
-                          <option value="Descuento familiar">Descuento familiar</option>
-                          <option value="Descuento amigo">Descuento amigo</option>
-                          <option value="Promoción">Promoción</option>
-                          <option value="Daño menor">Daño menor</option>
-                          <option value="Otro">Otro</option>
-                        </select>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Selecciona un motivo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Selecciona un motivo</SelectItem>
+                            <SelectItem value="Promoción">Promoción</SelectItem>
+                            <SelectItem value="Daño menor">Daño menor</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="flex gap-2 pt-4">
