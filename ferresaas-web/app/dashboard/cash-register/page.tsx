@@ -284,12 +284,19 @@ export default function CashRegisterPage() {
     });
   };
 
-  const handlePrintReport = () => {
-    if (!summary || !session) return;
-    const summaryParam = encodeURIComponent(JSON.stringify(summary));
-    const sessionParam = encodeURIComponent(JSON.stringify(session));
-    const reportUrl = `/dashboard/cash-register/report?summary=${summaryParam}&session=${sessionParam}`;
-    window.open(reportUrl, '_blank');
+  const handlePrintReport = async () => {
+    if (!session) return;
+    try {
+      const blob = await api.getBlob(`/cash-register/${session.id}/summary/pdf`);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cierre-caja-${session.id}-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error('Error al generar el PDF. Por favor, intenta nuevamente.');
+    }
   };
 
   if (isLoading) {

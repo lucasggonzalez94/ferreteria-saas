@@ -8,14 +8,17 @@ import { AuthRequest } from '../types';
 import { AuditService } from '../services/audit.service';
 import { FinancialMovementService } from '../services/financial-movement.service';
 import { CashRegisterService } from '../services/cash-register.service';
+import { PDFGeneratorService } from '../services/pdf-generator.service';
 import {
   openCashRegisterSchema,
   cashMovementSchema,
   closeCashRegisterSchema,
 } from './cash-register.schemas';
+import { format } from 'date-fns';
 
 const router = Router();
 const movementService = new FinancialMovementService();
+const pdfService = new PDFGeneratorService();
 
 // Todas las rutas requieren autenticación y multi-tenant
 router.use(authenticate, multiTenant);
@@ -625,6 +628,88 @@ router.get(
       };
 
       sendSuccess(res, summary);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /cash-register/:sessionId/summary/pdf
+ * Exportar resumen de caja a PDF
+ */
+router.get(
+  '/:sessionId/summary/pdf',
+  requirePermissions('cash_register:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { sessionId } = req.params;
+
+      // Obtener datos completos usando el servicio
+      const summary = await CashRegisterService.calculateSummary(sessionId);
+
+      if (!summary) {
+        throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
+      }
+
+      // Obtener sesión con usuario
+      const session = await prisma.cashRegisterSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
+      }
+
+      if (session.businessId !== authReq.businessId!) {
+        throw new AppError(403, 'FORBIDDEN', 'Access denied');
+      }
+
+      // Obtener datos del negocio
+      const business = await prisma.business.findUnique({
+        where: { id: authReq.businessId! },
+        select: { name: true, cuit: true, address: true, phone: true },
+      });
+
+      if (!business) {
+        throw new AppError(404, 'BUSINESS_NOT_FOUND', 'Business not found');
+      }
+
+      // Generar PDF
+      const pdf = await pdfService.generateCashRegisterPDF(
+        {
+          name: business.name,
+          cuit: business.cuit,
+          address: business.address ?? undefined,
+          phone: business.phone ?? undefined,
+        },
+        {
+          session,
+          summary,
+          user: session.user ? {
+            firstName: session.user.firstName || '',
+            lastName: session.user.lastName || '',
+            email: session.user.email,
+          } : undefined,
+        }
+      );
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="cierre-caja-${sessionId}-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+      );
+      res.send(pdf);
     } catch (error) {
       next(error);
     }

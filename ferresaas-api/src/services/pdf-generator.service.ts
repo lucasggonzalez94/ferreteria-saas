@@ -735,4 +735,259 @@ export class PDFGeneratorService {
       doc.fillColor('#000000');
     }
   }
+
+  /**
+   * Genera PDF de reporte de cierre de caja
+   */
+  async generateCashRegisterPDF(
+    business: Business,
+    data: {
+      session: any;
+      summary: {
+        sessionId: string;
+        openingAmount: number;
+        openingAmountUSD: number | null;
+        closingAmount: number | null;
+        closingAmountUSD: number | null;
+        expectedAmount: number;
+        expectedAmountUSD: number;
+        difference: number | null;
+        differenceUSD: number | null;
+        paymentsByMethod: Record<string, number>;
+        totalSales: number;
+        movements: any[];
+        openingExchangeRate?: { rate: number; dollarType: string; source: string } | null;
+        closingExchangeRate?: { rate: number; dollarType: string; source: string } | null;
+      };
+      user?: { firstName: string; lastName: string; email: string };
+    }
+  ): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margin: 50,
+          info: {
+            Title: 'Reporte de Cierre de Caja',
+            Author: business.name,
+          },
+        });
+
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Header
+        doc.fontSize(16).font('Helvetica-Bold').text(business.name, { align: 'center' });
+        doc.fontSize(10).font('Helvetica').text(`CUIT: ${business.cuit}`, { align: 'center' });
+        if (business.address) {
+          doc.text(business.address, { align: 'center' });
+        }
+        doc.moveDown(1);
+
+        doc.fontSize(14).font('Helvetica-Bold').text('REPORTE DE CIERRE DE CAJA', { align: 'center' });
+        doc.moveDown(0.5);
+
+        doc.fontSize(9).fillColor('#999999');
+        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`, { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.5);
+
+        // Línea separadora
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(1);
+
+        // Información General
+        doc.fontSize(12).font('Helvetica-Bold').text('Información General', { underline: true });
+        doc.moveDown(0.5);
+
+        doc.fontSize(10).font('Helvetica');
+        doc.text(`Sesión ID: ${data.summary.sessionId}`);
+        if (data.user) {
+          doc.text(`Usuario: ${data.user.firstName} ${data.user.lastName} (${data.user.email})`);
+        }
+        doc.text(`Fecha de Apertura: ${format(new Date(data.session.openedAt), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`);
+        if (data.session.closedAt) {
+          doc.text(`Fecha de Cierre: ${format(new Date(data.session.closedAt), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`);
+        }
+        doc.moveDown(1);
+
+        // Resumen de Ventas
+        doc.fontSize(12).font('Helvetica-Bold').text('Resumen de Ventas', { underline: true });
+        doc.moveDown(0.5);
+
+        const tableData: Array<{ label: string; value: string; color?: string }> = [
+          { label: 'Total de Ventas', value: data.summary.totalSales.toString() },
+          { label: 'Monto Esperado (ARS)', value: `$${data.summary.expectedAmount.toFixed(2)}` },
+        ];
+
+        if (data.summary.expectedAmountUSD > 0) {
+          tableData.push({ label: 'Monto Esperado (USD)', value: `$${data.summary.expectedAmountUSD.toFixed(2)}` });
+        }
+
+        if (data.summary.difference !== null) {
+          const diffColor = data.summary.difference === 0 ? '#16a34a' : data.summary.difference > 0 ? '#2563eb' : '#dc2626';
+          tableData.push({ 
+            label: 'Diferencia (ARS)', 
+            value: `$${data.summary.difference.toFixed(2)}`,
+            color: diffColor
+          });
+        }
+
+        if (data.summary.differenceUSD !== null && Math.abs(data.summary.differenceUSD) > 0.01) {
+          const diffColor = data.summary.differenceUSD === 0 ? '#16a34a' : data.summary.differenceUSD > 0 ? '#2563eb' : '#dc2626';
+          tableData.push({ 
+            label: 'Diferencia (USD)', 
+            value: `$${data.summary.differenceUSD.toFixed(2)}`,
+            color: diffColor
+          });
+        }
+
+        doc.fontSize(10).font('Helvetica');
+        tableData.forEach(item => {
+          if (item.color) {
+            doc.fillColor(item.color);
+          }
+          doc.text(`${item.label}: `, 70, doc.y, { continued: true, width: 200 });
+          doc.font('Helvetica-Bold').text(item.value);
+          doc.font('Helvetica').fillColor('#000000');
+        });
+
+        doc.moveDown(1);
+
+        // Desglose por Medio de Pago
+        doc.fontSize(12).font('Helvetica-Bold').text('Desglose por Medio de Pago', { underline: true });
+        doc.moveDown(0.5);
+
+        const paymentMethodLabels: Record<string, string> = {
+          CASH_ARS: 'Efectivo ARS',
+          CASH_USD: 'Efectivo USD',
+          CARD: 'Tarjeta',
+          TRANSFER: 'Transferencia',
+          QR: 'QR',
+        };
+
+        const tableTop = doc.y;
+        const colWidths = [300, 200];
+        const headers = ['Método de Pago', 'Monto'];
+
+        // Headers
+        doc.fontSize(9).font('Helvetica-Bold');
+        let xPos = 70;
+        headers.forEach((header, i) => {
+          doc.text(header, xPos, tableTop, { width: colWidths[i], align: i === 1 ? 'right' : 'left' });
+          xPos += colWidths[i];
+        });
+
+        // Línea debajo de headers
+        doc.moveTo(70, tableTop + 15).lineTo(520, tableTop + 15).stroke();
+
+        // Rows
+        let yPos = tableTop + 20;
+        doc.fontSize(9).font('Helvetica');
+
+        Object.entries(data.summary.paymentsByMethod).forEach(([method, amount]) => {
+          xPos = 70;
+          const rowData = [
+            paymentMethodLabels[method] || method,
+            `$${(amount as number).toFixed(2)}`,
+          ];
+
+          rowData.forEach((text, i) => {
+            doc.text(text, xPos, yPos, { width: colWidths[i], align: i === 1 ? 'right' : 'left' });
+            xPos += colWidths[i];
+          });
+
+          yPos += 15;
+        });
+
+        doc.moveDown(2);
+
+        // Movimientos Manuales
+        if (data.summary.movements && data.summary.movements.length > 0) {
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text('Movimientos Manuales', { underline: true });
+          doc.moveDown(0.5);
+
+          const movTableTop = doc.y;
+          const movColWidths = [80, 150, 100, 120];
+          const movHeaders = ['Tipo', 'Motivo', 'Monto', 'Fecha'];
+
+          // Headers
+          doc.fontSize(9).font('Helvetica-Bold');
+          xPos = 70;
+          movHeaders.forEach((header, i) => {
+            doc.text(header, xPos, movTableTop, { width: movColWidths[i], align: i === 2 ? 'right' : 'left' });
+            xPos += movColWidths[i];
+          });
+
+          // Línea debajo de headers
+          doc.moveTo(70, movTableTop + 15).lineTo(520, movTableTop + 15).stroke();
+
+          // Rows
+          yPos = movTableTop + 20;
+          doc.fontSize(8).font('Helvetica');
+
+          data.summary.movements.forEach((movement: any) => {
+            if (yPos > 700) {
+              doc.addPage();
+              yPos = 50;
+            }
+
+            xPos = 70;
+            const movType = movement.type === 'INCOME' ? 'Ingreso' : 'Egreso';
+            const movColor = movement.type === 'INCOME' ? '#16a34a' : '#dc2626';
+
+            doc.fillColor(movColor).text(movType, xPos, yPos, { width: movColWidths[0] });
+            xPos += movColWidths[0];
+
+            doc.fillColor('#000000').text(movement.reason.substring(0, 25), xPos, yPos, { width: movColWidths[1] });
+            xPos += movColWidths[1];
+
+            const sign = movement.type === 'INCOME' ? '+' : '-';
+            doc.text(`${sign}$${movement.amount.toFixed(2)}`, xPos, yPos, { width: movColWidths[2], align: 'right' });
+            xPos += movColWidths[2];
+
+            doc.text(format(new Date(movement.createdAt), 'dd/MM/yyyy HH:mm', { locale: es }), xPos, yPos, { width: movColWidths[3] });
+
+            yPos += 15;
+          });
+
+          doc.fillColor('#000000');
+          doc.moveDown(1);
+        }
+
+        // Tipos de Cambio (si existen)
+        if (data.summary.openingExchangeRate || data.summary.closingExchangeRate) {
+          doc.fontSize(12).font('Helvetica-Bold').text('Tipos de Cambio', { underline: true });
+          doc.moveDown(0.5);
+
+          doc.fontSize(9).font('Helvetica');
+          if (data.summary.openingExchangeRate) {
+            doc.text(`Apertura: $${data.summary.openingExchangeRate.rate.toFixed(2)} (${data.summary.openingExchangeRate.dollarType} - ${data.summary.openingExchangeRate.source})`);
+          }
+          if (data.summary.closingExchangeRate) {
+            doc.text(`Cierre: $${data.summary.closingExchangeRate.rate.toFixed(2)} (${data.summary.closingExchangeRate.dollarType} - ${data.summary.closingExchangeRate.source})`);
+          }
+          doc.moveDown(1);
+        }
+
+        // Footer
+        this.addFooter(doc);
+
+        // Nota final
+        const pageCount = doc.bufferedPageRange().count;
+        doc.switchToPage(pageCount - 1);
+        doc.moveDown(2);
+        doc.fontSize(9).fillColor('#666666').text(
+          'Este documento es válido como comprobante de cierre de caja',
+          { align: 'center' }
+        );
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
 }
