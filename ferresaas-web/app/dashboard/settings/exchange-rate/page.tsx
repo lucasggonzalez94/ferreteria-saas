@@ -39,11 +39,23 @@ interface ExchangeRateConfig {
 
 interface DollarQuote {
   casa: string;
-  nombre: string;
   compra: number;
   venta: number;
-  fechaActualizacion: string;
+  fecha: string;
 }
+
+// Mapeo de nombres legibles para tipos de dólar
+const DOLLAR_TYPE_NAMES: Record<string, string> = {
+  oficial: "Oficial",
+  blue: "Blue",
+  bolsa: "Bolsa",
+  contadoconliqui: "Contado con Liqui",
+  cripto: "Cripto",
+  mayorista: "Mayorista",
+  solidario: "Solidario",
+  turista: "Turista",
+  tarjeta: "Tarjeta",
+};
 
 export default function ExchangeRateConfigPage() {
   const router = useRouter();
@@ -77,13 +89,20 @@ export default function ExchangeRateConfigPage() {
   });
 
   // Obtener todos los tipos de dólar disponibles
-  const { data: allRates, isLoading: ratesLoading, refetch: refetchRates } = useQuery<DollarQuote[]>({
+  const { 
+    data: allRates, 
+    isLoading: ratesLoading, 
+    isError: ratesError,
+    error: ratesErrorDetails,
+    refetch: refetchRates 
+  } = useQuery<DollarQuote[]>({
     queryKey: ["exchange-rate-types"],
     queryFn: async (): Promise<DollarQuote[]> => {
       const response = await api.get("/exchange-rate/types");
       return response.data as DollarQuote[];
     },
     enabled: usdEnabled,
+    retry: 2,
   });
 
   // Prellenar form con configuración actual
@@ -215,16 +234,48 @@ export default function ExchangeRateConfigPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {ratesError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        No se pudieron cargar los tipos de dólar desde ArgentinaDatos. 
+                        {ratesErrorDetails?.message && ` Error: ${ratesErrorDetails.message}`}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refetchRates()}
+                          className="ml-2"
+                        >
+                          Reintentar
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {ratesLoading && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Cargando tipos de dólar desde ArgentinaDatos...
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="dollar-type">Cotización</Label>
-                    <Select value={dollarType} onValueChange={setDollarType}>
+                    <Select value={dollarType} onValueChange={setDollarType} disabled={ratesLoading || ratesError}>
                       <SelectTrigger id="dollar-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {allRates?.map((rate) => (
                           <SelectItem key={rate.casa} value={rate.casa}>
-                            {rate.nombre} - Compra: ${rate.compra.toFixed(2)} / Venta: ${rate.venta.toFixed(2)}
+                            <span className="font-medium">{DOLLAR_TYPE_NAMES[rate.casa] || rate.casa}</span>
+                            {" - "}
+                            <span className="text-muted-foreground">
+                              Compra: ${Number(rate.compra).toFixed(2)} / Venta: ${Number(rate.venta).toFixed(2)}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -233,17 +284,17 @@ export default function ExchangeRateConfigPage() {
 
                   {selectedRate && (
                     <div className="p-4 bg-muted rounded-lg space-y-2">
+                      <div className="flex justify-between text-sm mb-2 pb-2 border-b">
+                        <span className="font-medium">{DOLLAR_TYPE_NAMES[selectedRate.casa] || selectedRate.casa}</span>
+                        <span className="text-xs text-muted-foreground">Actualizado: {selectedRate.fecha}</span>
+                      </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Precio de compra:</span>
-                        <span className="font-medium">${selectedRate.compra.toFixed(2)}</span>
+                        <span className="font-medium">${Number(selectedRate.compra).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Precio de venta:</span>
-                        <span className="font-medium">${selectedRate.venta.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Última actualización:</span>
-                        <span>{new Date(selectedRate.fechaActualizacion).toLocaleString('es-AR')}</span>
+                        <span className="font-medium">${Number(selectedRate.venta).toFixed(2)}</span>
                       </div>
                     </div>
                   )}
@@ -277,11 +328,11 @@ export default function ExchangeRateConfigPage() {
                         <div>
                           <p className="text-sm font-medium">Cotización final</p>
                           <p className="text-xs text-muted-foreground">
-                            {selectedRate.nombre} ${selectedRate.venta.toFixed(2)} + {marginPercent}%
+                            {DOLLAR_TYPE_NAMES[selectedRate.casa] || selectedRate.casa} ${Number(selectedRate.venta).toFixed(2)} + {marginPercent}%
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold">${finalRate.toFixed(2)}</p>
+                          <p className="text-2xl font-bold">${Number(finalRate).toFixed(2)}</p>
                           <p className="text-xs text-muted-foreground">ARS por USD</p>
                         </div>
                       </div>

@@ -6,7 +6,7 @@ import { AppError } from '../utils/response';
 import { ExchangeRate, ArgentinaDatosQuote, ConversionResult } from '../types/exchange-rate.types';
 
 export class ExchangeRateService {
-  private apiUrl = 'https://argentinadatos.com/v1/cotizaciones/dolares';
+  private apiUrl = 'https://api.argentinadatos.com/v1/cotizaciones/dolares';
   
   private getCacheKey(businessId: string): string {
     return `exchange_rate:${businessId}:usd_ars`;
@@ -80,6 +80,7 @@ export class ExchangeRateService {
 
   /**
    * Obtener todas las cotizaciones disponibles de ArgentinaDatos
+   * Retorna solo las cotizaciones de la fecha más reciente
    */
   async getAllRates(): Promise<ArgentinaDatosQuote[]> {
     try {
@@ -89,8 +90,20 @@ export class ExchangeRateService {
         throw new Error(`ArgentinaDatos API returned ${response.status}`);
       }
 
-      const data = await response.json();
-      return data as ArgentinaDatosQuote[];
+      const data = await response.json() as ArgentinaDatosQuote[];
+      
+      // La API devuelve historial completo, necesitamos solo las cotizaciones más recientes
+      // Encontrar la fecha más reciente
+      const latestDate = data.reduce((max, quote) => {
+        return quote.fecha > max ? quote.fecha : max;
+      }, data[0]?.fecha || '');
+      
+      // Filtrar solo las cotizaciones de la fecha más reciente
+      const latestRates = data.filter(quote => quote.fecha === latestDate);
+      
+      logger.info({ latestDate, count: latestRates.length }, 'Fetched latest exchange rates from ArgentinaDatos');
+      
+      return latestRates;
     } catch (error) {
       logger.error({ error }, 'Failed to fetch rates from ArgentinaDatos');
       throw error;
@@ -163,7 +176,7 @@ export class ExchangeRateService {
         sellRate: selectedRate.venta,
         source: 'argentinadatos',
         dollarType: config.dollarType,
-        timestamp: new Date(selectedRate.fechaActualizacion),
+        timestamp: new Date(selectedRate.fecha),
       };
 
       // Guardar en cache

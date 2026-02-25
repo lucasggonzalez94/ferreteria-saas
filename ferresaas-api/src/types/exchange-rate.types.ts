@@ -10,11 +10,10 @@ export interface ExchangeRate {
 }
 
 export interface ArgentinaDatosQuote {
-  casa: string;      // "oficial", "blue", "tarjeta", etc.
-  nombre: string;    // "Oficial", "Blue", etc.
+  casa: string;      // "oficial", "blue", "mayorista", etc.
   compra: number;
   venta: number;
-  fechaActualizacion: string;
+  fecha: string;     // Formato: "YYYY-MM-DD"
 }
 
 export interface ExchangeRateConfigData {
