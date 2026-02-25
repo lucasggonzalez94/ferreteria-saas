@@ -6,6 +6,13 @@ import { useAuth } from "@/lib/auth-context";
 import type { Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
@@ -141,31 +148,33 @@ export default function ProductsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
               <div>
                 <Label className="text-sm text-muted-foreground">Categoría</Label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Todas</option>
-                  {categories?.map((cat: any) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas</SelectItem>
+                    {categories?.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label className="text-sm text-muted-foreground">Estado</Label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Todos</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                </select>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="active">Activos</SelectItem>
+                    <SelectItem value="inactive">Inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-center gap-2 pt-6">
@@ -205,17 +214,18 @@ export default function ProductsPage() {
 
               <div>
                 <Label className="text-sm text-muted-foreground">Orden</Label>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="name-asc">Nombre A-Z</option>
-                  <option value="price-asc">Precio asc</option>
-                  <option value="price-desc">Precio desc</option>
-                  <option value="stock-asc">Stock asc</option>
-                  <option value="stock-desc">Stock desc</option>
-                </select>
+                <Select value={sort} onValueChange={setSort}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Nombre A-Z" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Nombre A-Z</SelectItem>
+                    <SelectItem value="price-asc">Precio asc</SelectItem>
+                    <SelectItem value="price-desc">Precio desc</SelectItem>
+                    <SelectItem value="stock-asc">Stock asc</SelectItem>
+                    <SelectItem value="stock-desc">Stock desc</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

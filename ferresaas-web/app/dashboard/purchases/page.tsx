@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ShoppingCart,
   Package,
   DollarSign,
@@ -217,20 +224,24 @@ export default function PurchasesPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium">Proveedor</label>
-                <select
+                <Select
                   value={selectedSupplierId}
-                  onChange={(e) => {
-                    handleSupplierChange(e.target.value);
+                  onValueChange={(value) => {
+                    handleSupplierChange(value);
                   }}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
                 >
-                  <option value="">Todos los proveedores</option>
-                  {suppliers.map((supplier: any) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Todos los proveedores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos los proveedores</SelectItem>
+                    {suppliers.map((supplier: any) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-sm font-medium">Desde</label>

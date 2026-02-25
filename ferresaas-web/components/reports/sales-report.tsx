@@ -200,12 +200,12 @@ export function SalesReport({ data }: SalesReportProps) {
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white p-3 border rounded-lg shadow-lg">
-                        <p className="text-sm font-medium mb-2">{payload[0].payload.fullDate}</p>
-                        <p className="text-sm text-blue-600">
+                      <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                        <p className="text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">{payload[0].payload.fullDate}</p>
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
                           Ingresos: ${Number(payload[0].value).toFixed(2)}
                         </p>
-                        <p className="text-sm text-green-600">
+                        <p className="text-sm text-green-600 dark:text-green-400">
                           Ventas: {payload[1].value}
                         </p>
                       </div>
@@ -322,11 +322,11 @@ export function SalesReport({ data }: SalesReportProps) {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.entries(paymentMethods).map(([method, amount]) => (
-                <div key={method} className="p-4 bg-gray-50 rounded-lg border">
+                <div key={method} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                   <p className="text-sm text-muted-foreground mb-1">
                     {PAYMENT_METHOD_LABELS[method] || method}
                   </p>
-                  <p className="text-xl font-bold text-blue-600">
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                     ${amount.toFixed(2)}
                   </p>
                 </div>

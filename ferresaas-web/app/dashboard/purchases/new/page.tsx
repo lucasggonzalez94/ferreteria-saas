@@ -424,7 +424,10 @@ export default function NewPurchasePage() {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="currency">Moneda *</Label>
-                <Select value={currency} onValueChange={(value: "ARS" | "USD") => setCurrency(value)}>
+                <Select
+                  value={currency}
+                  onValueChange={(value) => setCurrency(value as "ARS" | "USD")}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -760,16 +763,22 @@ export default function NewPurchasePage() {
                 {amountPaid && parseFloat(amountPaid) > 0 && (
                   <div>
                     <Label htmlFor="paymentMethod">Método de Pago</Label>
-                    <select
-                      id="paymentMethod"
+                    <Select
                       value={paymentMethod}
-                      onChange={handlePaymentMethodChange}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      onValueChange={(value: any) => {
+                        setPaymentMethod(value);
+                        handlePaymentMethodChange({ target: { value } } as any);
+                      }}
                     >
-                      <option value="CASH">Efectivo</option>
-                      <option value="TRANSFER">Transferencia</option>
-                      <option value="CHECK">Cheque</option>
-                    </select>
+                      <SelectTrigger id="paymentMethod" className="mt-1">
+                        <SelectValue placeholder="Selecciona método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CASH">Efectivo</SelectItem>
+                        <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                        <SelectItem value="CHECK">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <p className="text-xs text-muted-foreground mt-1">
                       Selecciona cómo se realizará el pago
                     </p>

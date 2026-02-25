@@ -8,6 +8,13 @@ import { useUserRoles } from "@/lib/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -182,18 +189,21 @@ export default function UsersPage() {
                 </div>
                 <div>
                   <Label htmlFor="status">Estado</Label>
-                  <select
-                    id="status"
+                  <Select
                     value={statusFilter}
-                    onChange={(e) =>
-                      setStatusFilter(e.target.value as "all" | "active" | "inactive")
+                    onValueChange={(value) =>
+                      setStatusFilter(value as "all" | "active" | "inactive")
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="all">Todos</option>
-                    <option value="active">Activos</option>
-                    <option value="inactive">Inactivos</option>
-                  </select>
+                    <SelectTrigger id="status" className="mt-1">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Activos</SelectItem>
+                      <SelectItem value="inactive">Inactivos</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex gap-2">

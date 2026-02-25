@@ -8,6 +8,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, User } from "lucide-react";
@@ -149,19 +156,20 @@ export default function CustomersPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <Label>Tipo</Label>
-                    <select
+                    <Select
                       value={formData.type}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          type: e.target.value as any,
-                        })
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, type: value as "PERSON" | "COMPANY" })
                       }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="PERSON">Persona</option>
-                      <option value="COMPANY">Empresa</option>
-                    </select>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecciona tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PERSON">Persona</SelectItem>
+                        <SelectItem value="COMPANY">Empresa</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {formData.type === "PERSON" ? (

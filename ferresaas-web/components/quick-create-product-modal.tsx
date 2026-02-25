@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -197,19 +204,24 @@ export function QuickCreateProductModal({
 
           <div>
             <Label htmlFor="categoryId">Categoría</Label>
-            <select
-              id="categoryId"
+            <Select
               value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              onValueChange={(value) =>
+                setFormData({ ...formData, categoryId: value })
+              }
             >
-              <option value="">Sin categoría</option>
-              {categories?.map((cat: any) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="categoryId" className="mt-1">
+                <SelectValue placeholder="Sin categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sin categoría</SelectItem>
+                {categories?.map((cat: any) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -227,18 +239,22 @@ export function QuickCreateProductModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="unit">Unidad *</Label>
-            <select
-              id="unit"
+            <Select
               value={formData.unit}
-              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              required
+              onValueChange={(value) =>
+                setFormData({ ...formData, unit: value })
+              }
             >
-              <option value="u">Unidad (u)</option>
-              <option value="mt">Metro (mt)</option>
-              <option value="kg">Kilogramo (kg)</option>
-              <option value="lt">Litro (lt)</option>
-            </select>
+              <SelectTrigger id="unit" className="mt-1">
+                <SelectValue placeholder="Selecciona unidad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="u">Unidad (u)</SelectItem>
+                <SelectItem value="mt">Metro (mt)</SelectItem>
+                <SelectItem value="kg">Kilogramo (kg)</SelectItem>
+                <SelectItem value="lt">Litro (lt)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

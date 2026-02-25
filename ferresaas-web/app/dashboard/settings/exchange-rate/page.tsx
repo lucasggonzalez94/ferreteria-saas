@@ -153,6 +153,8 @@ export default function ExchangeRateConfigPage() {
         <Header
           title="Configuración de Tipo de Cambio"
           description="Administra las operaciones en dólares y la cotización"
+          link="/dashboard/settings"
+          linkLabel="Volver a Configuración"
         />
 
         <form onSubmit={handleSubmit} className="space-y-6">

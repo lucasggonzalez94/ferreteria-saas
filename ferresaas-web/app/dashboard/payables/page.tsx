@@ -8,6 +8,13 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -368,41 +375,47 @@ export default function PayablesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="status">Estado</Label>
-                <select
-                  id="status"
+                <Select
                   value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
+                  onValueChange={(value) => {
+                    setStatus(value);
                     setPage(1);
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Todos los estados</option>
-                  <option value="PENDING">Pendiente</option>
-                  <option value="PARTIAL">Parcial</option>
-                  <option value="PAID">Pagado</option>
-                  <option value="OVERDUE">Vencido</option>
-                </select>
+                  <SelectTrigger id="status" className="mt-1">
+                    <SelectValue placeholder="Todos los estados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos los estados</SelectItem>
+                    <SelectItem value="PENDING">Pendiente</SelectItem>
+                    <SelectItem value="PARTIAL">Parcial</SelectItem>
+                    <SelectItem value="PAID">Pagado</SelectItem>
+                    <SelectItem value="OVERDUE">Vencido</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <Label htmlFor="supplier">Proveedor</Label>
-                <select
-                  id="supplier"
+                <Select
                   value={supplierId}
-                  onChange={(e) => {
-                    setSupplierId(e.target.value);
+                  onValueChange={(value) => {
+                    setSupplierId(value);
                     setPage(1);
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Todos los proveedores</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="supplier" className="mt-1">
+                    <SelectValue placeholder="Todos los proveedores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos los proveedores</SelectItem>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -632,21 +645,20 @@ export default function PayablesPage() {
                                     <Label htmlFor="method">
                                       Método de Pago *
                                     </Label>
-                                    <select
-                                      id="method"
+                                    <Select
                                       value={paymentMethod}
-                                      onChange={(e) =>
-                                        setPaymentMethod(e.target.value)
-                                      }
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                      onValueChange={setPaymentMethod}
                                     >
-                                      <option value="CASH">Efectivo</option>
-                                      <option value="TRANSFER">
-                                        Transferencia
-                                      </option>
-                                      <option value="CHECK">Cheque</option>
-                                      <option value="CARD">Tarjeta</option>
-                                    </select>
+                                      <SelectTrigger id="method" className="mt-1">
+                                        <SelectValue placeholder="Selecciona método" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="CASH">Efectivo</SelectItem>
+                                        <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                                        <SelectItem value="CHECK">Cheque</SelectItem>
+                                        <SelectItem value="CARD">Tarjeta</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                   <div>
                                     <Label htmlFor="reference">

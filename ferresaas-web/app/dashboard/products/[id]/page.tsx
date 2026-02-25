@@ -7,6 +7,13 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Printer, Upload, X } from "lucide-react";
@@ -455,21 +462,24 @@ export default function EditProductPage({
 
                 <div>
                   <Label htmlFor="categoryId">Categoría</Label>
-                  <select
-                    id="categoryId"
+                  <Select
                     value={formData.categoryId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, categoryId: e.target.value })
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, categoryId: value })
                     }
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="">Sin categoría</option>
-                    {categories?.map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="categoryId" className="mt-1">
+                      <SelectValue placeholder="Sin categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin categoría</SelectItem>
+                      {categories?.map((cat: any) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="col-span-2">
@@ -486,20 +496,22 @@ export default function EditProductPage({
 
                 <div>
                   <Label htmlFor="unit">Unidad *</Label>
-                  <select
-                    id="unit"
+                  <Select
                     value={formData.unit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, unit: e.target.value })
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, unit: value })
                     }
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    required
                   >
-                    <option value="u">Unidad (u)</option>
-                    <option value="mt">Metro (mt)</option>
-                    <option value="kg">Kilogramo (kg)</option>
-                    <option value="lt">Litro (lt)</option>
-                  </select>
+                    <SelectTrigger id="unit" className="mt-1">
+                      <SelectValue placeholder="Selecciona unidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="u">Unidad (u)</SelectItem>
+                      <SelectItem value="mt">Metro (mt)</SelectItem>
+                      <SelectItem value="kg">Kilogramo (kg)</SelectItem>
+                      <SelectItem value="lt">Litro (lt)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -658,17 +670,23 @@ export default function EditProductPage({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="pricingMode">Modo de Pricing</Label>
-                      <select
-                        id="pricingMode"
+                      <Select
                         value={formData.pricingMode}
-                        onChange={handlePricingModeChange}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        onValueChange={(value: any) => {
+                          setFormData({ ...formData, pricingMode: value });
+                          handlePricingModeChange({ target: { value } } as any);
+                        }}
                       >
-                        <option value="fixed">Precio Fijo</option>
-                        <option value="margin">Mantener Margen</option>
-                        <option value="markup">Mantener Markup</option>
-                        <option value="suggest">Solo Sugerir</option>
-                      </select>
+                        <SelectTrigger id="pricingMode" className="mt-1">
+                          <SelectValue placeholder="Selecciona modo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fixed">Precio Fijo</SelectItem>
+                          <SelectItem value="margin">Mantener Margen</SelectItem>
+                          <SelectItem value="markup">Mantener Markup</SelectItem>
+                          <SelectItem value="suggest">Solo Sugerir</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs text-muted-foreground mt-1">
                         Define cómo se recalcula el precio al cambiar el costo
                       </p>
@@ -705,34 +723,40 @@ export default function EditProductPage({
 
                     <div>
                       <Label htmlFor="roundingStep">Redondeo de Precio</Label>
-                      <select
-                        id="roundingStep"
+                      <Select
                         value={formData.roundingStep}
-                        onChange={(e) =>
-                          setFormData({ ...formData, roundingStep: e.target.value })
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, roundingStep: value })
                         }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        <option value="1">Sin redondeo</option>
-                        <option value="10">Múltiplo de 10</option>
-                        <option value="50">Múltiplo de 50</option>
-                        <option value="100">Múltiplo de 100</option>
-                      </select>
+                        <SelectTrigger id="roundingStep" className="mt-1">
+                          <SelectValue placeholder="Selecciona redondeo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Sin redondeo</SelectItem>
+                          <SelectItem value="10">Múltiplo de 10</SelectItem>
+                          <SelectItem value="50">Múltiplo de 50</SelectItem>
+                          <SelectItem value="100">Múltiplo de 100</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
                       <Label htmlFor="costMethod">Método de Costo</Label>
-                      <select
-                        id="costMethod"
+                      <Select
                         value={formData.costMethod}
-                        onChange={(e) =>
-                          setFormData({ ...formData, costMethod: e.target.value })
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, costMethod: value })
                         }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        <option value="avg_weighted">Costo Promedio Ponderado</option>
-                        <option value="last_cost">Último Costo</option>
-                      </select>
+                        <SelectTrigger id="costMethod" className="mt-1">
+                          <SelectValue placeholder="Selecciona método" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="avg_weighted">Costo Promedio Ponderado</SelectItem>
+                          <SelectItem value="last_cost">Último Costo</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="col-span-2 flex items-center gap-2">
