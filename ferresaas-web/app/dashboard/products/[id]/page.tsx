@@ -44,6 +44,7 @@ export default function EditProductPage({
     taxRate: "21",
     marginPercent: "",
     minStock: "",
+    stockQuantity: "",
     isActive: true,
     pricingMode: "margin",
     targetMargin: "",
@@ -114,6 +115,7 @@ export default function EditProductPage({
         taxRate: product.taxRate.toString(),
         marginPercent: product.marginPercent ? product.marginPercent.toString() : "",
         minStock: product.minStock ? product.minStock.toString() : "",
+        stockQuantity: product.stockQuantity ? product.stockQuantity.toString() : "0",
         isActive: product.isActive,
         pricingMode: product.pricingMode || "margin",
         targetMargin: product.targetMargin ? product.targetMargin.toString() : "",
@@ -376,6 +378,7 @@ export default function EditProductPage({
       taxRate: parseNumericInput(formData.taxRate),
       marginPercent: formData.marginPercent ? parseNumericInput(formData.marginPercent) : undefined,
       minStock: formData.minStock ? parseNumericInput(formData.minStock) : undefined,
+      stockQuantity: formData.stockQuantity ? parseNumericInput(formData.stockQuantity) : undefined,
       isActive: formData.isActive,
       pricingMode: formData.pricingMode,
       targetMargin: formData.targetMargin ? parseNumericInput(formData.targetMargin) : undefined,
@@ -462,24 +465,28 @@ export default function EditProductPage({
 
                 <div>
                   <Label htmlFor="categoryId">Categoría</Label>
-                  <Select
-                    value={formData.categoryId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, categoryId: value })
-                    }
-                  >
-                    <SelectTrigger id="categoryId" className="mt-1">
-                      <SelectValue placeholder="Sin categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Sin categoría</SelectItem>
-                      {categories?.map((cat: any) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Select
+                        value={formData.categoryId}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, categoryId: value })
+                        }
+                      >
+                        <SelectTrigger id="categoryId">
+                          <SelectValue placeholder="Sin categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Sin categoría</SelectItem>
+                          {categories?.map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="col-span-2">
@@ -528,6 +535,23 @@ export default function EditProductPage({
                 </div>
 
                 <div>
+                  <Label htmlFor="stockQuantity">Stock Actual</Label>
+                  <Input
+                    id="stockQuantity"
+                    type="number"
+                    step={formData.unit === "u" ? "1" : "0.01"}
+                    min="0"
+                    value={formData.stockQuantity}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stockQuantity: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ajustar stock generará un movimiento de inventario
+                  </p>
+                </div>
+
+                <div>
                   <Label htmlFor="cost">Costo *</Label>
                   <Input
                     id="cost"
@@ -568,7 +592,7 @@ export default function EditProductPage({
                   />
                 </div>
 
-                <div>
+                <div className="col-span-2">
                   <Label htmlFor="marginPercent">Margen (%)</Label>
                   <Input
                     id="marginPercent"
@@ -577,7 +601,7 @@ export default function EditProductPage({
                     value={formData.marginPercent}
                     onChange={handleMarginPercentChange}
                     placeholder="Ej: 30"
-                    className={validationErrors.marginPercent ? "border-red-500" : ""}
+                    className={`w-full ${validationErrors.marginPercent ? "border-red-500" : ""}`}
                   />
                   {validationErrors.marginPercent && (
                     <p className="text-sm text-red-500 mt-1">

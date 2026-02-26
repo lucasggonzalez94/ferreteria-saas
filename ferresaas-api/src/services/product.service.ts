@@ -74,6 +74,7 @@ export class ProductService {
       taxRate: number;
       marginPercent?: number | null;
       minStock?: number | null;
+      initialStock?: number;
       pricingMode?: string;
       targetMargin?: number | null;
       targetMarkup?: number | null;
@@ -106,6 +107,9 @@ export class ProductService {
       );
     }
 
+    // Determinar stock inicial
+    const initialStock = data.initialStock ?? 0;
+
     // Crear producto
     const product = await prisma.product.create({
       data: {
@@ -124,7 +128,7 @@ export class ProductService {
         marginPercent: data.marginPercent,
         suggestedPrice,
         minStock: data.minStock,
-        stockQuantity: 0, // Stock inicial en 0
+        stockQuantity: initialStock,
         pricingMode: data.pricingMode || 'margin',
         targetMargin: data.targetMargin,
         targetMarkup: data.targetMarkup,
@@ -138,11 +142,26 @@ export class ProductService {
       },
     });
 
+    // Si hay stock inicial, crear movimiento INITIAL_STOCK
+    if (initialStock > 0) {
+      await prisma.inventoryMovement.create({
+        data: {
+          businessId,
+          productId: product.id,
+          type: 'INITIAL_STOCK',
+          quantity: initialStock,
+          reason: 'Stock inicial al crear producto',
+          userId,
+        },
+      });
+    }
+
     // Auditoría
     await AuditService.logCreate(businessId, userId, 'products', product.id, {
       name: product.name,
       internalSku: product.internalSku,
       barcode: product.barcode,
+      initialStock,
     });
 
     return product;
@@ -344,6 +363,7 @@ export class ProductService {
       taxRate: number;
       marginPercent?: number | null;
       minStock?: number | null;
+      stockQuantity?: number;
       isActive: boolean;
       pricingMode?: string;
       targetMargin?: number | null;
@@ -402,6 +422,29 @@ export class ProductService {
           changedBy: userId,
         },
       });
+    }
+
+    // Detectar cambios de stock y generar movimiento STOCK_ADJUSTMENT
+    if (data.stockQuantity !== undefined && data.stockQuantity !== null) {
+      const oldStock = Number(current.stockQuantity);
+      const newStock = data.stockQuantity;
+      
+      if (newStock !== oldStock) {
+        const difference = newStock - oldStock;
+        
+        await prisma.inventoryMovement.create({
+          data: {
+            businessId,
+            productId,
+            type: 'STOCK_ADJUSTMENT',
+            quantity: difference,
+            reason: difference > 0 
+              ? `Ajuste de stock: incremento de ${Math.abs(difference)} unidades`
+              : `Ajuste de stock: reducción de ${Math.abs(difference)} unidades`,
+            userId,
+          },
+        });
+      }
     }
 
     // Actualizar

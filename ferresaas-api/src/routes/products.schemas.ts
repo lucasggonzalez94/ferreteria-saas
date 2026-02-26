@@ -16,6 +16,7 @@ export const createProductSchema = z.object({
     message: "El margen debe estar entre 0 y 100 (exclusivo)"
   }).nullable().optional(),
   minStock: z.number().min(0).nullable().optional(),
+  initialStock: z.number().min(0).optional(),
   pricingMode: z.enum(['fixed', 'margin', 'markup', 'suggest']).default('margin').optional(),
   targetMargin: z.number().refine(val => val > 0 && val < 100, {
     message: "El margen objetivo debe estar entre 0 y 100 (exclusivo)"
@@ -46,6 +47,7 @@ export const updateProductSchema = z.object({
     message: "El margen debe estar entre 0 y 100 (exclusivo)"
   }).nullable().optional(),
   minStock: z.number().min(0).nullable().optional(),
+  stockQuantity: z.number().min(0).optional(),
   isActive: z.boolean().optional(),
   pricingMode: z.enum(['fixed', 'margin', 'markup', 'suggest']).optional(),
   targetMargin: z.number().refine(val => val > 0 && val < 100, {

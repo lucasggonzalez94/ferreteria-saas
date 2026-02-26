@@ -394,7 +394,7 @@ model InventoryMovement {
   id          String  @id @default(cuid())
   businessId  String
   productId   String
-  type        String  // PURCHASE_RECEIPT, SALE, RETURN, ADJUSTMENT, TRANSFER
+  type        String  // INITIAL_STOCK, PURCHASE_RECEIPT, SALE, RETURN, STOCK_ADJUSTMENT, TRANSFER
   quantity    Decimal @db.Decimal(12, 3) // Puede ser negativo (salida)
   
   // Metadata

@@ -59,6 +59,7 @@ export default function NewProductPage() {
     taxRate: "21",
     marginPercent: "",
     minStock: "",
+    initialStock: "",
     pricingMode: "margin",
     targetMargin: "",
     priceLocked: false,
@@ -354,6 +355,7 @@ export default function NewProductPage() {
       taxRate: parseFloat(formData.taxRate),
       marginPercent: formData.marginPercent ? parseFloat(formData.marginPercent) : undefined,
       minStock: formData.minStock ? parseFloat(formData.minStock) : undefined,
+      initialStock: formData.initialStock ? parseFloat(formData.initialStock) : undefined,
       pricingMode: formData.pricingMode,
       targetMargin: formData.targetMargin ? parseFloat(formData.targetMargin) : undefined,
       priceLocked: formData.priceLocked,
@@ -409,29 +411,31 @@ export default function NewProductPage() {
                 <div>
                   <Label htmlFor="categoryId">Categoría</Label>
                   <div className="flex gap-2 items-center">
-                    <Select
-                      value={formData.categoryId}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, categoryId: value })
-                      }
-                    >
-                      <SelectTrigger id="categoryId" className="mt-1">
-                        <SelectValue placeholder="Sin categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Sin categoría</SelectItem>
-                        {categories?.map((cat: any) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex-1">
+                      <Select
+                        value={formData.categoryId}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, categoryId: value })
+                        }
+                      >
+                        <SelectTrigger id="categoryId">
+                          <SelectValue placeholder="Sin categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Sin categoría</SelectItem>
+                          {categories?.map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="shrink-0"
+                      className="shrink-0 h-10"
                       onClick={() => setCategoryModalOpen(true)}
                     >
                       Nueva
@@ -485,6 +489,24 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
+                  <Label htmlFor="initialStock">Stock Inicial</Label>
+                  <Input
+                    id="initialStock"
+                    type="number"
+                    step={formData.unit === "u" ? "1" : "0.01"}
+                    min="0"
+                    value={formData.initialStock}
+                    onChange={(e) =>
+                      setFormData({ ...formData, initialStock: e.target.value })
+                    }
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cantidad de unidades existentes al crear el producto
+                  </p>
+                </div>
+
+                <div>
                   <Label htmlFor="cost">Costo *</Label>
                   <Input
                     id="cost"
@@ -525,7 +547,7 @@ export default function NewProductPage() {
                   />
                 </div>
 
-                <div>
+                <div className="col-span-2">
                   <Label htmlFor="marginPercent">Margen (%)</Label>
                   <Input
                     id="marginPercent"
@@ -534,7 +556,7 @@ export default function NewProductPage() {
                     value={formData.marginPercent}
                     onChange={handleMarginPercentChange}
                     placeholder="Ej: 30"
-                    className={validationErrors.marginPercent ? "border-red-500" : ""}
+                    className={`w-full ${validationErrors.marginPercent ? "border-red-500" : ""}`}
                   />
                   {validationErrors.marginPercent && (
                     <p className="text-sm text-red-500 mt-1">
