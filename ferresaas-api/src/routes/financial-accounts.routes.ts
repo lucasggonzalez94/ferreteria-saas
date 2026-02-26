@@ -67,6 +67,40 @@ router.get(
 );
 
 /**
+ * GET /financial-accounts/movements
+ * Listar movimientos por fecha (todas las cuentas)
+ */
+router.get(
+  '/movements',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { date, type, sourceType, page, limit } = req.query;
+
+      if (!date) {
+        throw new AppError(400, 'MISSING_DATE', 'date parameter is required');
+      }
+
+      const result = await movementService.listByDate(
+        authReq.businessId!,
+        new Date(date as string),
+        {
+          type: type as string | undefined,
+          sourceType: sourceType as string | undefined,
+          page: page ? parseInt(page as string) : undefined,
+          limit: limit ? parseInt(limit as string) : undefined,
+        }
+      );
+
+      sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /financial-accounts/:id
  * Obtener cuenta por ID
  */

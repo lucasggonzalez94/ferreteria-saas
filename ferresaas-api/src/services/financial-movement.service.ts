@@ -6,6 +6,13 @@ import { ExchangeRateService } from './exchange-rate.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { logger } from '../config/logger';
 
+// Obtener fecha actual ajustada a zona horaria local (UTC-3)
+function getLocalDateTime(): Date {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000; // offset en ms
+  return new Date(now.getTime() - offset);
+}
+
 export class FinancialMovementService {
   private accountService: FinancialAccountService;
   private exchangeRateService: ExchangeRateService;
@@ -60,6 +67,7 @@ export class FinancialMovementService {
         notes: data.notes,
         balanceAfter: newBalance,
         createdBy: userId,
+        createdAt: getLocalDateTime(),
       },
     });
 
@@ -161,6 +169,7 @@ export class FinancialMovementService {
       const conversionNote = needsConversion
         ? ` (${data.amount.toFixed(2)} ${fromAccount.currency} → ${convertedAmount.toFixed(2)} ${toAccount.currency})`
         : '';
+      const now = getLocalDateTime();
 
       // Crear movimiento de salida en cuenta origen
       const expenseMovement = await tx.financialMovement.create({
@@ -175,6 +184,7 @@ export class FinancialMovementService {
           notes: data.notes,
           balanceAfter: fromBalance,
           createdBy: userId,
+          createdAt: now,
         },
       });
 
@@ -191,6 +201,7 @@ export class FinancialMovementService {
           notes: data.notes,
           balanceAfter: toBalance,
           createdBy: userId,
+          createdAt: now,
         },
       });
 
@@ -327,6 +338,71 @@ export class FinancialMovementService {
       totalTransferOut,
       netChange,
       movementCount: movements.length,
+    };
+  }
+
+  /**
+   * Listar movimientos por fecha (todas las cuentas)
+   */
+  async listByDate(
+    businessId: string,
+    date: Date,
+    filters?: {
+      type?: string;
+      sourceType?: string;
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const page = filters?.page || 1;
+    const limit = Math.min(filters?.limit || 50, 100);
+    const skip = (page - 1) * limit;
+
+    // Crear rango de fecha (inicio del día a fin del día)
+    // Usar UTC para evitar problemas de zona horaria
+    const dateObj = new Date(date);
+    const year = dateObj.getUTCFullYear();
+    const month = dateObj.getUTCMonth();
+    const day = dateObj.getUTCDate();
+
+    const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+    const where: Record<string, unknown> = {
+      businessId,
+      createdAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    };
+
+    if (filters?.type) where.type = filters.type;
+    if (filters?.sourceType) where.sourceType = filters.sourceType;
+
+    const [movements, total] = await Promise.all([
+      prisma.financialMovement.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          account: { select: { id: true, name: true, type: true } },
+          transferFrom: { select: { id: true, name: true } },
+          transferTo: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.financialMovement.count({ where }),
+    ]);
+
+    return {
+      items: movements,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
     };
   }
 

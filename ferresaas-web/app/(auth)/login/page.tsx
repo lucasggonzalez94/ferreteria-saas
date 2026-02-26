@@ -31,9 +31,16 @@ export default function LoginPage() {
       await login(email, password);
       toast.success("¡Bienvenido!");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Error al iniciar sesión",
-      );
+      let mensajeError = "Error al iniciar sesión";
+      if (error instanceof Error) {
+        const texto = error.message.toLowerCase();
+        if (texto.includes("failed to fetch") || texto.includes("network")) {
+          mensajeError = "No se pudo conectar con el servidor. Verifica tu conexión o el estado del backend.";
+        } else {
+          mensajeError = error.message;
+        }
+      }
+      toast.error(mensajeError);
     } finally {
       setIsLoading(false);
     }

@@ -52,6 +52,11 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
   const fromAccount = accounts.find((acc) => acc.id === fromAccountId);
   const toAccount = accounts.find((acc) => acc.id === toAccountId);
 
+  // Valores numéricos parseados para evitar operaciones con strings
+  const transferAmount = parseNumericInput(amount);
+  const fromBalance = parseNumericInput(fromAccount?.balance ?? 0);
+  const toBalance = parseNumericInput(toAccount?.balance ?? 0);
+
   // Detectar si necesita conversión
   const needsConversion = fromAccount && toAccount && fromAccount.currency !== toAccount.currency;
 
@@ -59,29 +64,30 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
   const { data: conversionData, isLoading: isLoadingConversion } = useQuery<ConversionData>({
     queryKey: ['exchange-rate-conversion', fromAccount?.currency, toAccount?.currency, amount],
     queryFn: async (): Promise<ConversionData> => {
-      if (!needsConversion || !amount || parseNumericInput(amount) <= 0) {
+      if (!needsConversion || !amount || transferAmount <= 0) {
         throw new Error('Invalid conversion request');
       }
       
       const response = await api.post('/exchange-rate/convert', {
-        amount: parseNumericInput(amount),
+        amount: transferAmount,
         from: fromAccount!.currency,
         to: toAccount!.currency,
       });
       return response.data as ConversionData;
     },
-    enabled: !!needsConversion && !!amount && parseNumericInput(amount) > 0,
+    enabled: !!needsConversion && !!amount && transferAmount > 0,
     staleTime: 60 * 1000, // 1 minuto
   });
 
-  const convertedAmount = conversionData?.amountUsd ?? conversionData?.amountArs ?? parseNumericInput(amount);
+  const convertedAmount = conversionData?.amountUsd ?? conversionData?.amountArs ?? transferAmount;
+  const receivedAmount = parseNumericInput(convertedAmount);
 
   const transferMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post<any>("/financial-accounts/transfers", {
         fromAccountId,
         toAccountId,
-        amount: parseNumericInput(amount),
+        amount: transferAmount,
         description: description || undefined,
         notes: notes || undefined,
       });
@@ -90,6 +96,7 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
       toast.success("Transferencia realizada exitosamente");
       resetForm();
       onOpenChange(false);
@@ -120,13 +127,12 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
       return;
     }
 
-    const amountNum = parseNumericInput(amount);
-    if (!amountNum || amountNum <= 0) {
+    if (!transferAmount || transferAmount <= 0) {
       toast.error("Ingresa un monto válido");
       return;
     }
 
-    if (fromAccount && amountNum > fromAccount.balance) {
+    if (fromAccount && transferAmount > fromBalance) {
       toast.error("Fondos insuficientes en la cuenta origen");
       return;
     }
@@ -215,15 +221,15 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
                 <p className="font-medium text-yellow-900">💱 Conversión de Moneda</p>
                 <div className="flex justify-between text-yellow-700">
                   <span>Monto a transferir:</span>
-                  <span className="font-medium">{parseNumericInput(amount).toFixed(2)} {fromAccount?.currency}</span>
+                  <span className="font-medium">{transferAmount.toFixed(2)} {fromAccount?.currency}</span>
                 </div>
                 <div className="flex justify-between text-yellow-700">
                   <span>Monto a recibir:</span>
-                  <span className="font-medium">{convertedAmount.toFixed(2)} {toAccount?.currency}</span>
+                  <span className="font-medium">{receivedAmount.toFixed(2)} {toAccount?.currency}</span>
                 </div>
                 <div className="flex justify-between text-xs text-yellow-600 mt-2 pt-2 border-t border-yellow-300">
                   <span>Tipo de cambio:</span>
-                  <span>1 {fromAccount?.currency} = {conversionData.rate.toFixed(4)} {toAccount?.currency}</span>
+                  <span>1 {fromAccount?.currency} = {parseNumericInput(conversionData.rate).toFixed(4)} {toAccount?.currency}</span>
                 </div>
                 <div className="flex justify-between text-xs text-yellow-600">
                   <span>Fuente:</span>
@@ -255,10 +261,10 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
           />
         </div>
 
-        {fromAccount && toAccount && amount && parseNumericInput(amount) > 0 && (
-          <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-            <p className="text-sm font-medium text-blue-900 mb-2">Resumen de Transferencia</p>
-            <div className="space-y-1 text-sm text-blue-700">
+        {fromAccount && toAccount && amount && transferAmount > 0 && (
+          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Resumen de Transferencia</p>
+            <div className="space-y-1 text-sm text-blue-700 dark:text-blue-200">
               <div className="flex justify-between">
                 <span>Desde:</span>
                 <span className="font-medium">{fromAccount.name} ({fromAccount.currency})</span>
@@ -269,22 +275,22 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
               </div>
               <div className="flex justify-between">
                 <span>Monto a transferir:</span>
-                <span className="font-medium">{parseNumericInput(amount).toFixed(2)} {fromAccount.currency}</span>
+                <span className="font-medium">{transferAmount.toFixed(2)} {fromAccount.currency}</span>
               </div>
               {needsConversion && (
                 <div className="flex justify-between">
                   <span>Monto a recibir:</span>
-                  <span className="font-medium">{convertedAmount.toFixed(2)} {toAccount.currency}</span>
+                  <span className="font-medium">{receivedAmount.toFixed(2)} {toAccount.currency}</span>
                 </div>
               )}
-              <div className="border-t border-blue-300 my-2 pt-2">
+              <div className="border-t border-blue-300 dark:border-blue-800 my-2 pt-2">
                 <div className="flex justify-between">
                   <span>Nuevo balance origen:</span>
-                  <span className="font-medium">{(fromAccount.balance - parseNumericInput(amount)).toFixed(2)} {fromAccount.currency}</span>
+                  <span className="font-medium">{(fromBalance - transferAmount).toFixed(2)} {fromAccount.currency}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Nuevo balance destino:</span>
-                  <span className="font-medium">{(toAccount.balance + convertedAmount).toFixed(2)} {toAccount.currency}</span>
+                  <span className="font-medium">{(toBalance + receivedAmount).toFixed(2)} {toAccount.currency}</span>
                 </div>
               </div>
             </div>

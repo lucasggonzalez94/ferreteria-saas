@@ -58,6 +58,7 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
       toast.success("Movimiento registrado exitosamente");
       resetForm();
       onOpenChange(false);
@@ -197,11 +198,25 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
           </div>
 
           {selectedAccount && amount && amountValue > 0 && (
-            <div className={`p-3 rounded-md border ${type === "INCOME" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-              <p className={`text-sm font-medium mb-2 ${type === "INCOME" ? "text-green-900" : "text-red-900"}`}>
+            <div
+              className={`p-3 rounded-md border ${
+                type === "INCOME"
+                  ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+                  : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+              }`}
+            >
+              <p
+                className={`text-sm font-medium mb-2 ${
+                  type === "INCOME" ? "text-green-900 dark:text-green-100" : "text-red-900 dark:text-red-100"
+                }`}
+              >
                 Resumen del Movimiento
               </p>
-              <div className={`space-y-1 text-sm ${type === "INCOME" ? "text-green-700" : "text-red-700"}`}>
+              <div
+                className={`space-y-1 text-sm ${
+                  type === "INCOME" ? "text-green-700 dark:text-green-200" : "text-red-700 dark:text-red-200"
+                }`}
+              >
                 <div className="flex justify-between">
                   <span>Cuenta:</span>
                   <span className="font-medium">{selectedAccount.name}</span>
@@ -214,7 +229,11 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
                   <span>Monto:</span>
                   <span className="font-medium">{type === "INCOME" ? "+" : "-"}${amountValue.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className={`border-t ${type === "INCOME" ? "border-green-300" : "border-red-300"} my-2 pt-2`}>
+                <div
+                  className={`border-t ${
+                    type === "INCOME" ? "border-green-300 dark:border-green-800" : "border-red-300 dark:border-red-800"
+                  } my-2 pt-2`}
+                >
                   <div className="flex justify-between">
                     <span>Nuevo balance:</span>
                     <span className="font-medium">

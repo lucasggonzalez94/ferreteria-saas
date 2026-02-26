@@ -53,9 +53,13 @@ const accountTypeLabels = {
 
 export default function FinancialAccountsSummaryPage() {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
   const canRead = user?.permissions?.includes("financial_accounts:read");
 
@@ -148,18 +152,18 @@ export default function FinancialAccountsSummaryPage() {
 
       <div className="space-y-6">
         {/* Total Balance Card */}
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 dark:from-blue-950 dark:to-blue-900 dark:border-blue-800">
           <CardHeader>
-            <CardTitle className="text-blue-900">Balance Total</CardTitle>
+            <CardTitle className="text-blue-900 dark:text-blue-100">Balance Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-blue-900">
+            <div className="text-4xl font-bold text-blue-900 dark:text-blue-50">
               $
               {totalBalance.toLocaleString("es-AR", {
                 minimumFractionDigits: 2,
               })}
             </div>
-            <p className="text-sm text-blue-700 mt-2">
+            <p className="text-sm text-blue-700 dark:text-blue-200 mt-2">
               Suma de todas las cuentas activas
             </p>
           </CardContent>
@@ -178,20 +182,20 @@ export default function FinancialAccountsSummaryPage() {
               const dayIncome = accountMovements
                 .filter((m: FinancialMovement) => m.type === "INCOME")
                 .reduce(
-                  (sum: number, m: FinancialMovement) => sum + m.amount,
+                  (sum: number, m: FinancialMovement) => sum + (typeof m.amount === 'number' ? m.amount : parseFloat(String(m.amount))),
                   0,
                 );
               const dayExpense = accountMovements
                 .filter((m: FinancialMovement) => m.type === "EXPENSE")
                 .reduce(
-                  (sum: number, m: FinancialMovement) => sum + m.amount,
+                  (sum: number, m: FinancialMovement) => sum + (typeof m.amount === 'number' ? m.amount : parseFloat(String(m.amount))),
                   0,
                 );
 
               return (
                 <Card
                   key={account.id}
-                  className="hover:shadow-lg transition-shadow"
+                  className="hover:shadow-lg transition-shadow flex flex-col min-h-[280px]"
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -214,62 +218,64 @@ export default function FinancialAccountsSummaryPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Balance */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Balance Actual
-                      </p>
-                      <p className="text-2xl font-bold">
-                        $
-                        {account.balance.toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </p>
+                  <CardContent className="flex flex-col h-full">
+                    <div className="space-y-1">
+                      {/* Balance */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Balance Actual
+                        </p>
+                        <p className="text-2xl font-bold">
+                          $
+                          {account.balance.toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
+
+                      {/* Day Summary */}
+                      {(dayIncome > 0 || dayExpense > 0) && (
+                        <div className="border-t pt-1 space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Movimientos Hoy
+                          </p>
+                          {dayIncome > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="flex items-center gap-1 text-green-600 dark:text-green-300">
+                                <TrendingUp className="h-3 w-3" />
+                                Ingresos
+                              </span>
+                              <span className="font-medium text-green-600 dark:text-green-300">
+                                +$
+                                {dayIncome.toLocaleString("es-AR", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          {dayExpense > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="flex items-center gap-1 text-red-600 dark:text-red-300">
+                                <TrendingDown className="h-3 w-3" />
+                                Egresos
+                              </span>
+                              <span className="font-medium text-red-600 dark:text-red-300">
+                                -$
+                                {dayExpense.toLocaleString("es-AR", {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Day Summary */}
-                    {(dayIncome > 0 || dayExpense > 0) && (
-                      <div className="border-t pt-3 space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Movimientos Hoy
-                        </p>
-                        {dayIncome > 0 && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-green-600">
-                              <TrendingUp className="h-3 w-3" />
-                              Ingresos
-                            </span>
-                            <span className="font-medium text-green-600">
-                              +$
-                              {dayIncome.toLocaleString("es-AR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </span>
-                          </div>
-                        )}
-                        {dayExpense > 0 && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-red-600">
-                              <TrendingDown className="h-3 w-3" />
-                              Egresos
-                            </span>
-                            <span className="font-medium text-red-600">
-                              -$
-                              {dayExpense.toLocaleString("es-AR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <Link href={`/dashboard/financial-accounts/${account.id}`}>
+                    <Link href={`/dashboard/financial-accounts/${account.id}`} className="mt-auto pt-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full mt-2"
+                        className="w-full"
                       >
                         Ver Detalle
                       </Button>
@@ -289,7 +295,7 @@ export default function FinancialAccountsSummaryPage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border rounded-md text-sm"
+              className="px-3 py-2 border rounded-md text-sm bg-background text-foreground border-input dark:bg-slate-900 dark:border-input dark:text-foreground"
             />
           </div>
 
@@ -306,21 +312,23 @@ export default function FinancialAccountsSummaryPage() {
                     return (
                       <div
                         key={movement.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 dark:border-slate-700 dark:bg-slate-900"
                       >
                         <div className="flex items-center gap-3 flex-1">
                           <div
                             className={`p-2 rounded-lg ${
-                              isIncome ? "bg-green-100" : "bg-red-100"
+                              isIncome
+                                ? "bg-green-100 dark:bg-green-900/60"
+                                : "bg-red-100 dark:bg-red-900/60"
                             }`}
                           >
                             {isIncome ? (
                               <TrendingUp
-                                className={`h-4 w-4 text-green-600`}
+                                className={`h-4 w-4 text-green-600 dark:text-green-300`}
                               />
                             ) : (
                               <TrendingDown
-                                className={`h-4 w-4 text-red-600`}
+                                className={`h-4 w-4 text-red-600 dark:text-red-300`}
                               />
                             )}
                           </div>
@@ -336,7 +344,9 @@ export default function FinancialAccountsSummaryPage() {
                         <div className="text-right">
                           <p
                             className={`font-bold text-sm ${
-                              isIncome ? "text-green-600" : "text-red-600"
+                              isIncome
+                                ? "text-green-600 dark:text-green-300"
+                                : "text-red-600 dark:text-red-300"
                             }`}
                           >
                             {isIncome ? "+" : "-"}$
@@ -366,15 +376,15 @@ export default function FinancialAccountsSummaryPage() {
         </div>
 
         {/* End of Day Report */}
-        <Card className="border-2 border-amber-200 bg-amber-50">
+        <Card className="border-2 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
           <CardHeader>
-            <CardTitle className="text-amber-900 flex items-center gap-2">
+            <CardTitle className="text-amber-900 dark:text-amber-100 flex items-center gap-2">
               <Download className="h-5 w-5" />
               Reporte de Cierre de Día
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-amber-800">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
               Al final del día, verifica que los balances coincidan con tu
               conteo físico:
             </p>
@@ -383,7 +393,7 @@ export default function FinancialAccountsSummaryPage() {
               {activeAccounts.map((account) => (
                 <div
                   key={account.id}
-                  className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                  className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-lg border border-border"
                 >
                   <span className="font-medium">{account.name}</span>
                   <div className="text-right">
@@ -397,16 +407,16 @@ export default function FinancialAccountsSummaryPage() {
                       type="number"
                       placeholder="Monto contado"
                       step="0.01"
-                      className="text-xs mt-1 px-2 py-1 border rounded w-32 text-right"
+                      className="text-xs mt-1 px-2 py-1 border rounded w-32 text-right bg-background text-foreground border-input"
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-white p-3 rounded-lg border-2 border-amber-300">
+            <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border-2 border-amber-300 dark:border-amber-800">
               <p className="text-sm font-medium mb-2">Validación:</p>
-              <ul className="text-sm space-y-1 text-amber-900">
+              <ul className="text-sm space-y-1 text-amber-900 dark:text-amber-100">
                 <li>
                   ✓ Verifica que el efectivo contado = Balance de Caja Principal
                 </li>
@@ -416,7 +426,7 @@ export default function FinancialAccountsSummaryPage() {
               </ul>
             </div>
 
-            <Button className="w-full bg-amber-600 hover:bg-amber-700">
+            <Button className="w-full bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500">
               Generar Reporte de Cierre
             </Button>
           </CardContent>
