@@ -20,11 +20,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { ActionsMenu } from "@/components/ui/actions-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Supplier {
   id: string;
@@ -33,7 +39,6 @@ interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
-  paymentTerms?: string;
   paymentTermDays?: number;
   creditLimit?: number;
   currentBalance: number;
@@ -62,7 +67,6 @@ interface SupplierFormData {
   email?: string;
   phone?: string;
   address?: string;
-  paymentTerms?: string;
   paymentTermDays?: number | string;
   paymentMethods?: string;
   creditLimit?: number | string;
@@ -163,7 +167,7 @@ export default function SuppliersPage() {
       email: supplier.email,
       phone: supplier.phone,
       address: supplier.address,
-      paymentTerms: supplier.paymentTerms,
+      paymentTermDays: supplier.paymentTermDays,
       creditLimit: supplier.creditLimit,
     });
     setIsOpen(true);
@@ -277,8 +281,9 @@ export default function SuppliersPage() {
                   </div>
                   <div>
                     <Label htmlFor="address">Dirección</Label>
-                    <Textarea
+                    <Input
                       id="address"
+                      maxLength={500}
                       value={formData.address || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, address: e.target.value })
@@ -286,36 +291,28 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="paymentTerms">Condiciones de Pago</Label>
-                    <Input
-                      id="paymentTerms"
-                      placeholder="Ej: 30 días, Contado"
-                      value={formData.paymentTerms || ""}
-                      onChange={(e) =>
+                    <Label htmlFor="paymentTermDays">Plazo de Pago</Label>
+                    <Select
+                      value={String(formData.paymentTermDays ?? "")}
+                      onValueChange={(value) =>
                         setFormData({
                           ...formData,
-                          paymentTerms: e.target.value,
+                          paymentTermDays: value ? parseInt(value) : undefined,
                         })
                       }
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="paymentTermDays">Plazo de Pago (días)</Label>
-                    <Input
-                      id="paymentTermDays"
-                      type="number"
-                      min="0"
-                      placeholder="Ej: 30 (0 = contado)"
-                      value={formData.paymentTermDays || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          paymentTermDays: e.target.value
-                            ? parseInt(e.target.value)
-                            : undefined,
-                        })
-                      }
-                    />
+                    >
+                      <SelectTrigger id="paymentTermDays">
+                        <SelectValue placeholder="Selecciona un plazo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Contado</SelectItem>
+                        <SelectItem value="7">7 días</SelectItem>
+                        <SelectItem value="15">15 días</SelectItem>
+                        <SelectItem value="30">30 días</SelectItem>
+                        <SelectItem value="45">45 días</SelectItem>
+                        <SelectItem value="60">60 días</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="creditLimit">Límite de Crédito</Label>
@@ -450,16 +447,6 @@ export default function SuppliersPage() {
                           </p>
                           <p className="font-semibold">
                             {supplier.paymentTermDays === 0 ? "Contado" : `${supplier.paymentTermDays} días`}
-                          </p>
-                        </div>
-                      )}
-                      {supplier.paymentTerms && (
-                        <div>
-                          <p className="text-muted-foreground">
-                            Condiciones
-                          </p>
-                          <p className="font-semibold">
-                            {supplier.paymentTerms}
                           </p>
                         </div>
                       )}

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,8 @@ export default function NewPurchasePage() {
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [checkNumber, setCheckNumber] = useState("");
+  const [checkAccountId, setCheckAccountId] = useState("");
   const [fundError, setFundError] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
   const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
@@ -123,6 +125,11 @@ export default function NewPurchasePage() {
     enabled: canCreatePurchase,
   });
 
+  // Filtrar solo cuentas bancarias para cheques
+  const bankAccounts = financialAccounts?.filter(
+    (acc: any) => acc.type === "BANK" && acc.isActive
+  ) || [];
+
   // Calcular dueDate automáticamente cuando se selecciona un proveedor
   useEffect(() => {
     if (supplierId && suppliers && suppliers.length > 0) {
@@ -163,6 +170,8 @@ export default function NewPurchasePage() {
         notes: notes || undefined,
         amountPaid: amountPaid ? parseNumericInput(amountPaid) : 0,
         paymentMethod: amountPaid && parseNumericInput(amountPaid) > 0 ? paymentMethod : undefined,
+        checkNumber: paymentMethod === "CHECK" && checkNumber ? checkNumber : undefined,
+        checkAccountId: paymentMethod === "CHECK" && checkAccountId ? checkAccountId : undefined,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       });
       return response.data;
@@ -229,15 +238,14 @@ export default function NewPurchasePage() {
   };
 
   // Manejar cambio de monto pagado
-  const handleAmountPaidChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAmountPaidChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setAmountPaid(value);
     validateFundsRealtime(value, paymentMethod);
   };
 
   // Manejar cambio de método de pago
-  const handlePaymentMethodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const method = e.target.value;
+  const handlePaymentMethodChange = (method: string) => {
     setPaymentMethod(method);
     validateFundsRealtime(amountPaid, method);
   };
@@ -266,7 +274,7 @@ export default function NewPurchasePage() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!supplierId) {
       toast.error("Selecciona un proveedor");
@@ -760,41 +768,95 @@ export default function NewPurchasePage() {
                   )}
                 </div>
 
-                {amountPaid && parseFloat(amountPaid) > 0 && (
-                  <div>
-                    <Label htmlFor="paymentMethod">Método de Pago</Label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={(value: any) => {
-                        setPaymentMethod(value);
-                        handlePaymentMethodChange({ target: { value } } as any);
-                      }}
-                    >
-                      <SelectTrigger id="paymentMethod" className="mt-1">
-                        <SelectValue placeholder="Selecciona método" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CASH">Efectivo</SelectItem>
-                        <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                        <SelectItem value="CHECK">Cheque</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Selecciona cómo se realizará el pago
-                    </p>
-                  </div>
+                {amountPaid && parseNumericInput(amountPaid) > 0 && (
+                  <>
+                    <div>
+                      <Label htmlFor="paymentMethod">Método de Pago</Label>
+                      <Select
+                        value={paymentMethod}
+                        onValueChange={(value: string) => {
+                          handlePaymentMethodChange(value);
+                          // Limpiar campos de cheque si cambia de método
+                          if (value !== "CHECK") {
+                            setCheckNumber("");
+                            setCheckAccountId("");
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="paymentMethod" className="mt-1">
+                          <SelectValue placeholder="Selecciona método" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CASH">Efectivo</SelectItem>
+                          <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                          <SelectItem value="CHECK">Cheque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selecciona cómo se realizará el pago
+                      </p>
+                    </div>
+
+                    {paymentMethod === "CHECK" && (
+                      <>
+                        <div>
+                          <Label htmlFor="checkAccountId">Cuenta Bancaria *</Label>
+                          <Select
+                            value={checkAccountId}
+                            onValueChange={setCheckAccountId}
+                          >
+                            <SelectTrigger id="checkAccountId" className="mt-1">
+                              <SelectValue placeholder="Selecciona cuenta bancaria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bankAccounts.length > 0 ? (
+                                bankAccounts.map((account: any) => (
+                                  <SelectItem key={account.id} value={account.id}>
+                                    {account.name}
+                                    {account.bankName && ` - ${account.bankName}`}
+                                    {account.accountNumber && ` (${account.accountNumber})`}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                  <p>No hay cuentas bancarias configuradas</p>
+                                  <p className="text-xs mt-1">Crea una en Cuentas Financieras</p>
+                                </div>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Cuenta de la cual se emitirá el cheque
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="checkNumber">Número de Cheque *</Label>
+                          <Input
+                            id="checkNumber"
+                            value={checkNumber}
+                            onChange={(e) => setCheckNumber(e.target.value)}
+                            placeholder="Ej: 001234"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Número del cheque a emitir
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
 
                 <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md border border-blue-200 dark:border-blue-800">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm text-blue-700 dark:text-blue-200">Saldo Pendiente</span>
                     <span className="font-semibold text-blue-900 dark:text-blue-100">
-                      ${Math.max(0, totals.total - (amountPaid ? parseFloat(amountPaid) : 0)).toFixed(2)}
+                      ${Math.max(0, totals.total - (amountPaid ? parseNumericInput(amountPaid) : 0)).toFixed(2)}
                     </span>
                   </div>
                   <p className="text-xs text-blue-600 dark:text-blue-300">
-                    {amountPaid && parseFloat(amountPaid) > 0
-                      ? `Pagado: $${parseFloat(amountPaid).toFixed(2)}`
+                    {amountPaid && parseNumericInput(amountPaid) > 0
+                      ? `Pagado: $${parseNumericInput(amountPaid).toFixed(2)}`
                       : "Compra completamente pendiente de pago"}
                   </p>
                 </div>
@@ -810,7 +872,8 @@ export default function NewPurchasePage() {
                 createMutation.isPending || 
                 items.length === 0 || 
                 !supplierId ||
-                fundError !== ""
+                !!fundError ||
+                !!(paymentMethod === "CHECK" && amountPaid && amountPaid.trim() && parseNumericInput(amountPaid) > 0 && (!checkNumber || !checkAccountId))
               }
               className="flex-1"
             >

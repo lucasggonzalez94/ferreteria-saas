@@ -349,16 +349,15 @@ export default function ProductsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                {search
+                {search ||
+                categoryId ||
+                status ||
+                lowStockOnly ||
+                priceMin ||
+                priceMax
                   ? "No se encontraron productos"
                   : "No hay productos registrados"}
               </p>
-              <Link href="/dashboard/products/new">
-                <Button className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Primer Producto
-                </Button>
-              </Link>
             </CardContent>
           </Card>
         )}

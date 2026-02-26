@@ -26,6 +26,7 @@ import permissionsRoutes from './routes/permissions.routes';
 import usersRoutes from './routes/users.routes';
 import userRolesRoutes from './routes/user-roles.routes';
 import financialAccountsRoutes from './routes/financial-accounts.routes';
+import checksRoutes from './routes/checks.routes';
 import priceSuggestionsRoutes from './routes/price-suggestions.routes';
 import approvalsRoutes from './routes/approvals.routes';
 import salesReportsRoutes from './routes/sales-reports.routes';
@@ -111,6 +112,7 @@ app.use('/v1/permissions', permissionsRoutes);
 app.use('/v1/users', usersRoutes); // CRUD de usuarios
 app.use('/v1/users', userRolesRoutes); // Asignación de roles a usuarios
 app.use('/v1/financial-accounts', financialAccountsRoutes);
+app.use('/v1/checks', checksRoutes);
 app.use('/v1/price-suggestions', priceSuggestionsRoutes);
 app.use('/v1/approvals', approvalsRoutes);
 app.use('/v1/sales-reports', salesReportsRoutes);

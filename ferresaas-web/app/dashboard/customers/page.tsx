@@ -50,6 +50,7 @@ export default function CustomersPage() {
     email: "",
     phone: "",
     address: "",
+    initialBalance: "",
   });
 
   const queryClient = useQueryClient();
@@ -80,6 +81,7 @@ export default function CustomersPage() {
         email: "",
         phone: "",
         address: "",
+        initialBalance: "",
       });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
@@ -122,6 +124,13 @@ export default function CustomersPage() {
     } else {
       delete payload.firstName;
       delete payload.lastName;
+    }
+
+    // Convertir initialBalance a número si existe
+    if (payload.initialBalance && payload.initialBalance !== "") {
+      payload.initialBalance = parseFloat(payload.initialBalance);
+    } else {
+      delete payload.initialBalance;
     }
 
     Object.keys(payload).forEach((key) => {
@@ -261,6 +270,19 @@ export default function CustomersPage() {
                       }
                     />
                   </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="initialBalance">Saldo Inicial</Label>
+                    <Input
+                      id="initialBalance"
+                      type="number"
+                      step="0.01"
+                      value={formData.initialBalance}
+                      onChange={(e) =>
+                        setFormData({ ...formData, initialBalance: e.target.value })
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-4">
@@ -364,7 +386,7 @@ export default function CustomersPage() {
                     <p className="text-sm text-muted-foreground">Saldo:</p>
                     <p
                       className={`text-lg font-semibold ${
-                        customer.currentBalance > 0
+                        Number(customer.currentBalance) < 0
                           ? "text-red-600"
                           : "text-green-600"
                       }`}

@@ -66,13 +66,29 @@ router.post(
     try {
       const authReq = req as AuthRequest;
       const data = createCustomerSchema.parse(req.body);
+      const { initialBalance, ...customerData } = data;
 
       const customer = await prisma.customer.create({
         data: {
           businessId: authReq.businessId!,
-          ...data,
+          currentBalance: initialBalance || 0,
+          ...customerData,
         },
       });
+
+      // Si hay saldo inicial, crear movimiento de cuenta
+      if (initialBalance && initialBalance !== 0) {
+        await prisma.accountMovement.create({
+          data: {
+            businessId: authReq.businessId!,
+            customerId: customer.id,
+            type: 'ADJUSTMENT',
+            amount: initialBalance,
+            balance: initialBalance,
+            notes: 'Saldo inicial del cliente',
+          },
+        });
+      }
 
       await AuditService.logCreate(
         authReq.businessId!,
@@ -132,6 +148,7 @@ router.put(
       const authReq = req as AuthRequest;
       const { id } = req.params;
       const data = updateCustomerSchema.parse(req.body);
+      const { currentBalance, ...updateData } = data;
 
       const existing = await prisma.customer.findUnique({ where: { id } });
       if (!existing) {
@@ -141,9 +158,28 @@ router.put(
         throw new AppError(403, 'FORBIDDEN', 'Access denied');
       }
 
+      // Si se proporciona un nuevo saldo, crear movimiento de ajuste
+      if (currentBalance !== undefined && currentBalance !== existing.currentBalance.toNumber()) {
+        const difference = currentBalance - existing.currentBalance.toNumber();
+
+        await prisma.accountMovement.create({
+          data: {
+            businessId: authReq.businessId!,
+            customerId: id,
+            type: 'ADJUSTMENT',
+            amount: difference,
+            balance: currentBalance,
+            notes: 'Ajuste de saldo del cliente',
+          },
+        });
+      }
+
       const updated = await prisma.customer.update({
         where: { id },
-        data,
+        data: {
+          ...updateData,
+          ...(currentBalance !== undefined && { currentBalance }),
+        },
       });
 
       await AuditService.logUpdate(
@@ -237,9 +273,10 @@ router.post(
       const [movement] = await prisma.$transaction([
         prisma.accountMovement.create({
           data: {
+            businessId: authReq.businessId!,
             customerId: id,
             type: 'PAYMENT',
-            amount: -data.amount, // Negativo porque es un pago
+            amount: -data.amount,
             balance: newBalance,
             notes: data.notes,
           },

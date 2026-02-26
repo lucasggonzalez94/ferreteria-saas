@@ -155,7 +155,9 @@ export class PayableService {
     amount: number,
     method: string,
     reference?: string,
-    notes?: string
+    notes?: string,
+    checkNumber?: string,
+    checkAccountId?: string
   ) {
     const payable = await prisma.supplierPayable.findUnique({
       where: { id: payableId },
@@ -179,7 +181,15 @@ export class PayableService {
     }
 
     // Validar fondos disponibles antes de registrar el pago (excepto para CHECK)
-    if (method !== 'CHECK') {
+    if (method === 'CHECK') {
+      // Validar parámetros específicos para cheques
+      if (!checkNumber) {
+        throw new AppError(400, 'CHECK_NUMBER_REQUIRED', 'Check number is required for check payments');
+      }
+      if (!checkAccountId) {
+        throw new AppError(400, 'CHECK_ACCOUNT_REQUIRED', 'Bank account is required for check payments');
+      }
+    } else {
       const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
       const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
       await this.financialAccountService.validateFunds(account.id, amount);
@@ -228,8 +238,29 @@ export class PayableService {
         });
       }
 
-      // Crear movimiento financiero (excepto para CHECK que se registra cuando se cobra)
-      if (method !== 'CHECK') {
+      // Crear movimiento financiero o registrar cheque
+      if (method === 'CHECK') {
+        // Registrar cheque sin descontar fondos inmediatos
+        const supplier = await tx.supplier.findUnique({
+          where: { id: payable.supplierId },
+        });
+
+        await tx.checkRegister.create({
+          data: {
+            businessId,
+            accountId: checkAccountId!,
+            checkNumber: checkNumber!,
+            amount: new Decimal(amount),
+            currency: payable.currency,
+            payableId,
+            paymentId: newPayment.id,
+            recipientName: supplier?.name,
+            notes: notes || `Pago a proveedor`,
+            status: 'ISSUED',
+          },
+        });
+      } else {
+        // Para otros métodos, descontar inmediatamente
         const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
         const account = await tx.financialAccount.findFirst({
           where: {
@@ -262,6 +293,7 @@ export class PayableService {
               description: `Pago a proveedor - ${method}`,
               balanceAfter: newAccountBalance,
               createdBy: userId,
+              createdAt: new Date(),
             },
           });
         }

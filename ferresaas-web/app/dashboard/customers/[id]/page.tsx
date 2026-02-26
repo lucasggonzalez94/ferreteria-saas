@@ -171,7 +171,7 @@ export default function CustomerDetailPage({
               <p className="text-sm text-muted-foreground mb-2">Saldo</p>
               <p
                 className={`text-4xl font-bold ${
-                  customer.currentBalance > 0
+                  Number(customer.currentBalance) < 0
                     ? "text-red-600"
                     : "text-green-600"
                 }`}
@@ -179,7 +179,7 @@ export default function CustomerDetailPage({
                 ${Number(customer.currentBalance).toFixed(2)}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                {customer.currentBalance > 0
+                {Number(customer.currentBalance) < 0
                   ? "Saldo a favor del cliente"
                   : "Saldo a favor de la empresa"}
               </p>

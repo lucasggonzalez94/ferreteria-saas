@@ -3,9 +3,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Wallet,
@@ -22,7 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface FinancialAccount {
@@ -50,7 +60,6 @@ interface Movement {
   description: string;
   sourceType: string;
   sourceId?: string;
-  date: string;
   createdAt: string;
 }
 
@@ -98,6 +107,16 @@ export default function AccountDetailPage() {
   const { user } = useAuth();
   const accountId = params.id as string;
 
+  const [startDate, setStartDate] = useState<string>(
+    format(subDays(new Date(), 30), "yyyy-MM-dd")
+  );
+  const [endDate, setEndDate] = useState<string>(
+    format(new Date(), "yyyy-MM-dd")
+  );
+  const [movementType, setMovementType] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(50);
+
   const canRead = user?.permissions?.includes("financial_accounts:read");
   const canManage =
     user?.permissions?.includes("financial_accounts:manage") ||
@@ -114,20 +133,46 @@ export default function AccountDetailPage() {
     enabled: canRead && !!accountId,
   });
 
-  const { data: movementsData, isLoading: movementsLoading } =
+  const { data: movementsData, isLoading: movementsLoading, refetch: refetchMovements } =
     useQuery<MovementsResponse | null>({
-      queryKey: ["financial-accounts", accountId, "movements"],
+      queryKey: ["financial-accounts", accountId, "movements", startDate, endDate, movementType, currentPage],
       queryFn: async () => {
-        const response = await api.get<MovementsResponse>(
+        const params: Record<string, any> = {
+          page: currentPage,
+          limit,
+        };
+
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setUTCHours(0, 0, 0, 0);
+          params.startDate = start.toISOString();
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setUTCHours(23, 59, 59, 999);
+          params.endDate = end.toISOString();
+        }
+        if (movementType && movementType !== "all") {
+          params.type = movementType;
+        }
+
+        const response = await api.get<any>(
           `/financial-accounts/${accountId}/movements`,
-          {
-            params: {
-              page: 1,
-              limit: 50,
-            },
-          }
+          { params }
         );
-        return response.data || null;
+        if (response.success && response.data) {
+          const responseData = response as any;
+          return {
+            items: response.data,
+            meta: responseData.meta || {
+              total: response.data.length,
+              page: currentPage,
+              limit,
+              pages: 1,
+            },
+          };
+        }
+        return null;
       },
       enabled: canRead && !!accountId,
     });
@@ -293,7 +338,76 @@ export default function AccountDetailPage() {
 
         {/* Movements Section */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Movimientos</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Movimientos</h2>
+          </div>
+
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="startDate">Fecha Desde</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate">Fecha Hasta</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="movementType">Tipo de Movimiento</Label>
+                  <Select
+                    value={movementType}
+                    onValueChange={(value) => {
+                      setMovementType(value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger id="movementType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="INCOME">Ingresos</SelectItem>
+                      <SelectItem value="EXPENSE">Gastos</SelectItem>
+                      <SelectItem value="TRANSFER_IN">Transferencias Recibidas</SelectItem>
+                      <SelectItem value="TRANSFER_OUT">Transferencias Enviadas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setStartDate(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+                      setEndDate(format(new Date(), "yyyy-MM-dd"));
+                      setMovementType("all");
+                      setCurrentPage(1);
+                    }}
+                  >
+                    Limpiar Filtros
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {movementsLoading ? (
             <Card>
@@ -351,7 +465,7 @@ export default function AccountDetailPage() {
                           </p>
                           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3" />
-                            {format(new Date(movement.date), "dd MMM yyyy HH:mm", {
+                            {format(new Date(movement.createdAt), "dd MMM yyyy HH:mm", {
                               locale: es,
                             })}
                           </div>
@@ -381,6 +495,35 @@ export default function AccountDetailPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Pagination */}
+          {movementsData && movementsData.meta.pages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * limit) + 1} a{" "}
+                {Math.min(currentPage * limit, movementsData.meta.total)} de{" "}
+                {movementsData.meta.total} movimientos
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(movementsData.meta.pages, p + 1))}
+                  disabled={currentPage === movementsData.meta.pages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>

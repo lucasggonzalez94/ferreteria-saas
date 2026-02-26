@@ -66,6 +66,7 @@ model Business {
   supplierPayments    SupplierPayment[]
   financialAccounts   FinancialAccount[]
   financialMovements  FinancialMovement[]
+  checkRegisters      CheckRegister[]
   
   @@map("businesses")
 }
@@ -428,7 +429,6 @@ model Supplier {
   address     String?
   
   // Condiciones comerciales
-  paymentTerms String? // Ej: "30 días", "Contado"
   paymentTermDays Int @default(0) // Plazo de pago en días (0 = contado)
   paymentMethods String? // JSON: ["CASH", "TRANSFER", "CHECK"]
   creditLimit Decimal? @db.Decimal(12, 2)
@@ -551,6 +551,7 @@ model SupplierPayable {
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
   payments SupplierPayment[]
+  checkRegisters CheckRegister[]
   
   @@index([businessId])
   @@index([supplierId])
@@ -584,10 +585,54 @@ model SupplierPayment {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   payable  SupplierPayable @relation(fields: [payableId], references: [id], onDelete: Cascade)
   exchangeRate ExchangeRateSnapshot? @relation(fields: [exchangeRateId], references: [id])
+  checkRegister CheckRegister?
   
   @@index([businessId])
   @@index([payableId])
   @@map("supplier_payments")
+}
+
+model CheckRegister {
+  id              String    @id @default(cuid())
+  businessId      String
+  accountId       String    // Cuenta bancaria de la cual se emite el cheque
+  
+  checkNumber     String    // Número de cheque
+  amount          Decimal   @db.Decimal(12, 2)
+  currency        String    @default("ARS")
+  
+  // Referencia al pago
+  payableId       String?   // Referencia a SupplierPayable (si es pago a proveedor)
+  paymentId       String?   @unique // Referencia a SupplierPayment
+  
+  // Estado del cheque
+  status          String    @default("ISSUED") // ISSUED, CLEARED, BOUNCED, CANCELLED
+  
+  // Fechas
+  issuedAt        DateTime  @default(now())
+  clearedAt       DateTime? // Cuando se cobró el cheque
+  bouncedAt       DateTime? // Si rebotó
+  cancelledAt     DateTime? // Si se canceló
+  
+  // Información adicional
+  recipientName   String?   // A nombre de quién está el cheque
+  notes           String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relaciones
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  account         FinancialAccount  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  payable         SupplierPayable?  @relation(fields: [payableId], references: [id], onDelete: SetNull)
+  payment         SupplierPayment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  
+  @@unique([businessId, checkNumber])
+  @@index([businessId])
+  @@index([accountId])
+  @@index([status])
+  @@index([payableId])
+  @@map("check_register")
 }
 
 // ============================================================================
@@ -1058,6 +1103,7 @@ model FinancialAccount {
   movements     FinancialMovement[] @relation("AccountMovements")
   transfersFrom FinancialMovement[] @relation("TransferFrom")
   transfersTo   FinancialMovement[] @relation("TransferTo")
+  checkRegisters CheckRegister[]
   
   @@unique([businessId, name])
   @@index([businessId])

@@ -7,7 +7,6 @@ export const createSupplierSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
-  paymentTerms: z.string().max(100).optional(),
   paymentTermDays: z.number().int().min(0).optional(),
   paymentMethods: z.string().optional(), // JSON string
   creditLimit: z.number().positive().optional(),
@@ -24,7 +23,6 @@ export const updateSupplierSchema = z.object({
   email: z.string().email().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
-  paymentTerms: z.string().max(100).nullable().optional(),
   paymentTermDays: z.number().int().min(0).nullable().optional(),
   paymentMethods: z.string().nullable().optional(),
   creditLimit: z.number().positive().nullable().optional(),

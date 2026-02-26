@@ -35,6 +35,7 @@ export default function EditCustomerPage({
     email: "",
     phone: "",
     address: "",
+    currentBalance: "",
   });
 
   const { data: customer, isLoading } = useQuery({
@@ -56,6 +57,7 @@ export default function EditCustomerPage({
         email: customer.email || "",
         phone: customer.phone || "",
         address: customer.address || "",
+        currentBalance: customer.currentBalance?.toString() || "0",
       });
     }
   }, [customer]);
@@ -86,6 +88,13 @@ export default function EditCustomerPage({
     } else {
       delete payload.firstName;
       delete payload.lastName;
+    }
+
+    // Convertir currentBalance a número si existe
+    if (payload.currentBalance && payload.currentBalance !== "") {
+      payload.currentBalance = parseFloat(payload.currentBalance);
+    } else {
+      delete payload.currentBalance;
     }
 
     Object.keys(payload).forEach((key) => {
@@ -240,6 +249,18 @@ export default function EditCustomerPage({
                     value={formData.address}
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="currentBalance">Saldo Actual</Label>
+                  <Input
+                    id="currentBalance"
+                    type="number"
+                    step="0.01"
+                    value={formData.currentBalance}
+                    onChange={(e) =>
+                      setFormData({ ...formData, currentBalance: e.target.value })
                     }
                   />
                 </div>

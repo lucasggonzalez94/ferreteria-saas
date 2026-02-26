@@ -6,6 +6,7 @@ import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
 import { PricingService } from './pricing.service';
 import { ExchangeRateService } from './exchange-rate.service';
+import { CheckService } from './check.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export class PurchaseService {
@@ -13,12 +14,14 @@ export class PurchaseService {
   private financialAccountService: FinancialAccountService;
   private financialMovementService: FinancialMovementService;
   private exchangeRateService: ExchangeRateService;
+  private checkService: CheckService;
 
   constructor() {
     this.inventoryService = new InventoryService();
     this.financialAccountService = new FinancialAccountService();
     this.financialMovementService = new FinancialMovementService();
     this.exchangeRateService = new ExchangeRateService();
+    this.checkService = new CheckService();
   }
 
   /**
@@ -40,6 +43,8 @@ export class PurchaseService {
       notes?: string;
       amountPaid?: number;
       paymentMethod?: string; // CASH, TRANSFER, CHECK
+      checkNumber?: string; // Número de cheque (requerido si paymentMethod es CHECK)
+      checkAccountId?: string; // ID de cuenta bancaria (requerido si paymentMethod es CHECK)
       dueDate?: string; // ISO 8601 datetime string (opcional)
     }
   ) {
@@ -103,8 +108,17 @@ export class PurchaseService {
     const amountPaid = data.amountPaid || 0;
     if (amountPaid > 0) {
       const method = data.paymentMethod || 'CASH';
-      // No validar para CHECK (cheques no requieren fondos inmediatos)
-      if (method !== 'CHECK') {
+      
+      // Validar parámetros específicos para cheques
+      if (method === 'CHECK') {
+        if (!data.checkNumber) {
+          throw new AppError(400, 'CHECK_NUMBER_REQUIRED', 'Check number is required for check payments');
+        }
+        if (!data.checkAccountId) {
+          throw new AppError(400, 'CHECK_ACCOUNT_REQUIRED', 'Bank account is required for check payments');
+        }
+      } else {
+        // Para otros métodos, validar fondos inmediatos
         const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
         const account = await this.financialAccountService.getDefaultByType(businessId, accountType);
         await this.financialAccountService.validateFunds(account.id, amountPaid);
@@ -261,8 +275,25 @@ export class PurchaseService {
             data: { currentBalance: new Decimal(newSupplierBalance) },
           });
 
-          // Actualizar balance de cuenta financiera (excepto para CHECK)
-          if (method !== 'CHECK') {
+          // Actualizar balance de cuenta financiera o registrar cheque
+          if (method === 'CHECK') {
+            // Registrar cheque sin descontar fondos inmediatos
+            await tx.checkRegister.create({
+              data: {
+                businessId,
+                accountId: data.checkAccountId!,
+                checkNumber: data.checkNumber!,
+                amount: new Decimal(amountPaid),
+                currency,
+                payableId: payable.id,
+                paymentId: payment.id,
+                recipientName: supplier.name,
+                notes: `Pago inicial compra #${newPurchase.id}`,
+                status: 'ISSUED',
+              },
+            });
+          } else {
+            // Para otros métodos, descontar inmediatamente
             const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(method);
             const account = await tx.financialAccount.findFirst({
               where: {
@@ -294,6 +325,7 @@ export class PurchaseService {
                   description: `Pago a proveedor - ${method}`,
                   balanceAfter: newAccountBalance,
                   createdBy: userId,
+                  createdAt: new Date(),
                 },
               });
             }

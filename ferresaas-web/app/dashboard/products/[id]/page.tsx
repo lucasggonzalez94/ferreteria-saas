@@ -712,7 +712,7 @@ export default function EditProductPage({
                         </p>
                       )}
                       {formData.targetMargin && !validationErrors.targetMargin && !validationErrors.targetMarkup && (
-                        <p className="text-xs text-muted-foreground mt-2 p-2 bg-blue-50 rounded">
+                        <p className="text-xs text-muted-foreground mt-2 p-2 bg-blue-50 dark:bg-blue-900/60 dark:text-blue-100 dark:border dark:border-blue-800 rounded">
                           {formData.pricingMode === "markup" 
                             ? `📊 Equivalente: Margen ${calculateEquivalentMargin(parseNumericInput(formData.targetMargin)).toFixed(2)}%`
                             : `📊 Equivalente: Markup ${calculateEquivalentMarkup(parseNumericInput(formData.targetMargin)).toFixed(2)}%`

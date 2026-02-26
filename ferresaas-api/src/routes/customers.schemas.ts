@@ -11,6 +11,7 @@ export const createCustomerSchema = z.object({
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   creditLimit: z.number().min(0).optional(),
+  initialBalance: z.number().optional(),
 });
 
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
@@ -26,6 +27,7 @@ export const updateCustomerSchema = z.object({
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   creditLimit: z.number().min(0).nullable().optional(),
+  currentBalance: z.number().optional(),
   isActive: z.boolean().optional(),
 });
 
