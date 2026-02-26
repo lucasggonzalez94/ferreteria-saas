@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, Plus, Trash2, PackagePlus, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -139,7 +140,7 @@ export default function NewPurchasePage() {
         const calculatedDate = new Date();
         calculatedDate.setDate(calculatedDate.getDate() + selectedSupplier.paymentTermDays);
         
-        // Convertir a formato YYYY-MM-DD para el input type="date"
+        // Convertir a formato YYYY-MM-DD para el date-picker
         const year = calculatedDate.getFullYear();
         const month = String(calculatedDate.getMonth() + 1).padStart(2, '0');
         const day = String(calculatedDate.getDate()).padStart(2, '0');
@@ -485,11 +486,10 @@ export default function NewPurchasePage() {
                     </button>
                   )}
                 </div>
-                <Input
-                  id="dueDate"
-                  type="date"
+                <DatePicker
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  onChange={(value) => setDueDate(value)}
+                  placeholder="Selecciona fecha de vencimiento"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Si no especificas, se usará el plazo del proveedor (si está configurado)

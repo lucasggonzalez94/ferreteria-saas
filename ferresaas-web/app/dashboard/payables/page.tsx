@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -433,27 +434,25 @@ export default function PayablesPage() {
 
               <div>
                 <Label htmlFor="dueDateFrom">Vencimiento Desde</Label>
-                <Input
-                  id="dueDateFrom"
-                  type="date"
+                <DatePicker
                   value={dueDateFrom}
-                  onChange={(e) => {
-                    setDueDateFrom(e.target.value);
+                  onChange={(value) => {
+                    setDueDateFrom(value);
                     setPage(1);
                   }}
+                  placeholder="Selecciona fecha inicio"
                 />
               </div>
 
               <div>
                 <Label htmlFor="dueDateTo">Vencimiento Hasta</Label>
-                <Input
-                  id="dueDateTo"
-                  type="date"
+                <DatePicker
                   value={dueDateTo}
-                  onChange={(e) => {
-                    setDueDateTo(e.target.value);
+                  onChange={(value) => {
+                    setDueDateTo(value);
                     setPage(1);
                   }}
+                  placeholder="Selecciona fecha fin"
                 />
               </div>
 

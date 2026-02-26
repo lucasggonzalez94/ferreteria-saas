@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { subDays, startOfMonth, startOfYear, endOfMonth, endOfYear, subMonths, format } from "date-fns";
 
 type DatePreset = "7d" | "30d" | "thisMonth" | "lastMonth" | "thisYear" | "lastYear" | "custom";
@@ -106,26 +107,37 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
                 <label className="text-sm font-medium text-muted-foreground">
                   Desde:
                 </label>
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  max={customEnd || format(new Date(), "yyyy-MM-dd")}
-                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                />
+                <div className="w-48">
+                  <DatePicker
+                    value={customStart}
+                    onChange={(value) => setCustomStart(value)}
+                    placeholder="Selecciona inicio"
+                    isDateDisabled={(date) => {
+                      const max = customEnd || format(new Date(), "yyyy-MM-dd");
+                      return format(date, "yyyy-MM-dd") > max;
+                    }}
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   Hasta:
                 </label>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  min={customStart}
-                  max={format(new Date(), "yyyy-MM-dd")}
-                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                />
+                <div className="w-48">
+                  <DatePicker
+                    value={customEnd}
+                    onChange={(value) => setCustomEnd(value)}
+                    placeholder="Selecciona fin"
+                    isDateDisabled={(date) => {
+                      const max = format(new Date(), "yyyy-MM-dd");
+                      const min = customStart || undefined;
+                      const current = format(date, "yyyy-MM-dd");
+                      if (min && current < min) return true;
+                      if (current > max) return true;
+                      return false;
+                    }}
+                  />
+                </div>
               </div>
               {customStart && customEnd && new Date(customStart) > new Date(customEnd) && (
                 <p className="text-sm text-red-600">

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Wallet,
   Building2,
@@ -291,11 +292,10 @@ export default function FinancialAccountsSummaryPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Movimientos del Día</h2>
-            <input
-              type="date"
+            <DatePicker
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border rounded-md text-sm bg-background text-foreground border-input dark:bg-slate-900 dark:border-input dark:text-foreground"
+              onChange={(value) => setSelectedDate(value)}
+              placeholder="Selecciona fecha"
             />
           </div>
 

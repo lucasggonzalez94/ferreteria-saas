@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -348,26 +349,24 @@ export default function AccountDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="startDate">Fecha Desde</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
+                  <DatePicker
                     value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
+                    onChange={(value) => {
+                      setStartDate(value);
                       setCurrentPage(1);
                     }}
+                    placeholder="Selecciona fecha inicio"
                   />
                 </div>
                 <div>
                   <Label htmlFor="endDate">Fecha Hasta</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
+                  <DatePicker
                     value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
+                    onChange={(value) => {
+                      setEndDate(value);
                       setCurrentPage(1);
                     }}
+                    placeholder="Selecciona fecha fin"
                   />
                 </div>
                 <div>

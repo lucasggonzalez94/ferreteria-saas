@@ -10,6 +10,7 @@ import type {
 } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   ArrowLeft,
   Edit,
@@ -402,18 +403,16 @@ export default function ProductDetailViewPage() {
               ))}
               {datePreset === "custom" && (
                 <div className="flex items-center gap-2 ml-2">
-                  <input
-                    type="date"
+                  <DatePicker
                     value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    onChange={(value) => setCustomFrom(value)}
+                    placeholder="Desde"
                   />
                   <span className="text-sm text-muted-foreground">a</span>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    onChange={(value) => setCustomTo(value)}
+                    placeholder="Hasta"
                   />
                 </div>
               )}

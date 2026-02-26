@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -245,24 +246,24 @@ export default function PurchasesPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Desde</label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
+                  onChange={(value) => {
+                    setStartDate(value);
                     setPage(1);
                   }}
+                  placeholder="Selecciona fecha inicio"
                 />
               </div>
               <div>
                 <label className="text-sm font-medium">Hasta</label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
+                  onChange={(value) => {
+                    setEndDate(value);
                     setPage(1);
                   }}
+                  placeholder="Selecciona fecha fin"
                 />
               </div>
               <div className="flex items-end">
