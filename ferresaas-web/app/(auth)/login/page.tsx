@@ -40,13 +40,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
+      <Card className="w-full max-w-md border border-border bg-card text-card-foreground shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center">
+          <CardTitle className="text-3xl font-bold text-center text-foreground">
             FerreSaaS
           </CardTitle>
-          <CardDescription className="text-center">
+          <CardDescription className="text-center text-muted-foreground">
             Ingresá tus credenciales para acceder
           </CardDescription>
         </CardHeader>
@@ -69,7 +69,7 @@ export default function LoginPage() {
                 <Label htmlFor="password">Contraseña</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
