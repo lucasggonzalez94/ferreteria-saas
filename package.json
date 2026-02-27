@@ -1,0 +1,50 @@
+{
+  "name": "ferresaas-monorepo",
+  "version": "1.0.0",
+  "description": "FerreSaaS - Sistema de gestión para ferreterías (Monorepo)",
+  "private": true,
+  "workspaces": [
+    "ferresaas-api",
+    "ferresaas-web"
+  ],
+  "scripts": {
+    "dev": "npm-run-all -p dev:api dev:web",
+    "dev:api": "npm run dev --workspace=ferresaas-api",
+    "dev:web": "npm run dev --workspace=ferresaas-web",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build --workspace=ferresaas-api",
+    "build:web": "npm run build --workspace=ferresaas-web",
+    "start:api": "npm run start --workspace=ferresaas-api",
+    "start:web": "npm run start --workspace=ferresaas-web",
+    "lint": "npm run lint --workspaces",
+    "format": "npm run format --workspaces",
+    "test": "npm run test --workspace=ferresaas-api",
+    "db:generate": "npm run db:generate --workspace=ferresaas-api",
+    "db:push": "npm run db:push --workspace=ferresaas-api",
+    "db:migrate": "npm run db:migrate --workspace=ferresaas-api",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=ferresaas-api",
+    "db:seed": "npm run db:seed --workspace=ferresaas-api",
+    "db:studio": "npm run db:studio --workspace=ferresaas-api",
+    "db:clean": "npm run db:clean --workspace=ferresaas-api",
+    "clean": "npm run clean:node-modules && npm run clean:lock",
+    "clean:node-modules": "rimraf node_modules ferresaas-api/node_modules ferresaas-web/node_modules",
+    "clean:lock": "rimraf package-lock.json ferresaas-api/package-lock.json ferresaas-web/package-lock.json"
+  },
+  "keywords": [
+    "saas",
+    "ferreteria",
+    "pos",
+    "inventory",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "npm-run-all": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
