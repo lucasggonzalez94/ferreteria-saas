@@ -1,0 +1,51 @@
+# Raíz del monorepo
+
+# Dependencias
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Builds
+/dist/
+/build/
+/.next/
+/out/
+*.tsbuildinfo
+
+# Entornos
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+pino-*.log
+
+# IDE/OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Cobertura / testing
+coverage/
+.nyc_output/
+
+# Prisma
+prisma/migrations/*_migration.sql
+
+# Temp
+.tmp/
+tmp/
+temp/
+*.tmp
+
+# Vercel / Next
+.vercel
+next-env.d.ts

@@ -31,6 +31,8 @@ Sistema SaaS multi-tenant completo para gestión de ferreterías con POS, invent
 
 ## 🚀 Quick Start
 
+> **Nota**: Este proyecto usa **npm workspaces** (monorepo). Todos los comandos se ejecutan desde la raíz del proyecto.
+
 ### Opción A: Docker (Recomendado)
 
 Levanta la base de datos y Redis automáticamente.
@@ -41,75 +43,114 @@ Levanta la base de datos y Redis automáticamente.
    docker-compose up -d
    ```
 
-2. **Backend**:
+2. **Instalar dependencias** (desde la raíz):
 
    ```bash
-   cd ferresaas-api
    npm install
-   cp .env.example .env
-   # Editar .env: DATABASE_URL="postgresql://user:password@localhost:5432/ferresaas"
+   ```
 
+3. **Configurar variables de entorno**:
+
+   ```bash
+   # Backend
+   cp ferresaas-api/.env.example ferresaas-api/.env
+   # Editar ferresaas-api/.env: DATABASE_URL="postgresql://user:password@localhost:5432/ferresaas"
+
+   # Frontend
+   cp ferresaas-web/.env.example ferresaas-web/.env.local
+   ```
+
+4. **Setup base de datos**:
+
+   ```bash
    npm run db:migrate
-   npm run db:seed:basic
-   npm run dev
+   npm run db:seed
    ```
 
-3. **Frontend**:
+5. **Ejecutar en desarrollo**:
+
    ```bash
-   cd ferresaas-web
-   npm install
-   cp .env.example .env.local
+   # Ambos proyectos en paralelo
    npm run dev
+
+   # O individualmente:
+   npm run dev:api      # Backend en http://localhost:3001
+   npm run dev:web      # Frontend en http://localhost:3000
    ```
 
-### Opción B: Manual
+### Opción B: Manual (sin Docker)
 
-### Backend
+1. **Instalar dependencias**:
 
-```bash
-cd ferresaas-api
+   ```bash
+   npm install
+   ```
 
-# Instalar
-npm install
+2. **Configurar variables de entorno**:
 
-# Configurar
-cp .env.example .env
-# Editar DATABASE_URL y JWT secrets
+   ```bash
+   # Backend
+   cp ferresaas-api/.env.example ferresaas-api/.env
+   # Editar DATABASE_URL y JWT secrets
 
-# Setup DB
-npm run db:generate
-npm run db:migrate
-npm run db:seed:basic
+   # Frontend
+   cp ferresaas-web/.env.example ferresaas-web/.env.local
+   ```
 
-# Ejecutar
-npm run dev
-```
+3. **Setup base de datos**:
 
-Backend en: `http://localhost:3001`
+   ```bash
+   npm run db:generate
+   npm run db:migrate
+   npm run db:seed
+   ```
 
-### Frontend
+4. **Ejecutar**:
 
-```bash
-cd ferresaas-web
-
-# Instalar
-npm install
-
-# Configurar
-cp .env.example .env.local
-
-# Ejecutar
-npm run dev
-```
-
-Frontend en: `http://localhost:3000`
+   ```bash
+   npm run dev:api      # Backend en http://localhost:3001
+   npm run dev:web      # Frontend en http://localhost:3000
+   ```
 
 ## 🔐 Credenciales de Prueba
 
 - Email: `admin@ferreteria-demo.com`
 - Password: `Admin123456`
 
-## 📦 Módulos Implementados
+## � Comandos Disponibles (Monorepo)
+
+### Desarrollo
+```bash
+npm run dev              # Ejecutar ambos proyectos
+npm run dev:api          # Solo backend
+npm run dev:web          # Solo frontend
+```
+
+### Build
+```bash
+npm run build            # Compilar ambos proyectos
+npm run build:api        # Solo backend
+npm run build:web        # Solo frontend
+```
+
+### Base de Datos
+```bash
+npm run db:generate      # Generar Prisma Client
+npm run db:push          # Push schema sin migración
+npm run db:migrate       # Crear y aplicar migración
+npm run db:seed          # Ejecutar seed
+npm run db:studio        # Abrir Prisma Studio
+npm run db:clean         # Reset completo de BD
+```
+
+### Otros
+```bash
+npm run lint             # Linter en ambos proyectos
+npm run format           # Formatear código
+npm run test             # Tests del backend
+```
+
+## �📦 Módulos Implementados
 
 ### Backend
 

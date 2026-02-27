@@ -1,7 +1,6 @@
 {
   "name": "ferresaas-api",
-  "version": "1.0.0",
-  "description": "FerreSaaS Backend API - Sistema de gestión para ferreterías",
+  "private": true,
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

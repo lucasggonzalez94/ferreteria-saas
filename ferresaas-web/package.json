@@ -1,7 +1,5 @@
 {
   "name": "ferresaas-web",
-  "version": "1.0.0",
-  "description": "FerreSaaS Frontend - Sistema de gestión para ferreterías",
   "private": true,
   "scripts": {
     "dev": "next dev",
