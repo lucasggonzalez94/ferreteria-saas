@@ -1,8 +1,7 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { RefreshCw, DollarSign } from "lucide-react";
 
 interface StaleRateBannerProps {
   rate: {
@@ -37,34 +36,40 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
   };
 
   return (
-    <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
-      <AlertCircle className="h-4 w-4 text-yellow-600" />
-      <AlertDescription className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <span className="font-medium">Usando {getSourceLabel(rate.source)}</span>
-          <span className="text-sm text-muted-foreground ml-2">
-            ${rate.rate.toFixed(2)} ({getTimeSince(rate.timestamp)})
-          </span>
+    <div className="border border-blue-200 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3 flex-1">
+        <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+            Tipo de cambio: ${rate.rate.toFixed(2)}
+          </p>
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            {getSourceLabel(rate.source)} • {getTimeSince(rate.timestamp)}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onRetry}
-            disabled={isRetrying}
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
-            Reintentar
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onUpdateManually}
-          >
-            Actualizar Manualmente
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+      </div>
+      <div className="flex gap-2 flex-shrink-0">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onRetry}
+          disabled={isRetrying}
+          className="text-xs h-8"
+          title="Intenta obtener la cotización más reciente de la API"
+        >
+          <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onUpdateManually}
+          className="text-xs h-8"
+          title="Ingresa manualmente el tipo de cambio"
+        >
+          Ingresar Manual
+        </Button>
+      </div>
+    </div>
   );
 }

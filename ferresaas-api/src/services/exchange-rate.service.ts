@@ -174,7 +174,7 @@ export class ExchangeRateService {
         rate: this.applyMargin(selectedRate.venta, config.marginPercent.toNumber()),
         buyRate: selectedRate.compra,
         sellRate: selectedRate.venta,
-        source: 'argentinadatos',
+        source: 'ArgentinaDatos.com',
         dollarType: config.dollarType,
         timestamp: new Date(selectedRate.fecha),
       };
