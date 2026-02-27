@@ -30,6 +30,7 @@ import checksRoutes from './routes/checks.routes';
 import priceSuggestionsRoutes from './routes/price-suggestions.routes';
 import approvalsRoutes from './routes/approvals.routes';
 import salesReportsRoutes from './routes/sales-reports.routes';
+import businessRoutes from './routes/business.routes';
 
 const app = express();
 
@@ -116,6 +117,7 @@ app.use('/v1/checks', checksRoutes);
 app.use('/v1/price-suggestions', priceSuggestionsRoutes);
 app.use('/v1/approvals', approvalsRoutes);
 app.use('/v1/sales-reports', salesReportsRoutes);
+app.use('/v1/business', businessRoutes);
 
 // 404 handler
 app.use((_req, res) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { format, subMonths } from "date-fns";
+import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import ReturnModal from "@/components/inventory/return-modal";
+import { todayLocal, monthsAgoLocal, rangeForLocalDays, formatDate } from "@/lib/timezone";
 
 export default function InventoryPage() {
   const router = useRouter();
@@ -41,11 +42,10 @@ export default function InventoryPage() {
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(() => {
-    const end = new Date();
-    const start = subMonths(end, 1);
+    // Usar utilidades de timezone para obtener fechas locales correctas
     return {
-      from: format(start, "yyyy-MM-dd"),
-      to: format(end, "yyyy-MM-dd"),
+      from: monthsAgoLocal(1),
+      to: todayLocal(),
     };
   });
 
@@ -91,19 +91,11 @@ export default function InventoryPage() {
           page: 1,
         };
         
-        if (dateFilter.from) {
-          // Parsear fecha YYYY-MM-DD como fecha local
-          const [year, month, day] = dateFilter.from.split('-').map(Number);
-          const localStart = new Date(year, month - 1, day, 0, 0, 0, 0);
-          const offset = localStart.getTimezoneOffset() * 60000;
-          params.startDate = new Date(localStart.getTime() - offset).toISOString();
-        }
-        if (dateFilter.to) {
-          // Parsear fecha YYYY-MM-DD como fecha local
-          const [year, month, day] = dateFilter.to.split('-').map(Number);
-          const localEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
-          const offset = localEnd.getTimezoneOffset() * 60000;
-          params.endDate = new Date(localEnd.getTime() - offset).toISOString();
+        // Usar utilidades de timezone para convertir fechas locales a UTC
+        if (dateFilter.from && dateFilter.to) {
+          const utcRange = rangeForLocalDays(dateFilter.from, dateFilter.to);
+          params.startDate = utcRange.startDate;
+          params.endDate = utcRange.endDate;
         }
         
         const response = await api.get<any>("/inventory/movements", {
@@ -419,9 +411,7 @@ export default function InventoryPage() {
                         {movements.map((movement: any) => (
                           <TableRow key={movement.id}>
                             <TableCell className="text-sm">
-                              {new Date(movement.createdAt).toLocaleDateString(
-                                "es-AR"
-                              )}
+                              {formatDate(movement.createdAt, "dd/MM/yyyy")}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
                               {movement.user?.name || movement.user?.username || "Sistema"}

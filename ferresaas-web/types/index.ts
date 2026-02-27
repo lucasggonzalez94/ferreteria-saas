@@ -133,8 +133,15 @@ export interface Customer {
 }
 
 // Tipos de respuesta API
+export interface BusinessInfo {
+  id: string;
+  name: string;
+  timezone: string;
+}
+
 export interface LoginResponse {
   user: User;
+  business: BusinessInfo;
   accessToken: string;
   csrfToken: string;
   csrfHash: string;

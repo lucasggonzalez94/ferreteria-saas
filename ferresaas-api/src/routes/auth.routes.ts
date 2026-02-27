@@ -74,6 +74,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
     // Devolver solo accessToken, csrfToken y csrfHash (no el refreshToken)
     sendSuccess(res, {
       user: result.user,
+      business: result.business,
       accessToken: result.accessToken,
       csrfToken: result.csrfToken,
       csrfHash: result.csrfHash,
@@ -282,10 +283,16 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
       throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
     }
 
-    // Obtener usuario de la BD
+    // Obtener usuario de la BD con business
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         roles: {
           include: {
             role: {
@@ -371,8 +378,16 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
       userAgent: req.get('user-agent'),
     });
 
+    // Incluir business con timezone
+    const businessData = {
+      id: user.business.id,
+      name: user.business.name,
+      timezone: (user.business as any).timezone || 'America/Buenos_Aires',
+    };
+
     sendSuccess(res, {
       user: userData,
+      business: businessData,
       accessToken: newAccessToken,
       csrfToken: csrfTokenData.token,
       csrfHash: csrfTokenData.hash,

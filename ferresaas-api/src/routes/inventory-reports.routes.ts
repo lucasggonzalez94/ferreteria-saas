@@ -8,7 +8,7 @@ import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { prisma } from '../config/database';
-import { format } from 'date-fns';
+import { formatInTimezone } from '../utils/timezone';
 
 const router = Router();
 const reportsService = new InventoryReportsService();
@@ -217,7 +217,7 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="movimientos-inventario-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+        `attachment; filename="movimientos-inventario-${formatInTimezone(new Date(), 'yyyy-MM-dd', authReq.timezone)}.pdf"`
       );
       res.send(pdf);
     } catch (error) {
@@ -265,7 +265,7 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="alertas-stock-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+        `attachment; filename="alertas-stock-${formatInTimezone(new Date(), 'yyyy-MM-dd', authReq.timezone)}.pdf"`
       );
       res.send(pdf);
     } catch (error) {
@@ -319,7 +319,7 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="rotacion-inventario-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+        `attachment; filename="rotacion-inventario-${formatInTimezone(new Date(), 'yyyy-MM-dd', authReq.timezone)}.pdf"`
       );
       res.send(pdf);
     } catch (error) {
@@ -375,7 +375,7 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="devoluciones-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+        `attachment; filename="devoluciones-${formatInTimezone(new Date(), 'yyyy-MM-dd', authReq.timezone)}.pdf"`
       );
       res.send(pdf);
     } catch (error) {

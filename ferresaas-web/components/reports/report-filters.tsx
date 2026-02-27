@@ -4,45 +4,18 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { subDays, startOfMonth, startOfYear, endOfMonth, endOfYear, subMonths, format } from "date-fns";
+import { format } from "date-fns";
+import { 
+  getDateRangePreset, 
+  rangeForLocalDays, 
+  todayLocal 
+} from "@/lib/timezone";
 
 type DatePreset = "7d" | "30d" | "thisMonth" | "lastMonth" | "thisYear" | "lastYear" | "custom";
 
 interface ReportFiltersProps {
   onFilterChange: (filters: { startDate: string; endDate: string }) => void;
   defaultPreset?: DatePreset;
-}
-
-function getDateRange(preset: DatePreset): { start: Date; end: Date } {
-  const now = new Date();
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-  switch (preset) {
-    case "7d":
-      return { start: subDays(now, 7), end: endOfToday };
-    case "30d":
-      return { start: subDays(now, 30), end: endOfToday };
-    case "thisMonth":
-      return { start: startOfMonth(now), end: endOfToday };
-    case "lastMonth": {
-      const lastMonth = subMonths(now, 1);
-      return {
-        start: startOfMonth(lastMonth),
-        end: endOfMonth(lastMonth),
-      };
-    }
-    case "thisYear":
-      return { start: startOfYear(now), end: endOfToday };
-    case "lastYear": {
-      const lastYear = new Date(now.getFullYear() - 1, 0, 1);
-      return {
-        start: startOfYear(lastYear),
-        end: endOfYear(lastYear),
-      };
-    }
-    default:
-      return { start: subDays(now, 30), end: endOfToday };
-  }
 }
 
 export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportFiltersProps) {
@@ -52,24 +25,20 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
 
   useEffect(() => {
     if (preset !== "custom") {
-      const range = getDateRange(preset);
-      onFilterChange({
-        startDate: range.start.toISOString(),
-        endDate: range.end.toISOString(),
-      });
+      // Obtener rango de fechas locales usando timezone del negocio
+      const localRange = getDateRangePreset(preset as "7d" | "30d" | "thisMonth" | "lastMonth" | "thisYear" | "lastYear");
+      // Convertir a UTC para enviar al backend
+      const utcRange = rangeForLocalDays(localRange.start, localRange.end);
+      onFilterChange(utcRange);
     }
   }, [preset, onFilterChange]);
 
   useEffect(() => {
     if (preset === "custom" && customStart && customEnd) {
-      const startDate = new Date(customStart);
-      const endDate = new Date(customEnd + "T23:59:59.999");
-      
-      if (startDate <= endDate) {
-        onFilterChange({
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-        });
+      if (customStart <= customEnd) {
+        // Convertir fechas locales a UTC para enviar al backend
+        const utcRange = rangeForLocalDays(customStart, customEnd);
+        onFilterChange(utcRange);
       }
     }
   }, [preset, customStart, customEnd, onFilterChange]);
@@ -113,7 +82,7 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
                     onChange={(value) => setCustomStart(value)}
                     placeholder="Selecciona inicio"
                     isDateDisabled={(date) => {
-                      const max = customEnd || format(new Date(), "yyyy-MM-dd");
+                      const max = customEnd || todayLocal();
                       return format(date, "yyyy-MM-dd") > max;
                     }}
                   />
@@ -129,7 +98,7 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
                     onChange={(value) => setCustomEnd(value)}
                     placeholder="Selecciona fin"
                     isDateDisabled={(date) => {
-                      const max = format(new Date(), "yyyy-MM-dd");
+                      const max = todayLocal();
                       const min = customStart || undefined;
                       const current = format(date, "yyyy-MM-dd");
                       if (min && current < min) return true;
