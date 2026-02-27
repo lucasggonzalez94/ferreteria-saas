@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { RefreshCw, DollarSign } from "lucide-react";
+import { RefreshCw, DollarSign, Info } from "lucide-react";
 
 interface StaleRateBannerProps {
   rate: {
@@ -15,13 +15,22 @@ interface StaleRateBannerProps {
 }
 
 export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }: StaleRateBannerProps) {
-  const getTimeSince = (timestamp: Date | string) => {
+  const formatPublicationDate = (timestamp: Date | string) => {
     const date = new Date(timestamp);
-    const minutes = Math.floor((Date.now() - date.getTime()) / (1000 * 60));
-    
-    if (minutes < 60) return `hace ${minutes} minutos`;
-    if (minutes < 1440) return `hace ${Math.floor(minutes / 60)} horas`;
-    return `hace ${Math.floor(minutes / 1440)} días`;
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    if (isToday) {
+      return `Publicado hoy a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (isYesterday) {
+      return `Publicado ayer a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return `Publicado el ${date.toLocaleDateString('es-AR')}`;
+    }
   };
 
   const getSourceLabel = (source: string) => {
@@ -31,6 +40,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
       'stale_snapshot_fallback': 'cotización desactualizada',
       'manual_user_input': 'ingreso manual',
       'manual_config': 'configuración manual',
+      'ArgentinaDatos.com': 'ArgentinaDatos.com',
     };
     return labels[source] || source;
   };
@@ -43,9 +53,14 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
           <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
             Tipo de cambio: ${rate.rate.toFixed(2)}
           </p>
-          <p className="text-xs text-blue-700 dark:text-blue-300">
-            {getSourceLabel(rate.source)} • {getTimeSince(rate.timestamp)}
-          </p>
+          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300">
+            <span>{getSourceLabel(rate.source)}</span>
+            <span>•</span>
+            <span>{formatPublicationDate(rate.timestamp)}</span>
+            <div title="Esta es la fecha de publicación de la cotización, no el momento en que se obtuvo">
+              <Info className="h-3 w-3 ml-1" />
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex gap-2 flex-shrink-0">

@@ -425,6 +425,10 @@ export default function POSPage() {
       />
 
       <div className="max-w-7xl mx-auto">
+        <Header
+          title="Punto de Venta"
+        />
+
         {/* Banner de advertencia si la cotización está desactualizada */}
         {(isStale || isFallback) && exchangeRate && (
           <div className="mb-4">
@@ -438,9 +442,6 @@ export default function POSPage() {
             />
           </div>
         )}
-        <Header
-          title="Punto de Venta"
-        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Product Search */}
