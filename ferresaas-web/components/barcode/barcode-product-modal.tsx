@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
