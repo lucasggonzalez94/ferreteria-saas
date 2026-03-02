@@ -1,10 +1,10 @@
 "use client";
 
+import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Plus, TrendingDown, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatePicker } from "@/components/ui/date-picker";
+import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import ReturnModal from "@/components/inventory/return-modal";
+import { todayLocal, monthsAgoLocal, rangeForLocalDays, formatDate } from "@/lib/timezone";
 
 export default function InventoryPage() {
   const router = useRouter();
@@ -38,6 +41,13 @@ export default function InventoryPage() {
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(() => {
+    // Usar utilidades de timezone para obtener fechas locales correctas
+    return {
+      from: monthsAgoLocal(1),
+      to: todayLocal(),
+    };
+  });
 
   // Obtener productos con stock
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -73,11 +83,23 @@ export default function InventoryPage() {
 
   // Obtener movimientos recientes
   const { data: movements, isLoading: movementsLoading } = useQuery({
-    queryKey: ["inventory", "movements"],
+    queryKey: ["inventory", "movements", dateFilter],
     queryFn: async () => {
       try {
+        const params: any = { 
+          limit: 50, 
+          page: 1,
+        };
+        
+        // Usar utilidades de timezone para convertir fechas locales a UTC
+        if (dateFilter.from && dateFilter.to) {
+          const utcRange = rangeForLocalDays(dateFilter.from, dateFilter.to);
+          params.startDate = utcRange.startDate;
+          params.endDate = utcRange.endDate;
+        }
+        
         const response = await api.get<any>("/inventory/movements", {
-          params: { limit: 10, page: 1 },
+          params,
         });
         const movementList = Array.isArray(response.data) ? response.data : response.data?.data || [];
         return movementList;
@@ -338,6 +360,36 @@ export default function InventoryPage() {
 
           {/* Tab: Movimientos */}
           <TabsContent value="movements">
+            <div className="mb-4 flex flex-wrap gap-4 items-end">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Desde</p>
+                <DatePicker
+                  value={dateFilter.from}
+                  onChange={(date) => setDateFilter((prev) => ({ ...prev, from: date }))}
+                  className="w-[180px]"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Hasta</p>
+                <DatePicker
+                  value={dateFilter.to}
+                  onChange={(date) => setDateFilter((prev) => ({ ...prev, to: date }))}
+                  className="w-[180px]"
+                />
+              </div>
+              {(dateFilter.from || dateFilter.to) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateFilter({ from: "", to: "" })}
+                  className="h-10 gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Limpiar
+                </Button>
+              )}
+            </div>
+
             {movementsLoading ? (
               <LoadingSpinner text="Cargando movimientos..." />
             ) : movements && movements.length > 0 ? (
@@ -348,6 +400,7 @@ export default function InventoryPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Fecha</TableHead>
+                          <TableHead>Usuario</TableHead>
                           <TableHead>Tipo</TableHead>
                           <TableHead>Producto</TableHead>
                           <TableHead className="text-right">Cantidad</TableHead>
@@ -358,9 +411,10 @@ export default function InventoryPage() {
                         {movements.map((movement: any) => (
                           <TableRow key={movement.id}>
                             <TableCell className="text-sm">
-                              {new Date(movement.createdAt).toLocaleDateString(
-                                "es-AR"
-                              )}
+                              {formatDate(movement.createdAt, "dd/MM/yyyy")}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">
+                              {movement.user?.name || movement.user?.username || "Sistema"}
                             </TableCell>
                             <TableCell>
                               <span

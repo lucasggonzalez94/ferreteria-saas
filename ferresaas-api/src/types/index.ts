@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     permissions: string[];
   };
   businessId?: string;
+  timezone?: string; // IANA timezone del negocio (ej: "America/Buenos_Aires")
   requestId?: string;
 }
 

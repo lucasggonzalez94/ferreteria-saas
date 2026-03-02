@@ -10,10 +10,18 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
+import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import type { User, LoginResponse } from "@/types";
+
+interface Business {
+  id: string;
+  name: string;
+  timezone: string;
+}
 
 interface AuthContextType {
   user: User | null;
+  business: Business | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -25,6 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const hasInitialized = useRef(false);
@@ -76,9 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
           console.log('Session restored from /auth/restore-session');
         }
-        // Establecer usuario
+        // Establecer usuario y business
         const user = response.data.user;
         setUser(user);
+        
+        // Establecer business con timezone si viene en la respuesta
+        if (response.data.business) {
+          setBusiness(response.data.business);
+          setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
+        }
       }
     } catch (error) {
       // Si falla, no hay sesión válida
@@ -111,6 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Guardar access token, CSRF token y CSRF hash en memoria
       saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
       setUser(response.data.user);
+      
+      // Establecer business con timezone
+      if (response.data.business) {
+        setBusiness(response.data.business);
+        setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
+      }
+      
       router.push("/dashboard");
     } else {
       throw new Error(response.error?.message || "Login failed");
@@ -129,6 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       clearTokens();
       setUser(null);
+      setBusiness(null);
+      setBusinessTimezone(DEFAULT_TIMEZONE);
       router.push("/login");
     }
   };
@@ -143,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        business,
         isLoading,
         login,
         logout,

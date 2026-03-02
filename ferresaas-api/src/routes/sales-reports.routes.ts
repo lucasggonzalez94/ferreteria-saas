@@ -8,7 +8,7 @@ import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { prisma } from '../config/database';
-import { format } from 'date-fns';
+import { formatInTimezone } from '../utils/timezone';
 
 const router = Router();
 const salesReportsService = new SalesReportsService();
@@ -52,6 +52,7 @@ router.get(
         compareWithPrevious: filters.compareWithPrevious,
         customerId: filters.customerId,
         categoryId: filters.categoryId,
+        timezone: authReq.timezone,
       });
 
       sendSuccess(res, result);
@@ -80,6 +81,7 @@ router.get(
           compareWithPrevious: filters.compareWithPrevious,
           customerId: filters.customerId,
           categoryId: filters.categoryId,
+          timezone: authReq.timezone,
         }),
         prisma.business.findUnique({
           where: { id: authReq.businessId! },
@@ -114,7 +116,7 @@ router.get(
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="reporte-ventas-${format(new Date(), 'yyyy-MM-dd')}.pdf"`
+        `attachment; filename="reporte-ventas-${formatInTimezone(new Date(), 'yyyy-MM-dd', authReq.timezone)}.pdf"`
       );
       res.send(pdf);
     } catch (error) {

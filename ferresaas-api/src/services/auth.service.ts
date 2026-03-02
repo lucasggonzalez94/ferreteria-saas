@@ -91,6 +91,12 @@ export class AuthService {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         roles: {
           include: {
             role: true,
@@ -165,6 +171,11 @@ export class AuthService {
         businessId: user.businessId,
         roles: userRoles,
         permissions,
+      },
+      business: {
+        id: user.business.id,
+        name: user.business.name,
+        timezone: (user.business as any).timezone || 'America/Buenos_Aires',
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

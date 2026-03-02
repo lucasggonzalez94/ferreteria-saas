@@ -140,6 +140,14 @@ export class InventoryService {
               unit: true,
             },
           },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              username: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),

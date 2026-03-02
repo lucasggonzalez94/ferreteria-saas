@@ -11,12 +11,21 @@ import {
 import Header from "@/components/ui/header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
+import { Save, Globe } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { COMMON_TIMEZONES, setBusinessTimezone } from "@/lib/timezone";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function BusinessSettingsPage() {
   const router = useRouter();
@@ -206,7 +215,117 @@ export default function BusinessSettingsPage() {
             </CardContent>
           </Card>
         </form>
+
+        {/* Sección de Zona Horaria */}
+        <TimezoneSection />
       </div>
     </div>
+  );
+}
+
+function TimezoneSection() {
+  const queryClient = useQueryClient();
+  const { business } = useAuth();
+  const [selectedTimezone, setSelectedTimezone] = useState(
+    business?.timezone || "America/Buenos_Aires"
+  );
+
+  // Obtener datos del negocio
+  const { data: businessData, isLoading } = useQuery({
+    queryKey: ["business"],
+    queryFn: async () => {
+      const response = await api.get<any>("/business");
+      return response.data;
+    },
+  });
+
+  // Actualizar timezone cuando se cargan los datos
+  useEffect(() => {
+    if (businessData?.timezone) {
+      setSelectedTimezone(businessData.timezone);
+    }
+  }, [businessData]);
+
+  // Mutación para actualizar timezone
+  const updateTimezoneMutation = useMutation({
+    mutationFn: async (timezone: string) => {
+      const response = await api.patch<any>("/business/timezone", { timezone });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Actualizar el timezone global en el frontend
+      setBusinessTimezone(data.timezone || selectedTimezone);
+      queryClient.invalidateQueries({ queryKey: ["business"] });
+      toast.success("Zona horaria actualizada correctamente");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Error al actualizar la zona horaria");
+    },
+  });
+
+  const handleTimezoneChange = (value: string) => {
+    setSelectedTimezone(value);
+  };
+
+  const handleSaveTimezone = () => {
+    updateTimezoneMutation.mutate(selectedTimezone);
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Zona Horaria
+        </CardTitle>
+        <CardDescription>
+          Configura la zona horaria de tu negocio. Esto afecta cómo se muestran
+          las fechas y horas en reportes, ventas y movimientos.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="timezone">Zona Horaria</Label>
+          <Select value={selectedTimezone} onValueChange={handleTimezoneChange}>
+            <SelectTrigger className="w-full md:w-96">
+              <SelectValue placeholder="Selecciona una zona horaria" />
+            </SelectTrigger>
+            <SelectContent>
+              {COMMON_TIMEZONES.map((tz) => (
+                <SelectItem key={tz.value} value={tz.value}>
+                  {tz.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            La zona horaria actual es:{" "}
+            <strong>{businessData?.timezone || "America/Buenos_Aires"}</strong>
+          </p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSaveTimezone}
+            disabled={
+              updateTimezoneMutation.isPending ||
+              selectedTimezone === businessData?.timezone
+            }
+          >
+            {updateTimezoneMutation.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Guardar Zona Horaria
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

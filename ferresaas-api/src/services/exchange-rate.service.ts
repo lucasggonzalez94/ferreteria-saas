@@ -92,6 +92,10 @@ export class ExchangeRateService {
 
       const data = await response.json() as ArgentinaDatosQuote[];
       
+      if (!data || data.length === 0) {
+        throw new Error('ArgentinaDatos API returned empty data');
+      }
+      
       // La API devuelve historial completo, necesitamos solo las cotizaciones más recientes
       // Encontrar la fecha más reciente
       const latestDate = data.reduce((max, quote) => {
@@ -101,7 +105,27 @@ export class ExchangeRateService {
       // Filtrar solo las cotizaciones de la fecha más reciente
       const latestRates = data.filter(quote => quote.fecha === latestDate);
       
-      logger.info({ latestDate, count: latestRates.length }, 'Fetched latest exchange rates from ArgentinaDatos');
+      // Validar que la fecha más reciente sea de hoy o ayer (en caso de que sea muy temprano)
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const todayStr = today.toISOString().split('T')[0];
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      const isCurrentOrYesterday = latestDate === todayStr || latestDate === yesterdayStr;
+      
+      logger.info({ 
+        latestDate, 
+        count: latestRates.length,
+        isCurrentOrYesterday,
+        today: todayStr,
+        apiDataSample: data.slice(-3).map(d => ({ fecha: d.fecha, casa: d.casa }))
+      }, 'Fetched latest exchange rates from ArgentinaDatos');
+      
+      if (!isCurrentOrYesterday) {
+        logger.warn({ latestDate, today: todayStr }, 'ArgentinaDatos data is stale - not from today or yesterday');
+      }
       
       return latestRates;
     } catch (error) {
@@ -168,15 +192,18 @@ export class ExchangeRateService {
         throw new Error(`Dollar type ${config.dollarType} not found in API response`);
       }
 
+      const dateStr = `${selectedRate.fecha}T03:00:00Z`;
+      const argentinaDate = new Date(dateStr);
+
       const rate: ExchangeRate = {
         fromCurrency: 'USD',
         toCurrency: 'ARS',
         rate: this.applyMargin(selectedRate.venta, config.marginPercent.toNumber()),
         buyRate: selectedRate.compra,
         sellRate: selectedRate.venta,
-        source: 'argentinadatos',
+        source: 'ArgentinaDatos.com',
         dollarType: config.dollarType,
-        timestamp: new Date(selectedRate.fecha),
+        timestamp: argentinaDate,
       };
 
       // Guardar en cache

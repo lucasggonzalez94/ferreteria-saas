@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { Prisma } from '@prisma/client';
-import { startOfDay, endOfDay, differenceInDays, subDays, format } from 'date-fns';
+import { differenceInDays, subDays, format, addDays } from 'date-fns';
+import { startOfDayInTimezone, endOfDayInTimezone, DEFAULT_TIMEZONE, formatInTimezone } from '../utils/timezone';
 
 interface SalesSummaryFilters {
   startDate: Date;
@@ -8,6 +9,7 @@ interface SalesSummaryFilters {
   compareWithPrevious?: boolean;
   customerId?: string;
   categoryId?: string;
+  timezone?: string;
 }
 
 interface DailySale {
@@ -39,15 +41,15 @@ export class SalesReportsService {
    * Obtiene resumen completo de ventas con comparación vs período anterior
    */
   async getSummary(businessId: string, filters: SalesSummaryFilters) {
-    const { startDate, endDate, compareWithPrevious = true, customerId, categoryId } = filters;
+    const { startDate, endDate, compareWithPrevious = true, customerId, categoryId, timezone = DEFAULT_TIMEZONE } = filters;
 
-    // Construir filtro base
+    // Construir filtro base usando timezone del tenant
     const where: Prisma.SaleWhereInput = {
       businessId,
       status: 'CONFIRMED',
       confirmedAt: {
-        gte: startOfDay(startDate),
-        lte: endOfDay(endDate),
+        gte: startOfDayInTimezone(startDate, timezone),
+        lte: endOfDayInTimezone(endDate, timezone),
       },
     };
 
@@ -102,8 +104,8 @@ export class SalesReportsService {
     const avgTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
     const totalItems = saleItems.reduce((sum, i) => sum + i.quantity.toNumber(), 0);
 
-    // Serie temporal (agrupada por día)
-    const timeSeries = this.groupByDay(sales, startDate, endDate);
+    // Serie temporal (agrupada por día, usando timezone del tenant)
+    const timeSeries = this.groupByDay(sales, startDate, endDate, timezone);
 
     // Top productos
     const topProducts = this.getTopProducts(saleItems, 10);
@@ -124,8 +126,8 @@ export class SalesReportsService {
       const prevWhere: Prisma.SaleWhereInput = {
         ...where,
         confirmedAt: {
-          gte: startOfDay(prevStart),
-          lte: endOfDay(prevEnd),
+          gte: startOfDayInTimezone(prevStart, timezone),
+          lte: endOfDayInTimezone(prevEnd, timezone),
         },
       };
 
@@ -186,24 +188,23 @@ export class SalesReportsService {
   }
 
   /**
-   * Agrupa ventas por día
+   * Agrupa ventas por día (usando timezone del tenant)
    */
-  private groupByDay(sales: any[], startDate: Date, endDate: Date): DailySale[] {
+  private groupByDay(sales: any[], startDate: Date, endDate: Date, timezone: string = DEFAULT_TIMEZONE): DailySale[] {
     const dailyMap = new Map<string, { revenue: number; count: number }>();
 
     // Inicializar todos los días del rango con 0
     let currentDate = new Date(startDate);
     while (currentDate <= endDate) {
-      const dateKey = format(currentDate, 'yyyy-MM-dd');
+      const dateKey = formatInTimezone(currentDate, 'yyyy-MM-dd', timezone);
       dailyMap.set(dateKey, { revenue: 0, count: 0 });
-      currentDate = new Date(currentDate);
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate = addDays(currentDate, 1);
     }
 
-    // Agregar datos de ventas
+    // Agregar datos de ventas (formatear en timezone del tenant)
     sales.forEach((sale) => {
       if (sale.confirmedAt) {
-        const dateKey = format(new Date(sale.confirmedAt), 'yyyy-MM-dd');
+        const dateKey = formatInTimezone(new Date(sale.confirmedAt), 'yyyy-MM-dd', timezone);
         const existing = dailyMap.get(dateKey);
         if (existing) {
           existing.revenue += sale.total.toNumber();
