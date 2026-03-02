@@ -81,6 +81,10 @@ export function useExchangeRateWithFallback() {
     setShowManualModal(false);
   };
 
+  const openManualModal = () => {
+    setShowManualModal(true);
+  };
+
   // Verificar si la cotización es stale (> 1 hora)
   const isStale = rate ? 
     (Date.now() - new Date(rate.timestamp).getTime()) / (1000 * 60) > 60 
@@ -98,6 +102,7 @@ export function useExchangeRateWithFallback() {
     handleUseLastKnown,
     handleManualRate,
     handleCancel,
+    openManualModal,
     refetch,
     isStale,
     isFallback,

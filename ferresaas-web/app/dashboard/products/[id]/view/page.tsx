@@ -771,7 +771,7 @@ export default function ProductDetailViewPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-7 w-7 bg-white"
+                    className="h-7 w-7 bg-white dark:bg-slate-800 dark:border-slate-700"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadImageMutation.isPending}
                   >
@@ -780,7 +780,7 @@ export default function ProductDetailViewPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-7 w-7 bg-white text-red-600 hover:text-red-700"
+                    className="h-7 w-7 bg-white text-red-600 hover:text-red-700 dark:bg-slate-800 dark:border-slate-700 dark:text-red-300 dark:hover:text-red-200"
                     onClick={() => deleteImageMutation.mutate()}
                     disabled={deleteImageMutation.isPending}
                   >
@@ -798,11 +798,11 @@ export default function ProductDetailViewPage() {
                           : `${API_BASE}${product.imageUrl}`
                       }
                       alt={product.name}
-                      className="w-48 h-48 object-cover rounded-md border bg-gray-50"
+                      className="w-48 h-48 object-cover rounded-md border bg-gray-50 dark:bg-slate-900 dark:border-slate-700"
                     />
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-md bg-gray-50">
+                  <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-md bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
                     <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground mb-2">
                       Sin imagen
@@ -812,6 +812,7 @@ export default function ProductDetailViewPage() {
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadImageMutation.isPending}
+                      className="bg-white dark:bg-slate-900 dark:border-slate-700"
                     >
                       <Upload className="h-4 w-4 mr-1" />
                       Subir imagen

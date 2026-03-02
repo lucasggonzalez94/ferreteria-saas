@@ -195,11 +195,24 @@ export class ProductService {
 
     // Filtro de búsqueda
     if (filters.q) {
-      where.OR = [
-        { name: { contains: filters.q, mode: 'insensitive' } },
-        { internalSku: { contains: filters.q, mode: 'insensitive' } },
-        { barcode: { contains: filters.q, mode: 'insensitive' } },
-      ];
+      const searchTerm = filters.q.trim();
+      const isNumericSearch = /^\d+$/.test(searchTerm);
+      
+      if (isNumericSearch) {
+        // Si es búsqueda numérica (código de barras), priorizar coincidencia exacta
+        where.OR = [
+          { barcode: { equals: searchTerm } },
+          { internalSku: { contains: searchTerm, mode: 'insensitive' } },
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+        ];
+      } else {
+        // Para búsquedas de texto, usar contains en todos los campos
+        where.OR = [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { internalSku: { contains: searchTerm, mode: 'insensitive' } },
+          { barcode: { contains: searchTerm, mode: 'insensitive' } },
+        ];
+      }
     }
 
     // Filtro por categoría

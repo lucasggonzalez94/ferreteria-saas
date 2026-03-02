@@ -27,6 +27,7 @@ import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
 import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFallback";
 import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
 import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
+import { useCartPersistence } from "@/lib/hooks/useCartPersistence";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -52,6 +53,7 @@ interface Payment {
 export default function POSPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { loadCart, saveCart, clearCart } = useCartPersistence();
 
   usePermissionGuard("sales:create");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -88,6 +90,8 @@ export default function POSPage() {
     handleCancel,
     isStale,
     isFallback,
+    refetch: refetchExchangeRate,
+    openManualModal,
   } = useExchangeRateWithFallback();
 
   // Validar que la caja esté abierta
@@ -107,6 +111,21 @@ export default function POSPage() {
     }
   }, [cashRegisterStatus, isCashStatusLoading, router]);
 
+  // Cargar carrito desde sessionStorage al montar el componente
+  useEffect(() => {
+    const savedCart = loadCart();
+    if (savedCart.length > 0) {
+      setCart(savedCart);
+      toast.success(`${savedCart.length} producto(s) recuperado(s) del carrito`);
+    }
+  }, [loadCart]);
+
+  // Guardar carrito en sessionStorage cuando cambie
+  useEffect(() => {
+    if (cart.length > 0) {
+      saveCart(cart);
+    }
+  }, [cart, saveCart]);
 
   // Crear venta
   const createSaleMutation = useMutation({
@@ -141,6 +160,7 @@ export default function POSPage() {
       setFinancialCost("");
       setPaymentNotes("");
       setSelectedCustomer(null);
+      clearCart();
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
@@ -430,11 +450,9 @@ export default function POSPage() {
           <div className="mb-4">
             <StaleRateBanner
               rate={exchangeRate}
-              onRetry={() => window.location.reload()}
-              onUpdateManually={() => {
-                // El hook ya maneja el modal manual
-              }}
-              isRetrying={false}
+              onRetry={() => refetchExchangeRate()}
+              onUpdateManually={openManualModal}
+              isRetrying={isLoadingRate}
             />
           </div>
         )}
@@ -452,6 +470,14 @@ export default function POSPage() {
               <CardContent>
                 <ProductSelector
                   onSelect={addToCart}
+                  onBarcodeDetected={(product) => {
+                    if (product.stockQuantity <= 0) {
+                      toast.error(`${product.name} no tiene stock disponible`);
+                      return;
+                    }
+                    addToCart(product);
+                    toast.success(`${product.name} agregado al carrito`);
+                  }}
                   showStock={true}
                   showImage={true}
                   filterActive={true}
