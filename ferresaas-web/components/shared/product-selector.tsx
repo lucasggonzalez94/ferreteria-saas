@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,9 @@ export function ProductSelector({
   const [search, setSearch] = useState("");
   const [lastBarcodeDetected, setLastBarcodeDetected] = useState(false);
   const { handleInputChange, reset } = useBarcodeDetection();
+  const inputBufferRef = useRef<string>('');
+  const inputStartTimeRef = useRef<number | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products-search", search, filterActive],
@@ -63,6 +66,72 @@ export function ProductSelector({
     },
     enabled: search.length >= minSearchLength,
   });
+
+  // Listener global de teclado para capturar escaneos sin foco en el input
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Ignorar si el usuario está escribiendo en otro input/textarea
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const now = Date.now();
+      const key = event.key;
+
+      if (key === 'Enter') {
+        if (inputBufferRef.current.length >= 8) {
+          const barcode = inputBufferRef.current;
+          setSearch(barcode);
+          setLastBarcodeDetected(true);
+        }
+        inputBufferRef.current = '';
+        inputStartTimeRef.current = null;
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        return;
+      }
+
+      if (key.length === 1) {
+        if (inputBufferRef.current.length === 0) {
+          inputStartTimeRef.current = now;
+        }
+
+        inputBufferRef.current += key;
+
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        timeoutRef.current = setTimeout(() => {
+          const timeSinceStart = now - (inputStartTimeRef.current || now);
+          
+          if (inputBufferRef.current.length >= 8 && timeSinceStart < 500) {
+            const barcode = inputBufferRef.current;
+            setSearch(barcode);
+            setLastBarcodeDetected(true);
+          }
+          
+          inputBufferRef.current = '';
+          inputStartTimeRef.current = null;
+        }, 100);
+      }
+    };
+
+    window.addEventListener('keypress', handleKeyPress);
+
+    return () => {
+      window.removeEventListener('keypress', handleKeyPress);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Procesar automáticamente cuando se detecta un escaneo y hay resultados
   useEffect(() => {
