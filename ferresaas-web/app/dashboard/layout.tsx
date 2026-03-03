@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -28,12 +28,16 @@ export default function DashboardLayout({
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const isOnline = useConnectionStatus();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login");
+      // Fallback client-side: redirigir a login con returnUrl
+      // (El middleware ya maneja esto server-side, pero esto cubre sesión expirada)
+      const loginUrl = pathname ? `/login?returnUrl=${encodeURIComponent(pathname)}` : '/login';
+      router.push(loginUrl);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, pathname]);
 
   if (isLoading) {
     return (

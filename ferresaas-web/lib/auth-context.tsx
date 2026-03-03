@@ -23,7 +23,7 @@ interface AuthContextType {
   user: User | null;
   business: Business | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, returnUrl?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   updateUser: (userData: Partial<User>) => void;
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, returnUrl?: string) => {
     const response = await api.post<LoginResponse>("/auth/login", {
       email,
       password,
@@ -133,7 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
       }
       
-      router.push("/dashboard");
+      // Redirigir al destino original si existe, o al dashboard por defecto
+      const destination = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/dashboard';
+      router.push(destination);
     } else {
       throw new Error(response.error?.message || "Login failed");
     }

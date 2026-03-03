@@ -193,6 +193,18 @@ Antes de poder vender, es necesario tener una sesión de caja abierta. Si no hay
 3. Hacé clic en un resultado para agregarlo al carrito.
 4. Si usás un lector de código de barras, el producto se agrega automáticamente.
 
+#### 4.2.1 Escaneo de Códigos de Barras
+
+El sistema detecta automáticamente cuando estás escaneando un código de barras**sin necesidad de hacer foco en el campo de búsqueda**:
+
+- **En la página de POS**: El código se ingresa automáticamente en el buscador y el producto se agrega directamente al carrito si se encuentra exactamente.
+- **En otras páginas del dashboard**: Se abre un modal con la información del producto, permitiéndote agregarlo al carrito y redirigirte a POS o a abrir caja si es necesario.
+
+**Ventajas**:
+- Escanea sin necesidad de hacer clic en el campo
+- Funciona en toda la aplicación (no solo en POS)
+- Diferencia automáticamente entre escaneo rápido y entrada manual
+
 ### 4.3 Carrito de Compra
 
 El carrito muestra:
@@ -250,6 +262,25 @@ El sistema ejecuta en una sola transacción:
 4. Si hay cliente asociado y se usó cuenta corriente, actualiza su saldo.
 5. Dispara la facturación electrónica (si está configurada).
 6. Registra la operación en auditoría.
+
+### 4.8 Modal de Producto Escaneado (Fuera de POS)
+
+Cuando estás en cualquier página del dashboard (excepto POS) y escaneas un código de barras, se abre un modal con:
+
+- **Imagen del producto** (si está disponible)
+- **Nombre, descripción, SKU y código de barras**
+- **Precio y stock disponible**
+- **Botón "Agregar al carrito"**:
+  - Si el producto no tiene stock, el botón está deshabilitado con un tooltip indicando "Este producto no tiene stock disponible"
+  - Si tienes stock, al hacer clic:
+    1. Se agrega el producto al carrito
+    2. Se muestra un mensaje de confirmación
+    3. Se cierra el modal
+    4. Se verifica el estado de la caja:
+       - Si la caja está **cerrada**: redirige a `/dashboard/cash-register` para abrirla
+       - Si la caja está **abierta**: redirige a `/dashboard/pos` con el producto ya en el carrito
+
+**Ventaja**: Puedes escanear productos desde cualquier página y el sistema te guiará automáticamente al POS con el producto listo para vender.
 
 ---
 

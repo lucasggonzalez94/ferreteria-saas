@@ -200,9 +200,7 @@ npm run test             # Tests del backend
 ## 📖 Documentación
 
 - [Backend README](./ferresaas-api/README.md)
-- [Backend COMPLETE](./ferresaas-api/BACKEND_COMPLETE.md)
 - [Frontend README](./ferresaas-web/README.md)
-- [Especificación](./ferresaas_spec.md)
 
 ## 🎯 Características Destacadas
 

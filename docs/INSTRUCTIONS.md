@@ -210,7 +210,10 @@ Esta es la pantalla principal para los cajeros.
     - Opcionalmente, ingresa también un monto inicial en USD si tenés dólares en caja.
     - El sistema guarda automáticamente un snapshot del tipo de cambio al momento de apertura.
 3.  **Agregar Productos**:
-    - Puedes escanear códigos de barras (si tienes lector).
+    - **Escaneo Global**: Puedes escanear códigos de barras desde cualquier página del dashboard (sin necesidad de hacer foco en el buscador).
+      - El sistema detecta automáticamente cuando estás escaneando (entrada rápida de 8+ caracteres en menos de 500ms)
+      - En POS: el producto se agrega directamente al carrito
+      - En otras páginas: se abre un modal con la información del producto
     - O buscar por nombre escribiendo en el buscador.
 4.  **Cobrar**:
     - Presiona `F9` o el botón "Cobrar".
@@ -225,6 +228,25 @@ Esta es la pantalla principal para los cajeros.
       - Equivalente en ARS
       - Fuente de la cotización
 5.  **Confirmar**: El sistema generará el ticket (o factura electrónica si está configurado) y registrará la venta con snapshot del tipo de cambio si fue en USD.
+
+#### Escaneo de Productos Desde Cualquier Página
+
+Si estás en una página diferente a POS (ej: Productos, Inventario, Clientes) y escaneas un código de barras:
+
+1. Se abre un **modal con la información del producto**
+2. Puedes ver:
+   - Imagen del producto
+   - Nombre, descripción, SKU y código de barras
+   - Precio y stock disponible
+3. Botón **"Agregar al carrito"**:
+   - Si no hay stock: botón deshabilitado con tooltip "Este producto no tiene stock disponible"
+   - Si hay stock: al hacer clic:
+     - Se agrega el producto al carrito (guardado en sessionStorage)
+     - Se muestra un toast de confirmación
+     - Se cierra el modal
+     - Se verifica el estado de la caja:
+       - Si está **cerrada**: redirige a `/dashboard/cash-register` para abrirla
+       - Si está **abierta**: redirige a `/dashboard/pos` con el producto ya en el carrito
 
 ### Paso 5: Cerrar Caja
 
@@ -473,6 +495,39 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 2. Las rutas de caja, ventas, inventario y usuarios incluyen datos `before/after`, IP y `userAgent` cuando están disponibles.
 3. Descuentos en POS: si el cajero no tiene `sales:approve_discount`, se dispara una solicitud contra `/discount-approvals` para que un supervisor la valide.
 
+### 9.9 Escaneo Global de Códigos de Barras
+
+El sistema implementa un listener global de eventos de teclado que funciona en todas las páginas del dashboard:
+
+1. **Detección de escaneos**: El hook `useGlobalBarcodeListener` escucha eventos de teclado a nivel `window` y detecta:
+   - Entrada rápida: 8+ caracteres en menos de 500ms
+   - Diferencia automática entre escaneo y entrada manual
+   - Solo activo cuando NO estás en la página de POS
+
+2. **En la página de POS** (`ProductSelector`):
+   - El componente escucha escaneos globalmente sin necesidad de hacer foco en el input
+   - Detecta entrada rápida y busca el producto automáticamente
+   - Si encuentra exactamente 1 producto, lo agrega al carrito
+   - Limpia el campo de búsqueda para el próximo escaneo
+
+3. **En otras páginas del dashboard**:
+   - El listener global abre un modal (`BarcodeProductModal`) con información del producto
+   - Muestra: imagen, nombre, descripción, SKU, código de barras, precio y stock
+   - Botón "Agregar al carrito":
+     - Deshabilitado si no hay stock (con tooltip explicativo)
+     - Si hay stock: agrega a sessionStorage y redirige a POS o cash-register según sea necesario
+
+4. **Persistencia del carrito** (`useCartPersistence`):
+   - Usa `sessionStorage` para guardar el carrito entre páginas
+   - Se carga automáticamente en POS al montar el componente
+   - Se limpia al confirmar la venta
+   - Seguro: validación en backend de todos los datos
+
+5. **Protecciones**:
+   - No interfiere con otros inputs (ignora eventos cuando el usuario está escribiendo en otros campos)
+   - Compatible con búsqueda manual en el buscador
+   - Resetea el buffer automáticamente después de cada escaneo
+
 ---
 
 ## 📚 10. Documentos y Recursos Complementarios
@@ -489,6 +544,7 @@ El sistema intenta conectarse con AFIP para autorizar facturas.
 | `docs/CASH_AND_FINANCIAL_ACCOUNTS_CLARIFICATION.md` | Explicación detallada de la diferencia entre Caja y Cuentas Financieras, con flujos completos. |
 | `docs/END_OF_DAY_VALIDATION.md` | Guía paso a paso para validar cuentas al cierre de día, resolver diferencias y registrar extracciones. |
 | `docs/INSTALLATION_GUIDE.md` | Guía completa de instalación del sistema de cuentas financieras con checklist. |
+| `docs/BARCODE_SCANNING_IMPLEMENTATION.md` | Documentación técnica del sistema de escaneo global de códigos de barras (hooks, contextos, componentes). |
 | `ferresaas_spec.md` | Especificación funcional original (roadmap y decisiones de producto). |
 
 > Consulta estos archivos para ampliar cada dominio sin duplicar contenido. Este manual resume cómo se integran todos los componentes en el flujo diario de la ferretería.
