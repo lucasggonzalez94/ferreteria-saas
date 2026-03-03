@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 
 export default function RolesPage() {
   const { user } = useAuth();
@@ -28,6 +30,7 @@ export default function RolesPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [formData, setFormData] = useState({ name: "", description: "" });
   const [isCreating, setIsCreating] = useState(false);
+  const deleteDialog = useConfirmDialog<{ id: string; name: string }>();
 
   const canManageRoles = user?.permissions?.includes("roles:manage");
 
@@ -62,13 +65,18 @@ export default function RolesPage() {
     }
   };
 
-  const handleDeleteRole = async (role: any) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar el rol "${role.name}"?`)) {
-      try {
-        await deleteRole(role.id);
-      } catch (error) {
-        console.error("Error deleting role:", error);
-      }
+  const handleDeleteRole = (role: any) => {
+    deleteDialog.open({ id: role.id, name: role.name });
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!deleteDialog.data) return;
+    try {
+      await deleteRole(deleteDialog.data.id);
+    } catch (error) {
+      console.error("Error deleting role:", error);
+    } finally {
+      deleteDialog.close();
     }
   };
 
@@ -164,10 +172,26 @@ export default function RolesPage() {
 
         {meta?.hasMore && (
           <div className="mt-6 text-center">
-            <Button variant="outline">Cargar más</Button>
+            <Button
+              variant="outline"
+              onClick={() => listRoles({ search, page: meta.page + 1 })}
+              disabled={loading}
+            >
+              {loading ? "Cargando..." : "Cargar más"}
+            </Button>
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteDialog.isOpen}
+        onOpenChange={(open) => !open && deleteDialog.close()}
+        onConfirm={confirmDeleteRole}
+        title="Eliminar Rol"
+        description={`¿Estás seguro de que deseas eliminar el rol "${deleteDialog.data?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

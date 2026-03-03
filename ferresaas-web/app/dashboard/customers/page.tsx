@@ -148,7 +148,7 @@ export default function CustomersPage() {
         <Header
           title="Clientes"
           description="Gestión de clientes y cuenta corriente"
-          showButton={true}
+          showButton={canCreateCustomers}
           buttonLabel="Nuevo Cliente"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
           buttonAction={() => setShowForm(!showForm)}

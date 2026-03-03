@@ -13,6 +13,13 @@ import { Check, X, Clock, ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface DiscountApproval {
   id: string;
@@ -52,6 +59,9 @@ export default function DiscountApprovalsPage() {
   const { user } = useAuth();
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approverPassword, setApproverPassword] = useState("");
   const queryClient = useQueryClient();
 
   const canApproveDiscounts = user?.permissions?.includes("sales:manage");
@@ -110,11 +120,18 @@ export default function DiscountApprovalsPage() {
     },
   });
 
-  const handleApprove = async (id: string) => {
-    const password = prompt("Ingresa tu contraseña para aprobar:");
-    if (!password) return;
+  const handleApprove = (id: string) => {
+    setApprovingId(id);
+    setApproverPassword("");
+    setApproveDialogOpen(true);
+  };
 
-    approveMutation.mutate({ id, password });
+  const confirmApprove = () => {
+    if (!approvingId || !approverPassword) return;
+    approveMutation.mutate({ id: approvingId, password: approverPassword });
+    setApproveDialogOpen(false);
+    setApprovingId(null);
+    setApproverPassword("");
   };
 
   const handleReject = (id: string) => {
@@ -327,6 +344,62 @@ export default function DiscountApprovalsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de contraseña para aprobación */}
+      <Dialog open={approveDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setApproveDialogOpen(false);
+          setApprovingId(null);
+          setApproverPassword("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Aprobación</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              confirmApprove();
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <Label htmlFor="approverPassword">Contraseña</Label>
+              <Input
+                id="approverPassword"
+                type="password"
+                value={approverPassword}
+                onChange={(e) => setApproverPassword(e.target.value)}
+                placeholder="Ingresa tu contraseña para aprobar"
+                className="mt-1"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setApproveDialogOpen(false);
+                  setApprovingId(null);
+                  setApproverPassword("");
+                }}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={!approverPassword || approveMutation.isPending}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {approveMutation.isPending ? "Aprobando..." : "Aprobar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

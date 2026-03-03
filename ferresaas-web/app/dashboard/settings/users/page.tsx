@@ -32,7 +32,7 @@ import { Plus, Search, Mail, User as UserIcon, Edit2 } from "lucide-react";
 export default function UsersPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { users, loading, meta, listUsers } = useUsers();
+  const { users, loading, meta, listUsers, createUser } = useUsers();
   const { roles, listRoles } = useRoles();
   const { assignRoles } = useUserRoles();
 
@@ -81,7 +81,6 @@ export default function UsersPage() {
 
     setIsSubmitting(true);
     try {
-      const { createUser } = useUsers();
       await createUser({
         email: formData.email.trim(),
         firstName: formData.firstName.trim() || undefined,

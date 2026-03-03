@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Download, FileText, TrendingDown } from "lucide-react";
 import Header from "@/components/ui/header";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -134,7 +135,7 @@ export default function ReportsPage() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar PDF:', error);
-      alert('Error al generar el PDF. Por favor, intenta nuevamente.');
+      toast.error('Error al generar el PDF. Por favor, intenta nuevamente.');
     }
   };
 
