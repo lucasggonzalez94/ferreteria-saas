@@ -13,6 +13,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 interface ProductSelectorProps {
   onSelect: (product: Product) => void;
   onBarcodeDetected?: (product: Product) => void;
+  onUnknownBarcode?: (barcode: string) => void;
   showStock?: boolean;
   showImage?: boolean;
   filterActive?: boolean;
@@ -25,7 +26,7 @@ interface ProductSelectorProps {
  * Componente reutilizable para buscar y seleccionar productos.
  * Soporta detección automática de escaneos de código de barras.
  * Usado en POS, compras, inventario, etc.
- * 
+ *
  * @example
  * <ProductSelector
  *   onSelect={(product) => console.log('búsqueda manual', product)}
@@ -38,6 +39,7 @@ interface ProductSelectorProps {
 export function ProductSelector({
   onSelect,
   onBarcodeDetected,
+  onUnknownBarcode,
   showStock = true,
   showImage = false,
   filterActive = true,
@@ -48,7 +50,7 @@ export function ProductSelector({
   const [search, setSearch] = useState("");
   const [lastBarcodeDetected, setLastBarcodeDetected] = useState(false);
   const { handleInputChange, reset } = useBarcodeDetection();
-  const inputBufferRef = useRef<string>('');
+  const inputBufferRef = useRef<string>("");
   const inputStartTimeRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -73,8 +75,8 @@ export function ProductSelector({
       // Ignorar si el usuario está escribiendo en otro input/textarea
       const target = event.target as HTMLElement;
       if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
         target.isContentEditable
       ) {
         return;
@@ -83,13 +85,13 @@ export function ProductSelector({
       const now = Date.now();
       const key = event.key;
 
-      if (key === 'Enter') {
+      if (key === "Enter") {
         if (inputBufferRef.current.length >= 8) {
           const barcode = inputBufferRef.current;
           setSearch(barcode);
           setLastBarcodeDetected(true);
         }
-        inputBufferRef.current = '';
+        inputBufferRef.current = "";
         inputStartTimeRef.current = null;
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -110,45 +112,58 @@ export function ProductSelector({
 
         timeoutRef.current = setTimeout(() => {
           const timeSinceStart = now - (inputStartTimeRef.current || now);
-          
+
           if (inputBufferRef.current.length >= 8 && timeSinceStart < 500) {
             const barcode = inputBufferRef.current;
             setSearch(barcode);
             setLastBarcodeDetected(true);
           }
-          
-          inputBufferRef.current = '';
+
+          inputBufferRef.current = "";
           inputStartTimeRef.current = null;
         }, 100);
       }
     };
 
-    window.addEventListener('keypress', handleKeyPress);
+    window.addEventListener("keypress", handleKeyPress);
 
     return () => {
-      window.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener("keypress", handleKeyPress);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
   }, []);
 
-  // Procesar automáticamente cuando se detecta un escaneo y hay resultados
+  // Procesar automáticamente cuando se detecta un escaneo
   useEffect(() => {
-    if (
-      lastBarcodeDetected &&
-      !isLoading &&
-      products &&
-      products.length === 1 &&
-      onBarcodeDetected
-    ) {
+    if (!lastBarcodeDetected || isLoading) return;
+
+    if (products && products.length === 1 && onBarcodeDetected) {
       const product = products[0];
       onBarcodeDetected(product);
       setSearch("");
       reset();
       setLastBarcodeDetected(false);
+      return;
     }
-  }, [lastBarcodeDetected, isLoading, products, onBarcodeDetected, reset]);
+
+    if (products && products.length === 0 && search && onUnknownBarcode) {
+      const barcodeScanned = search;
+      onUnknownBarcode(barcodeScanned);
+      setSearch("");
+      reset();
+      setLastBarcodeDetected(false);
+    }
+  }, [
+    lastBarcodeDetected,
+    isLoading,
+    products,
+    search,
+    onBarcodeDetected,
+    onUnknownBarcode,
+    reset,
+  ]);
 
   const handleInputChange_Internal = (value: string) => {
     setSearch(value);

@@ -16,9 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, DollarSign, ArrowLeft, X } from "lucide-react";
+import { Plus, Minus, Trash2, DollarSign } from "lucide-react";
 import type { Product, Sale, Customer } from "@/types";
-import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
 import { usePermissionGuard } from "@/lib/hooks/usePermissionGuard";
@@ -28,6 +27,7 @@ import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFall
 import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
 import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
 import { useCartPersistence } from "@/lib/hooks/useCartPersistence";
+import { UnknownBarcodeModal } from "@/components/pos/unknown-barcode-modal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -42,7 +42,7 @@ interface CartItem {
 }
 
 interface Payment {
-  method: 'CASH_ARS' | 'CASH_USD' | 'CARD' | 'TRANSFER' | 'QR' | 'ACCOUNT';
+  method: "CASH_ARS" | "CASH_USD" | "CARD" | "TRANSFER" | "QR" | "ACCOUNT";
   amount: number;
   amountUSD?: number;
   cardBrand?: string;
@@ -57,27 +57,39 @@ export default function POSPage() {
 
   usePermissionGuard("sales:create");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH_ARS' | 'CASH_USD' | 'CARD' | 'TRANSFER' | 'QR' | 'ACCOUNT'>('CASH_ARS');
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH_ARS" | "CASH_USD" | "CARD" | "TRANSFER" | "QR" | "ACCOUNT"
+  >("CASH_ARS");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [cardBrand, setCardBrand] = useState("");
   const [financialCost, setFinancialCost] = useState("");
   const [amountUSD, setAmountUSD] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
-  const [editingQuantityId, setEditingQuantityId] = useState<string | null>(null);
+  const [editingQuantityId, setEditingQuantityId] = useState<string | null>(
+    null,
+  );
   const [editingQuantityValue, setEditingQuantityValue] = useState("");
   const [changeGiven, setChangeGiven] = useState("");
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
-  const [discountProductId, setDiscountProductId] = useState<string | null>(null);
+  const [discountProductId, setDiscountProductId] = useState<string | null>(
+    null,
+  );
   const [discountFinalPrice, setDiscountFinalPrice] = useState("");
   const [discountReason, setDiscountReason] = useState("");
-  const [discountApprovalModalOpen, setDiscountApprovalModalOpen] = useState(false);
+  const [discountApprovalModalOpen, setDiscountApprovalModalOpen] =
+    useState(false);
   const [approverPassword, setApproverPassword] = useState("");
   const [discountApprovalLoading, setDiscountApprovalLoading] = useState(false);
+  const [unknownBarcodeModalOpen, setUnknownBarcodeModalOpen] = useState(false);
+  const [unknownBarcode, setUnknownBarcode] = useState("");
   const queryClient = useQueryClient();
 
-  const canApproveDiscounts = user?.permissions?.includes('sales:approve_discount') ?? false;
+  const canApproveDiscounts =
+    user?.permissions?.includes("sales:approve_discount") ?? false;
 
   // Hook para tipo de cambio con fallback
   const {
@@ -94,15 +106,30 @@ export default function POSPage() {
     openManualModal,
   } = useExchangeRateWithFallback();
 
+  const handleUnknownBarcode = (barcode: string) => {
+    setUnknownBarcode(barcode);
+    setUnknownBarcodeModalOpen(true);
+  };
+
+  const handleProductFromBarcode = (product: Product) => {
+    setUnknownBarcodeModalOpen(false);
+    setUnknownBarcode("");
+    queryClient.invalidateQueries({ queryKey: ["products-search"] });
+    addToCart(product);
+    toast.success(`${product.name} agregado al carrito`);
+  };
+
   // Validar que la caja esté abierta
-  const { data: cashRegisterStatus, isLoading: isCashStatusLoading } = useQuery({
-    queryKey: ["cash-register", "status"],
-    queryFn: async () => {
-      const response = await api.get<any>("/cash-register/status");
-      return response.data;
+  const { data: cashRegisterStatus, isLoading: isCashStatusLoading } = useQuery(
+    {
+      queryKey: ["cash-register", "status"],
+      queryFn: async () => {
+        const response = await api.get<any>("/cash-register/status");
+        return response.data;
+      },
+      refetchInterval: 30000, // Refetch cada 30s
     },
-    refetchInterval: 30000, // Refetch cada 30s
-  });
+  );
 
   useEffect(() => {
     if (!isCashStatusLoading && cashRegisterStatus === null) {
@@ -116,7 +143,9 @@ export default function POSPage() {
     const savedCart = loadCart();
     if (savedCart.length > 0) {
       setCart(savedCart);
-      toast.success(`${savedCart.length} producto(s) recuperado(s) del carrito`);
+      toast.success(
+        `${savedCart.length} producto(s) recuperado(s) del carrito`,
+      );
     }
   }, [loadCart]);
 
@@ -138,11 +167,14 @@ export default function POSPage() {
       }
 
       // Confirmar inmediatamente con los pagos
-      const confirmResponse = await api.post<Sale>(`/sales/${sale.id}/confirm`, {
-        payments: payments,
-        changeGiven: data.changeGiven,
-        invoiceType: "B",
-      });
+      const confirmResponse = await api.post<Sale>(
+        `/sales/${sale.id}/confirm`,
+        {
+          payments: payments,
+          changeGiven: data.changeGiven,
+          invoiceType: "B",
+        },
+      );
 
       if (!confirmResponse.data) {
         throw new Error("La API no devolvió la venta confirmada");
@@ -184,7 +216,7 @@ export default function POSPage() {
       const newQuantity = existing.quantity + 1;
       if (newQuantity > product.stockQuantity) {
         toast.error(
-          `Solo hay ${product.stockQuantity} ${product.unit} disponibles de ${product.name}`
+          `Solo hay ${product.stockQuantity} ${product.unit} disponibles de ${product.name}`,
         );
         return;
       }
@@ -223,7 +255,7 @@ export default function POSPage() {
     const item = cart.find((i) => i.product.id === productId);
     if (item && newQuantity > item.product.stockQuantity) {
       toast.error(
-        `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+        `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`,
       );
       return;
     }
@@ -246,7 +278,11 @@ export default function POSPage() {
     setCart(cart.filter((item) => item.product.id !== productId));
   };
 
-  const applyDiscount = (productId: string, finalPrice: number, reason: string) => {
+  const applyDiscount = (
+    productId: string,
+    finalPrice: number,
+    reason: string,
+  ) => {
     // Si el usuario puede aprobar descuentos, aplicar directamente
     if (canApproveDiscounts) {
       setCart(
@@ -261,7 +297,7 @@ export default function POSPage() {
             };
           }
           return item;
-        })
+        }),
       );
       setDiscountModalOpen(false);
       setDiscountProductId(null);
@@ -287,7 +323,7 @@ export default function POSPage() {
 
     setDiscountApprovalLoading(true);
     try {
-      const item = cart.find(i => i.product.id === discountProductId);
+      const item = cart.find((i) => i.product.id === discountProductId);
       if (!item) {
         toast.error("Producto no encontrado");
         return;
@@ -306,7 +342,8 @@ export default function POSPage() {
       setCart(
         cart.map((item) => {
           if (item.product.id === discountProductId) {
-            const newSubtotal = item.quantity * parseNumericInput(discountFinalPrice);
+            const newSubtotal =
+              item.quantity * parseNumericInput(discountFinalPrice);
             return {
               ...item,
               discountedPrice: parseNumericInput(discountFinalPrice),
@@ -315,7 +352,7 @@ export default function POSPage() {
             };
           }
           return item;
-        })
+        }),
       );
 
       setDiscountModalOpen(false);
@@ -342,7 +379,7 @@ export default function POSPage() {
       return;
     }
 
-    if (paymentMethod === 'ACCOUNT' && !selectedCustomer) {
+    if (paymentMethod === "ACCOUNT" && !selectedCustomer) {
       toast.error("Debes seleccionar un cliente para venta a cuenta corriente");
       return;
     }
@@ -352,7 +389,7 @@ export default function POSPage() {
       amount,
     };
 
-    if (paymentMethod === 'CASH_USD') {
+    if (paymentMethod === "CASH_USD") {
       const usd = parseNumericInput(amountUSD);
       if (!usd || usd <= 0) {
         toast.error("Ingresa el monto en USD");
@@ -361,7 +398,7 @@ export default function POSPage() {
       newPayment.amountUSD = usd;
     }
 
-    if (paymentMethod === 'CARD') {
+    if (paymentMethod === "CARD") {
       if (!cardBrand) {
         toast.error("Selecciona la marca de tarjeta");
         return;
@@ -409,7 +446,9 @@ export default function POSPage() {
     }
 
     // Validar vuelto si hay pago en efectivo y hay sobrante
-    const hasCashPayment = payments.some(p => p.method === 'CASH_ARS' || p.method === 'CASH_USD');
+    const hasCashPayment = payments.some(
+      (p) => p.method === "CASH_ARS" || p.method === "CASH_USD",
+    );
     if (hasCashPayment && change > 0.01 && !changeGiven) {
       toast.error("Ingresa el vuelto entregado");
       return;
@@ -422,7 +461,9 @@ export default function POSPage() {
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         taxRate: 0,
-        discountedPrice: item.discountedPrice ? Number(item.discountedPrice) : undefined,
+        discountedPrice: item.discountedPrice
+          ? Number(item.discountedPrice)
+          : undefined,
         discountReason: item.discountReason,
         discountApprovedBy: item.discountApprovedBy,
       })),
@@ -437,7 +478,7 @@ export default function POSPage() {
       {/* Modal de fallback para tipo de cambio */}
       <ManualExchangeRateModal
         isOpen={showManualModal}
-        dollarType={exchangeRate?.dollarType || 'blue'}
+        dollarType={exchangeRate?.dollarType || "blue"}
         onCancel={handleCancel}
         onUseLastKnown={handleUseLastKnown}
         onManualInput={handleManualRate}
@@ -445,9 +486,7 @@ export default function POSPage() {
       />
 
       <div className="max-w-7xl mx-auto">
-        <Header
-          title="Punto de Venta"
-        />
+        <Header title="Punto de Venta" />
 
         {/* Banner de advertencia si la cotización está desactualizada */}
         {(isStale || isFallback) && exchangeRate && (
@@ -479,6 +518,7 @@ export default function POSPage() {
                     addToCart(product);
                     toast.success(`${product.name} agregado al carrito`);
                   }}
+                  onUnknownBarcode={handleUnknownBarcode}
                   showStock={true}
                   showImage={true}
                   filterActive={true}
@@ -508,7 +548,9 @@ export default function POSPage() {
                           <div className="text-sm text-muted-foreground">
                             {item.discountedPrice ? (
                               <>
-                                <span className="line-through">${Number(item.unitPrice).toFixed(2)}</span>
+                                <span className="line-through">
+                                  ${Number(item.unitPrice).toFixed(2)}
+                                </span>
                                 <span className="ml-2 text-green-600 font-medium">
                                   ${Number(item.discountedPrice).toFixed(2)}
                                 </span>
@@ -516,23 +558,43 @@ export default function POSPage() {
                             ) : (
                               <span>${Number(item.unitPrice).toFixed(2)}</span>
                             )}
-                            <span className="ml-2">x {item.quantity.toFixed(item.product.isFractional ? 2 : 0)} {item.product.unit}</span>
+                            <span className="ml-2">
+                              x{" "}
+                              {item.quantity.toFixed(
+                                item.product.isFractional ? 2 : 0,
+                              )}{" "}
+                              {item.product.unit}
+                            </span>
                           </div>
                           {item.discountReason && (
-                            <p className="text-xs text-amber-600 mt-1">Descuento: {item.discountReason}</p>
+                            <p className="text-xs text-amber-600 mt-1">
+                              Descuento: {item.discountReason}
+                            </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
                             size="icon"
                             variant="outline"
-                            onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.isFractional ? 0.1 : 1))}
+                            onClick={() =>
+                              updateQuantity(
+                                item.product.id,
+                                item.quantity -
+                                  (item.product.isFractional ? 0.1 : 1),
+                              )
+                            }
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
                           <Input
                             type="text"
-                            value={editingQuantityId === item.product.id ? editingQuantityValue : item.quantity.toFixed(item.product.isFractional ? 2 : 0)}
+                            value={
+                              editingQuantityId === item.product.id
+                                ? editingQuantityValue
+                                : item.quantity.toFixed(
+                                    item.product.isFractional ? 2 : 0,
+                                  )
+                            }
                             onChange={(e) => {
                               setEditingQuantityId(item.product.id);
                               setEditingQuantityValue(e.target.value);
@@ -543,7 +605,7 @@ export default function POSPage() {
                                 removeFromCart(item.product.id);
                               } else if (newQty > item.product.stockQuantity) {
                                 toast.error(
-                                  `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+                                  `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`,
                                 );
                               } else {
                                 updateQuantity(item.product.id, newQty);
@@ -552,13 +614,17 @@ export default function POSPage() {
                               setEditingQuantityValue("");
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                const newQty = parseNumericInput(e.currentTarget.value);
+                              if (e.key === "Enter") {
+                                const newQty = parseNumericInput(
+                                  e.currentTarget.value,
+                                );
                                 if (isNaN(newQty) || newQty <= 0) {
                                   removeFromCart(item.product.id);
-                                } else if (newQty > item.product.stockQuantity) {
+                                } else if (
+                                  newQty > item.product.stockQuantity
+                                ) {
                                   toast.error(
-                                    `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`
+                                    `Solo hay ${item.product.stockQuantity} ${item.product.unit} disponibles`,
                                   );
                                 } else {
                                   updateQuantity(item.product.id, newQty);
@@ -573,7 +639,13 @@ export default function POSPage() {
                           <Button
                             size="icon"
                             variant="outline"
-                            onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.isFractional ? 0.1 : 1))}
+                            onClick={() =>
+                              updateQuantity(
+                                item.product.id,
+                                item.quantity +
+                                  (item.product.isFractional ? 0.1 : 1),
+                              )
+                            }
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
@@ -587,13 +659,19 @@ export default function POSPage() {
                             variant="outline"
                             onClick={() => {
                               setDiscountProductId(item.product.id);
-                              setDiscountFinalPrice(item.discountedPrice ? String(item.discountedPrice) : String(item.unitPrice));
+                              setDiscountFinalPrice(
+                                item.discountedPrice
+                                  ? String(item.discountedPrice)
+                                  : String(item.unitPrice),
+                              );
                               setDiscountReason(item.discountReason || "");
                               setDiscountModalOpen(true);
                             }}
                             className="text-xs h-7"
                           >
-                            {item.discountedPrice ? "Editar desc." : "Descuento"}
+                            {item.discountedPrice
+                              ? "Editar desc."
+                              : "Descuento"}
                           </Button>
                         </div>
                         <Button
@@ -622,9 +700,7 @@ export default function POSPage() {
                   <span>Total:</span>
                   <span>${Number(total).toFixed(2)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  (Incluye IVA)
-                </p>
+                <p className="text-xs text-muted-foreground">(Incluye IVA)</p>
               </CardContent>
             </Card>
 
@@ -637,24 +713,26 @@ export default function POSPage() {
                   value={selectedCustomer}
                   onChange={setSelectedCustomer}
                   fetchFn={async (search) => {
-                    const response = await api.get<Customer[]>(`/customers?q=${search}`);
+                    const response = await api.get<Customer[]>(
+                      `/customers?q=${search}`,
+                    );
                     return response.data || [];
                   }}
                   displayFn={(customer) =>
-                    customer.type === 'COMPANY'
-                      ? customer.companyName || ''
+                    customer.type === "COMPANY"
+                      ? customer.companyName || ""
                       : `${customer.firstName} ${customer.lastName}`
                   }
                   placeholder="Buscar cliente..."
                   renderItem={(customer) => (
                     <div>
                       <p className="font-medium">
-                        {customer.type === 'COMPANY'
+                        {customer.type === "COMPANY"
                           ? customer.companyName
                           : `${customer.firstName} ${customer.lastName}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {customer.email || customer.phone || 'Sin contacto'}
+                        {customer.email || customer.phone || "Sin contacto"}
                       </p>
                     </div>
                   )}
@@ -664,7 +742,8 @@ export default function POSPage() {
                   <div className="space-y-2">
                     <div className="p-2 bg-blue-50 rounded-lg text-xs">
                       <p className="text-blue-700">
-                        <span className="font-medium">Saldo:</span> ${Number(selectedCustomer.currentBalance).toFixed(2)}
+                        <span className="font-medium">Saldo:</span> $
+                        {Number(selectedCustomer.currentBalance).toFixed(2)}
                       </p>
                     </div>
                     {selectedCustomer.currentBalance > 0 && (
@@ -672,8 +751,10 @@ export default function POSPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          setPaymentMethod('ACCOUNT');
-                          setPaymentAmount(selectedCustomer.currentBalance.toString());
+                          setPaymentMethod("ACCOUNT");
+                          setPaymentAmount(
+                            selectedCustomer.currentBalance.toString(),
+                          );
                         }}
                         className="w-full text-xs"
                       >
@@ -707,7 +788,9 @@ export default function POSPage() {
                       <SelectItem value="TRANSFER">Transferencia</SelectItem>
                       <SelectItem value="QR">QR</SelectItem>
                       <SelectItem value="ACCOUNT" disabled={!selectedCustomer}>
-                        {selectedCustomer ? "Cuenta Corriente" : "Cuenta Corriente (requiere cliente)"}
+                        {selectedCustomer
+                          ? "Cuenta Corriente"
+                          : "Cuenta Corriente (requiere cliente)"}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -727,7 +810,7 @@ export default function POSPage() {
                 </div>
 
                 {/* USD específico para CASH_USD */}
-                {paymentMethod === 'CASH_USD' && (
+                {paymentMethod === "CASH_USD" && (
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium">Monto USD *</label>
@@ -755,39 +838,55 @@ export default function POSPage() {
                     {/* Calculadora automática */}
                     {amountUSD && exchangeRate && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-blue-900 mb-2">💱 Conversión Automática</p>
+                        <p className="text-xs font-medium text-blue-900 mb-2">
+                          💱 Conversión Automática
+                        </p>
                         <div className="space-y-1 text-xs text-blue-700">
                           <div className="flex justify-between">
                             <span>Monto USD:</span>
-                            <span className="font-medium">${parseNumericInput(amountUSD).toFixed(2)}</span>
+                            <span className="font-medium">
+                              ${parseNumericInput(amountUSD).toFixed(2)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span>Tipo de cambio:</span>
-                            <span className="font-medium">1 USD = ${exchangeRate.rate.toFixed(2)} ARS</span>
+                            <span className="font-medium">
+                              1 USD = ${exchangeRate.rate.toFixed(2)} ARS
+                            </span>
                           </div>
                           <div className="flex justify-between border-t border-blue-300 pt-1 mt-1">
                             <span>Equivalente ARS:</span>
-                            <span className="font-medium">${paymentAmount}</span>
+                            <span className="font-medium">
+                              ${paymentAmount}
+                            </span>
                           </div>
                           <div className="flex justify-between text-[10px]">
                             <span>Fuente:</span>
-                            <span>{exchangeRate.source === 'argentinadatos' ? 'ArgentinaDatos' : exchangeRate.source}</span>
+                            <span>
+                              {exchangeRate.source === "argentinadatos"
+                                ? "ArgentinaDatos"
+                                : exchangeRate.source}
+                            </span>
                           </div>
                         </div>
                       </div>
                     )}
 
                     {isLoadingRate && (
-                      <p className="text-xs text-muted-foreground">Cargando tipo de cambio...</p>
+                      <p className="text-xs text-muted-foreground">
+                        Cargando tipo de cambio...
+                      </p>
                     )}
                   </div>
                 )}
 
                 {/* Tarjeta específico para CARD */}
-                {paymentMethod === 'CARD' && (
+                {paymentMethod === "CARD" && (
                   <>
                     <div>
-                      <label className="text-sm font-medium">Marca de Tarjeta</label>
+                      <label className="text-sm font-medium">
+                        Marca de Tarjeta
+                      </label>
                       <Select value={cardBrand} onValueChange={setCardBrand}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona marca" />
@@ -801,7 +900,9 @@ export default function POSPage() {
                       </Select>
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Costo Financiero (opcional)</label>
+                      <label className="text-sm font-medium">
+                        Costo Financiero (opcional)
+                      </label>
                       <Input
                         type="number"
                         step="0.01"
@@ -816,7 +917,9 @@ export default function POSPage() {
 
                 {/* Notas opcionales */}
                 <div>
-                  <label className="text-sm font-medium">Notas (opcional)</label>
+                  <label className="text-sm font-medium">
+                    Notas (opcional)
+                  </label>
                   <Input
                     type="text"
                     value={paymentNotes}
@@ -839,24 +942,36 @@ export default function POSPage() {
                 {/* Lista de pagos agregados */}
                 {payments.length > 0 && (
                   <div className="space-y-2 border-t pt-3">
-                    <p className="text-xs font-medium text-muted-foreground">Pagos agregados:</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Pagos agregados:
+                    </p>
                     {payments.map((payment, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded">
+                      <div
+                        key={index}
+                        className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded"
+                      >
                         <div className="flex-1">
                           <p className="font-medium">
-                            {payment.method === 'CASH_ARS' && 'Efectivo ARS'}
-                            {payment.method === 'CASH_USD' && 'Efectivo USD'}
-                            {payment.method === 'CARD' && `Tarjeta ${payment.cardBrand}`}
-                            {payment.method === 'TRANSFER' && 'Transferencia'}
-                            {payment.method === 'QR' && 'QR'}
-                            {payment.method === 'ACCOUNT' && 'Cuenta Corriente'}
+                            {payment.method === "CASH_ARS" && "Efectivo ARS"}
+                            {payment.method === "CASH_USD" && "Efectivo USD"}
+                            {payment.method === "CARD" &&
+                              `Tarjeta ${payment.cardBrand}`}
+                            {payment.method === "TRANSFER" && "Transferencia"}
+                            {payment.method === "QR" && "QR"}
+                            {payment.method === "ACCOUNT" && "Cuenta Corriente"}
                           </p>
-                          {payment.method === 'CASH_USD' && payment.amountUSD ? (
+                          {payment.method === "CASH_USD" &&
+                          payment.amountUSD ? (
                             <div className="text-xs text-muted-foreground">
-                              <p>${payment.amountUSD.toFixed(2)} USD → ${payment.amount.toFixed(2)} ARS</p>
+                              <p>
+                                ${payment.amountUSD.toFixed(2)} USD → $
+                                {payment.amount.toFixed(2)} ARS
+                              </p>
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground">${payment.amount.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              ${payment.amount.toFixed(2)}
+                            </p>
                           )}
                         </div>
                         <button
@@ -879,45 +994,67 @@ export default function POSPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Total pagado:</span>
-                      <span className="font-medium">${totalPaid.toFixed(2)}</span>
+                      <span className="font-medium">
+                        ${totalPaid.toFixed(2)}
+                      </span>
                     </div>
                     {remainingAmount > 0 ? (
                       <div className="flex justify-between text-sm text-red-600">
                         <span>Falta pagar:</span>
-                        <span className="font-medium">${remainingAmount.toFixed(2)}</span>
+                        <span className="font-medium">
+                          ${remainingAmount.toFixed(2)}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Vuelto teórico:</span>
-                        <span className="font-medium">${change.toFixed(2)}</span>
+                        <span className="font-medium">
+                          ${change.toFixed(2)}
+                        </span>
                       </div>
                     )}
 
                     {/* Campo de vuelto entregado (solo si hay pago en efectivo y hay sobrante) */}
-                    {change > 0.01 && payments.some(p => p.method === 'CASH_ARS' || p.method === 'CASH_USD') && (
-                      <div className="pt-2 border-t">
-                        <label className="text-sm font-medium">Vuelto entregado</label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={changeGiven}
-                          onChange={(e) => setChangeGiven(e.target.value)}
-                          placeholder={change.toFixed(2)}
-                          className="text-sm mt-1"
-                        />
-                        {changeGiven && Math.abs(parseNumericInput(changeGiven) - change) > 0.01 && (
-                          <p className="text-xs text-amber-600 mt-1">
-                            Diferencia: ${(parseNumericInput(changeGiven) - change).toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    {change > 0.01 &&
+                      payments.some(
+                        (p) =>
+                          p.method === "CASH_ARS" || p.method === "CASH_USD",
+                      ) && (
+                        <div className="pt-2 border-t">
+                          <label className="text-sm font-medium">
+                            Vuelto entregado
+                          </label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={changeGiven}
+                            onChange={(e) => setChangeGiven(e.target.value)}
+                            placeholder={change.toFixed(2)}
+                            className="text-sm mt-1"
+                          />
+                          {changeGiven &&
+                            Math.abs(parseNumericInput(changeGiven) - change) >
+                              0.01 && (
+                              <p className="text-xs text-amber-600 mt-1">
+                                Diferencia: $
+                                {(
+                                  parseNumericInput(changeGiven) - change
+                                ).toFixed(2)}
+                              </p>
+                            )}
+                        </div>
+                      )}
                   </div>
                 )}
 
                 <Button
                   onClick={handleCheckout}
-                  disabled={cart.length === 0 || payments.length === 0 || totalPaid < total || createSaleMutation.isPending}
+                  disabled={
+                    cart.length === 0 ||
+                    payments.length === 0 ||
+                    totalPaid < total ||
+                    createSaleMutation.isPending
+                  }
                   className="w-full h-12 text-lg"
                 >
                   <DollarSign className="h-5 w-5 mr-2" />
@@ -946,6 +1083,17 @@ export default function POSPage() {
           </div>
         </div>
 
+        <UnknownBarcodeModal
+          isOpen={unknownBarcodeModalOpen}
+          barcode={unknownBarcode}
+          onClose={() => {
+            setUnknownBarcodeModalOpen(false);
+            setUnknownBarcode("");
+          }}
+          onProductCreated={handleProductFromBarcode}
+          onProductAssigned={handleProductFromBarcode}
+        />
+
         {/* Modal de descuentos */}
         {discountModalOpen && discountProductId && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -955,20 +1103,29 @@ export default function POSPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {(() => {
-                  const item = cart.find(i => i.product.id === discountProductId);
+                  const item = cart.find(
+                    (i) => i.product.id === discountProductId,
+                  );
                   if (!item) return null;
 
                   const originalPrice = Number(item.unitPrice);
-                  const finalPrice = discountFinalPrice ? parseNumericInput(discountFinalPrice) : originalPrice;
+                  const finalPrice = discountFinalPrice
+                    ? parseNumericInput(discountFinalPrice)
+                    : originalPrice;
                   const discountAmount = originalPrice - finalPrice;
-                  const discountPercent = ((discountAmount / originalPrice) * 100).toFixed(2);
+                  const discountPercent = (
+                    (discountAmount / originalPrice) *
+                    100
+                  ).toFixed(2);
                   const costPrice = Number(item.product.cost);
                   const isBelowCost = finalPrice < costPrice;
 
                   return (
                     <>
                       <div className="space-y-2">
-                        <p className="text-sm font-medium">Producto: {item.product.name}</p>
+                        <p className="text-sm font-medium">
+                          Producto: {item.product.name}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           Precio original: ${originalPrice.toFixed(2)}
                         </p>
@@ -978,12 +1135,16 @@ export default function POSPage() {
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium">Precio final</label>
+                        <label className="text-sm font-medium">
+                          Precio final
+                        </label>
                         <Input
                           type="number"
                           step="0.01"
                           value={discountFinalPrice}
-                          onChange={(e) => setDiscountFinalPrice(e.target.value)}
+                          onChange={(e) =>
+                            setDiscountFinalPrice(e.target.value)
+                          }
                           placeholder={originalPrice.toFixed(2)}
                           className="mt-1"
                         />
@@ -992,18 +1153,22 @@ export default function POSPage() {
                       {discountFinalPrice && (
                         <div className="bg-slate-50 p-3 rounded-lg space-y-1">
                           <p className="text-sm">
-                            <span className="font-medium">Descuento:</span> ${discountAmount.toFixed(2)} ({discountPercent}%)
+                            <span className="font-medium">Descuento:</span> $
+                            {discountAmount.toFixed(2)} ({discountPercent}%)
                           </p>
                           {isBelowCost && (
                             <p className="text-xs text-red-600 font-medium">
-                              ⚠️ Precio por debajo del costo (${costPrice.toFixed(2)})
+                              ⚠️ Precio por debajo del costo ($
+                              {costPrice.toFixed(2)})
                             </p>
                           )}
                         </div>
                       )}
 
                       <div>
-                        <label className="text-sm font-medium">Motivo del descuento</label>
+                        <label className="text-sm font-medium">
+                          Motivo del descuento
+                        </label>
                         <Select
                           value={discountReason}
                           onValueChange={setDiscountReason}
@@ -1012,9 +1177,13 @@ export default function POSPage() {
                             <SelectValue placeholder="Selecciona un motivo" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Selecciona un motivo</SelectItem>
+                            <SelectItem value="">
+                              Selecciona un motivo
+                            </SelectItem>
                             <SelectItem value="Promoción">Promoción</SelectItem>
-                            <SelectItem value="Daño menor">Daño menor</SelectItem>
+                            <SelectItem value="Daño menor">
+                              Daño menor
+                            </SelectItem>
                             <SelectItem value="Otro">Otro</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1043,7 +1212,11 @@ export default function POSPage() {
                               toast.error("Selecciona un motivo");
                               return;
                             }
-                            applyDiscount(discountProductId, parseNumericInput(discountFinalPrice), discountReason);
+                            applyDiscount(
+                              discountProductId,
+                              parseNumericInput(discountFinalPrice),
+                              discountReason,
+                            );
                             toast.success("Descuento aplicado");
                           }}
                           className="flex-1"
@@ -1069,39 +1242,60 @@ export default function POSPage() {
               <CardContent className="space-y-4">
                 <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
                   <p className="text-sm text-amber-800">
-                    <span className="font-medium">⚠️ Requiere aprobación:</span> Este descuento necesita ser aprobado por un usuario con permisos.
+                    <span className="font-medium">⚠️ Requiere aprobación:</span>{" "}
+                    Este descuento necesita ser aprobado por un usuario con
+                    permisos.
                   </p>
                 </div>
 
                 {(() => {
-                  const item = cart.find(i => i.product.id === discountProductId);
+                  const item = cart.find(
+                    (i) => i.product.id === discountProductId,
+                  );
                   if (!item) return null;
 
                   const originalPrice = Number(item.unitPrice);
-                  const finalPrice = discountFinalPrice ? parseNumericInput(discountFinalPrice) : originalPrice;
+                  const finalPrice = discountFinalPrice
+                    ? parseNumericInput(discountFinalPrice)
+                    : originalPrice;
                   const discountAmount = originalPrice - finalPrice;
-                  const discountPercent = ((discountAmount / originalPrice) * 100).toFixed(2);
+                  const discountPercent = (
+                    (discountAmount / originalPrice) *
+                    100
+                  ).toFixed(2);
 
                   return (
                     <>
                       <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
-                        <p className="text-sm font-medium">Producto: {item.product.name}</p>
-                        <p className="text-sm">
-                          <span className="text-muted-foreground">Precio original:</span> ${originalPrice.toFixed(2)}
+                        <p className="text-sm font-medium">
+                          Producto: {item.product.name}
                         </p>
                         <p className="text-sm">
-                          <span className="text-muted-foreground">Precio final:</span> ${finalPrice.toFixed(2)}
+                          <span className="text-muted-foreground">
+                            Precio original:
+                          </span>{" "}
+                          ${originalPrice.toFixed(2)}
+                        </p>
+                        <p className="text-sm">
+                          <span className="text-muted-foreground">
+                            Precio final:
+                          </span>{" "}
+                          ${finalPrice.toFixed(2)}
                         </p>
                         <p className="text-sm text-green-600 font-medium">
-                          Descuento: ${discountAmount.toFixed(2)} ({discountPercent}%)
+                          Descuento: ${discountAmount.toFixed(2)} (
+                          {discountPercent}%)
                         </p>
                         <p className="text-sm">
-                          <span className="text-muted-foreground">Motivo:</span> {discountReason}
+                          <span className="text-muted-foreground">Motivo:</span>{" "}
+                          {discountReason}
                         </p>
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium">Contraseña del aprobador</label>
+                        <label className="text-sm font-medium">
+                          Contraseña del aprobador
+                        </label>
                         <Input
                           type="password"
                           value={approverPassword}
@@ -1110,7 +1304,8 @@ export default function POSPage() {
                           className="mt-1"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          El gerente/dueño debe ingresar su contraseña para aprobar este descuento.
+                          El gerente/dueño debe ingresar su contraseña para
+                          aprobar este descuento.
                         </p>
                       </div>
 
@@ -1127,10 +1322,14 @@ export default function POSPage() {
                         </Button>
                         <Button
                           onClick={requestDiscountApproval}
-                          disabled={discountApprovalLoading || !approverPassword}
+                          disabled={
+                            discountApprovalLoading || !approverPassword
+                          }
                           className="flex-1"
                         >
-                          {discountApprovalLoading ? "Enviando..." : "Solicitar Aprobación"}
+                          {discountApprovalLoading
+                            ? "Enviando..."
+                            : "Solicitar Aprobación"}
                         </Button>
                       </div>
                     </>
