@@ -26,6 +26,59 @@ import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import ReturnModal from "@/components/inventory/return-modal";
 import { todayLocal, monthsAgoLocal, rangeForLocalDays, formatDate } from "@/lib/timezone";
 
+interface InventoryProduct {
+  id: string;
+  internalSku: string;
+  name: string;
+  unit: string;
+  stockQuantity: number;
+  minStock?: number;
+  category?: { name: string };
+}
+
+interface StockAlert {
+  id: string;
+  name: string;
+  internalSku: string;
+  unit: string;
+  stockQuantity: number;
+  minStock?: number;
+  alertLevel: string;
+  alertMessage: string;
+}
+
+interface StockAlertsResponse {
+  items: StockAlert[];
+  summary: {
+    critical: number;
+    warning: number;
+    total: number;
+  };
+}
+
+interface InventoryMovement {
+  id: string;
+  type: string;
+  quantity: number;
+  reason?: string;
+  createdAt: string;
+  user?: { name?: string; username?: string };
+  product: { name: string; unit?: string };
+}
+
+interface AdjustmentData {
+  productId: string;
+  quantity: number;
+  reason: string;
+}
+
+interface ReturnData {
+  productId: string;
+  quantity: number;
+  reason: string;
+  saleId?: string;
+}
+
 export default function InventoryPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -54,12 +107,12 @@ export default function InventoryPage() {
     queryKey: ["inventory", "products"],
     queryFn: async () => {
       try {
-        const response = await api.get<any>("/inventory");
-        const productList = Array.isArray(response.data) ? response.data : response.data?.data || [];
-        return productList;
+        const response = await api.get<InventoryProduct[] | { data: InventoryProduct[] }>("/inventory");
+        const productList = Array.isArray(response.data) ? response.data : (response.data as { data: InventoryProduct[] })?.data || [];
+        return productList as InventoryProduct[];
       } catch (error) {
         console.error("Error cargando productos:", error);
-        return [];
+        return [] as InventoryProduct[];
       }
     },
     enabled: canViewInventory,
@@ -70,12 +123,13 @@ export default function InventoryPage() {
     queryKey: ["inventory", "alerts"],
     queryFn: async () => {
       try {
-        const response = await api.get<any>("/inventory-reports/stock-alerts");
-        const alertsData = response.data?.data || response.data || { items: [], summary: {} };
-        return alertsData;
+        const response = await api.get<StockAlertsResponse | { data: StockAlertsResponse }>("/inventory-reports/stock-alerts");
+        const responseData = response.data as StockAlertsResponse | { data: StockAlertsResponse };
+        const alertsData = (responseData as { data: StockAlertsResponse })?.data || responseData || { items: [], summary: {} };
+        return alertsData as StockAlertsResponse;
       } catch (error) {
         console.error("Error cargando alertas:", error);
-        return { items: [], summary: {} };
+        return { items: [], summary: { critical: 0, warning: 0, total: 0 } } as StockAlertsResponse;
       }
     },
     enabled: canViewInventory,
@@ -86,7 +140,7 @@ export default function InventoryPage() {
     queryKey: ["inventory", "movements", dateFilter],
     queryFn: async () => {
       try {
-        const params: any = { 
+        const params: Record<string, string | number> = { 
           limit: 50, 
           page: 1,
         };
@@ -98,21 +152,21 @@ export default function InventoryPage() {
           params.endDate = utcRange.endDate;
         }
         
-        const response = await api.get<any>("/inventory/movements", {
+        const response = await api.get<InventoryMovement[] | { data: InventoryMovement[] }>("/inventory/movements", {
           params,
         });
-        const movementList = Array.isArray(response.data) ? response.data : response.data?.data || [];
-        return movementList;
+        const movementList = Array.isArray(response.data) ? response.data : (response.data as { data: InventoryMovement[] })?.data || [];
+        return movementList as InventoryMovement[];
       } catch (error) {
         console.error("Error cargando movimientos:", error);
-        return [];
+        return [] as InventoryMovement[];
       }
     },
     enabled: canViewInventory,
   });
 
   const adjustmentMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: AdjustmentData) => {
       const response = await api.post("/inventory/adjustments", data);
       return response.data;
     },
@@ -123,7 +177,7 @@ export default function InventoryPage() {
   });
 
   const returnMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ReturnData) => {
       const response = await api.post("/inventory/returns", data);
       return response.data;
     },
@@ -231,7 +285,7 @@ export default function InventoryPage() {
                 </Card>
 
                 <div className="space-y-2">
-                  {alerts.items.map((alert: any) => (
+                  {alerts.items.map((alert: StockAlert) => (
                     <div
                       key={alert.id}
                       className={`flex justify-between items-center p-4 rounded-lg border ${getAlertColor(
@@ -295,7 +349,7 @@ export default function InventoryPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product: any) => {
+                        {products.map((product: InventoryProduct) => {
                           const stockLevel =
                             product.minStock &&
                             product.stockQuantity < product.minStock
@@ -408,7 +462,7 @@ export default function InventoryPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {movements.map((movement: any) => (
+                        {movements.map((movement: InventoryMovement) => (
                           <TableRow key={movement.id}>
                             <TableCell className="text-sm">
                               {formatDate(movement.createdAt, "dd/MM/yyyy")}

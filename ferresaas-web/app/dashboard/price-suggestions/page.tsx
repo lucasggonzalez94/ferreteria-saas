@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,23 +53,20 @@ interface PriceSuggestion {
 
 export default function PriceSuggestionsPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<PriceSuggestion | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const canApprove = user?.permissions?.includes("pricing:approve");
-  const canView = user?.permissions?.includes("pricing:view_suggestions");
-
-  useEffect(() => {
-    // Requiere al menos uno de los dos permisos
-    if (!canApprove && !canView) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canApprove, canView, router]);
+  usePermissionGuard("pricing:view_suggestions");
+  const {
+    canApprove,
+    canView,
+  } = usePermissions({
+    canApprove: "pricing:approve",
+    canView: "pricing:view_suggestions",
+  });
 
   const { data: suggestions = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["price-suggestions", "PENDING"],

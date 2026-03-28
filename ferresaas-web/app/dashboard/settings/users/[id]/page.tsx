@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useUsers } from "@/lib/hooks/useUsers";
+import { useUsers, UserListItem } from "@/lib/hooks/useUsers";
 import { useUserRoles } from "@/lib/hooks/useUserRoles";
 import { useRoles } from "@/lib/hooks/useRoles";
+import { UserRole } from "@/types/rbac";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { Lock, Mail, User as UserIcon } from "lucide-react";
+
+interface UserDetail extends UserListItem {
+  roleCount: number;
+}
 
 export default function UserDetailPage() {
   const { user: currentUser } = useAuth();
@@ -24,8 +29,8 @@ export default function UserDetailPage() {
   const { getUserRoles, assignRoles } = useUserRoles();
   const { roles, listRoles } = useRoles();
 
-  const [user, setUser] = useState<any>(null);
-  const [userRoles, setUserRoles] = useState<any>(null);
+  const [user, setUser] = useState<UserDetail | null>(null);
+  const [userRoles, setUserRoles] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({ firstName: "", lastName: "" });
@@ -51,7 +56,7 @@ export default function UserDetailPage() {
             firstName: userData.firstName || "",
             lastName: userData.lastName || "",
           });
-          setSelectedRoleIds(userData.roles?.map((r: any) => r.id) || []);
+          setSelectedRoleIds(userData.roles?.map((r: { id: string; name: string }) => r.id) || []);
         }
         const rolesData = await getUserRoles(userId);
         if (rolesData) {
@@ -114,6 +119,7 @@ export default function UserDetailPage() {
   };
 
   const handleToggleStatus = async () => {
+    if (!user) return;
     setIsSaving(true);
     try {
       const newStatus = !user.isActive;

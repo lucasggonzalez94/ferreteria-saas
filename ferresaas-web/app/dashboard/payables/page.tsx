@@ -2,9 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Pagination } from "@/components/ui/pagination";
 
 interface Payable {
   id: string;
@@ -81,14 +82,37 @@ interface Supplier {
   name: string;
 }
 
+interface SuppliersListResponse {
+  data: Supplier[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
+interface PayablesSummary {
+  totalPayable: number;
+  totalPending: number;
+  totalPaid: number;
+  overdue: number;
+}
+
 export default function PayablesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const canViewPayables = user?.permissions?.includes("purchases:read");
-  const canUpdatePayables = user?.permissions?.includes("purchases:update");
+  usePermissionGuard("purchases:read");
+  const {
+    canRead: canViewPayables,
+    canUpdate: canUpdatePayables,
+  } = usePermissions({
+    canRead: "purchases:read",
+    canUpdate: "purchases:update",
+  });
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>("");
@@ -105,35 +129,27 @@ export default function PayablesPage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("TRANSFER");
   const [paymentReference, setPaymentReference] = useState("");
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const urlSupplierId = searchParams.get("supplierId");
 
   useEffect(() => {
-    if (!canViewPayables) {
-      router.push("/dashboard");
-      return;
-    }
     if (urlSupplierId) {
       setSupplierId(urlSupplierId);
     }
-  }, [canViewPayables, router, urlSupplierId]);
+  }, [urlSupplierId]);
 
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const response = await api.get<any>("/suppliers", {
-          params: { limit: 1000 },
-        });
-        setSuppliers(response.data?.data || []);
-      } catch (error) {
-        console.error("Error fetching suppliers:", error);
-      }
-    };
-    if (canViewPayables) {
-      fetchSuppliers();
-    }
-  }, [canViewPayables]);
+  const { data: suppliersData } = useQuery<SuppliersListResponse>({
+    queryKey: ["suppliers-list"],
+    queryFn: async () => {
+      const response = await api.get<SuppliersListResponse>("/suppliers", {
+        params: { limit: 1000 },
+      });
+      return response.data as SuppliersListResponse;
+    },
+    enabled: canViewPayables,
+  });
+
+  const suppliers: Supplier[] = suppliersData?.data || [];
 
   const {
     data: payablesData,
@@ -153,7 +169,7 @@ export default function PayablesPage() {
       maxAmount,
     ],
     queryFn: async () => {
-      const response = await api.get<any>("/payables", {
+      const response = await api.get<PayablesResponse>("/payables", {
         params: {
           page,
           limit: 10,
@@ -169,15 +185,16 @@ export default function PayablesPage() {
       
       // La respuesta del API wrapper tiene estructura: { success: true, data: [...], meta: {...} }
       // Pero response.data ya contiene { data: [...], meta: {...} }
-      const apiData = Array.isArray(response.data) ? response.data : (response.data.data || response.data);
-      const apiMeta = !Array.isArray(response.data) ? response.data.meta : undefined;
+      const responseData = response.data as PayablesResponse | Payable[];
+      const apiData = Array.isArray(responseData) ? responseData : ((responseData as PayablesResponse).data || responseData);
+      const apiMeta = !Array.isArray(responseData) ? (responseData as PayablesResponse).meta : undefined;
       
       // Convertir strings numéricos a números
-      const payables = apiData.map((payable: any) => ({
+      const payables = (apiData as Payable[]).map((payable) => ({
         ...payable,
         amount: Number(payable.amount),
         paidAmount: Number(payable.paidAmount),
-        payments: payable.payments.map((payment: any) => ({
+        payments: payable.payments.map((payment) => ({
           ...payment,
           amount: Number(payment.amount),
           amountUSD: payment.amountUSD ? Number(payment.amountUSD) : null,
@@ -199,8 +216,8 @@ export default function PayablesPage() {
   } = useQuery({
     queryKey: ["payables-summary"],
     queryFn: async () => {
-      const response = await api.get<any>("/payables/summary");
-      return response.data || {};
+      const response = await api.get<PayablesSummary>("/payables/summary");
+      return response.data || {} as PayablesSummary;
     },
     enabled: canViewPayables,
   });
@@ -233,7 +250,7 @@ export default function PayablesPage() {
     totalPages: 1,
     hasMore: false,
   };
-  const summary = summaryData || {};
+  const summary = summaryData || {} as PayablesSummary;
 
   // Obtener nombre del proveedor filtrado
   const supplierName = supplierId
@@ -694,27 +711,13 @@ export default function PayablesPage() {
             </div>
 
             {/* Pagination */}
-            {meta.totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Anterior
-                </Button>
-                <span className="flex items-center px-4">
-                  Página {page} de {meta.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={!meta.hasMore}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={meta.totalPages}
+              hasMore={meta.hasMore}
+              onPageChange={setPage}
+              className="mt-6"
+            />
           </>
         ) : (
           <Card>

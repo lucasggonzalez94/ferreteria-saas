@@ -2,9 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Download, FileText, TrendingDown } from "lucide-react";
@@ -25,28 +24,147 @@ import { SalesReport } from "@/components/reports/sales-report";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+interface ReportMovement {
+  id: string;
+  type: string;
+  quantity: number;
+  reason?: string;
+  createdAt: string;
+  product: { name: string; unit: string };
+}
+
+interface MovementsReport {
+  items: ReportMovement[];
+  totals: Record<string, Record<string, number>>;
+}
+
+interface ReportStockAlert {
+  id: string;
+  name: string;
+  internalSku: string;
+  unit: string;
+  stockQuantity: number;
+  alertLevel: string;
+  alertMessage: string;
+}
+
+interface AlertsReport {
+  items: ReportStockAlert[];
+  summary: {
+    critical: number;
+    warning: number;
+    total: number;
+  };
+}
+
+interface RotationProduct {
+  id: string;
+  internalSku: string;
+  name: string;
+  currentStock: number;
+  rotationSpeed: number;
+  classification: string;
+  stockValue: number;
+}
+
+interface RotationReport {
+  items: RotationProduct[];
+  summary: {
+    fast: number;
+    normal: number;
+    slow: number;
+    totalStockValue: number;
+  };
+}
+
+interface ReturnItem {
+  id: string;
+  quantity: number;
+  returnValue: number;
+  createdAt: string;
+  product: { name: string };
+  customer?: {
+    firstName?: string;
+    lastName?: string;
+    companyName?: string;
+  };
+}
+
+interface ReturnsReport {
+  items: ReturnItem[];
+  summary: {
+    total: number;
+    totalQuantity: number;
+    totalReturnValue: number;
+    averageReturnValue: number;
+  };
+}
+
+interface SalesReportData {
+  period: {
+    start: Date;
+    end: Date;
+  };
+  metrics: {
+    totalRevenue: number;
+    totalSales: number;
+    avgTicket: number;
+    totalItems: number;
+  };
+  comparison?: {
+    period: {
+      start: Date;
+      end: Date;
+    };
+    previousRevenue: number;
+    revenueDelta: number;
+    revenuePercentChange: number;
+    previousSales: number;
+    salesDelta: number;
+    salesPercentChange: number;
+    previousAvgTicket: number;
+    avgTicketDelta: number;
+    avgTicketPercentChange: number;
+    previousItems: number;
+    itemsDelta: number;
+    itemsPercentChange: number;
+  };
+  timeSeries: Array<{
+    date: string;
+    revenue: number;
+    count: number;
+  }>;
+  topProducts: Array<{
+    productId: string;
+    productName: string;
+    totalRevenue: number;
+    totalUnits: number;
+  }>;
+  topCategories: Array<{
+    categoryId: string;
+    categoryName: string;
+    totalRevenue: number;
+    percentage: number;
+  }>;
+  paymentMethods: Record<string, number>;
+}
+
 export default function ReportsPage() {
-  const router = useRouter();
-  const { user } = useAuth();
   const [dateRange, setDateRange] = useState<{ startDate: string; endDate: string }>({ 
     startDate: "", 
     endDate: "" 
   });
 
-  const canViewReports = user?.permissions?.includes("reports:read");
-
-  useEffect(() => {
-    if (!canViewReports) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewReports, router]);
+  usePermissionGuard("reports:read");
+  const { canRead: canViewReports } = usePermissions({
+    canRead: "reports:read",
+  });
 
   // Reporte 1: Movimientos de Inventario
   const { data: movementsReport, isLoading: movementsLoading } = useQuery({
     queryKey: ["reports", "movements", dateRange],
     queryFn: async () => {
-      const response = await api.get<any>("/inventory-reports/movements", {
+      const response = await api.get<MovementsReport>("/inventory-reports/movements", {
         params: {
           startDate: dateRange.startDate || undefined,
           endDate: dateRange.endDate || undefined,
@@ -62,8 +180,8 @@ export default function ReportsPage() {
   const { data: alertsReport, isLoading: alertsLoading } = useQuery({
     queryKey: ["reports", "stock-alerts"],
     queryFn: async () => {
-      const response = await api.get<any>("/inventory-reports/stock-alerts");
-      return response.data || { items: [], summary: {} };
+      const response = await api.get<AlertsReport>("/inventory-reports/stock-alerts");
+      return response.data || { items: [], summary: { critical: 0, warning: 0, total: 0 } };
     },
   });
 
@@ -71,14 +189,14 @@ export default function ReportsPage() {
   const { data: rotationReport, isLoading: rotationLoading } = useQuery({
     queryKey: ["reports", "rotation", dateRange],
     queryFn: async () => {
-      const response = await api.get<any>("/inventory-reports/rotation", {
+      const response = await api.get<RotationReport>("/inventory-reports/rotation", {
         params: {
           startDate: dateRange.startDate || undefined,
           endDate: dateRange.endDate || undefined,
           limit: 50,
         },
       });
-      return response.data || { items: [], summary: {} };
+      return response.data || { items: [], summary: { fast: 0, normal: 0, slow: 0, totalStockValue: 0 } };
     },
     enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
@@ -87,14 +205,14 @@ export default function ReportsPage() {
   const { data: returnsReport, isLoading: returnsLoading } = useQuery({
     queryKey: ["reports", "returns", dateRange],
     queryFn: async () => {
-      const response = await api.get<any>("/inventory-reports/returns", {
+      const response = await api.get<ReturnsReport>("/inventory-reports/returns", {
         params: {
           startDate: dateRange.startDate || undefined,
           endDate: dateRange.endDate || undefined,
           limit: 100,
         },
       });
-      return response.data || { items: [], summary: {} };
+      return response.data || { items: [], summary: { total: 0, totalQuantity: 0, totalReturnValue: 0, averageReturnValue: 0 } };
     },
     enabled: !!dateRange.startDate && !!dateRange.endDate,
   });
@@ -103,7 +221,7 @@ export default function ReportsPage() {
   const { data: salesReport, isLoading: salesLoading } = useQuery({
     queryKey: ["reports", "sales", dateRange],
     queryFn: async () => {
-      const response = await api.get<any>("/sales-reports/summary", {
+      const response = await api.get<SalesReportData>("/sales-reports/summary", {
         params: {
           startDate: dateRange.startDate || undefined,
           endDate: dateRange.endDate || undefined,
@@ -224,7 +342,7 @@ export default function ReportsPage() {
                     {movementsReport.totals && Object.keys(movementsReport.totals).length > 0 && (
                       <div className="space-y-3">
                         {Object.entries(movementsReport.totals).map(
-                          ([type, unitTotals]: [string, any]) => (
+                          ([type, unitTotals]: [string, Record<string, number>]) => (
                             <div
                               key={type}
                               className="p-4 bg-blue-50 rounded-lg border border-blue-200"
@@ -239,7 +357,7 @@ export default function ReportsPage() {
                                   : "Ajustes"}
                               </p>
                               <div className="space-y-1">
-                                {Object.entries(unitTotals).map(([unit, quantity]: [string, any]) => (
+                                {Object.entries(unitTotals).map(([unit, quantity]: [string, number]) => (
                                   <div key={unit} className="flex items-baseline gap-2">
                                     <span className="text-lg font-bold text-blue-900">
                                       {Number(quantity).toFixed(2)}
@@ -272,7 +390,7 @@ export default function ReportsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {movementsReport.items.map((movement: any) => (
+                          {movementsReport.items.map((movement: ReportMovement) => (
                             <TableRow key={movement.id}>
                               <TableCell className="text-sm">
                                 {format(new Date(movement.createdAt), "dd/MM/yyyy", { locale: es })}
@@ -382,7 +500,7 @@ export default function ReportsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      {alertsReport.items.map((alert: any) => (
+                      {alertsReport.items.map((alert: ReportStockAlert) => (
                         <div
                           key={alert.id}
                           className={`flex justify-between items-center p-4 rounded-lg border ${
@@ -508,7 +626,7 @@ export default function ReportsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {rotationReport.items.map((product: any) => (
+                          {rotationReport.items.map((product: RotationProduct) => (
                             <TableRow key={product.id}>
                               <TableCell className="font-medium">
                                 {product.internalSku}
@@ -631,7 +749,7 @@ export default function ReportsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {returnsReport.items.map((returnItem: any) => (
+                          {returnsReport.items.map((returnItem: ReturnItem) => (
                             <TableRow key={returnItem.id}>
                               <TableCell className="text-sm">
                                 {format(new Date(returnItem.createdAt), "dd/MM/yyyy", { locale: es })}

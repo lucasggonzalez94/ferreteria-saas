@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useUsers } from "@/lib/hooks/useUsers";
+import { useUsers, UserListItem } from "@/lib/hooks/useUsers";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { useUserRoles } from "@/lib/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRolesModalOpen, setIsRolesModalOpen] = useState(false);
-  const [selectedUserForRoles, setSelectedUserForRoles] = useState<any>(null);
+  const [selectedUserForRoles, setSelectedUserForRoles] = useState<UserListItem | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     email: "",
@@ -111,9 +111,9 @@ export default function UsersPage() {
     }));
   };
 
-  const handleOpenRolesModal = (userToEdit: any) => {
+  const handleOpenRolesModal = (userToEdit: UserListItem) => {
     setSelectedUserForRoles(userToEdit);
-    setSelectedRoleIds(userToEdit.roles?.map((r: any) => r.id) || []);
+    setSelectedRoleIds(userToEdit.roles?.map((r) => r.id) || []);
     setIsRolesModalOpen(true);
   };
 

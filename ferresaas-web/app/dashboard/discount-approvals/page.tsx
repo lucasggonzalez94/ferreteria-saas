@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +56,6 @@ interface DiscountApproval {
 
 export default function DiscountApprovalsPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -64,14 +63,10 @@ export default function DiscountApprovalsPage() {
   const [approverPassword, setApproverPassword] = useState("");
   const queryClient = useQueryClient();
 
-  const canApproveDiscounts = user?.permissions?.includes("sales:manage");
-
-  useEffect(() => {
-    if (!canApproveDiscounts) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canApproveDiscounts, router]);
+  usePermissionGuard("sales:manage");
+  const { canManage: canApproveDiscounts } = usePermissions({
+    canManage: "sales:manage",
+  });
 
   // Obtener aprobaciones pendientes
   const { data: approvalsData, isLoading, isFetching, refetch } = useQuery({

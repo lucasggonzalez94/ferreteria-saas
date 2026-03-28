@@ -13,7 +13,7 @@ interface UseUsersOptions {
   roleId?: string;
 }
 
-interface UserListItem {
+export interface UserListItem {
   id: string;
   email: string;
   firstName?: string;
