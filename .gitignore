@@ -18,6 +18,7 @@ pnpm-lock.yaml
 .env
 .env.local
 .env.*.local
+skills-lock.json
 
 # Logs
 logs/
@@ -27,6 +28,8 @@ pino-*.log
 # IDE/OS
 .vscode/
 .idea/
+.agents/
+.windsurf/
 *.swp
 *.swo
 *~
