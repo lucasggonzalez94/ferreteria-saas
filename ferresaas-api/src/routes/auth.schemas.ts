@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 // Register
 export const registerSchema = z.object({
-  businessId: z.string().cuid(),
   email: z.string().email(),
   username: z.string().min(3).max(50).optional(),
   password: z.string().min(10),
@@ -46,7 +45,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 // Change password
 export const changePasswordSchema = z.object({
   currentPassword: z.string(),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(10),
 });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

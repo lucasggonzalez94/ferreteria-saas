@@ -83,11 +83,16 @@ async function refreshAccessTokenSilently(): Promise<void> {
   
   isRefreshing = true;
   try {
+    const csrf = getCsrfToken();
+    const hash = getCsrfHash();
+
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        ...(hash ? { "X-CSRF-Hash": hash } : {}),
       },
     });
 
@@ -148,6 +153,11 @@ export function clearTokens(): void {
   accessToken = null;
   csrfToken = null;
   csrfHash = null;
+  tokenExpiresAt = null;
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
 }
 
 // Suscribirse a refresh de token
@@ -179,11 +189,16 @@ class ApiClient {
    */
   private async refreshAccessToken(): Promise<string> {
     try {
+      const csrf = getCsrfToken();
+      const hash = getCsrfHash();
+
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: "POST",
         credentials: "include", // Envía cookie automáticamente
         headers: {
           "Content-Type": "application/json",
+          ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+          ...(hash ? { "X-CSRF-Hash": hash } : {}),
         },
       });
 

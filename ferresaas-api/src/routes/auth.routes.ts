@@ -4,10 +4,12 @@ import { TokenService } from '../services/token.service';
 import { sendSuccess, AppError } from '../utils/response';
 import { authLimiter, resetPasswordLimiter, refreshLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
+import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
 import { env } from '../config/env';
 import { prisma } from '../config/database';
 import { AuditService } from '../services/audit.service';
+import { PERMISSIONS } from '../config/constants';
 import {
   registerSchema,
   loginSchema,
@@ -23,11 +25,19 @@ const authService = new AuthService();
  * POST /auth/register
  * Registrar nuevo usuario
  */
-router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authenticate, requirePermissions(PERMISSIONS.USERS_CREATE), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const authReq = req as AuthRequest;
     const input = registerSchema.parse(req.body);
 
-    const user = await authService.register(input);
+    if (!authReq.businessId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Business context required');
+    }
+
+    const user = await authService.register({
+      ...input,
+      businessId: authReq.businessId,
+    });
 
     sendSuccess(
       res,
@@ -283,9 +293,25 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
       throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
     }
 
+    const tokenHash = TokenService.hashToken(refreshToken);
+
+    const session = await prisma.refreshTokenSession.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!session || session.isRevoked || session.expiresAt < new Date()) {
+      res.clearCookie('refreshToken', { path: '/' });
+      throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
+    }
+
+    if (session.userId !== decoded.userId) {
+      res.clearCookie('refreshToken', { path: '/' });
+      throw new AppError(401, 'INVALID_TOKEN', 'Invalid refresh token session');
+    }
+
     // Obtener usuario de la BD con business
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: session.userId },
       include: {
         business: {
           select: {
@@ -310,47 +336,39 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
     });
 
     if (!user || !user.isActive) {
+      res.clearCookie('refreshToken', { path: '/' });
       throw new AppError(401, 'USER_NOT_FOUND', 'User not found or inactive');
     }
 
-    // Generar nuevos tokens
+    // Generar y rotar tokens
     const newAccessToken = TokenService.generateAccessToken(user.id, user.businessId, user.email);
     const csrfTokenData = TokenService.generateCsrfToken();
+    const newRefreshTokenData = TokenService.generateRefreshToken(
+      user.id,
+      user.businessId,
+      user.email,
+      session.tokenFamily
+    );
 
-    // Actualizar refresh token session
-    const tokenHash = TokenService.hashToken(refreshToken);
-    const session = await prisma.refreshTokenSession.findUnique({
-      where: { tokenHash },
+    await prisma.refreshTokenSession.update({
+      where: { id: session.id },
+      data: {
+        tokenHash: newRefreshTokenData.tokenHash,
+        expiresAt: newRefreshTokenData.expiresAt,
+        lastUsedAt: new Date(),
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      },
     });
 
-    if (session) {
-      const newRefreshTokenData = TokenService.generateRefreshToken(
-        user.id,
-        user.businessId,
-        user.email,
-        session.tokenFamily
-      );
-
-      await prisma.refreshTokenSession.update({
-        where: { id: session.id },
-        data: {
-          tokenHash: newRefreshTokenData.tokenHash,
-          expiresAt: newRefreshTokenData.expiresAt,
-          lastUsedAt: new Date(),
-          ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
-        },
-      });
-
-      // Setear nueva cookie con refresh token rotado
-      res.cookie('refreshToken', newRefreshTokenData.token, {
-        httpOnly: true,
-        secure: env.cookies.secure,
-        sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
-        path: '/',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
-      });
-    }
+    // Setear nueva cookie con refresh token rotado
+    res.cookie('refreshToken', newRefreshTokenData.token, {
+      httpOnly: true,
+      secure: env.cookies.secure,
+      sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+    });
 
     // Construir respuesta con usuario y tokens
     const roles = user.roles.map((ur) => ur.role.name);

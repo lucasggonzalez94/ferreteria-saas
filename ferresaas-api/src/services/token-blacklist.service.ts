@@ -1,6 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import crypto from 'crypto';
 
 export class TokenBlacklistService {
   private static client: RedisClientType | null = null;
@@ -11,6 +12,9 @@ export class TokenBlacklistService {
    */
   static async initialize(): Promise<void> {
     if (!this.isEnabled) {
+      if (env.app.isProduction) {
+        throw new Error('Redis must be enabled in production for secure token revocation');
+      }
       logger.info('Redis disabled, token blacklist will use in-memory storage');
       return;
     }
@@ -21,9 +25,17 @@ export class TokenBlacklistService {
       await this.client.connect();
       logger.info('Redis client connected for token blacklist');
     } catch (error) {
+      if (env.app.isProduction) {
+        throw new Error('Failed to connect to Redis for token blacklist in production');
+      }
       logger.error({ error }, 'Failed to connect to Redis, falling back to in-memory storage');
       this.client = null;
     }
+  }
+
+  private static buildKey(token: string): string {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    return `blacklist:${tokenHash}`;
   }
 
   /**
@@ -33,7 +45,7 @@ export class TokenBlacklistService {
    */
   static async addToBlacklist(token: string, expiresIn: number): Promise<void> {
     try {
-      const key = `blacklist:${token}`;
+      const key = this.buildKey(token);
 
       if (this.client) {
         // Usar Redis
@@ -60,7 +72,7 @@ export class TokenBlacklistService {
    */
   static async isBlacklisted(token: string): Promise<boolean> {
     try {
-      const key = `blacklist:${token}`;
+      const key = this.buildKey(token);
 
       if (this.client) {
         // Usar Redis
@@ -87,8 +99,8 @@ export class TokenBlacklistService {
       }
     } catch (error) {
       logger.error({ error }, 'Failed to check token blacklist');
-      // Si falla la verificación, permitir el token (fail open)
-      return false;
+      // En producción, fallar cerrado para no permitir tokens potencialmente revocados.
+      return env.app.isProduction;
     }
   }
 

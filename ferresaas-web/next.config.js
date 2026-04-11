@@ -38,6 +38,15 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 });
 
 /** @type {import('next').NextConfig} */
+const apiOrigin = (() => {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
+  try {
+    return new URL(rawUrl).origin;
+  } catch {
+    return 'http://localhost:3001';
+  }
+})();
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -52,11 +61,12 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' http://localhost:3001 http://localhost:3000 https:",
+              `connect-src 'self' ${apiOrigin} http://localhost:3000`,
+              "object-src 'none'",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

@@ -3,6 +3,8 @@ import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { PasswordService } from './password.service';
 import { EmailService } from './email.service';
+import { TokenService } from './token.service';
+import crypto from 'crypto';
 
 export class UserService {
   private emailService: EmailService;
@@ -354,12 +356,13 @@ export class UserService {
 
     // Generar token de reset
     const resetToken = this.generateResetToken();
+    const resetTokenHash = TokenService.hashToken(resetToken);
     const resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
     await prisma.user.update({
       where: { id: userId },
       data: {
-        resetToken,
+        resetToken: resetTokenHash,
         resetTokenExpiry,
       },
     });
@@ -400,6 +403,6 @@ export class UserService {
    * Generar token de reset
    */
   private generateResetToken(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    return crypto.randomBytes(32).toString('hex');
   }
 }

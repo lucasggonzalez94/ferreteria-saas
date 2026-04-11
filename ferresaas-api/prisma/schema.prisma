@@ -29,7 +29,6 @@ model Business {
   
   // Configuración facturación
   invoiceProvider     String  @default("mock") // mock, facturante, arca_direct
-  invoiceApiKey       String?
   invoicePointOfSale  Int     @default(1)
   
   // Configuración negocio

@@ -60,6 +60,17 @@ export class AuthService {
 
     // Asignar roles si se especificaron
     if (params.roleIds && params.roleIds.length > 0) {
+      const roles = await prisma.role.findMany({
+        where: {
+          id: { in: params.roleIds },
+          businessId: params.businessId,
+        },
+      });
+
+      if (roles.length !== params.roleIds.length) {
+        throw new AppError(400, 'INVALID_ROLES', 'One or more roles do not belong to this business');
+      }
+
       await prisma.userRole.createMany({
         data: params.roleIds.map((roleId) => ({
           userId: user.id,

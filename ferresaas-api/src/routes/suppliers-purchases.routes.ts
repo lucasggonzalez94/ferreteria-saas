@@ -119,6 +119,12 @@ router.put(
       const authReq = req as AuthRequest;
       const { id } = req.params;
       const data = updateSupplierSchema.parse(req.body);
+      const { paymentTermDays, ...restData } = data;
+
+      const updateData = {
+        ...restData,
+        ...(paymentTermDays !== undefined ? { paymentTermDays: paymentTermDays ?? 0 } : {}),
+      };
 
       const existing = await prisma.supplier.findUnique({ where: { id } });
       if (!existing) {
@@ -130,7 +136,7 @@ router.put(
 
       const updated = await prisma.supplier.update({
         where: { id },
-        data,
+        data: updateData,
       });
 
       await AuditService.logUpdate(

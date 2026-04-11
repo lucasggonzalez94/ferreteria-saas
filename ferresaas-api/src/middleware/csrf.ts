@@ -11,7 +11,7 @@ export const verifyCsrf = (req: Request, res: Response, next: NextFunction): voi
   }
 
   // Rutas públicas que no requieren CSRF (sin token aún)
-  const publicPaths = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'];
+  const publicPaths = ['/auth/login', '/auth/forgot-password', '/auth/reset-password'];
   const isPublicPath = publicPaths.some(path => req.path.includes(path));
 
   if (isPublicPath) {
@@ -32,7 +32,14 @@ export const verifyCsrf = (req: Request, res: Response, next: NextFunction): voi
 
   const providedHash = req.headers['x-csrf-hash'] as string;
 
-  if (!providedHash || providedHash !== expectedHash) {
+  if (!providedHash) {
+    return next(new AppError(403, 'CSRF_TOKEN_INVALID', 'CSRF token is invalid'));
+  }
+
+  const provided = Buffer.from(providedHash, 'hex');
+  const expected = Buffer.from(expectedHash, 'hex');
+
+  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
     return next(new AppError(403, 'CSRF_TOKEN_INVALID', 'CSRF token is invalid'));
   }
 
