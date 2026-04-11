@@ -46,6 +46,7 @@ const apiOrigin = (() => {
     return 'http://localhost:3001';
   }
 })();
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 const nextConfig = {
   reactStrictMode: true,
@@ -61,7 +62,9 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              isDevelopment
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+                : "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
