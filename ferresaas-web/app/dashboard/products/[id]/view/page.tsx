@@ -773,6 +773,7 @@ export default function ProductDetailViewPage() {
                     variant="outline"
                     size="icon"
                     className="h-7 w-7 bg-white dark:bg-slate-800 dark:border-slate-700"
+                    aria-label="Subir imagen del producto"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadImageMutation.isPending}
                   >
@@ -782,6 +783,7 @@ export default function ProductDetailViewPage() {
                     variant="outline"
                     size="icon"
                     className="h-7 w-7 bg-white text-red-600 hover:text-red-700 dark:bg-slate-800 dark:border-slate-700 dark:text-red-300 dark:hover:text-red-200"
+                    aria-label="Eliminar imagen del producto"
                     onClick={() => deleteImageMutation.mutate()}
                     disabled={deleteImageMutation.isPending}
                   >

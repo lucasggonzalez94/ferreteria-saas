@@ -72,7 +72,7 @@ export function ProductSelector({
 
   // Listener global de teclado para capturar escaneos sin foco en el input
   useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       // Ignorar si el usuario está escribiendo en otro input/textarea
       const target = event.target as HTMLElement;
       if (
@@ -126,10 +126,10 @@ export function ProductSelector({
       }
     };
 
-    window.addEventListener("keypress", handleKeyPress);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("keypress", handleKeyPress);
+      window.removeEventListener("keydown", handleKeyDown);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -200,10 +200,11 @@ export function ProductSelector({
       {products && products.length > 0 && (
         <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
           {products.map((product) => (
-            <div
+            <button
               key={product.id}
+              type="button"
               onClick={() => handleSelect(product)}
-              className="p-3 border rounded-lg cursor-pointer transition-colors bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="w-full p-3 border rounded-lg text-left transition-colors bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <div className="flex gap-3 items-center">
                 {showImage && product.imageUrl && (
@@ -236,7 +237,7 @@ export function ProductSelector({
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

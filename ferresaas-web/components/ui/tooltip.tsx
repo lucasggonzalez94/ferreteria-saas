@@ -17,7 +17,7 @@ export function Tooltip({ content, children, placement = "bottom" }: TooltipProp
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-sm transition duration-150 ease-out group-hover:opacity-100 ${positionClasses}`}
+        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-sm transition duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 ${positionClasses}`}
       >
         {content}
       </span>

@@ -308,6 +308,7 @@ export default function PayablesPage() {
                 <Button
                   variant="outline"
                   size="icon"
+                  aria-label="Refrescar cuentas por pagar"
                   onClick={() => {
                     queryClient.invalidateQueries({ queryKey: ["payables"] });
                     queryClient.invalidateQueries({

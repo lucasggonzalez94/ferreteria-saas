@@ -172,6 +172,7 @@ export default function FinancialAccountsPage() {
               <Button
                 variant="outline"
                 size="icon"
+                aria-label="Refrescar cuentas financieras"
                 onClick={() => {
                   queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
                   queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });

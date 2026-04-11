@@ -319,6 +319,7 @@ export default function CashRegisterPage() {
               <Button
                 variant="outline"
                 size="icon"
+                aria-label="Refrescar datos de caja"
                 onClick={() => {
                   queryClient.invalidateQueries({ queryKey: ["cash-register"] });
                   queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });

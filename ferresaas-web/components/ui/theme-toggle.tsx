@@ -16,28 +16,26 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="icon" disabled>
+      <Button variant="outline" size="icon" disabled aria-label="Cargando tema">
         <Sun className="h-5 w-5" />
       </Button>
     );
   }
 
+  const isDark = (resolvedTheme || theme) === "dark";
+  const toggleLabel = isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+
   return (
     <Tooltip
-      content={
-        (resolvedTheme || theme) === "dark"
-          ? "Cambiar a modo claro"
-          : "Cambiar a modo oscuro"
-      }
+      content={toggleLabel}
     >
       <Button
         variant="outline"
         size="icon"
-        onClick={() =>
-          setTheme((resolvedTheme || theme) === "dark" ? "light" : "dark")
-        }
+        aria-label={toggleLabel}
+        onClick={() => setTheme(isDark ? "light" : "dark")}
       >
-        {(resolvedTheme || theme) === "dark" ? (
+        {isDark ? (
           <Sun className="h-5 w-5" />
         ) : (
           <Moon className="h-5 w-5" />

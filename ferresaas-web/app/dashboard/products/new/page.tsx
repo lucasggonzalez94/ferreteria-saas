@@ -721,20 +721,23 @@ export default function NewProductPage() {
                         type="button"
                         variant="destructive"
                         size="icon"
+                        aria-label="Eliminar imagen seleccionada"
                         onClick={handleRemoveImage}
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
-                    <div
+                    <button
+                      type="button"
                       className="w-full border-2 border-dashed border-input rounded-md p-6 text-center cursor-pointer hover:bg-muted transition-colors"
                       onClick={() => fileInputRef.current?.click()}
+                      aria-label="Seleccionar imagen del producto"
                     >
                       <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       <p className="text-sm font-medium">Haz clic para seleccionar una imagen</p>
                       <p className="text-xs text-muted-foreground">PNG, JPG, GIF hasta 5MB</p>
-                    </div>
+                    </button>
                   )}
                   <input
                     ref={fileInputRef}

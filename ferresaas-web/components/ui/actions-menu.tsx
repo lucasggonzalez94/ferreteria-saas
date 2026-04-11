@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MoreVertical } from "lucide-react";
 
@@ -18,6 +18,7 @@ interface ActionsMenuProps {
 export function ActionsMenu({ actions }: ActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: PointerEvent) => {
@@ -43,11 +44,19 @@ export function ActionsMenu({ actions }: ActionsMenuProps) {
           setOpen((prev) => !prev);
         }}
         type="button"
+        aria-label="Abrir menú de acciones"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
       >
         <MoreVertical className="h-4 w-4" />
       </Button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 rounded-md border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-md z-10">
+        <div
+          id={menuId}
+          role="menu"
+          className="absolute right-0 mt-1 w-44 rounded-md border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-md z-10"
+        >
           {actions.map((action, idx) => (
             <button
               key={`${action.label}-${idx}`}
@@ -62,6 +71,7 @@ export function ActionsMenu({ actions }: ActionsMenuProps) {
                 action.onClick();
               }}
               disabled={action.disabled}
+              role="menuitem"
             >
               {action.label}
             </button>

@@ -44,9 +44,12 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
+        <a href="#main-content" className="skip-link">
+          Saltar al contenido principal
+        </a>
         <Providers>
           <AuthProvider>
-            {children}
+            <main id="main-content">{children}</main>
             <Toaster position="top-right" />
           </AuthProvider>
         </Providers>

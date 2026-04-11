@@ -56,4 +56,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  .skip-link {
+    position: absolute;
+    left: 0.5rem;
+    top: -100%;
+    z-index: 100;
+    border-radius: 0.375rem;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding: 0.5rem 0.75rem;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .skip-link:focus {
+    top: 0.5rem;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
 }

@@ -52,7 +52,16 @@ export function useGlobalBarcodeListener() {
       return;
     }
 
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       const now = Date.now();
       const key = event.key;
 
@@ -94,10 +103,10 @@ export function useGlobalBarcodeListener() {
       }
     };
 
-    window.addEventListener('keypress', handleKeyPress);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener('keydown', handleKeyDown);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
