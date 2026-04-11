@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { CommandPalette } from "@/components/ui/command-palette";
+import { COMMAND_ACTIONS, CommandPalette } from "@/components/ui/command-palette";
 import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
 import { BarcodeProvider } from "@/lib/contexts/barcode-context";
 import { useGlobalBarcodeListener } from "@/lib/hooks/useGlobalBarcodeListener";
@@ -57,12 +57,27 @@ export default function DashboardLayout({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && /^[1-8]$/.test(event.key)) {
+        const action = COMMAND_ACTIONS[Number(event.key) - 1];
+        if (!action) return;
+
+        if (action.requiredPermission && !user?.permissions?.includes(action.requiredPermission)) {
+          return;
+        }
+
+        event.preventDefault();
+        if (pathname !== action.href) {
+          router.push(action.href);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [pathname, router, user?.permissions]);
 
   if (isLoading) {
     return (
