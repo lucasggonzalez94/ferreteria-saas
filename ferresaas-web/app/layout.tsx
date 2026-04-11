@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -12,17 +12,28 @@ export const metadata: Metadata = {
   description:
     "Sistema completo de gestión para ferreterías con POS, inventario y facturación",
   manifest: "/manifest.json",
-  themeColor: "#1e40af",
+  icons: {
+    icon: [
+      { url: "/icons/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icons/icon-192x192.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "FerreSaaS",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
+  other: {
+    "mobile-web-app-capable": "yes",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#1e40af",
 };
 
 export default function RootLayout({

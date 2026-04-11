@@ -29,17 +29,26 @@ import {
 
 export default function BusinessSettingsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, business, isLoading: isAuthLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const canUpdateSettings = user?.permissions?.includes("settings:update");
+  const canReadSettings = user?.permissions?.includes("settings:read");
 
   useEffect(() => {
-    if (!canUpdateSettings) {
+    if (!isAuthLoading && !canUpdateSettings) {
       router.push("/dashboard/settings");
       return;
     }
-  }, [canUpdateSettings, router]);
+  }, [canUpdateSettings, isAuthLoading, router]);
+
+  if (isAuthLoading) {
+    return <div className="p-8">Cargando...</div>;
+  }
+
+  if (!canUpdateSettings) {
+    return null;
+  }
 
   // Mock initial data
   const [formData, setFormData] = useState({
@@ -217,18 +226,24 @@ export default function BusinessSettingsPage() {
         </form>
 
         {/* Sección de Zona Horaria */}
-        <TimezoneSection />
+        <TimezoneSection
+          canReadBusiness={Boolean(canReadSettings)}
+          fallbackTimezone={business?.timezone || "America/Buenos_Aires"}
+        />
       </div>
     </div>
   );
 }
 
-function TimezoneSection() {
+function TimezoneSection({
+  canReadBusiness,
+  fallbackTimezone,
+}: {
+  canReadBusiness: boolean;
+  fallbackTimezone: string;
+}) {
   const queryClient = useQueryClient();
-  const { business } = useAuth();
-  const [selectedTimezone, setSelectedTimezone] = useState(
-    business?.timezone || "America/Buenos_Aires"
-  );
+  const [selectedTimezone, setSelectedTimezone] = useState(fallbackTimezone);
 
   // Obtener datos del negocio
   const { data: businessData, isLoading } = useQuery({
@@ -237,14 +252,15 @@ function TimezoneSection() {
       const response = await api.get<any>("/business");
       return response.data;
     },
+    enabled: canReadBusiness,
   });
 
   // Actualizar timezone cuando se cargan los datos
   useEffect(() => {
-    if (businessData?.timezone) {
+    if (canReadBusiness && businessData?.timezone) {
       setSelectedTimezone(businessData.timezone);
     }
-  }, [businessData]);
+  }, [businessData, canReadBusiness]);
 
   // Mutación para actualizar timezone
   const updateTimezoneMutation = useMutation({
@@ -300,16 +316,22 @@ function TimezoneSection() {
           </Select>
           <p className="text-xs text-muted-foreground">
             La zona horaria actual es:{" "}
-            <strong>{businessData?.timezone || "America/Buenos_Aires"}</strong>
+            <strong>{businessData?.timezone || fallbackTimezone}</strong>
           </p>
+          {!canReadBusiness && (
+            <p className="text-xs text-muted-foreground">
+              No tienes permiso de lectura para ver la configuración completa del negocio.
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end">
           <Button
             onClick={handleSaveTimezone}
             disabled={
+              isLoading ||
               updateTimezoneMutation.isPending ||
-              selectedTimezone === businessData?.timezone
+              selectedTimezone === (businessData?.timezone || fallbackTimezone)
             }
           >
             {updateTimezoneMutation.isPending ? (
