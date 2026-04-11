@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { COMMON_TIMEZONES, setBusinessTimezone } from "@/lib/timezone";
@@ -31,6 +32,14 @@ export default function BusinessSettingsPage() {
   const router = useRouter();
   const { user, business, isLoading: isAuthLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "Ferreteria Demo",
+    cuit: "30-12345678-9",
+    email: "contacto@ferreteriademo.com",
+    address: "Av. Corrientes 1234, CABA",
+    phone: "+54 11 1234-5678",
+  });
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const canUpdateSettings = user?.permissions?.includes("settings:update");
   const canReadSettings = user?.permissions?.includes("settings:read");
@@ -42,6 +51,13 @@ export default function BusinessSettingsPage() {
     }
   }, [canUpdateSettings, isAuthLoading, router]);
 
+  useEffect(() => {
+    const savedLogo = localStorage.getItem("businessLogo");
+    if (savedLogo) {
+      setLogoPreview(savedLogo);
+    }
+  }, []);
+
   if (isAuthLoading) {
     return <div className="p-8">Cargando...</div>;
   }
@@ -49,24 +65,6 @@ export default function BusinessSettingsPage() {
   if (!canUpdateSettings) {
     return null;
   }
-
-  // Mock initial data
-  const [formData, setFormData] = useState({
-    name: "Ferretería Demo",
-    cuit: "30-12345678-9",
-    email: "contacto@ferreteriademo.com",
-    address: "Av. Corrientes 1234, CABA",
-    phone: "+54 11 1234-5678",
-  });
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Load saved logo on mount
-    const savedLogo = localStorage.getItem("businessLogo");
-    if (savedLogo) {
-      setLogoPreview(savedLogo);
-    }
-  }, []);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,9 +119,12 @@ export default function BusinessSettingsPage() {
                 <div className="flex items-center gap-4">
                   <div className="relative h-16 w-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50 overflow-hidden">
                     {logoPreview ? (
-                      <img
+                      <Image
                         src={logoPreview}
                         alt="Logo preview"
+                        width={64}
+                        height={64}
+                        unoptimized
                         className="h-full w-full object-contain"
                       />
                     ) : (

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -76,8 +77,9 @@ export default function DashboardPage() {
   const canAccessPurchases = user?.permissions?.includes("purchases:read");
   const canAccessSuppliers = user?.permissions?.includes("purchases:read");
   const canAccessPayables = user?.permissions?.includes("purchases:read");
+  const canAccessFinances = user?.permissions?.includes("financial_accounts:read");
   const canAccessReports = user?.permissions?.includes("reports:read");
-  const canApproveDiscounts = user?.permissions?.includes("sales:manage");
+  const canApproveDiscounts = user?.permissions?.includes("sales:approve_discount");
   const canApprovePrices = user?.permissions?.includes("pricing:approve");
 
   // Obtener conteos de aprobaciones pendientes
@@ -205,7 +207,7 @@ export default function DashboardPage() {
       { id: "customers", label: "Clientes", href: "/dashboard/customers", icon: <Users className="h-6 w-6" />, allowed: !!canViewCustomers },
       { id: "inventory", label: "Inventario", href: "/dashboard/inventory", icon: <TrendingUp className="h-6 w-6" />, allowed: !!canViewInventory },
       { id: "suppliers", label: "Proveedores", href: "/dashboard/suppliers", icon: <Package className="h-6 w-6" />, allowed: !!canAccessSuppliers },
-      { id: "finances", label: "Finanzas", href: "/dashboard/financial-accounts", icon: <Wallet className="h-6 w-6" />, allowed: !!(user?.permissions?.includes("financial_accounts:read")) },
+      { id: "finances", label: "Finanzas", href: "/dashboard/financial-accounts", icon: <Wallet className="h-6 w-6" />, allowed: !!canAccessFinances },
       { id: "purchases", label: "Compras", href: "/dashboard/purchases", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPurchases },
       { id: "payables", label: "Cuentas por Pagar", href: "/dashboard/payables", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessPayables },
       { id: "prices", label: "Aprobación de Precios", href: "/dashboard/price-suggestions", icon: <PieChart className="h-6 w-6" />, allowed: !!canApprovePrices },
@@ -239,6 +241,7 @@ export default function DashboardPage() {
     canAccessPurchases,
     canAccessSuppliers,
     canAccessPayables,
+    canAccessFinances,
     canApprovePrices,
     canApproveDiscounts,
     canAccessReports,
@@ -251,9 +254,12 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             {businessLogo && (
-              <img
+              <Image
                 src={businessLogo}
                 alt="Logo negocio"
+                width={48}
+                height={48}
+                unoptimized
                 className="h-12 w-12 object-contain rounded-md"
               />
             )}

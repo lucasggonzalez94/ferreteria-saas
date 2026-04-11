@@ -63,9 +63,9 @@ export default function DiscountApprovalsPage() {
   const [approverPassword, setApproverPassword] = useState("");
   const queryClient = useQueryClient();
 
-  usePermissionGuard("sales:manage");
+  usePermissionGuard("sales:approve_discount");
   const { canManage: canApproveDiscounts } = usePermissions({
-    canManage: "sales:manage",
+    canManage: "sales:approve_discount",
   });
 
   // Obtener aprobaciones pendientes

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -206,13 +207,16 @@ export function ProductSelector({
             >
               <div className="flex gap-3 items-center">
                 {showImage && product.imageUrl && (
-                  <img
+                  <Image
                     src={
                       product.imageUrl.startsWith("http")
                         ? product.imageUrl
                         : `${API_BASE}${product.imageUrl}`
                     }
                     alt={product.name}
+                    width={64}
+                    height={64}
+                    unoptimized
                     className="w-16 h-16 object-cover rounded-md border border-gray-200 dark:border-slate-700 flex-shrink-0"
                   />
                 )}

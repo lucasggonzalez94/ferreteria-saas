@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useBarcodeModal } from '@/lib/contexts/barcode-context';
 import { useCartPersistence } from '@/lib/hooks/useCartPersistence';
 import { useQuery } from '@tanstack/react-query';
@@ -71,13 +72,16 @@ export function BarcodeProductModal() {
         <div className="space-y-4">
           {product.imageUrl && (
             <div className="flex justify-center">
-              <img
+              <Image
                 src={
                   product.imageUrl.startsWith('http')
                     ? product.imageUrl
                     : `${API_BASE}${product.imageUrl}`
                 }
                 alt={product.name}
+                width={192}
+                height={192}
+                unoptimized
                 className="w-48 h-48 object-cover rounded-lg border border-gray-200"
               />
             </div>

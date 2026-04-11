@@ -563,7 +563,7 @@ export default function NewPurchasePage() {
                         <div className="px-2 py-6 text-center text-sm text-muted-foreground">
                           <PackagePlus className="h-4 w-4 mx-auto mb-2" />
                           <p>No hay productos registrados</p>
-                          <p className="text-xs mt-1">Usa el botón "Nuevo" para crear uno</p>
+                          <p className="text-xs mt-1">Usa el boton &quot;Nuevo&quot; para crear uno</p>
                         </div>
                       )}
                     </SelectContent>

@@ -38,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const hasInitialized = useRef(false);
   const isFetching = useRef(false);
-  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Prevenir ejecuciones múltiples con ref
@@ -57,12 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isFetching.current = false;
     });
 
-    // Limpiar interval al desmontar
-    return () => {
-      if (sessionCheckInterval.current) {
-        clearInterval(sessionCheckInterval.current);
-      }
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Solo ejecutar al montar
 

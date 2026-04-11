@@ -60,5 +60,10 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "next/core-web-vitals"
+    ]
   }
 }

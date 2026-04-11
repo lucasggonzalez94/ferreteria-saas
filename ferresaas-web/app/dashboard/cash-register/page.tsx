@@ -99,7 +99,7 @@ export default function CashRegisterPage() {
       setOpeningAmountUSD(suggestedOpening.suggestedAmountUSD.toString());
       setSuggestedAmountUSD(suggestedOpening.suggestedAmountUSD);
     }
-  }, [suggestedOpening]);
+  }, [suggestedOpening, openingAmount, openingAmountUSD]);
 
   const { data: summary, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery({
     queryKey: ["cash-register", session?.id, "summary"],

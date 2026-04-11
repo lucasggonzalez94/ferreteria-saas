@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import Image from "next/image";
 import type {
   Product,
   PriceHistoryEntry,
@@ -791,13 +792,16 @@ export default function ProductDetailViewPage() {
               <CardContent>
                 {product.imageUrl ? (
                   <div className="flex items-center justify-center">
-                    <img
+                    <Image
                       src={
                         product.imageUrl.startsWith("http")
                           ? product.imageUrl
                           : `${API_BASE}${product.imageUrl}`
                       }
                       alt={product.name}
+                      width={192}
+                      height={192}
+                      unoptimized
                       className="w-48 h-48 object-cover rounded-md border bg-gray-50 dark:bg-slate-900 dark:border-slate-700"
                     />
                   </div>

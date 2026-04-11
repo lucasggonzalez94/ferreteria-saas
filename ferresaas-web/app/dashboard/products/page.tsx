@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { Product } from "@/types";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -254,9 +255,12 @@ export default function ProductsPage() {
                   <div className="flex justify-between items-start gap-3">
                     {product.imageUrl && (
                       <div className="flex-shrink-0">
-                        <img
+                        <Image
                           src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
                           alt={product.name}
+                          width={80}
+                          height={80}
+                          unoptimized
                           className="w-20 h-20 object-cover rounded-md border border-gray-200"
                         />
                       </div>

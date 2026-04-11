@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -644,9 +645,12 @@ export default function EditProductPage({
                   <Label>Imagen del Producto</Label>
                   {imagePreview ? (
                     <div className="w-full max-w-xs flex justify-start gap-2 items-start">
-                      <img
+                      <Image
                         src={imagePreview}
                         alt="Preview"
+                        width={192}
+                        height={192}
+                        unoptimized
                         className="w-48 h-48 object-cover rounded-md border border-input"
                       />
                       <div className="flex gap-2">
