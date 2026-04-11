@@ -11,6 +11,7 @@ import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
 import { BarcodeProvider } from "@/lib/contexts/barcode-context";
 import { useGlobalBarcodeListener } from "@/lib/hooks/useGlobalBarcodeListener";
 import { BarcodeProductModal } from "@/components/barcode/barcode-product-modal";
+import { GlobalUnknownBarcodeModal } from "@/components/barcode/global-unknown-barcode-modal";
 import { LogOut, Settings, User, Wifi, WifiOff } from "lucide-react";
 import Link from "next/link";
 
@@ -96,6 +97,7 @@ export default function DashboardLayout({
         </header>
         <DashboardContent>{children}</DashboardContent>
         <BarcodeProductModal />
+        <GlobalUnknownBarcodeModal />
       </div>
     </BarcodeProvider>
   );

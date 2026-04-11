@@ -27,6 +27,7 @@ logs/
 pino-*.log
 
 # IDE/OS
+.*
 .vscode/
 .idea/
 .agents/

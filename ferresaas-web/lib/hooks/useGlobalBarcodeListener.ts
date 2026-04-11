@@ -10,7 +10,7 @@ import type { Product } from '@/types';
  */
 export function useGlobalBarcodeListener() {
   const pathname = usePathname();
-  const { openModal, setLoading } = useBarcodeModal();
+  const { openModal, openUnknownBarcodeModal, setLoading } = useBarcodeModal();
   const inputBufferRef = useRef<string>('');
   const inputStartTimeRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -32,6 +32,11 @@ export function useGlobalBarcodeListener() {
         
         if (products.length === 1) {
           openModal(products[0]);
+          return;
+        }
+
+        if (products.length === 0) {
+          openUnknownBarcodeModal(barcode);
         }
       } catch (error) {
         console.error('Error searching product:', error);
@@ -39,7 +44,7 @@ export function useGlobalBarcodeListener() {
         setLoading(false);
       }
     },
-    [openModal, setLoading]
+    [openModal, openUnknownBarcodeModal, setLoading]
   );
 
   useEffect(() => {
