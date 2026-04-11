@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
+import { PERMISSIONS } from '../config/constants';
 import {
   createFinancialAccountSchema,
   updateFinancialAccountSchema,
@@ -30,7 +31,7 @@ router.use(authenticate, multiTenant);
  */
 router.get(
   '/',
-  requirePermissions('sales:read'), // Reutilizamos permisos existentes
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -54,7 +55,7 @@ router.get(
  */
 router.get(
   '/summary',
-  requirePermissions('sales:read'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -72,7 +73,7 @@ router.get(
  */
 router.get(
   '/movements',
-  requirePermissions('sales:read'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -106,7 +107,7 @@ router.get(
  */
 router.get(
   '/:id',
-  requirePermissions('sales:read'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -126,7 +127,7 @@ router.get(
  */
 router.post(
   '/',
-  requirePermissions('sales:create'), // Solo usuarios con permisos de ventas pueden crear cuentas
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_CREATE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -151,7 +152,7 @@ router.post(
  */
 router.put(
   '/:id',
-  requirePermissions('financial_accounts:update'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_UPDATE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -182,7 +183,7 @@ router.put(
  */
 router.get(
   '/:accountId/movements',
-  requirePermissions('sales:read'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -215,7 +216,7 @@ router.get(
  */
 router.get(
   '/:accountId/summary',
-  requirePermissions('sales:read'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -246,7 +247,7 @@ router.get(
  */
 router.post(
   '/movements',
-  requirePermissions('cash_register:manage'), // Requiere permisos de gestión de caja
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -271,7 +272,7 @@ router.post(
  */
 router.post(
   '/transfers',
-  requirePermissions('cash_register:manage'),
+  requirePermissions(PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;

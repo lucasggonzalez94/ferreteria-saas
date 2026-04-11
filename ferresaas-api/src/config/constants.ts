@@ -19,17 +19,21 @@ export const PERMISSIONS = {
   // Inventario
   INVENTORY_READ: 'inventory:read',
   INVENTORY_ADJUST: 'inventory:adjust',
+  INVENTORY_RETURN: 'inventory:return',
   INVENTORY_MANAGE: 'inventory:manage',
 
   // Ventas
   SALES_CREATE: 'sales:create',
   SALES_READ: 'sales:read',
+  SALES_APPROVE_DISCOUNT: 'sales:approve_discount',
   SALES_REFUND: 'sales:refund',
   SALES_MANAGE: 'sales:manage',
 
   // Compras
   PURCHASES_CREATE: 'purchases:create',
   PURCHASES_READ: 'purchases:read',
+  PURCHASES_UPDATE: 'purchases:update',
+  PURCHASES_DELETE: 'purchases:delete',
   PURCHASES_MANAGE: 'purchases:manage',
 
   // Caja
@@ -65,6 +69,21 @@ export const PERMISSIONS = {
   ROLES_UPDATE: 'roles:update',
   ROLES_DELETE: 'roles:delete',
   ROLES_MANAGE: 'roles:manage',
+
+  // Pricing
+  PRICING_APPROVE: 'pricing:approve',
+  PRICING_VIEW_SUGGESTIONS: 'pricing:view_suggestions',
+
+  // Cuentas financieras
+  FINANCIAL_ACCOUNTS_CREATE: 'financial_accounts:create',
+  FINANCIAL_ACCOUNTS_READ: 'financial_accounts:read',
+  FINANCIAL_ACCOUNTS_UPDATE: 'financial_accounts:update',
+  FINANCIAL_ACCOUNTS_DELETE: 'financial_accounts:delete',
+  FINANCIAL_ACCOUNTS_MANAGE: 'financial_accounts:manage',
+
+  // Cheques
+  CHECKS_READ: 'checks:read',
+  CHECKS_MANAGE: 'checks:manage',
 
   // Auditoría
   AUDIT_READ: 'audit:read',

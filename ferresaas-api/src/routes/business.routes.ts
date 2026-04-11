@@ -8,6 +8,7 @@ import { prisma } from '../config/database';
 import { z } from 'zod';
 import { AuditService } from '../services/audit.service';
 import { isValidTimezone, COMMON_TIMEZONES } from '../utils/timezone';
+import { PERMISSIONS } from '../config/constants';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ const updateBusinessSchema = z.object({
  */
 router.get(
   '/',
-  requirePermissions('settings:read'),
+  requirePermissions(PERMISSIONS.SETTINGS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -76,7 +77,7 @@ router.get(
  */
 router.patch(
   '/',
-  requirePermissions('settings:update'),
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -124,7 +125,7 @@ router.patch(
  */
 router.patch(
   '/timezone',
-  requirePermissions('settings:update'),
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -171,6 +172,7 @@ router.patch(
  */
 router.get(
   '/timezones',
+  requirePermissions(PERMISSIONS.SETTINGS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       sendSuccess(res, COMMON_TIMEZONES);

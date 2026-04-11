@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ExchangeRateService } from '../services/exchange-rate.service';
 import { sendSuccess, sendError } from '../utils/response';
-import { authenticate, optionalAuth } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
+import { requirePermissions } from '../middleware/rbac';
+import { PERMISSIONS } from '../config/constants';
 import { AuthRequest } from '../types';
 
 const router = Router();
@@ -12,7 +14,12 @@ const exchangeRateService = new ExchangeRateService();
  * GET /exchange-rate/config
  * Obtener configuración de tipo de cambio
  */
-router.get('/config', authenticate, multiTenant, async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/config',
+  authenticate,
+  multiTenant,
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authReq = req as AuthRequest;
     const config = await exchangeRateService.getConfig(authReq.businessId!);
@@ -21,13 +28,19 @@ router.get('/config', authenticate, multiTenant, async (req: Request, res: Respo
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 /**
  * PUT /exchange-rate/config
  * Actualizar configuración de tipo de cambio
  */
-router.put('/config', authenticate, multiTenant, async (req: Request, res: Response, next: NextFunction) => {
+router.put(
+  '/config',
+  authenticate,
+  multiTenant,
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authReq = req as AuthRequest;
     const {
@@ -54,13 +67,24 @@ router.put('/config', authenticate, multiTenant, async (req: Request, res: Respo
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 /**
  * GET /exchange-rate/current
  * Obtener cotización actual según configuración del negocio
  */
-router.get('/current', authenticate, multiTenant, async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/current',
+  authenticate,
+  multiTenant,
+  requirePermissions(
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.PURCHASES_CREATE,
+    PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE,
+    PERMISSIONS.SETTINGS_UPDATE
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authReq = req as AuthRequest;
     const rate = await exchangeRateService.getRate(authReq.businessId!);
@@ -69,13 +93,19 @@ router.get('/current', authenticate, multiTenant, async (req: Request, res: Resp
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 /**
  * GET /exchange-rate/types
  * Obtener todos los tipos de dólar disponibles
  */
-router.get('/types', authenticate, multiTenant, async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/types',
+  authenticate,
+  multiTenant,
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const rates = await exchangeRateService.getAllRates();
 
@@ -83,24 +113,34 @@ router.get('/types', authenticate, multiTenant, async (req: Request, res: Respon
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 /**
  * GET /exchange-rate/usd-ars (DEPRECATED - usar /current)
  * Obtener cotización USD→ARS actual
  */
-router.get('/usd-ars', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/usd-ars',
+  authenticate,
+  multiTenant,
+  requirePermissions(
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.PURCHASES_CREATE,
+    PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE,
+    PERMISSIONS.SETTINGS_UPDATE
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authReq = req as AuthRequest;
-    const businessId = authReq.businessId || 'default';
-
-    const rate = await exchangeRateService.getRate(businessId);
+    const rate = await exchangeRateService.getRate(authReq.businessId!);
 
     sendSuccess(res, rate);
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 /**
  * POST /exchange-rate/convert
@@ -111,6 +151,12 @@ router.post(
   '/convert',
   authenticate,
   multiTenant,
+  requirePermissions(
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.PURCHASES_CREATE,
+    PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE,
+    PERMISSIONS.SETTINGS_UPDATE
+  ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -148,6 +194,12 @@ router.post(
   '/manual-snapshot',
   authenticate,
   multiTenant,
+  requirePermissions(
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.PURCHASES_CREATE,
+    PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE,
+    PERMISSIONS.SETTINGS_UPDATE
+  ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -174,7 +226,17 @@ router.post(
  * GET /exchange-rate/status
  * Obtener estado del sistema de cotizaciones (API disponible, última actualización, etc.)
  */
-router.get('/status', authenticate, multiTenant, async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/status',
+  authenticate,
+  multiTenant,
+  requirePermissions(
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.PURCHASES_CREATE,
+    PERMISSIONS.FINANCIAL_ACCOUNTS_MANAGE,
+    PERMISSIONS.SETTINGS_UPDATE
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authReq = req as AuthRequest;
     const status = await exchangeRateService.getStatus(authReq.businessId!);
@@ -183,6 +245,7 @@ router.get('/status', authenticate, multiTenant, async (req: Request, res: Respo
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 export default router;
