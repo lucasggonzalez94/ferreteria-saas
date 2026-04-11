@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { CommandPalette } from "@/components/ui/command-palette";
 import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
 import { BarcodeProvider } from "@/lib/contexts/barcode-context";
 import { useGlobalBarcodeListener } from "@/lib/hooks/useGlobalBarcodeListener";
 import { BarcodeProductModal } from "@/components/barcode/barcode-product-modal";
 import { GlobalUnknownBarcodeModal } from "@/components/barcode/global-unknown-barcode-modal";
-import { LogOut, Settings, User, Wifi, WifiOff } from "lucide-react";
+import { LogOut, Search, Settings, User, Wifi, WifiOff } from "lucide-react";
 import Link from "next/link";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ export default function DashboardLayout({
   const isOnline = useConnectionStatus();
   const router = useRouter();
   const pathname = usePathname();
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -39,6 +41,28 @@ export default function DashboardLayout({
       router.push(loginUrl);
     }
   }, [isAuthenticated, isLoading, router, pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isEditable =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      if (isEditable) {
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   if (isLoading) {
     return (
@@ -75,6 +99,17 @@ export default function DashboardLayout({
                 </Button>
               </Tooltip>
               <ThemeToggle />
+              <Tooltip content="Navegar rápido (Ctrl/Cmd + K)">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Abrir navegación rápida"
+                  aria-keyshortcuts="Control+K Meta+K"
+                  onClick={() => setIsCommandPaletteOpen(true)}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </Tooltip>
               <Link href="/dashboard/settings">
                 <Tooltip content="Configuración">
                   <Button variant="outline" size="icon" aria-label="Ir a Configuración">
@@ -96,6 +131,11 @@ export default function DashboardLayout({
           </div>
         </header>
         <DashboardContent>{children}</DashboardContent>
+        <CommandPalette
+          permissions={user?.permissions || []}
+          isOpen={isCommandPaletteOpen}
+          onOpenChange={setIsCommandPaletteOpen}
+        />
         <BarcodeProductModal />
         <GlobalUnknownBarcodeModal />
       </div>
