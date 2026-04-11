@@ -26,6 +26,8 @@ import {
   BarChart3,
   Lock,
   GripVertical,
+  ChevronUp,
+  ChevronDown,
   Edit,
   Save,
   X,
@@ -199,6 +201,22 @@ export default function DashboardPage() {
     setDraggingId(null);
   };
 
+  const moveQuickAction = (id: string, direction: "up" | "down") => {
+    if (!isEditingQuickActions) return;
+    setQuickActions((prev) => {
+      const index = prev.findIndex((item) => item.id === id);
+      if (index === -1) return prev;
+
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  };
+
   useEffect(() => {
     const baseActions = [
       { id: "cash", label: "Caja", href: "/dashboard/cash-register", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessCashRegister },
@@ -247,6 +265,28 @@ export default function DashboardPage() {
     canAccessReports,
   ]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        refetchApprovalCounts();
+        refetchDashboardData();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [refetchApprovalCounts, refetchDashboardData]);
+
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
@@ -275,6 +315,8 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="icon"
+                aria-label="Refrescar datos del dashboard"
+                aria-keyshortcuts="R"
                 onClick={() => {
                   refetchApprovalCounts();
                   refetchDashboardData();
@@ -398,8 +440,30 @@ export default function DashboardPage() {
                       className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
                     >
                       {isEditingQuickActions && (
-                        <div className="absolute top-2 right-2 text-muted-foreground z-10">
-                          <GripVertical className="h-4 w-4" />
+                        <div className="absolute top-2 right-2 text-muted-foreground z-10 flex items-center gap-1">
+                          <button
+                            type="button"
+                            className="h-6 w-6 inline-flex items-center justify-center rounded border bg-background hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              moveQuickAction(action.id, "up");
+                            }}
+                            aria-label={`Mover ${action.label} hacia arriba`}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            className="h-6 w-6 inline-flex items-center justify-center rounded border bg-background hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              moveQuickAction(action.id, "down");
+                            }}
+                            aria-label={`Mover ${action.label} hacia abajo`}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                          <GripVertical className="h-4 w-4" aria-hidden="true" />
                         </div>
                       )}
                       {showBadge && !isEditingQuickActions && (

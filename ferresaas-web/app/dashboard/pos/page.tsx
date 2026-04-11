@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -428,8 +428,9 @@ export default function POSPage() {
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const remainingAmount = Math.max(0, total - totalPaid);
+  const change = totalPaid - total;
 
-  const handleCheckout = () => {
+  const handleCheckout = useCallback(() => {
     if (cart.length === 0) {
       toast.error("El carrito está vacío");
       return;
@@ -469,9 +470,65 @@ export default function POSPage() {
       })),
       changeGiven: changeGiven ? parseFloat(changeGiven) : undefined,
     });
-  };
+  }, [
+    cart,
+    payments,
+    totalPaid,
+    total,
+    remainingAmount,
+    change,
+    changeGiven,
+    createSaleMutation,
+    selectedCustomer?.id,
+  ]);
 
-  const change = totalPaid - total;
+  const clearSaleDraft = useCallback(() => {
+    setCart([]);
+    setPayments([]);
+    setPaymentAmount("");
+    setAmountUSD("");
+    setCardBrand("");
+    setFinancialCost("");
+    setPaymentNotes("");
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (event.key === "F2") {
+        event.preventDefault();
+        const productInput = document.querySelector<HTMLInputElement>(
+          '[data-barcode-scanner="true"]',
+        );
+        productInput?.focus();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        handleCheckout();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key === "Backspace") {
+        if (cart.length === 0) return;
+        event.preventDefault();
+        clearSaleDraft();
+        toast.success("Carrito limpiado");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cart.length, clearSaleDraft, handleCheckout]);
 
   return (
     <div className="p-8">
@@ -506,6 +563,9 @@ export default function POSPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Buscar Producto</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Atajos: F2 buscar, Ctrl/Cmd + Enter cobrar, Ctrl/Cmd + Backspace limpiar carrito.
+                </p>
               </CardHeader>
               <CardContent>
                 <ProductSelector
@@ -576,6 +636,7 @@ export default function POSPage() {
                           <Button
                             size="icon"
                             variant="outline"
+                            aria-label={`Disminuir cantidad de ${item.product.name}`}
                             onClick={() =>
                               updateQuantity(
                                 item.product.id,
@@ -639,6 +700,7 @@ export default function POSPage() {
                           <Button
                             size="icon"
                             variant="outline"
+                            aria-label={`Aumentar cantidad de ${item.product.name}`}
                             onClick={() =>
                               updateQuantity(
                                 item.product.id,
@@ -677,6 +739,7 @@ export default function POSPage() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          aria-label={`Eliminar ${item.product.name} del carrito`}
                           onClick={() => removeFromCart(item.product.id)}
                         >
                           <Trash2 className="h-4 w-4 text-red-600" />
@@ -976,7 +1039,9 @@ export default function POSPage() {
                         </div>
                         <button
                           onClick={() => removePayment(index)}
-                          className="text-red-600 hover:text-red-800 ml-2"
+                          className="ml-2 rounded-sm text-red-600 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          type="button"
+                          aria-label="Eliminar pago"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1049,6 +1114,7 @@ export default function POSPage() {
 
                 <Button
                   onClick={handleCheckout}
+                  aria-keyshortcuts="Control+Enter Meta+Enter"
                   disabled={
                     cart.length === 0 ||
                     payments.length === 0 ||
@@ -1064,15 +1130,8 @@ export default function POSPage() {
                 {cart.length > 0 && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setCart([]);
-                      setPayments([]);
-                      setPaymentAmount("");
-                      setAmountUSD("");
-                      setCardBrand("");
-                      setFinancialCost("");
-                      setPaymentNotes("");
-                    }}
+                    onClick={clearSaleDraft}
+                    aria-keyshortcuts="Control+Backspace Meta+Backspace"
                     className="w-full"
                   >
                     Limpiar Carrito
