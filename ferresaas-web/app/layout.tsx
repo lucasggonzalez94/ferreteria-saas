@@ -8,7 +8,7 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ferrehock - Software para Ferreterías",
+  title: "Ferrahock - Software para Ferreterías",
   description:
     "Sistema completo de gestión para ferreterías con POS, inventario y facturación",
   manifest: "/manifest.json",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Ferrehock",
+    title: "Ferrahock",
   },
   other: {
     "mobile-web-app-capable": "yes",

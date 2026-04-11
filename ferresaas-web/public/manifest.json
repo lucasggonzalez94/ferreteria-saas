@@ -1,6 +1,6 @@
 {
-  "name": "Ferrehock - Software para Ferreterías",
-  "short_name": "Ferrehock",
+  "name": "Ferrahock - Software para Ferreterías",
+  "short_name": "Ferrahock",
   "description": "Sistema completo de gestión para ferreterías con POS, inventario y facturación",
   "start_url": "/dashboard",
   "display": "standalone",

@@ -103,7 +103,7 @@ export default function DashboardLayout({
               <Link href="/dashboard" aria-label="Ir al inicio">
                 <Image
                   src="/icons/logo-principal-oscuro.png"
-                  alt="Ferrehock"
+                  alt="Ferrahock"
                   width={198}
                   height={66}
                   className="h-10 w-auto dark:hidden"
@@ -111,7 +111,7 @@ export default function DashboardLayout({
                 />
                 <Image
                   src="/icons/logo-principal-blanco.png"
-                  alt="Ferrehock"
+                  alt="Ferrahock"
                   width={198}
                   height={66}
                   className="hidden h-10 w-auto dark:block"

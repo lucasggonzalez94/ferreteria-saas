@@ -1,6 +1,6 @@
-# Guia de Usuario - Ferrehock
+# Guia de Usuario - Ferrahock
 
-Documento de orientacion para usuarios que van a operar Ferrehock por primera vez.
+Documento de orientacion para usuarios que van a operar Ferrahock por primera vez.
 Su objetivo es que entiendas que hace cada modulo, que permisos necesitas y cual es el flujo recomendado para trabajar sin errores.
 
 ---
@@ -42,9 +42,9 @@ Su objetivo es que entiendas que hace cada modulo, que permisos necesitas y cual
 
 ## 1. Primer acceso y preparacion
 
-### 1.1 Que es Ferrehock
+### 1.1 Que es Ferrahock
 
-Ferrehock es un sistema de gestion para ferreterias con:
+Ferrahock es un sistema de gestion para ferreterias con:
 
 - Ventas por POS.
 - Caja (apertura, movimientos, cierre).

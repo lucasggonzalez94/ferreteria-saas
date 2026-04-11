@@ -55,7 +55,7 @@ export default function LoginPage() {
           <CardTitle className="flex justify-center">
             <Image
               src="/icons/logo-principal-oscuro.png"
-              alt="Ferrehock"
+              alt="Ferrahock"
               width={198}
               height={66}
               className="h-16 w-auto dark:hidden"
@@ -63,7 +63,7 @@ export default function LoginPage() {
             />
             <Image
               src="/icons/logo-principal-blanco.png"
-              alt="Ferrehock"
+              alt="Ferrahock"
               width={198}
               height={66}
               className="hidden h-16 w-auto dark:block"
