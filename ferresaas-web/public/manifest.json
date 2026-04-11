@@ -1,6 +1,6 @@
 {
-  "name": "FerreSaaS - Sistema de Gestión para Ferreterías",
-  "short_name": "FerreSaaS",
+  "name": "Ferrehock - Software para Ferreterías",
+  "short_name": "Ferrehock",
   "description": "Sistema completo de gestión para ferreterías con POS, inventario y facturación",
   "start_url": "/dashboard",
   "display": "standalone",

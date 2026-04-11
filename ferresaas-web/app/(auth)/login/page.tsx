@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +52,23 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
       <Card className="w-full max-w-md border border-border bg-card text-card-foreground shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center text-foreground">
-            FerreSaaS
+          <CardTitle className="flex justify-center">
+            <Image
+              src="/icons/logo-principal-oscuro.png"
+              alt="Ferrehock"
+              width={198}
+              height={66}
+              className="h-16 w-auto dark:hidden"
+              priority
+            />
+            <Image
+              src="/icons/logo-principal-blanco.png"
+              alt="Ferrehock"
+              width={198}
+              height={66}
+              className="hidden h-16 w-auto dark:block"
+              priority
+            />
           </CardTitle>
           <CardDescription className="text-center text-muted-foreground">
             Ingresá tus credenciales para acceder

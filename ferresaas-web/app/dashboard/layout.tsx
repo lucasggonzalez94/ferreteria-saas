@@ -15,6 +15,7 @@ import { BarcodeProductModal } from "@/components/barcode/barcode-product-modal"
 import { GlobalUnknownBarcodeModal } from "@/components/barcode/global-unknown-barcode-modal";
 import { LogOut, Search, Settings, User, Wifi, WifiOff } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   useGlobalBarcodeListener();
@@ -99,7 +100,24 @@ export default function DashboardLayout({
         <header className="sticky top-0 z-50 w-full border-b bg-white dark:bg-slate-950 shadow-sm">
           <div className="flex h-14 items-center justify-between px-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">FerreSaaS</h2>
+              <Link href="/dashboard" aria-label="Ir al inicio">
+                <Image
+                  src="/icons/logo-principal-oscuro.png"
+                  alt="Ferrehock"
+                  width={198}
+                  height={66}
+                  className="h-10 w-auto dark:hidden"
+                  priority
+                />
+                <Image
+                  src="/icons/logo-principal-blanco.png"
+                  alt="Ferrehock"
+                  width={198}
+                  height={66}
+                  className="hidden h-10 w-auto dark:block"
+                  priority
+                />
+              </Link>
             </div>
             <div className="flex items-center gap-2">
               <Tooltip content={isOnline ? "Conectado" : "Sin conexión (offline)"}>
