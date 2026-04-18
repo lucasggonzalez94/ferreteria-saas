@@ -71,9 +71,21 @@
     min-height: 100vh;
     font-family: var(--font-sans), sans-serif;
     background-image:
-      radial-gradient(circle at top left, hsl(var(--brand-accent-soft) / 0.9), transparent 24%),
-      radial-gradient(circle at top right, hsl(var(--primary) / 0.08), transparent 22%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 243, 236, 0.92));
+      radial-gradient(
+        circle at top left,
+        hsl(var(--brand-accent-soft) / 0.9),
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at top right,
+        hsl(var(--primary) / 0.08),
+        transparent 22%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.92),
+        rgba(247, 243, 236, 0.92)
+      );
     background-attachment: fixed;
   }
 
@@ -85,24 +97,45 @@
     z-index: -1;
     opacity: 0.65;
     background-image:
-      linear-gradient(135deg, transparent 0%, hsl(var(--accent) / 0.035) 44%, transparent 100%),
+      linear-gradient(
+        135deg,
+        transparent 0%,
+        hsl(var(--accent) / 0.035) 44%,
+        transparent 100%
+      ),
       linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.22) 1px, transparent 1px);
-    background-size: auto, 24px 24px, 24px 24px;
+    background-size:
+      auto,
+      24px 24px,
+      24px 24px;
     mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 70%);
   }
 
   .dark body {
     background-image:
-      radial-gradient(circle at top left, hsl(var(--accent) / 0.12), transparent 20%),
-      radial-gradient(circle at top right, hsl(var(--primary) / 0.16), transparent 24%),
+      radial-gradient(
+        circle at top left,
+        hsl(var(--accent) / 0.12),
+        transparent 20%
+      ),
+      radial-gradient(
+        circle at top right,
+        hsl(var(--primary) / 0.16),
+        transparent 24%
+      ),
       linear-gradient(180deg, #0b1520, #111f2d);
   }
 
   .dark body::before {
     opacity: 0.4;
     background-image:
-      linear-gradient(135deg, transparent 0%, hsl(var(--accent) / 0.08) 46%, transparent 100%),
+      linear-gradient(
+        135deg,
+        transparent 0%,
+        hsl(var(--accent) / 0.08) 46%,
+        transparent 100%
+      ),
       linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.25) 1px, transparent 1px);
   }
@@ -154,7 +187,11 @@
   }
 
   .app-shell {
-    background: linear-gradient(180deg, hsl(var(--background) / 0.56), transparent 24%);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.56),
+      transparent 24%
+    );
   }
 
   .app-section {
