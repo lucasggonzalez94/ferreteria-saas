@@ -1,991 +1,1225 @@
-# FerreSaaS — Especificación y plan de implementación (Markdown “ejecutable por IA”)
+# Ferrahock - Especificacion funcional y estado real del proyecto
 
-> Stack fijado: **Next.js (App Router) + React + TypeScript + Tailwind + shadcn/ui** (frontend) y **Node.js + Express + TypeScript + Prisma + PostgreSQL** (backend).  
-> Modelo: **SaaS multi-tenant** (varias ferreterías/negocios) con **suscripción mensual**.
-
----
-
-## 0) Principios (NO negociar)
-
-1. **Primero funcional en un negocio real** (ferretería mediana/grande) y luego vendible (SaaS).
-2. **Cero límites artificiales**: sin límite de usuarios, productos, ventas, etc. (solo límites técnicos).
-3. **Auditoría obligatoria**: todo cambio sensible queda registrado (quién/cuándo/antes/después).
-4. **Offline-first**: ventas deben poder ejecutarse con internet inestable, y sincronizar luego.
-5. **Facturación fiscal (ARCA, antes AFIP)**: Facturas **A, B y C**, notas de crédito/débito, devoluciones/cambios.
-6. **Velocidad en mostrador**: UX orientada a teclado/escáner, con flujos cortos.
-7. **No asumir**: cualquier dato no especificado se debe pedir o parametrizar.
+> Documento actualizado a partir de auditoria del codigo real del repositorio el **2026-04-14**.
+> Fuente de verdad principal: **codigo, schema Prisma, rutas reales y pantallas existentes**.
+> Nombre de producto unificado para este documento: **Ferrahock**.
 
 ---
 
-## 1) Glosario
+## 0) Proposito y reglas de lectura
 
-- **Negocio / Tenant**: una ferretería (empresa) dentro del SaaS.
-- **Sucursal**: NO se implementa en MVP. (Dejar preparado para V2).
-- **SKU interno**: identificador interno para productos sin código de barras.
-- **Barcode**: código de barras (EAN/UPC/Code128).
-- **Fraccionable**: producto vendible en fracción (metros, kg, etc.).
-- **Caja**: sesión de caja por usuario/terminal con apertura, movimientos, cierre/arqueo.
-- **Cuenta corriente**: saldo deudor del cliente + pagos parciales.
-- **Comprobante ARCA**: factura/nota con CAE, QR, etc.
+Este documento reemplaza el enfoque anterior de especificacion aspiracional por una **especificacion viva** del producto.
 
----
+Su objetivo es dejar documentado, en un unico lugar:
 
-## 2) Decisiones de producto cerradas
+- que existe realmente hoy en backend, frontend, base de datos y documentacion operativa;
+- que esta implementado de forma parcial o con comportamiento demo/mock;
+- que todavia falta desarrollar para cerrar la vision original del producto;
+- que inconsistencias existen entre codigo, README y documentacion previa.
 
-### 2.1 Módulos incluidos (MVP “vendible”)
+### 0.1 Leyenda de estado
 
-- Usuarios, roles configurables y permisos
-- Negocios (tenants) + configuración fiscal básica
-- Productos (variantes) + categorías + marcas
-- Identificación sin barcode (SKU interno + etiquetas imprimibles)
-- Stock + movimientos + mínimos + alertas
-- Compras (registro + ingreso de stock) + proveedores
-- Ventas (POS) + descuentos + multi-método de pago (incluye USD)
-- Caja: apertura, cierres, arqueo, diferencias
-- Clientes + cuentas corrientes + límites + pagos parciales
-- Devoluciones/cambios + notas (si aplica)
-- Reportes avanzados + dashboard + export (CSV)
-- Auditoría (log de acciones)
-- Offline-first (PWA + cola de ventas + sync)
-- Importación masiva (CSV/Excel)
+- **IMPLEMENTADO**: existe codigo funcional usable.
+- **PARCIAL**: existe, pero con alcance limitado, huecos funcionales o integracion incompleta.
+- **DEMO/MOCK**: existe una simulacion o placeholder, pero no una implementacion de negocio cerrada.
+- **PENDIENTE**: no se encontro implementacion real.
 
-### 2.2 Módulos explícitamente fuera del MVP (V2+)
+### 0.2 Criterio editorial adoptado
 
-- Multi-sucursal
-- App móvil nativa
-- Integraciones contables externas
-- E-commerce / tienda online
-- Gestión de empleados/hora (RRHH)
-- Control de producción (si existiera)
+Cuando hay conflicto entre este documento, README y codigo:
+
+1. prevalece el **codigo real**;
+2. se documenta la brecha contra la documentacion previa;
+3. no se asume funcionalidad que no haya podido validarse en codigo o en artefactos del repo.
 
 ---
 
-## 3) Requisitos no funcionales (NFR)
+## 1) Resumen ejecutivo del estado real
 
-### 3.1 Rendimiento
+Ferrahock es hoy un sistema SaaS multi-tenant para ferreterias con una base funcional avanzada.
 
-- POS: agregar un producto por escaneo en **< 150ms** en modo online.
-- Búsqueda de productos: **< 300ms** para 50k+ SKUs con índices.
-- Carga dashboard: **< 2s** con caché y consultas agregadas.
+### 1.1 Estado general
 
-### 3.2 Confiabilidad
+- **Backend**: avanzado. Hay implementacion real de auth, RBAC, multi-tenant, productos, inventario, proveedores, compras, ventas, caja, cuentas financieras, clientes, cuentas por pagar, reportes, auditoria, tipo de cambio y parte de facturacion.
+- **Frontend**: avanzado pero heterogeneo. Existen pantallas operativas reales para la mayoria de modulos core, aunque hay areas parciales, enlaces rotos y configuraciones demo.
+- **Base de datos**: rica y alineada con el dominio. El schema Prisma contiene entidades para casi todos los modulos principales y varios modulos avanzados.
+- **Testing**: pendiente. No se encontraron tests automatizados reales.
+- **Offline-first**: parcial. Hay PWA, manifest y cache, pero no una cola offline transaccional completa.
+- **Importacion masiva**: pendiente.
+- **Facturacion fiscal real**: parcial. Hay entidad `Invoice`, provider mock funcional y un provider Facturante incompleto; no existe capa productizada completa de ARCA directa.
 
-- Transacciones para: ventas, movimientos de stock, caja, facturación.
-- Idempotencia en sincronización offline (no duplicar ventas).
-- Backups automáticos diarios (DB).
+### 1.2 Estado por area
 
-### 3.3 Seguridad
-
-- Password hashing: **argon2**.
-- Tokens: **JWT access + refresh** con rotación.
-- Protección CSRF si se usan cookies; si no, JWT en headers y refresh seguro.
-- Rate limiting login + reset password.
-- Multi-tenant estricto: _todas_ las queries filtradas por `businessId`.
-
-### 3.4 Observabilidad
-
-- Logging estructurado (pino) con requestId.
-- Métricas básicas (latencia, errores).
-- Alertas (Sentry o similar).
+| Area | Estado | Observaciones |
+|---|---|---|
+| Auth y sesiones | IMPLEMENTADO | JWT, refresh rotation, logout, reset, change password, restore-session |
+| Multi-tenant | IMPLEMENTADO | `businessId` en dominio y filtrado por negocio |
+| RBAC | IMPLEMENTADO | roles, permisos, usuarios y asignacion de roles |
+| Productos | IMPLEMENTADO | CRUD, imagenes, barcode PDF, pricing y analytics basicos |
+| Inventario | IMPLEMENTADO | stock, movimientos, ajustes, low stock, devoluciones |
+| Proveedores | IMPLEMENTADO | CRUD y estadisticas |
+| Compras | IMPLEMENTADO | alta, listado, detalle, stock, costos, pagos iniciales |
+| Cuentas por pagar | IMPLEMENTADO | resumen, pagos, seguimiento por proveedor |
+| Clientes + cuenta corriente | IMPLEMENTADO | CRUD, saldo, pagos, integracion con ventas |
+| POS / Ventas | IMPLEMENTADO | carrito, cobros mixtos, USD, caja, cuenta corriente |
+| Aprobacion de descuentos | IMPLEMENTADO | flujo de solicitud y aprobacion/rechazo |
+| Caja | IMPLEMENTADO | apertura, movimientos, cierre, historial, PDF |
+| Cuentas financieras | IMPLEMENTADO | cuentas, movimientos, transferencias, resumen |
+| Cheques | PARCIAL | seguimiento y ciclo de vida; emision no expuesta como modulo completo |
+| Tipo de cambio | IMPLEMENTADO | config, snapshots, convert, fallback |
+| Facturacion | PARCIAL | invoice en ventas, mock real, Facturante incompleto |
+| Dashboard | IMPLEMENTADO | KPIs, accesos rapidos, badges, conectividad |
+| Reportes | IMPLEMENTADO | ventas e inventario con export PDF |
+| Configuracion negocio | PARCIAL / DEMO | timezone real; datos generales guardados en localStorage y simulacion |
+| Offline / PWA | PARCIAL | cache y manifest sin cola offline de negocio |
+| Importacion CSV/Excel | PENDIENTE | dependencias declaradas sin rutas ni UI operativa |
+| Tests automatizados | PENDIENTE | no hay `*.test` / `*.spec` |
+| CI/CD e IaC | PENDIENTE | no se encontro pipeline ni infraestructura declarativa |
 
 ---
 
-## 4) Arquitectura — Monorepo recomendado
+## 2) Identidad del producto y alcance actual
 
-Estructura:
+### 2.1 Identidad
 
-```
-ferresaas/
-  apps/
-    web/        # Next.js App Router
-    api/        # Express + TS + Prisma
-  packages/
-    shared/     # Tipos compartidos, utils, zod schemas
-    ui/         # (Opcional) wrappers shadcn/ui
+- **Nombre comercial documentado**: Ferrahock.
+- **Tipo de producto**: SaaS multi-tenant para ferreterias.
+- **Modelo actual validado**: 1 negocio por usuario.
+- **Unidad operativa principal**: negocio/tenant; no existe modulo multi-sucursal implementado.
+
+### 2.2 Principios vigentes
+
+Los siguientes principios siguen siendo validos como criterio de producto, aunque algunos esten solo parcialmente implementados:
+
+1. Operacion real de ferreteria primero.
+2. Multi-tenant estricto por `businessId`.
+3. Auditoria de acciones sensibles.
+4. Velocidad operativa en mostrador.
+5. Soporte de ventas y cobros en ARS/USD.
+6. Facturacion fiscal como necesidad de negocio, aunque hoy este cerrada solo parcialmente.
+7. Evitar limites artificiales a usuarios, productos y operaciones.
+
+### 2.3 Alcance real hoy
+
+**Incluido de forma operativa**:
+
+- autenticacion y sesion;
+- usuarios, roles y permisos;
+- dashboard;
+- productos, categorias, marcas, pricing e imagenes;
+- inventario, ajustes, devoluciones y alertas;
+- proveedores;
+- compras y cuentas por pagar;
+- clientes y cuenta corriente;
+- POS / ventas;
+- caja;
+- cuentas financieras y transferencias;
+- tipo de cambio;
+- reportes de ventas e inventario;
+- aprobaciones de descuentos y sugerencias de precio.
+
+**Incluido parcialmente**:
+
+- facturacion;
+- cheques;
+- configuracion integral del negocio;
+- PWA/offline de negocio;
+- branding unificado.
+
+**Pendiente / no encontrado**:
+
+- importacion masiva de datos;
+- flujo completo de devoluciones/cambios comerciales desde ventas;
+- gestion integral de invoices en UI/API;
+- pantalla de configuracion de facturacion;
+- tests automatizados;
+- CI/CD;
+- infraestructura declarativa;
+- multi-sucursal;
+- app movil nativa;
+- ecommerce;
+- integraciones contables externas.
+
+---
+
+## 3) Arquitectura real del repositorio
+
+### 3.1 Estructura real validada
+
+El repo **no** coincide con la arquitectura objetivo previa `apps/web`, `apps/api`, `packages/shared`, `infra/`.
+
+La estructura real actual es:
+
+```txt
+saas-ferreteria/
+  ferresaas-api/
+  ferresaas-web/
   docs/
-  infra/
+  docker-compose.yml
+  docker-compose.local.yml
+  package.json
 ```
 
-### 4.1 Repositorio
+### 3.2 Gestion de workspace
 
-- Preferir **pnpm workspaces**.
-- Node LTS.
-- Typescript strict.
+- Se usa **npm workspaces**, no `pnpm`.
+- Workspaces declarados en raiz:
+  - `ferresaas-api`
+  - `ferresaas-web`
 
----
+### 3.3 Backend real
 
-## 5) Stack y librerías (exacto)
+- Node.js + Express + TypeScript
+- Prisma + PostgreSQL
+- Zod
+- JWT + refresh tokens
+- argon2
+- pino + pino-http
+- helmet + cors + cookie-parser
+- express-rate-limit
+- nodemailer
+- bwip-js + pdfkit
+- Redis opcional
+- Cloudinary para imagenes
 
-### 5.1 Backend (apps/api)
+### 3.4 Frontend real
 
-- Runtime: Node.js
-- Framework: Express
-- Typescript: ts-node-dev o tsx para dev
-- ORM: Prisma
-- DB: PostgreSQL 15+
-- Validation: zod
-- Auth: jsonwebtoken (access/refresh), argon2
-- Email: nodemailer (SMTP) + plantillas (mjml o handlebars)
-- Logging: pino + pino-http
-- Rate limit: express-rate-limit
-- Security headers: helmet
-- CORS: cors
-- File upload (si aplica): multer (solo si se suben assets)
-- Testing: vitest + supertest
-- Lint/format: eslint + prettier
-- Migrations: prisma migrate
+- Next.js 14 App Router
+- TypeScript
+- Tailwind
+- shadcn/ui + Radix
+- TanStack Query
+- Recharts
+- next-pwa
+- Sonner
+- `sessionStorage` y `localStorage` en algunos flujos
 
-**Opcional (recomendado):**
+### 3.5 Infraestructura y despliegue
 
-- Redis (Upstash/Render) para:
-  - rate limit distribuido
-  - sesiones de refresh tokens (lista de revocación)
-  - cola liviana de jobs (si no usas bullmq)
+**Existe**:
 
-### 5.2 Frontend (apps/web)
+- `docker-compose.yml` y `docker-compose.local.yml` para local;
+- `ferresaas-api/Dockerfile` para backend;
+- documentacion de despliegue en `docs/aws-deploy-plan.md`.
 
-- Next.js (App Router) + React + TypeScript
-- Tailwind CSS
-- shadcn/ui
-- Form: react-hook-form + zod resolver
-- Data fetching: TanStack Query (React Query)
-- Table: TanStack Table
-- Charts: Recharts
-- PWA/offline: next-pwa o configuración manual + Workbox
-- State local POS (rápido): Zustand
-- Export CSV: papaparse
-- Notifications: sonner/toast
-- Dates: date-fns
+**No existe**:
 
-### 5.3 Shared (packages/shared)
-
-- Tipos de dominio
-- Zod schemas compartidos (request/response)
-- Constantes (tipos de comprobantes, medios de pago, etc.)
+- `infra/`;
+- Terraform/Helm/Kubernetes;
+- GitHub Actions u otro CI/CD configurado;
+- Dockerfile del frontend;
+- archivos de despliegue tipo `render.yaml`, `vercel.json` o equivalentes.
 
 ---
 
-## 6) Modelo Multi-tenant (SaaS)
+## 4) Requisitos no funcionales: estado real
 
-### 6.1 Regla de oro
+### 4.1 Seguridad
 
-Toda entidad pertenece a un `businessId` excepto tablas globales técnicas.
+**IMPLEMENTADO**:
 
-### 6.2 Identidad
+- hash de password con argon2;
+- JWT access token + refresh token;
+- refresh token rotation;
+- revocacion y blacklist;
+- cookies HttpOnly para refresh;
+- CSRF middleware para rutas mutantes bajo `/v1`;
+- rate limiting;
+- headers de seguridad en API y frontend;
+- control de permisos RBAC;
+- multi-tenant enforcement.
 
-- `User` pertenece a 1 `Business` (por decisión).
-- `Role` y `Permission` configurables por negocio.
-- Roles base sugeridos:
-  - OWNER, ADMIN, CASHIER, STOCKER, MANAGER
+**PARCIAL / a validar mejor**:
 
----
+- politica productiva completa de cookies, dominios y despliegue final;
+- estrategia completa de seguridad de facturacion externa;
+- bateria de tests de seguridad.
 
-## 7) Dominio — Requisitos detallados por módulo + Criterios de aceptación
+### 4.2 Observabilidad
 
-### 7.1 Usuarios / Auth
+**IMPLEMENTADO**:
 
-**Historias**
+- logging estructurado con pino;
+- `requestId` via `pino-http`;
+- manejo centralizado de errores.
 
-1. Como usuario, quiero registrarme en un negocio para ingresar al sistema.
-2. Como admin, quiero invitar usuarios y asignar roles.
-3. Como usuario, quiero recuperar contraseña por email.
-4. Como owner, quiero configurar roles y permisos.
+**PENDIENTE / no validado**:
 
-**Criterios de aceptación**
+- metricas formales;
+- dashboard de monitoreo;
+- Sentry o equivalente efectivamente integrado.
 
-- Login con email o username + password.
-- Password mínima 10 chars, reglas configurables.
-- Reset: token de un solo uso, expira 30 min.
-- Roles: CRUD, asignación a usuarios, permisos por módulo/acción.
-- Auditoría: cada cambio en roles/permisos se registra.
+### 4.3 Rendimiento
 
-**Endpoints**
+El documento previo definia objetivos estrictos de tiempo, pero no se validaron benchmarks automatizados ni tests de performance en este repo.
 
-- POST /auth/register
-- POST /auth/login
-- POST /auth/refresh
-- POST /auth/logout
-- POST /auth/forgot-password
-- POST /auth/reset-password
-- GET /me
+- **Objetivo de producto**: vigente.
+- **Validacion automatizada actual**: pendiente.
 
----
+### 4.4 Confiabilidad
 
-### 7.2 Productos + Variantes + Identificación (incluye sin barcode)
+**IMPLEMENTADO**:
 
-**Decisión de identificación (obligatoria)**
+- uso de transacciones en operaciones criticas segun servicios auditados;
+- idempotencia para confirmacion de ventas;
+- snapshots de tipo de cambio.
 
-- Si el producto tiene barcode de fábrica: guardar `barcode` (string).
-- Si NO tiene: generar `internalSku` auto-incremental con prefijo `FER-` + padding.
-- Permitir imprimir etiqueta con Code128 para `internalSku`.
+**PENDIENTE / fuera del repo**:
 
-**Criterios de aceptación**
-
-- Crear producto con: nombre, categoría, marca, unidad (u/mt/kg/lt), costo, precio, impuesto IVA, barcode opcional.
-- Variantes: permitir “producto padre” + “variantes” (talle/medida/pack).
-- Búsqueda:
-  - Por barcode (match exacto)
-  - Por internalSku (match exacto)
-  - Por nombre (full text)
-- Historial de precios:
-  - Cada cambio de precio crea un registro (antes/después, motivo opcional).
-- Auditoría: alta/edición/baja lógica.
-
-**Endpoints**
-
-- GET /products (filtros: q, categoryId, brandId, active, lowStock)
-- POST /products
-- GET /products/:id
-- PUT /products/:id
-- DELETE /products/:id (soft delete)
-- POST /products/:id/variants
-- PUT /products/:id/price (crea priceHistory)
-
-**Impresión de etiquetas**
-
-- Backend genera PDF (A4 o etiqueta) con barcode Code128:
-  - Lib: bwip-js (barcode) + pdfkit (PDF) o puppeteer (HTML->PDF).
-- Endpoint: GET /products/:id/barcode?format=a4|label
+- politicas reales de backup;
+- pruebas de recuperacion;
+- simulaciones de caidas e integridad offline end-to-end.
 
 ---
 
-### 7.3 Stock (movimientos + mínimos + alertas)
+## 5) Modelo de dominio real (Prisma)
 
-**Reglas**
+### 5.1 Entidades implementadas
 
-- Stock se actualiza SOLO por movimientos:
-  - PURCHASE_RECEIPT, SALE, RETURN, ADJUSTMENT, TRANSFER (V2)
-- No permitir stock negativo (configurable por negocio; default NO).
-- Productos fraccionables:
-  - unidad base decimal (ej: metros con 2 decimales, kg con 3). Guardar como decimal.
+**Tenant / auth / seguridad**:
 
-**Criterios de aceptación**
+- `Business`
+- `User`
+- `Role`
+- `Permission`
+- `UserRole`
+- `RolePermission`
+- `RefreshTokenSession`
 
-- Ver stock actual por producto, con umbral mínimo.
-- Registrar ajuste manual con motivo + aprobación (permiso).
-- Alertas: lista de productos bajo mínimo.
+**Productos / pricing / inventario**:
 
-**Endpoints**
+- `Category`
+- `Brand`
+- `Product`
+- `PriceHistory`
+- `PriceSuggestion`
+- `InventoryMovement`
 
-- GET /inventory
-- POST /inventory/adjustments
-- GET /inventory/movements
-- GET /inventory/low-stock
+**Compras / proveedores / pagos a proveedor**:
 
----
+- `Supplier`
+- `Purchase`
+- `PurchaseItem`
+- `PurchaseAttachment`
+- `SupplierPayable`
+- `SupplierPayment`
+- `CheckRegister`
 
-### 7.4 Proveedores
+**Ventas / caja / clientes**:
 
-**Descripción**
+- `Sale`
+- `SaleItem`
+- `DiscountApproval`
+- `Payment`
+- `CashRegisterSession`
+- `CashMovement`
+- `Customer`
+- `AccountMovement`
 
-Módulo para gestionar proveedores de la ferretería. Permite registrar datos de contacto, condiciones de pago, límites de crédito y consultar estadísticas de compras y cuentas por pagar.
+**Facturacion / auditoria / integracion**:
 
-**Reglas**
+- `Invoice`
+- `ExchangeRateSnapshot`
+- `ExchangeRateConfig`
+- `AuditLog`
+- `IdempotencyKey`
 
-- Nombre obligatorio, resto de campos opcionales
-- Búsqueda por nombre, CUIT o email (case-insensitive)
-- No se puede eliminar proveedor con compras asociadas
-- Campo `paymentTermDays` para cálculo automático de vencimientos
-- Campo `currentBalance` calculado desde cuentas por pagar
-- Auditoría completa en create, update, delete
+**Finanzas**:
 
-**Criterios de aceptación**
+- `FinancialAccount`
+- `FinancialMovement`
 
-- **Creación de proveedor**:
-  - Nombre (obligatorio, 1-200 caracteres)
-  - CUIT (opcional, máx. 20 caracteres)
-  - Email (opcional, validación de formato)
-  - Teléfono (opcional, máx. 50 caracteres)
-  - Dirección (opcional, máx. 500 caracteres)
-  - Condiciones de pago (opcional, texto libre, máx. 100 caracteres)
-  - Plazo de pago en días (opcional, número ≥ 0, 0 = contado)
-  - Límite de crédito (opcional, número positivo)
-  - Estado activo/inactivo
+### 5.2 Decisiones estructurales reales
 
-- **Listado**:
-  - Paginación (10 por página, máx. 100)
-  - Búsqueda por nombre, CUIT o email
-  - Filtro por estado (activo/inactivo)
-  - Muestra cantidad de compras por proveedor
-  - Muestra balance adeudado actual
-  - Ordenado por nombre ascendente
+- El multi-tenant esta modelado con `businessId` en entidades de dominio.
+- `User` pertenece a un solo `Business`.
+- `Product` soporta variantes por self-relation (`parentId`).
+- Se usa `Decimal` para moneda y cantidades fraccionables.
+- `Business` ya contiene configuraciones reales como:
+  - `invoiceProvider`
+  - `invoicePointOfSale`
+  - `allowNegativeStock`
+  - `currency`
+  - `timezone`
 
-- **Detalle del proveedor**:
-  - Estadísticas: total compras, monto total, total adeudado, total pagado, pendiente, última compra
-  - Información de contacto completa
-  - Enlaces a compras y cuentas por pagar filtradas
+### 5.3 Implicancias para la especificacion
 
-- **Edición**:
-  - Todos los campos editables
-  - Auditoría con before/after
-
-- **Eliminación**:
-  - Validación: NO debe tener compras asociadas
-  - Error si tiene compras: "Cannot delete supplier with purchases"
-  - Auditoría completa
-
-**Endpoints**
-
-- GET /suppliers (listar con paginación y búsqueda)
-- POST /suppliers (crear proveedor)
-- GET /suppliers/:id (obtener proveedor con estadísticas)
-- PUT /suppliers/:id (actualizar proveedor)
-- DELETE /suppliers/:id (eliminar proveedor)
+- la capa de datos esta mas avanzada que la documentacion previa;
+- hay soporte real para pricing, cuentas por pagar, cuentas financieras y cheques;
+- existe estructura para features que aun no estan completamente expuestas en UI/API.
 
 ---
 
-### 7.5 Compras
+## 6) Inventario real de endpoints backend
 
-**Descripción**
+### 6.1 Autenticacion
 
-Módulo para registrar compras a proveedores con soporte multi-moneda (ARS/USD). Genera movimientos de stock, actualiza costos promedio, crea cuentas por pagar automáticamente y genera sugerencias de precio cuando el costo cambia significativamente.
+- `POST /v1/auth/register`
+- `POST /v1/auth/login`
+- `POST /v1/auth/refresh`
+- `POST /v1/auth/logout`
+- `POST /v1/auth/forgot-password`
+- `POST /v1/auth/reset-password`
+- `POST /v1/auth/change-password`
+- `PUT /v1/auth/profile`
+- `GET /v1/auth/restore-session`
+- `GET /v1/auth/me`
 
-**Reglas**
+### 6.2 Tipo de cambio
 
-- Soporte para moneda ARS o USD
-- Snapshot de tipo de cambio si es USD
-- Validación de fondos antes de crear compra (excepto CHECK)
-- Cálculo automático de fecha de vencimiento basado en `paymentTermDays` del proveedor
-- Actualización atómica de stock y costos en transacción
-- Generación automática de cuenta por pagar
-- Actualización de balance del proveedor
-- Sugerencias de precio automáticas si costo cambia
+- `GET /v1/exchange-rate/config`
+- `PUT /v1/exchange-rate/config`
+- `GET /v1/exchange-rate/current`
+- `GET /v1/exchange-rate/types`
+- `GET /v1/exchange-rate/usd-ars`
+- `POST /v1/exchange-rate/convert`
+- `POST /v1/exchange-rate/manual-snapshot`
+- `GET /v1/exchange-rate/status`
 
-**Criterios de aceptación**
+### 6.3 Productos, categorias y marcas
 
-- **Creación de compra**:
-  - Proveedor (obligatorio, debe pertenecer al negocio)
-  - Moneda: ARS o USD (por defecto ARS)
-  - Número de factura (opcional)
-  - Fecha de vencimiento (opcional, se calcula automáticamente)
-  - Notas (opcional, máx. 1000 caracteres)
-  - Items (mínimo 1):
-    - Producto (obligatorio, debe existir)
-    - Cantidad (positivo, acepta decimales)
-    - Precio unitario (positivo)
-    - IVA % (0-100, por defecto 21)
-  - Pago inicial (opcional):
-    - Monto pagado (≥ 0)
-    - Método: CASH, TRANSFER, CHECK
-    - Validación de fondos (excepto CHECK)
+- `GET /v1/products`
+- `POST /v1/products`
+- `GET /v1/products/:id`
+- `PUT /v1/products/:id`
+- `PUT /v1/products/:id/price`
+- `DELETE /v1/products/:id`
+- `POST /v1/products/image/:id`
+- `DELETE /v1/products/:id/image`
+- `GET /v1/products/:id/barcode`
+- `GET /v1/products/:id/price-history`
+- `GET /v1/products/:id/sales-summary`
+- `GET /v1/products/:id/stock-movements`
+- `POST /v1/products/calculate-price`
+- `GET /v1/categories`
+- `POST /v1/categories`
+- `PUT /v1/categories/:id`
+- `DELETE /v1/categories/:id`
+- `GET /v1/brands`
+- `POST /v1/brands`
+- `PUT /v1/brands/:id`
+- `DELETE /v1/brands/:id`
 
-- **Cálculos automáticos**:
-  - Subtotal = Σ(cantidad × precio unitario)
-  - IVA = Σ((subtotal × tasa IVA) / 100)
-  - Total = Subtotal + IVA
-  - Saldo pendiente = Total - Monto pagado
+### 6.4 Inventario y reportes de inventario
 
-- **Estados de compra**:
-  - PENDING: amountPaid = 0
-  - PARTIAL: 0 < amountPaid < total
-  - PAID: amountPaid ≥ total
-  - CONFIRMED: estado interno
-  - CANCELLED: compra cancelada
+- `GET /v1/inventory`
+- `POST /v1/inventory/adjustments`
+- `GET /v1/inventory/movements`
+- `GET /v1/inventory/low-stock`
+- `POST /v1/inventory/returns`
+- `GET /v1/inventory-reports/movements`
+- `GET /v1/inventory-reports/stock-alerts`
+- `GET /v1/inventory-reports/rotation`
+- `GET /v1/inventory-reports/returns`
+- `GET /v1/inventory-reports/movements/pdf`
+- `GET /v1/inventory-reports/stock-alerts/pdf`
+- `GET /v1/inventory-reports/rotation/pdf`
+- `GET /v1/inventory-reports/returns/pdf`
 
-- **Side-effects al crear**:
-  - Incrementa stock de productos (movimiento PURCHASE_RECEIPT)
-  - Recalcula costo según método:
-    - `last_cost`: usa precio de compra
-    - `avg_weighted`: calcula promedio ponderado
-  - Genera sugerencias de precio si costo cambia
-  - Crea cuenta por pagar con fecha de vencimiento
-  - Actualiza balance del proveedor
-  - Si hay pago:
-    - Crea registro de pago
-    - Decrementa cuenta financiera (excepto CHECK)
-    - Crea movimiento financiero tipo EXPENSE
-  - Si USD: guarda snapshot de tipo de cambio
-  - Auditoría completa
+### 6.5 Proveedores, compras y cuentas por pagar
 
-- **Listado**:
-  - Paginación (10 por página, máx. 100)
-  - Filtros: proveedor, rango de fechas
-  - Incluye: proveedor, cantidad de items
-  - Ordenado por fecha descendente
+- `GET /v1/suppliers`
+- `POST /v1/suppliers`
+- `GET /v1/suppliers/:id`
+- `PUT /v1/suppliers/:id`
+- `DELETE /v1/suppliers/:id`
+- `GET /v1/purchases`
+- `POST /v1/purchases`
+- `GET /v1/purchases/:id`
+- `GET /v1/payables`
+- `GET /v1/payables/summary`
+- `POST /v1/payables/:payableId/payments`
 
-- **Detalle**:
-  - Información completa del proveedor
-  - Lista de items con productos
-  - Resumen financiero
-  - Estado de pago
+### 6.6 Clientes
 
-**Endpoints**
+- `GET /v1/customers`
+- `POST /v1/customers`
+- `GET /v1/customers/:id`
+- `PUT /v1/customers/:id`
+- `GET /v1/customers/:id/account`
+- `POST /v1/customers/:id/payments`
 
-- GET /purchases (listar con paginación y filtros)
-- POST /purchases (crear compra)
-- GET /purchases/:id (obtener compra completa)
+### 6.7 Ventas, caja y aprobaciones
 
----
+- `GET /v1/sales`
+- `POST /v1/sales`
+- `GET /v1/sales/:id`
+- `POST /v1/sales/:id/confirm`
+- `POST /v1/sales/:id/cancel`
+- `POST /v1/discount-approvals`
+- `GET /v1/discount-approvals`
+- `POST /v1/discount-approvals/:id/approve`
+- `POST /v1/discount-approvals/:id/reject`
+- `GET /v1/approvals/pending-count`
+- `GET /v1/cash-register/suggested-opening`
+- `POST /v1/cash-register/open`
+- `POST /v1/cash-register/move`
+- `POST /v1/cash-register/close`
+- `GET /v1/cash-register/status`
+- `GET /v1/cash-register/history`
+- `GET /v1/cash-register/:sessionId/summary`
+- `GET /v1/cash-register/:sessionId/summary/pdf`
+- `GET /v1/cash-register/:sessionId/audit`
 
-### 7.5 Ventas (POS)
+### 6.8 Finanzas, cheques y pricing
 
-**Flujo POS**
+- `GET /v1/financial-accounts`
+- `GET /v1/financial-accounts/summary`
+- `GET /v1/financial-accounts/movements`
+- `GET /v1/financial-accounts/:id`
+- `POST /v1/financial-accounts`
+- `PUT /v1/financial-accounts/:id`
+- `GET /v1/financial-accounts/:accountId/movements`
+- `GET /v1/financial-accounts/:accountId/summary`
+- `POST /v1/financial-accounts/movements`
+- `POST /v1/financial-accounts/transfers`
+- `GET /v1/checks`
+- `GET /v1/checks/summary`
+- `GET /v1/checks/:id`
+- `POST /v1/checks/:id/clear`
+- `POST /v1/checks/:id/bounce`
+- `POST /v1/checks/:id/cancel`
+- `GET /v1/price-suggestions`
+- `POST /v1/price-suggestions/:id/approve`
+- `POST /v1/price-suggestions/:id/reject`
+- `GET /v1/price-suggestions/history/:productId`
 
-1. Iniciar venta (borrador)
-2. Agregar items (escaneo o búsqueda)
-3. Ajustar cantidades (incluye fracciones)
-4. Descuentos:
-   - por ítem (monto o %)
-   - total (monto o %)
-5. Asociar cliente (opcional)
-6. Seleccionar pagos (múltiples):
-   - Efectivo ARS
-   - Efectivo USD (convierte a ARS con tipo de cambio en tiempo real; guardar cotización usada)
-   - Tarjeta (con costo financiero opcional)
-   - Transferencia
-   - QR
-7. Confirmar venta:
-   - valida stock
-   - genera movimientos
-   - impacta caja
-   - dispara facturación ARCA (sin bloquear UX: async con reintentos)
+### 6.9 Roles, permisos, usuarios y negocio
 
-**Criterios de aceptación**
+- `GET /v1/roles`
+- `POST /v1/roles`
+- `GET /v1/roles/:id`
+- `PUT /v1/roles/:id`
+- `DELETE /v1/roles/:id`
+- `PATCH /v1/roles/:id/permissions`
+- `GET /v1/roles/:id/permissions`
+- `GET /v1/permissions`
+- `GET /v1/permissions/resources`
+- `GET /v1/permissions/resources/:resource/actions`
+- `GET /v1/permissions/:id`
+- `POST /v1/permissions`
+- `PATCH /v1/permissions/:id`
+- `GET /v1/users`
+- `POST /v1/users`
+- `GET /v1/users/:userId`
+- `PUT /v1/users/:userId`
+- `PATCH /v1/users/:userId/status`
+- `POST /v1/users/:userId/reset-password`
+- `GET /v1/users/:userId/roles`
+- `PATCH /v1/users/:userId/roles`
+- `POST /v1/users/:userId/roles`
+- `DELETE /v1/users/:userId/roles/:roleId`
+- `GET /v1/users/roles/:roleId/users`
+- `GET /v1/business`
+- `PATCH /v1/business`
+- `PATCH /v1/business/timezone`
+- `GET /v1/business/timezones`
 
-- Escaneo agrega ítem si existe barcode/internalSku.
-- Si no existe: muestra modal “producto no encontrado” con acción crear rápido.
-- Confirmación de venta es transaccional.
-- Si falla ARCA:
-  - la venta queda “VALIDA sin comprobante” (estado PENDING_INVOICE)
-  - se reintenta y se notifica.
-- Export de tickets/Factura PDF.
+### 6.10 Endpoints faltantes respecto a la vision previa
 
-**Endpoints**
+No se encontraron endpoints reales para:
 
-- POST /sales (crear borrador)
-- POST /sales/:id/items
-- PUT /sales/:id/items/:itemId
-- DELETE /sales/:id/items/:itemId
-- PUT /sales/:id/customer
-- POST /sales/:id/confirm
-- GET /sales
-- GET /sales/:id
-- POST /sales/:id/refund (devolución)
-- POST /sales/:id/exchange (cambio)
-
----
-
-### 7.6 Caja (apertura/cierre/arqueo)
-
-**Descripción**
-
-Módulo de control de efectivo físico y digital durante la jornada. Cada usuario (cajero) abre una sesión de caja al inicio del turno y la cierra al final, registrando todas las transacciones y movimientos manuales.
-
-**Reglas**
-
-- Cada usuario (cajero) abre una caja por turno (una sesión OPEN por usuario a la vez).
-- No se puede confirmar venta si no hay caja abierta (configurable; default SÍ).
-- Cierre diario con arqueo (cálculo de diferencias).
-- Soporte multi-moneda: ARS y USD simultáneamente.
-- Snapshots de tipo de cambio al abrir y cerrar (para auditoría).
-- Ajustes automáticos en cuentas financieras para diferencias detectadas.
-
-**Criterios de aceptación**
-
-- **Apertura**: 
-  - Monto inicial ARS (obligatorio)
-  - Monto inicial USD (opcional)
-  - Sugerencia automática de balance de cuenta CASH
-  - Detección de diferencia vs balance de cuenta
-  - Registro automático de INGRESO/RETIRO si hay diferencia
-  - Snapshot de tipo de cambio
-  
-- **Movimientos de caja**: 
-  - Ventas (automáticas al confirmar venta en POS)
-  - Retiros/ingresos manuales (INCOME/EXPENSE)
-  - Registro en cuentas financieras
-  
-- **Cierre**: 
-  - Resumen por medio de pago (CASH_ARS, CASH_USD, CARD, TRANSFER, QR)
-  - Cálculo de monto esperado (apertura + ventas + movimientos)
-  - Cálculo de diferencia (real - esperado) por moneda
-  - Registro automático de INGRESO/EGRESO para diferencias
-  - Snapshot de tipo de cambio
-  - Notas opcionales para explicar discrepancias
-  
-- **Historial**: 
-  - Listado de todas las sesiones (OPEN y CLOSED)
-  - Detalles de cada sesión
-  - Reporte imprimible
-  
-- **Auditoría total**: 
-  - Todos los cambios registrados con usuario, timestamp, before/after
-  - Snapshots de tipo de cambio para conversiones USD
-
-**Endpoints**
-
-- GET /cash-register/suggested-opening (obtener balance sugerido)
-- POST /cash-register/open (abrir caja)
-- POST /cash-register/move (registrar movimiento manual)
-- POST /cash-register/close (cerrar caja)
-- GET /cash-register/status (obtener sesión abierta)
-- GET /cash-register/history (historial de sesiones)
-- GET /cash-register/:sessionId/summary (resumen de sesión)
+- devolucion monetaria de venta tipo `POST /sales/:id/refund`;
+- cambio tipo `POST /sales/:id/exchange`;
+- CRUD o descarga de invoices;
+- importacion masiva;
+- gestion de attachments de compras;
+- emision explicita de cheque como endpoint dedicado.
 
 ---
 
-### 7.7 Cuentas Financieras (gestión de fondos)
+## 7) Inventario real de pantallas frontend
 
-**Descripción**
+### 7.1 Rutas publicas
 
-Módulo para gestionar todas las cuentas de fondos de la empresa (efectivo, bancos, billeteras virtuales, tarjetas). Independiente de la sesión de caja, se actualiza automáticamente con cada venta y permite transferencias entre cuentas con soporte multi-moneda.
+- `/`
+- `/login`
+- `/forgot-password`
+- `/reset-password`
 
-**Reglas**
+### 7.2 Rutas operativas
 
-- Cuentas por tipo: CASH, BANK, WALLET, CREDIT_CARD
-- Soporte multi-moneda: ARS y USD simultáneamente
-- Una cuenta por defecto por tipo y moneda
-- Validación de fondos antes de EXPENSE o transferencia
-- Conversión automática de moneda en transferencias
-- Snapshots de tipo de cambio para auditoría
-- Balances nunca pueden ser negativos
+- `/dashboard`
+- `/dashboard/pos`
+- `/dashboard/products`
+- `/dashboard/products/new`
+- `/dashboard/products/[id]`
+- `/dashboard/products/[id]/view`
+- `/dashboard/customers`
+- `/dashboard/customers/[id]`
+- `/dashboard/customers/[id]/edit`
+- `/dashboard/inventory`
+- `/dashboard/cash-register`
+- `/dashboard/cash-register/history`
+- `/dashboard/purchases`
+- `/dashboard/purchases/new`
+- `/dashboard/purchases/[id]`
+- `/dashboard/suppliers`
+- `/dashboard/suppliers/[id]`
+- `/dashboard/payables`
+- `/dashboard/reports`
+- `/dashboard/price-suggestions`
+- `/dashboard/discount-approvals`
+- `/dashboard/financial-accounts`
+- `/dashboard/financial-accounts/summary`
+- `/dashboard/financial-accounts/[id]`
+- `/dashboard/financial-accounts/[id]/edit`
+- `/dashboard/settings`
+- `/dashboard/settings/profile`
+- `/dashboard/settings/business`
+- `/dashboard/settings/exchange-rate`
+- `/dashboard/settings/users`
+- `/dashboard/settings/users/[id]`
+- `/dashboard/settings/roles`
+- `/dashboard/settings/roles/[id]`
 
-**Criterios de aceptación**
+### 7.3 Ruta referenciada pero inexistente
 
-- **Creación de cuentas**:
-  - Tipo (CASH, BANK, WALLET, CREDIT_CARD)
-  - Nombre único por negocio
-  - Moneda (ARS o USD)
-  - Descripción opcional
-  - Monto inicial opcional
-  - Marcar como favorita (isDefault)
-  - Datos específicos por tipo (banco, proveedor, etc.)
+- `/dashboard/settings/invoicing`
 
-- **Visualización**:
-  - Listado de cuentas activas
-  - Balance total (convertido a ARS si hay USD)
-  - Resumen por tipo
-  - Detalle de cada cuenta
-  - Movimientos del día
-
-- **Transferencias**:
-  - Entre cuentas del mismo negocio
-  - Validación de fondos
-  - Conversión automática si monedas diferentes
-  - Snapshot de tipo de cambio
-  - Movimientos en ambas cuentas
-
-- **Movimientos manuales**:
-  - INCOME o EXPENSE
-  - Validación de fondos (si EXPENSE)
-  - Actualización de balance
-  - Descripción y auditoría
-
-- **Edición**:
-  - Cambiar nombre, descripción, datos bancarios
-  - Marcar/desmarcar como favorita
-  - Activar/desactivar cuenta
-  - Validación de nombre único
-
-- **Auditoría total**:
-  - Todos los cambios registrados
-  - Snapshots de tipo de cambio para conversiones
-
-**Endpoints**
-
-- GET /financial-accounts (listar cuentas)
-- GET /financial-accounts/summary (resumen de balances)
-- GET /financial-accounts/:id (obtener cuenta)
-- POST /financial-accounts (crear cuenta)
-- PUT /financial-accounts/:id (actualizar cuenta)
-- DELETE /financial-accounts/:id (eliminar cuenta)
-- GET /financial-accounts/:accountId/movements (movimientos de cuenta)
-- GET /financial-accounts/:accountId/summary (resumen de movimientos)
-- POST /financial-accounts/movements (crear movimiento manual)
-- POST /financial-accounts/transfers (crear transferencia)
+Actualmente aparece enlazada en la pantalla de configuracion, pero no existe pagina implementada.
 
 ---
 
-### 7.8 Clientes + Cuenta corriente
+## 8) Especificacion detallada por modulo
 
-**Criterios de aceptación**
+## 8.1 Auth, sesion y perfil
 
-- CRUD clientes (persona/empresa).
-- Cuenta corriente:
-  - saldo
-  - límite
-  - pagos parciales
-- Venta a cuenta corriente:
-  - genera deuda
-  - permite abonos posteriores
+**Estado**: IMPLEMENTADO
 
-**Endpoints**
+### Implementado
 
-- GET/POST/PUT/DELETE /customers
-- GET /customers/:id/account
-- POST /customers/:id/payments
+- login;
+- logout;
+- refresh token;
+- restore-session;
+- forgot/reset password;
+- change password;
+- actualizacion de perfil;
+- proteccion de rutas frontend por middleware y contexto de auth.
+
+### Reglas reales observadas
+
+- la sesion usa JWT de acceso y refresh token con rotacion;
+- el backend aplica CSRF sobre `/v1` para metodos mutantes;
+- el frontend trabaja con cookies y renovacion de sesion;
+- existe pantalla de perfil personal.
+
+### Falta o no se valido
+
+- MFA/2FA;
+- auditoria visible para eventos de sesion en UI;
+- pruebas automatizadas de flujo completo.
+
+## 8.2 Multi-tenant
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- `businessId` en entidades de dominio;
+- middleware de autenticacion y multi-tenant;
+- configuracion por negocio en entidades clave;
+- timezone por negocio.
+
+### Decision funcional vigente
+
+- un usuario pertenece a un solo negocio;
+- no hay selector multi-negocio.
+
+### Pendiente
+
+- multi-sucursal;
+- multi-negocio por usuario;
+- herramientas de administracion cross-tenant.
+
+## 8.3 Usuarios, roles y permisos
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- CRUD de roles;
+- catalogo de permisos;
+- CRUD de usuarios;
+- asignacion y remocion de roles a usuarios;
+- pantallas para usuarios y roles.
+
+### Observaciones
+
+- el sistema ya opera con permisos granulares por recurso/accion;
+- existe mas cobertura funcional que la documentacion previa.
+
+### Pendiente
+
+- matriz de permisos funcional documentada en detalle dentro del producto;
+- tests automatizados de enforcement RBAC.
+
+## 8.4 Negocio y configuracion general
+
+**Estado**: PARCIAL / DEMO
+
+### Implementado
+
+- endpoints backend para leer y actualizar negocio;
+- gestion real de timezone;
+- pantalla de configuracion del negocio;
+- carga de logo local y evento `businessLogoChanged` en frontend.
+
+### Limitaciones reales
+
+- la pantalla `settings/business` inicializa datos hardcodeados;
+- el guardado principal usa `localStorage` y `setTimeout` de simulacion;
+- no representa una persistencia completa de datos maestros del negocio.
+
+### Pendiente
+
+- persistencia real de nombre, CUIT, direccion, email, telefono y logo en backend;
+- configuracion fiscal completa;
+- pantalla de facturacion del negocio.
+
+## 8.5 Productos, categorias, marcas e imagenes
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- CRUD de productos;
+- categorias y marcas;
+- activacion/desactivacion;
+- carga y eliminacion de imagenes;
+- barcode/etiqueta PDF;
+- historial de precios;
+- resumen de ventas y movimientos por producto;
+- vista detalle avanzada en frontend;
+- calculo de precios y configuracion de pricing.
+
+### Reglas reales relevantes
+
+- `internalSku` y `barcode` existen en modelo;
+- variantes modeladas por self-relation;
+- pricing con modos `fixed`, `margin`, `markup`, `suggest`;
+- stock y minimo forman parte del producto.
+
+### Pendiente o no cerrado
+
+- importacion masiva de catalogo;
+- experiencia formal de impresion de lotes de etiquetas;
+- documentacion funcional detallada de variantes en UI.
+
+## 8.6 Pricing y sugerencias de precio
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- sugerencias de precio vinculadas a compras;
+- aprobacion y rechazo;
+- historial por producto;
+- UI especifica para sugerencias de precio.
+
+### Pendiente
+
+- hardening tecnico del modulo;
+- pruebas automatizadas;
+- definicion documental cerrada de politica de pricing por negocio.
+
+## 8.7 Inventario
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- stock actual;
+- movimientos;
+- ajustes manuales;
+- low stock;
+- devoluciones de inventario;
+- reportes y PDF de inventario;
+- UI de ajustes y devoluciones.
+
+### Reglas reales
+
+- inventario se apoya en `InventoryMovement`;
+- hay soporte para cantidades decimales;
+- el flujo esta integrado con compras y ventas.
+
+### Pendiente
+
+- transferencias entre sucursales;
+- politicas mas avanzadas de conteo ciclico;
+- tests de integridad de stock.
+
+## 8.8 Proveedores
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- CRUD de proveedores;
+- estadisticas por proveedor;
+- listados y detalle en frontend.
+
+### Pendiente
+
+- adjuntos operativos del proveedor;
+- workflows avanzados de evaluacion, condiciones y scoring.
+
+## 8.9 Compras
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- listado de compras;
+- alta de compra;
+- detalle de compra;
+- items, impuestos y notas;
+- soporte ARS/USD;
+- fecha de vencimiento;
+- pago inicial;
+- validacion de fondos;
+- actualizacion de stock y costos;
+- generacion de cuentas por pagar;
+- soporte de cheque en backend.
+
+### Limitaciones reales
+
+- no hay edicion ni anulacion de compra desde endpoints auditados;
+- `PurchaseAttachment` existe en schema, pero no hay flujo completo expuesto;
+- en frontend, el fallback manual de tipo de cambio en compra nueva no esta completamente conectado.
+
+## 8.10 Cuentas por pagar
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- listado de pasivos;
+- resumen;
+- pagos a cuentas por pagar;
+- UI con filtros, KPIs y progreso.
+
+### Pendiente
+
+- conciliacion avanzada;
+- aging detallado formal;
+- export especifico del modulo.
+
+## 8.11 Clientes y cuenta corriente
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- CRUD de clientes;
+- soporte persona/empresa;
+- saldo y movimientos;
+- pagos de cuenta corriente;
+- integracion con ventas POS.
+
+### Pendiente
+
+- limites de credito y politicas comerciales visibles y configurables en UI;
+- reportes mas profundos de cobranzas;
+- estados de deuda y alertas automaticas.
+
+## 8.12 POS / ventas
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- pantalla POS operativa;
+- busqueda y escaneo;
+- modal de codigo desconocido;
+- carrito;
+- cantidades;
+- descuentos;
+- cliente opcional;
+- pagos multiples;
+- cuenta corriente;
+- USD con tipo de cambio;
+- validacion de caja abierta;
+- creacion y confirmacion de venta.
+
+### Metodos de pago observados
+
+- `CASH_ARS`
+- `CASH_USD`
+- `CARD`
+- `TRANSFER`
+- `QR`
+- `ACCOUNT`
+
+### Limitaciones reales
+
+- no se encontro endpoint real de refund ni exchange comercial completo;
+- la aprobacion rapida de descuentos pide password en UI, pero el flujo enviado al backend no usa esa password para una aprobacion inline real;
+- no se valido impresion completa de ticket/factura desde UI.
+
+## 8.13 Aprobacion de descuentos
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- solicitud de aprobacion;
+- listado de pendientes;
+- aprobar;
+- rechazar;
+- pantalla dedicada.
+
+### Pendiente
+
+- especificacion documental cerrada del SLA, expiracion y responsables;
+- evidencia de notificaciones en tiempo real.
+
+## 8.14 Caja
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- apertura de caja;
+- monto sugerido;
+- manejo de diferencias;
+- movimientos manuales;
+- cierre;
+- historial;
+- resumen por sesion;
+- PDF;
+- auditoria de sesion.
+
+### Reglas reales
+
+- una sola caja abierta por usuario/sesion;
+- soporte ARS/USD;
+- vinculacion con cuentas financieras.
+
+### Pendiente
+
+- reglas mas avanzadas por terminal o sucursal;
+- automatizacion adicional de arqueo guiado.
+
+## 8.15 Cuentas financieras
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- cuentas por tipo y moneda;
+- resumen de balances;
+- movimientos manuales;
+- transferencias;
+- detalle de cuenta;
+- edicion y favoritos/default;
+- frontend completo para operacion diaria.
+
+### Limitaciones reales
+
+- en detalle de cuenta existe un boton de editar sin accion efectiva detectada;
+- el bloque “Reporte de Cierre de Dia” del resumen financiero funciona como placeholder visual, sin flujo real completo auditado.
+
+## 8.16 Cheques
+
+**Estado**: PARCIAL
+
+### Implementado
+
+- entidad y servicio;
+- listado y resumen;
+- detalle;
+- marcar cobrado, rechazado o cancelado;
+- integracion interna con compras/pagos.
+
+### Pendiente
+
+- modulo completo de emision/alta operativa via endpoint y UI propia;
+- reglas documentadas de cartera, vencimientos y terceros.
+
+## 8.17 Tipo de cambio
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- configuracion por negocio;
+- consulta de USD/ARS;
+- tipos de dolar;
+- conversion;
+- snapshot manual;
+- endpoint de status;
+- UI de configuracion;
+- uso en POS y compras.
+
+### Reglas reales
+
+- cache y fallback;
+- snapshots persistidos;
+- soporte de configuracion manual.
+
+## 8.18 Facturacion
+
+**Estado**: PARCIAL
+
+### Implementado
+
+- entidad `Invoice`;
+- emision disparada desde ventas;
+- provider mock funcional;
+- provider Facturante presente;
+- almacenamiento de datos de comprobante.
+
+### Limitaciones reales
+
+- `FacturanteProvider` no esta cerrado como integracion productiva completa;
+- no hay `InvoiceProvider` plenamente abstraido y productizado como capa documentada estable;
+- no hay endpoints dedicados de invoices;
+- no hay pantalla `/dashboard/settings/invoicing`;
+- no existe implementacion real de `ARCA_DIRECT`.
+
+### Estado funcional recomendado a documentar
+
+- para desarrollo: **mock**;
+- para produccion: **parcial / requiere cierre**.
+
+## 8.19 Dashboard
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- KPIs basicos;
+- accesos rapidos por permiso;
+- badges de pendientes;
+- conectividad online/offline;
+- reordenamiento con `localStorage`;
+- command palette.
+
+### Pendiente
+
+- analytics mas avanzados;
+- personalizacion persistida por usuario en backend.
+
+## 8.20 Reportes
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- resumen de ventas;
+- reportes de inventario;
+- PDFs de reportes;
+- frontend con filtros y graficos.
+
+### Pendiente
+
+- export CSV generalizado;
+- reportes avanzados de margen, top clientes, stock inmovilizado y deudores segun la vision original completa;
+- catalogo completo de KPIs financieros.
+
+## 8.21 PWA, conectividad y offline
+
+**Estado**: PARCIAL
+
+### Implementado
+
+- `next-pwa` configurado;
+- `manifest.json`;
+- cache de assets, algunas GET y paginas dashboard;
+- indicador online/offline en frontend.
+
+### No implementado realmente
+
+- cola offline en IndexedDB;
+- sincronizacion diferida de operaciones;
+- modo offline completo para ventas;
+- reintentos ordenados de operaciones de negocio desde frontend.
+
+### Decision de especificacion
+
+- PWA shell: **implementada**.
+- offline-first transaccional: **pendiente**.
+
+## 8.22 Importacion masiva
+
+**Estado**: PENDIENTE
+
+### Observacion
+
+- hay dependencias declaradas como `csv-parse` y `papaparse`;
+- no se encontraron endpoints, servicios ni UI operativa de importacion;
+- sigue siendo un gap importante frente a la vision original.
+
+## 8.23 Auditoria
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- entidad `AuditLog`;
+- servicio dedicado;
+- uso transversal en modulos sensibles.
+
+### Pendiente
+
+- endpoint/documentacion funcional de consulta de auditoria a nivel producto;
+- pantalla de auditoria en frontend;
+- retencion y export formal.
+
+## 8.24 Email
+
+**Estado**: IMPLEMENTADO
+
+### Implementado
+
+- provider mock;
+- provider SMTP;
+- flujos de welcome/reset/password changed.
+
+### Pendiente
+
+- templates formales productizados;
+- monitoreo de entregabilidad.
 
 ---
 
-### 7.8 Dashboard Principal
+## 9) Diferencias clave frente a la especificacion anterior
 
-**Descripción**
+### 9.1 Arquitectura objetivo vs arquitectura real
 
-El dashboard es la pantalla principal tras iniciar sesión. Proporciona un resumen rápido del estado del negocio con estadísticas clave y accesos rápidos a funcionalidades principales.
+- antes: `apps/api`, `apps/web`, `packages/shared`, `infra/`, preferencia `pnpm`;
+- ahora: `ferresaas-api`, `ferresaas-web`, `docs/`, `npm workspaces`.
 
-**Componentes**
+### 9.2 Documentacion previa subestimaba y sobrestimaba a la vez
 
-1. **Tarjetas de Estadísticas** (hasta 4, según permisos):
-   - **Ventas de Hoy**: Suma de `total` de ventas confirmadas del día actual (requiere `sales:read`)
-   - **Productos**: Conteo de productos activos (requiere `products:read`)
-   - **Clientes**: Conteo de clientes registrados (requiere `customers:read`)
-   - **Stock Bajo**: Conteo de productos donde `stockQuantity < minStock` (requiere `products:read` + `inventory:read`)
+**Subestimaba**:
 
-2. **Accesos Rápidos** (botones dinámicos según permisos):
-   - Caja, POS, Productos, Clientes, Inventario, Proveedores, Finanzas, Compras, Cuentas por Pagar, Aprobación de Precios, Aprobación de Descuentos, Reportes
-   - Cada botón solo aparece si el usuario tiene el permiso correspondiente
-   - Soporta reordenamiento mediante drag-and-drop (persistencia en localStorage)
+- usuarios/roles/permisos;
+- cuentas financieras;
+- cheques;
+- cuentas por pagar;
+- sugerencias de precio;
+- aprobaciones;
+- reportes e inventario mas completos.
 
-3. **Badges de Notificación**:
-   - Aprobación de Descuentos: muestra conteo si hay solicitudes pendientes (requiere `sales:manage`)
-   - Aprobación de Precios: muestra conteo si hay sugerencias pendientes (requiere `pricing:approve`)
+**Sobrestimaba**:
 
-4. **Indicadores**:
-   - Estado de conexión (online/offline)
-   - Botón de refrescar datos manualmente
+- offline-first completo;
+- configuracion integral del negocio;
+- facturacion productiva cerrada;
+- existencia de tests;
+- madurez completa del frontend.
 
-**Criterios de aceptación**
+### 9.3 Branding inconsistente
 
-- Validación de permisos para cada tarjeta y botón
-- Cálculo correcto de "Ventas de Hoy" (solo confirmadas, solo del día actual)
-- Conteos de aprobaciones pendientes actualizados en tiempo real
-- Soporte offline: indicador visual de estado de conexión
-- Persistencia de orden de accesos rápidos en localStorage
-- Logo del negocio mostrado en header (evento `businessLogoChanged`)
-
-**Endpoints consumidos**
-
-- GET /sales (para calcular ventas de hoy)
-- GET /products (para contar productos y stock bajo)
-- GET /customers (para contar clientes)
-- GET /approvals/pending-count (para badges de notificación)
+- este documento unifica el producto como **Ferrahock**;
+- el repo todavia contiene referencias a `FerreSaaS` en raiz, API y parte del codigo/documentacion.
 
 ---
 
-### 7.9 Reportes avanzados
+## 10) Testing, QA y calidad
 
-**KPIs mínimos (avanzado)**
+### 10.1 Estado actual
 
-- Ventas por período (día/semana/mes)
-- Ticket promedio
-- Margen bruto por producto/categoría
-- Top productos (cantidad y facturación)
-- Top clientes
-- Medios de pago (mix)
-- Stock inmovilizado (sin movimiento X días)
-- Rotación de stock
-- Deudores (cuentas corrientes)
+**PENDIENTE**:
 
-**Criterios de aceptación**
+- no se encontraron archivos `*.test.*` ni `*.spec.*` en backend o frontend;
+- `vitest` y `supertest` estan declarados, pero no hay suite real auditada.
 
-- Filtros: rango fechas, usuario, cliente, categoría, proveedor, medio pago.
-- Export CSV de cada reporte.
-- Reportes con widgets y gráficos.
+### 10.2 Riesgo
 
-**Endpoints**
+Esto incrementa riesgo de regresiones en:
 
-- GET /reports/sales-summary
-- GET /reports/top-products
-- GET /reports/margins
-- GET /reports/payment-methods
-- GET /reports/stock-dead
-- GET /reports/accounts-receivable
+- ventas y stock;
+- caja y balances;
+- pagos mixtos;
+- cuentas por pagar;
+- RBAC;
+- facturacion;
+- conversion de moneda.
 
----
+### 10.3 Prioridad de QA recomendada
 
-### 7.9 Auditoría
-
-**Reglas**
-
-- Toda acción crítica genera AuditLog.
-- Guardar: actorUserId, businessId, action, entity, entityId, before, after, ip, userAgent, timestamp.
-
-**Endpoints**
-
-- GET /audit-logs (filtros)
+1. auth y refresh;
+2. ventas confirmadas e impacto en stock/caja;
+3. compras e impacto en stock/costos/payables;
+4. cuentas financieras y transferencias;
+5. permisos RBAC;
+6. tipo de cambio y pagos USD.
 
 ---
 
-## 8) Facturación ARCA (AFIP) — Estrategia y abstracción
+## 11) Roadmap realista desde el estado actual
 
-### 8.1 Requisito de negocio
+### 11.1 Prioridad alta
 
-- Emitir **Factura A, B y C**.
-- Soportar notas de crédito/débito.
-- QR y CAE.
-- Guardar XML/Request/Response para trazabilidad.
+1. cerrar configuracion real del negocio;
+2. cerrar facturacion productiva y pantalla de configuracion de facturacion;
+3. implementar tests criticos;
+4. cerrar importacion masiva;
+5. completar offline-first real del POS.
 
-### 8.2 Decisión técnica
+### 11.2 Prioridad media
 
-Implementar una **capa “InvoiceProvider”** para permitir:
+1. devoluciones/cambios comerciales completos desde ventas;
+2. CRUD/consulta de invoices;
+3. adjuntos de compras;
+4. mejora del modulo de cheques;
+5. completar reportes avanzados faltantes.
 
-- Proveedor intermedio (MVP)
-- Migración futura a integración directa con ARCA
+### 11.3 Prioridad baja / siguiente etapa
 
-Interfaces:
-
-```ts
-interface InvoiceProvider {
-  createVoucher(input: CreateVoucherInput): Promise<CreateVoucherResult>;
-  getVoucher(voucherId: string): Promise<Voucher>;
-  downloadPdf(voucherId: string): Promise<Buffer>;
-}
-```
-
-### 8.3 MVP: proveedor intermedio
-
-- Configurable por negocio:
-  - providerType: "FACTURANTE" | "TUSFACTURAS" | "CUSTOM"
-  - apiKey/credentials
-- Si costo del proveedor es alto: activar modo “ARCA_DIRECT” en V2.
-
-### 8.4 V2: ARCA directa (resumen)
-
-- WSAA + WSFEv1 (token/sign)
-- Certificados y autorización en entornos testing/prod
-- Manejar CAE/CAEA según normativa
+1. multi-sucursal;
+2. ecommerce;
+3. integraciones contables;
+4. app movil;
+5. infraestructura declarativa y pipelines.
 
 ---
 
-## 9) Tipo de cambio en tiempo real (USD→ARS)
+## 12) Fuentes auditadas para esta especificacion
 
-### 9.1 Requisito
+### 12.1 Documentacion
 
-- Al cobrar en USD:
-  - convertir automáticamente a ARS usando una API
-  - guardar **cotización utilizada** (valor, fuente, timestamp)
-  - permitir override manual (permiso admin)
+- `README.md`
+- `ferresaas-api/README.md`
+- `ferresaas-api/API.md`
+- `docs/guia-usuario-ferreteria.md`
+- `docs/AUTH_ROUTING.md`
+- `docs/IMPLEMENTACION_SEGURIDAD_AUTENTICACION.md`
+- `docs/INSTALLATION_GUIDE.md`
+- `docs/aws-deploy-plan.md`
 
-### 9.2 Implementación
+### 12.2 Backend
 
-- Servicio `ExchangeRateService`
-- Cache 1–5 min (Redis opcional)
-- Endpoint:
-  - GET /exchange-rate/usd-ars (devuelve tasa actual + metadata)
+- `ferresaas-api/src/app.ts`
+- `ferresaas-api/src/routes/*`
+- `ferresaas-api/src/services/*`
+- `ferresaas-api/src/middleware/*`
+- `ferresaas-api/src/providers/*`
+- `ferresaas-api/prisma/schema.prisma`
+- `ferresaas-api/prisma/migrations/*`
 
----
+### 12.3 Frontend
 
-## 10) Offline-first (PWA + Sync)
-
-### 10.1 Objetivo
-
-Permitir ventas y operaciones críticas cuando internet es inestable.
-
-### 10.2 Alcance offline MVP
-
-- POS:
-  - crear venta
-  - agregar items
-  - confirmar venta
-- Cache local:
-  - catálogo de productos (mínimo: id, barcode, sku, nombre, precio, stock)
-  - clientes frecuentes (opcional)
-- Cola de operaciones:
-  - `offlineQueue` en IndexedDB (Dexie)
-
-### 10.3 Sincronización
-
-- Estrategia:
-  - cada operación tiene `clientOperationId` (UUID)
-  - backend mantiene tabla `idempotency_keys`
-  - si llega duplicado, responde el resultado original
-- Cuando vuelve internet:
-  - se envían operaciones en orden
-  - UI muestra estado “Sincronizando…”
+- `ferresaas-web/app/**`
+- `ferresaas-web/components/**`
+- `ferresaas-web/lib/**`
+- `ferresaas-web/next.config.js`
+- `ferresaas-web/public/manifest.json`
 
 ---
 
-## 11) Importación masiva (CSV/Excel)
+## 13) Conclusion operativa
 
-### 11.1 Requisitos
+Ferrahock ya no debe describirse como una idea de SaaS para ferreterias ni como un MVP vacio. El repo contiene una base funcional importante y varios modulos core operativos.
 
-- Importar:
-  - productos
-  - precios
-  - stock inicial
-- Validaciones:
-  - campos obligatorios
-  - duplicados por barcode/internalSku
-- Reporte de errores descargable
+Al mismo tiempo, tampoco debe documentarse como producto 100% cerrado: hay features parciales, areas demo, huecos importantes de testing, facturacion, importacion y offline-first real.
 
-### 11.2 Implementación
+La especificacion correcta del proyecto, al dia de hoy, es:
 
-- Front: subir CSV/Excel + preview + mapping
-- Backend: endpoint batch con transacciones por chunk
-- Librerías:
-  - Front: xlsx + papaparse
-  - Back: csv-parse o xlsx
-
----
-
-## 12) Base de datos — Modelo (Prisma)
-
-> Requisito: incluir `businessId` en todo.
-
-### 12.1 Entidades mínimas
-
-- Business
-- User
-- Role
-- Permission
-- UserRole
-- Product
-- ProductVariant (o self relation)
-- Category
-- Brand
-- Supplier
-- Purchase + PurchaseItem
-- InventoryMovement
-- Sale + SaleItem
-- Payment
-- CashRegisterSession + CashMovement
-- Customer + AccountMovement
-- PriceHistory
-- Invoice (estado, CAE, PDF link)
-- AuditLog
-- IdempotencyKey
-- ExchangeRateSnapshot
-
-**NOTA**: usar `Decimal` de Prisma para cantidades fraccionables y moneda.
-
----
-
-## 13) API — Convenciones
-
-- REST JSON
-- Versionado: /v1
-- Errores:
-  - { code, message, details }
-- Paginación:
-  - cursor-based (preferido) o page/limit
-- Autorización:
-  - middleware RBAC con permisos finos
-
----
-
-## 14) Frontend — Pantallas (mínimo)
-
-- Auth: login / reset password
-- Selector/Perfil del negocio (si aplica) — en este caso 1 negocio por usuario
-- Dashboard
-- POS (caja)
-- Productos (listado + detalle + creación + import)
-- Stock (low stock + movimientos)
-- Compras
-- Caja (abrir/cerrar)
-- Clientes + cuenta corriente
-- Reportes (tabs + filtros + export)
-- Configuración (roles/permisos, impuestos, facturación, tipo de cambio)
-
----
-
-## 15) UX POS (reglas concretas)
-
-- Siempre foco en input de escaneo.
-- Enter = confirmar búsqueda / agregar.
-- Atajos:
-  - F2 buscar producto
-  - F4 aplicar descuento
-  - F9 confirmar
-  - Esc cancelar/modales
-- Mostrar:
-  - stock actual
-  - precio
-  - subtotal
-- Confirmación de venta debe requerir 1–2 clicks máximo.
-
----
-
-## 16) Testing & QA checklist
-
-### 16.1 Unit tests
-
-- Price calculation
-- Tax calculation
-- Stock movement logic
-- Account current logic
-- Offline idempotency logic
-
-### 16.2 Integration tests (supertest)
-
-- Login/refresh
-- Create sale confirm updates stock/cash
-- Purchase updates stock
-- Refund creates reverse movements
-- RBAC enforcement
-
-### 16.3 E2E (opcional)
-
-- Playwright para POS happy path
-
----
-
-## 17) Deployment (low budget) — guía concreta
-
-### 17.1 Infra recomendada inicial
-
-- Frontend: Vercel
-- Backend: Render (web service)
-- DB: Render PostgreSQL
-- Redis: opcional (Upstash/Render)
-- Storage PDFs: S3 compatible (Cloudflare R2 o similar)
-
-### 17.2 Variables de entorno (ejemplo)
-
-- DATABASE_URL
-- JWT_ACCESS_SECRET
-- JWT_REFRESH_SECRET
-- SMTP_HOST/USER/PASS
-- INVOICE_PROVIDER=FACTURANTE|TUSFACTURAS|ARCA_DIRECT
-- INVOICE_API_KEY=...
-- EXCHANGE_RATE_PROVIDER=DOLARAPI|...
-- SENTRY_DSN (opcional)
-
----
-
-## 18) Roadmap por hitos (en orden)
-
-1. Setup monorepo + CI + lint + env
-2. Auth + RBAC + multi-tenant enforcement
-3. Productos + import + etiquetas
-4. Stock + movimientos
-5. Proveedores + compras
-6. Caja (sesiones)
-7. POS ventas + pagos + USD
-8. Facturación via provider + PDF
-9. Reportes avanzados
-10. Offline PWA + sync + idempotency
-11. Auditoría + hardening + pilot real
-
----
-
-## 19) Entregables que la IA debe generar
-
-1. Monorepo completo con apps y packages.
-2. Prisma schema + migrations.
-3. Seed (roles base, permisos base, demo data).
-4. API con endpoints especificados + tests.
-5. Web UI con pantallas mínimas.
-6. PWA offline con cola y sync.
-7. Dockerfiles / scripts para local dev.
-8. Documentación README (setup, env, deploy).
-
----
-
-## 20) Reglas de calidad para la IA (importante)
-
-- No inventar: si falta un dato, parametrizar o comentar TODO lo asumido.
-- No usar librerías no listadas sin justificar.
-- Cada endpoint debe tener:
-  - schema zod
-  - validación RBAC
-  - manejo de errores
-  - tests
-- Toda operación crítica debe ser transaccional.
-- Todas las tablas deben incluir `businessId` si corresponde.
-
----
-
-## 21) Prompt de ejecución recomendado (pegar junto a este MD)
-
-> “Generá el proyecto completo siguiendo **exactamente** este documento. Entregá el código por carpetas, con comandos para instalar/ejecutar. No asumas nada y pregunta si tienes dudas. Implementá primero el backend (API + DB) y luego frontend. Incluí seeds y tests.”
+- **producto funcional en operaciones core**;
+- **plataforma avanzada pero no cerrada**;
+- **lista para seguir endureciendo y completar hacia produccion real**.
