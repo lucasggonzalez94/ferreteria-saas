@@ -46,14 +46,16 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
   };
 
   return (
-    <div className="border border-blue-200 bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] p-4 text-[hsl(var(--primary))] dark:border-[hsl(var(--brand-accent-border))] dark:bg-[hsl(var(--brand-accent-soft))] dark:text-foreground">
       <div className="flex items-center gap-3 flex-1">
-        <DollarSign className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        <div className="app-icon-badge h-10 w-10 flex-shrink-0 border-[hsl(var(--brand-accent-border))] bg-background/60 text-[hsl(var(--accent))]">
+          <DollarSign className="h-4 w-4" />
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+          <p className="text-sm font-semibold">
             Tipo de cambio: ${rate.rate.toFixed(2)}
           </p>
-          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300">
+          <div className="flex items-center gap-1 text-xs text-foreground/75 dark:text-foreground/75">
             <span>{getSourceLabel(rate.source)}</span>
             <span>•</span>
             <span>{formatPublicationDate(rate.timestamp)}</span>
@@ -69,7 +71,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
           variant="ghost"
           onClick={onRetry}
           disabled={isRetrying}
-          className="text-xs h-8"
+          className="h-9 text-xs"
           title="Intenta obtener la cotización más reciente de la API"
         >
           <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
@@ -79,7 +81,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
           size="sm"
           variant="ghost"
           onClick={onUpdateManually}
-          className="text-xs h-8"
+          className="h-9 text-xs"
           title="Ingresa manualmente el tipo de cambio"
         >
           Ingresar Manual

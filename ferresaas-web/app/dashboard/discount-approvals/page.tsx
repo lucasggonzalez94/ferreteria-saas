@@ -78,6 +78,7 @@ export default function DiscountApprovalsPage() {
   });
 
   const approvals = approvalsData?.data || [];
+  const riskyApprovals = approvals.filter((approval: DiscountApproval) => approval.discountedPrice < approval.product.cost).length;
 
   // Mutación para aprobar descuento
   const approveMutation = useMutation({
@@ -183,15 +184,32 @@ export default function DiscountApprovalsPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="app-page">
+      <div className="app-section">
         <Header
           title="Aprobación de Descuentos"
-          description="Gestiona las solicitudes de descuentos pendientes de aprobación"
+          description="Gestiona solicitudes pendientes con foco en urgencia, margen y descuentos por debajo del costo."
         />
 
-        {/* Contenido */}
-        <Card>
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Pendientes</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{approvals.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Solicitudes esperando decisión del aprobador.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Con password requerido</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{approvals.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Todas las aprobaciones requieren validación explícita.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Bajo costo</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{riskyApprovals}</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Casos sensibles que conviene revisar primero.</p>
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>
               Solicitudes Pendientes ({approvals.length})
@@ -217,10 +235,7 @@ export default function DiscountApprovalsPage() {
             ) : (
               <div className="space-y-4">
                 {approvals.map((approval: DiscountApproval) => (
-                  <div
-                    key={approval.id}
-                    className="border rounded-lg p-4 space-y-3"
-                  >
+                    <div key={approval.id} className="app-orbit rounded-[1.35rem] border border-border/70 p-4 space-y-3 bg-background/70">
                     {/* Encabezado */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -235,14 +250,14 @@ export default function DiscountApprovalsPage() {
                     </div>
 
                     {/* Detalles de precios */}
-                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4 rounded-[1rem] border border-border/60 bg-background/70 p-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Precio original</p>
                         <p className="font-medium">${Number(approval.originalPrice).toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Precio solicitado</p>
-                        <p className="font-medium text-green-600">
+                        <p className="font-medium text-[hsl(var(--accent))]">
                           ${Number(approval.discountedPrice).toFixed(2)}
                         </p>
                       </div>
@@ -315,7 +330,7 @@ export default function DiscountApprovalsPage() {
                             <Button
                               onClick={() => handleApprove(approval.id)}
                               disabled={approveMutation.isPending}
-                              className="flex-1 bg-green-600 hover:bg-green-700"
+                              className="flex-1 bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]"
                             >
                               <Check className="h-4 w-4 mr-2" />
                               {approveMutation.isPending ? "Aprobando..." : "Aprobar"}

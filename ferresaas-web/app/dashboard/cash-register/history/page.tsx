@@ -183,8 +183,8 @@ export default function CashRegisterHistoryPage() {
                                       className={`font-semibold ${
                                         sessionSummary.difference === 0
                                           ? "text-green-600"
-                                          : sessionSummary.difference > 0
-                                          ? "text-blue-600"
+                                        : sessionSummary.difference > 0
+                                          ? "brand-accent-text"
                                           : "text-red-600"
                                       }`}
                                     >

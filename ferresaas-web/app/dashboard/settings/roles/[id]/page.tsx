@@ -134,8 +134,8 @@ export default function RoleDetailPage() {
   );
 
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="app-page">
+      <div className="app-section max-w-4xl">
         <Header
           title={role.name}
           description={role.description || "Sin descripción"}
@@ -143,7 +143,24 @@ export default function RoleDetailPage() {
           linkLabel="Volver a Roles"
         />
 
-        {/* Información del Rol */}
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Permisos</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{role.permissionCount}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Accesos actualmente asociados a este rol.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Usuarios</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{role.userCount}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Personas que hoy dependen de esta configuración.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Tipo</p>
+            <p className="mt-3 text-lg font-semibold text-foreground">{role.isSystem ? "Rol del sistema" : "Rol editable"}</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Diferencia entre perfiles protegidos y perfiles administrables.</p>
+          </div>
+        </div>
+
         <Card className="mb-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>

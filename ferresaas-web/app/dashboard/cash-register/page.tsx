@@ -605,26 +605,26 @@ export default function CashRegisterPage() {
               <CardContent>
                 <div className="space-y-4">
                   {summary && (
-                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-                      <p className="font-semibold mb-3 text-blue-900 dark:text-blue-100">Montos Esperados</p>
+                    <div className="brand-accent-panel mb-4 p-4">
+                      <p className="mb-3 font-semibold text-foreground">Montos esperados</p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Esperado (ARS)</p>
-                          <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                          <p className="text-lg font-bold text-foreground">
                             ${Number(summary.expectedAmount).toFixed(2)}
                           </p>
                         </div>
                         {summary.expectedAmountUSD > 0 && (
                           <div>
                             <p className="text-muted-foreground">Esperado (USD)</p>
-                            <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                            <p className="text-lg font-bold text-foreground">
                               ${Number(summary.expectedAmountUSD).toFixed(2)}
                             </p>
                           </div>
                         )}
                       </div>
                       {closingAmount && (
-                        <div className="grid grid-cols-2 gap-4 text-sm mt-3 pt-3 border-t border-blue-300 dark:border-blue-700">
+                        <div className="mt-3 grid grid-cols-2 gap-4 border-t border-[hsl(var(--brand-accent-border))] pt-3 text-sm">
                           <div>
                             <p className="text-muted-foreground">Diferencia (ARS)</p>
                             <p

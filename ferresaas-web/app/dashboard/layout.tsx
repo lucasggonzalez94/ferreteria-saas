@@ -8,12 +8,11 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { COMMAND_ACTIONS, CommandPalette } from "@/components/ui/command-palette";
-import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
 import { BarcodeProvider } from "@/lib/contexts/barcode-context";
 import { useGlobalBarcodeListener } from "@/lib/hooks/useGlobalBarcodeListener";
 import { BarcodeProductModal } from "@/components/barcode/barcode-product-modal";
 import { GlobalUnknownBarcodeModal } from "@/components/barcode/global-unknown-barcode-modal";
-import { LogOut, Search, Settings, User, Wifi, WifiOff } from "lucide-react";
+import { LogOut, Search, Settings, User } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -29,7 +28,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
-  const isOnline = useConnectionStatus();
   const router = useRouter();
   const pathname = usePathname();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -96,11 +94,15 @@ export default function DashboardLayout({
 
   return (
     <BarcodeProvider>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-        <header className="sticky top-0 z-50 w-full border-b bg-white dark:bg-slate-950 shadow-sm">
-          <div className="flex h-14 items-center justify-between px-4">
-            <div className="flex items-center gap-2">
-              <Link href="/dashboard" aria-label="Ir al inicio">
+      <div className="min-h-screen app-shell">
+        <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl">
+          <div className="mx-auto flex h-20 max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+            <div className="flex w-full items-center justify-between gap-4">
+              <Link
+                href="/dashboard"
+                aria-label="Ir al inicio"
+                className="flex min-w-0 items-center gap-3 px-1 py-2"
+              >
                 <Image
                   src="/icons/logo-principal-oscuro.png"
                   alt="Ferrahock"
@@ -118,48 +120,42 @@ export default function DashboardLayout({
                   priority
                 />
               </Link>
-            </div>
-            <div className="flex items-center gap-2">
-              <Tooltip content={isOnline ? "Conectado" : "Sin conexión (offline)"}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label={isOnline ? "Conectado a internet" : "Sin conexión a internet"}
-                  disabled
-                  className={isOnline ? "text-green-600" : "text-red-600"}
-                >
-                  {isOnline ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-                </Button>
-              </Tooltip>
-              <ThemeToggle />
-              <Tooltip content="Navegar rápido (Ctrl/Cmd + K)">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Abrir navegación rápida"
-                  aria-keyshortcuts="Control+K Meta+K"
-                  onClick={() => setIsCommandPaletteOpen(true)}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </Tooltip>
-              <Link href="/dashboard/settings">
-                <Tooltip content="Configuración">
-                  <Button variant="outline" size="icon" aria-label="Ir a Configuración">
-                    <Settings className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Tooltip content="Navegar rápido (Ctrl/Cmd + K)">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Abrir navegación rápida"
+                    aria-keyshortcuts="Control+K Meta+K"
+                    onClick={() => setIsCommandPaletteOpen(true)}
+                    className="rounded-full px-4"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden md:inline">Buscar</span>
+                    <span className="hidden lg:inline text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Ctrl K
+                    </span>
                   </Button>
                 </Tooltip>
-              </Link>
-              <Link href="/dashboard/settings/profile">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">{user?.firstName || user?.email}</span>
+                <Link href="/dashboard/settings">
+                  <Tooltip content="Configuración">
+                    <Button variant="outline" size="icon" aria-label="Ir a Configuración" className="rounded-full">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                </Link>
+                <Link href="/dashboard/settings/profile">
+                  <Button variant="ghost" size="sm" className="rounded-full gap-2 px-4">
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">{user?.firstName || user?.email}</span>
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={logout} className="rounded-full gap-2 px-4">
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Salir</span>
                 </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={logout} className="gap-2">
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Salir</span>
-              </Button>
+              </div>
             </div>
           </div>
         </header>

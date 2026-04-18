@@ -258,9 +258,12 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <Header title="Reportes de Inventario" />
+    <div className="app-page">
+      <div className="app-section">
+        <Header
+          title="Reportes"
+          description="Lecturas operativas y comerciales con filtros por periodo, métricas más claras y exportación directa."
+        />
         
         <ReportFilters 
           onFilterChange={setDateRange}
@@ -278,7 +281,7 @@ export default function ReportsPage() {
 
           {/* Reporte 0: Ventas */}
           <TabsContent value="sales">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Reporte de Ventas</CardTitle>
@@ -314,7 +317,7 @@ export default function ReportsPage() {
 
           {/* Reporte 1: Movimientos */}
           <TabsContent value="movements">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Movimientos de Inventario</CardTitle>
@@ -345,9 +348,9 @@ export default function ReportsPage() {
                           ([type, unitTotals]: [string, Record<string, number>]) => (
                             <div
                               key={type}
-                              className="p-4 bg-blue-50 rounded-lg border border-blue-200"
-                            >
-                              <p className="text-sm text-blue-600 font-semibold mb-2">
+                                className="brand-accent-panel p-4"
+                              >
+                              <p className="brand-accent-text mb-2 text-sm font-semibold">
                                 {type === "SALE"
                                   ? "Ventas"
                                   : type === "PURCHASE_RECEIPT"
@@ -359,10 +362,10 @@ export default function ReportsPage() {
                               <div className="space-y-1">
                                 {Object.entries(unitTotals).map(([unit, quantity]: [string, number]) => (
                                   <div key={unit} className="flex items-baseline gap-2">
-                                    <span className="text-lg font-bold text-blue-900">
+                                    <span className="text-lg font-bold text-foreground">
                                       {Number(quantity).toFixed(2)}
                                     </span>
-                                    <span className="text-sm text-blue-700">
+                                    <span className="text-sm brand-accent-subtle">
                                       {unit === "u" ? "unidades" : 
                                        unit === "mt" ? "metros" : 
                                        unit === "kg" ? "kilogramos" : 
@@ -403,9 +406,9 @@ export default function ReportsPage() {
                                       : movement.type === "PURCHASE_RECEIPT"
                                       ? "bg-green-100 text-green-700"
                                       : movement.type === "RETURN"
-                                      ? "bg-blue-100 text-blue-700"
+                                      ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
                                       : "bg-gray-100 text-gray-700"
-                                  }`}
+                                   }`}
                                 >
                                   {movement.type === "SALE"
                                     ? "Venta"
@@ -448,7 +451,7 @@ export default function ReportsPage() {
 
           {/* Reporte 2: Alertas */}
           <TabsContent value="alerts">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Alertas de Stock</CardTitle>
@@ -489,11 +492,11 @@ export default function ReportsPage() {
                           {alertsReport.summary?.warning || 0}
                         </p>
                       </div>
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                      <div className="brand-accent-panel p-3">
+                        <p className="text-sm font-medium brand-accent-subtle">
                           Total
                         </p>
-                        <p className="text-2xl font-bold text-blue-700">
+                        <p className="text-2xl font-bold text-foreground">
                           {alertsReport.summary?.total || 0}
                         </p>
                       </div>
@@ -551,7 +554,7 @@ export default function ReportsPage() {
 
           {/* Reporte 3: Rotación */}
           <TabsContent value="rotation">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Rotación de Inventario</CardTitle>
@@ -586,11 +589,11 @@ export default function ReportsPage() {
                             {rotationReport.summary.fast}
                           </p>
                         </div>
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                          <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                        <div className="brand-accent-panel p-3">
+                          <p className="text-sm font-medium brand-accent-subtle">
                             Normales
                           </p>
-                          <p className="text-2xl font-bold text-blue-700">
+                          <p className="text-2xl font-bold text-foreground">
                             {rotationReport.summary.normal}
                           </p>
                         </div>
@@ -644,9 +647,9 @@ export default function ReportsPage() {
                                     product.classification === "FAST"
                                       ? "bg-green-100 text-green-700"
                                       : product.classification === "NORMAL"
-                                      ? "bg-blue-100 text-blue-700"
+                                      ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
                                       : "bg-yellow-100 text-yellow-700"
-                                  }`}
+                                   }`}
                                 >
                                   {product.classification === "FAST"
                                     ? "Rápido"
@@ -675,7 +678,7 @@ export default function ReportsPage() {
 
           {/* Reporte 4: Devoluciones */}
           <TabsContent value="returns">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Devoluciones</CardTitle>
@@ -702,11 +705,11 @@ export default function ReportsPage() {
                   <div className="space-y-4">
                     {returnsReport.summary && (
                       <div className="grid grid-cols-4 gap-4">
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <p className="text-sm text-blue-600 font-medium">
+                        <div className="brand-accent-panel p-3">
+                          <p className="text-sm font-medium brand-accent-subtle">
                             Total Devoluciones
                           </p>
-                          <p className="text-2xl font-bold text-blue-700">
+                          <p className="text-2xl font-bold text-foreground">
                             {returnsReport.summary.total}
                           </p>
                         </div>

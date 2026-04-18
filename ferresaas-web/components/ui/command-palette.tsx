@@ -384,9 +384,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Navegar rápido</DialogTitle>
+          <DialogTitle className="text-2xl">Navegación rápida</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -405,7 +405,11 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
             Atajos: Ctrl/Cmd + K abrir, Alt + 1..8 ejecutar acción, Ctrl/Cmd + Enter abrir en nueva pestaña.
           </p>
 
-          <div id="command-palette-list" role="listbox" className="max-h-80 overflow-y-auto rounded-md border">
+          <div
+            id="command-palette-list"
+            role="listbox"
+            className="max-h-80 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-background/55 p-1 backdrop-blur-md"
+          >
             {visibleActions.length === 0 ? (
               <p className="p-3 text-sm text-muted-foreground">No se encontraron acciones.</p>
             ) : (
@@ -427,11 +431,11 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
                           }}
                           role="option"
                           aria-selected={activeIndex === index}
-                          className={`w-full rounded-sm px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                          className={`w-full rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                             activeIndex === index
-                              ? "bg-accent text-accent-foreground"
-                              : "hover:bg-accent hover:text-accent-foreground"
-                          }`}
+                              ? "bg-[hsl(var(--brand-accent-soft))] text-foreground"
+                              : "hover:bg-[hsl(var(--brand-accent-soft))] hover:text-foreground"
+                           }`}
                           onMouseEnter={() => setActiveIndex(index)}
                           onKeyDown={(event) => handleOptionKeyDown(event, index, action)}
                           onClick={(event) => handleOptionClick(event, action)}
@@ -440,7 +444,7 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium">{getHighlightedText(action.label)}</span>
                             {action.shortcut && (
-                              <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              <span className="rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[10px] text-muted-foreground">
                                 {action.shortcut}
                               </span>
                             )}

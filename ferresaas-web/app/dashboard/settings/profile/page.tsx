@@ -254,7 +254,7 @@ export default function ProfilePage() {
                   <label className="text-sm font-medium">Contraseña Actual</label>
                   <Link
                     href="/forgot-password"
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-xs text-[hsl(var(--accent))] hover:underline"
                   >
                     ¿Olvidaste tu contraseña?
                   </Link>
@@ -361,13 +361,13 @@ export default function ProfilePage() {
         </Card>
 
         {/* Información de seguridad */}
-        <Card className="mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <Card className="mt-6 border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))]">
           <CardContent className="pt-6">
             <div className="flex gap-3">
-              <div className="text-blue-600 dark:text-blue-400 mt-0.5">ℹ️</div>
+              <div className="brand-accent-text mt-0.5">ℹ️</div>
               <div>
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Consejos de Seguridad</p>
-                <ul className="text-xs text-blue-800 dark:text-blue-200 mt-2 space-y-1">
+                <p className="text-sm font-medium text-foreground">Consejos de seguridad</p>
+                <ul className="mt-2 space-y-1 text-xs brand-accent-subtle">
                   <li>• Usa una contraseña única y fuerte</li>
                   <li>• No compartas tu contraseña con nadie</li>
                   <li>• Cambia tu contraseña regularmente</li>

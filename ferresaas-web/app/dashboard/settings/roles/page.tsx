@@ -85,14 +85,32 @@ export default function RolesPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="app-page">
+      <div className="app-section">
         <Header
           title="Roles y Permisos"
-          description="Gestiona los roles y permisos de tu negocio"
+          description="Define perfiles internos, permisos por recurso y estructura operativa del negocio."
           link="/dashboard/settings"
           linkLabel="Volver a Configuración"
         />
+
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Roles cargados</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{roles.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Perfiles disponibles en la instancia actual.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Búsqueda activa</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{search ? 1 : 0}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Filtro aplicado sobre el listado de roles.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Sugerencia</p>
+            <p className="mt-3 text-lg font-semibold text-foreground">Mantén pocos roles bien definidos</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Menos solapamiento implica menos errores operativos y menos complejidad.</p>
+          </div>
+        </div>
 
         <div className="flex gap-4 mb-6">
           <div className="flex-1 relative">

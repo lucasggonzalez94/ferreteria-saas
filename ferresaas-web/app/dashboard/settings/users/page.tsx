@@ -376,7 +376,7 @@ export default function UsersPage() {
                               u.roles.map((role) => (
                                 <span
                                   key={role.id}
-                                  className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
+                                  className="inline-block rounded-full border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] px-2.5 py-1 text-xs font-medium text-foreground"
                                 >
                                   {role.name}
                                 </span>

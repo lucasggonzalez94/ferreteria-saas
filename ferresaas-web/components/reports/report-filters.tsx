@@ -54,9 +54,15 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
   ];
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 overflow-hidden">
       <CardContent className="pt-6">
         <div className="space-y-4">
+          <div>
+            <span className="app-kicker">
+              <span className="app-brand-dot" aria-hidden="true" />
+              Periodo de análisis
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <Button
@@ -64,6 +70,7 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
                 variant={preset === p.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => setPreset(p.value)}
+                className={preset === p.value ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]" : undefined}
               >
                 {p.label}
               </Button>

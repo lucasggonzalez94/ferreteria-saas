@@ -225,7 +225,7 @@ export default function PriceSuggestionsPage() {
                         <div>
                           <p className="text-xs text-muted-foreground">Precio actual</p>
                           <p className="font-medium">${Number(suggestion.oldPrice).toFixed(2)}</p>
-                          <p className={`text-xs flex items-center gap-1 mt-1 ${priceChange > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                          <p className={`text-xs flex items-center gap-1 mt-1 ${priceChange > 0 ? "brand-accent-text" : "text-orange-600"}`}>
                             {priceChange > 0 ? (
                               <TrendingUp className="h-3 w-3" />
                             ) : (
@@ -255,12 +255,12 @@ export default function PriceSuggestionsPage() {
                       </div>
 
                       {/* Precio sugerido destacado */}
-                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                        <p className="text-xs text-blue-700 dark:text-blue-200 font-medium">Precio sugerido</p>
-                        <p className="text-lg font-semibold text-blue-600 dark:text-blue-300">
+                      <div className="brand-accent-panel p-3">
+                        <p className="text-xs font-medium brand-accent-subtle">Precio sugerido</p>
+                        <p className="text-lg font-semibold text-foreground">
                           ${Number(suggestion.suggestedPrice).toFixed(2)}
                         </p>
-                        <p className="text-xs text-blue-600 dark:text-blue-300">
+                        <p className="text-xs brand-accent-subtle">
                           Nuevo margen: {Number(suggestion.newMargin).toFixed(1)}%
                         </p>
                       </div>
@@ -288,7 +288,7 @@ export default function PriceSuggestionsPage() {
                           size="sm"
                           onClick={() => handleApprove(suggestion)}
                           disabled={approveMutation.isPending}
-                          className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          className="flex-1 bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           {approveMutation.isPending ? "Aprobando..." : "Aprobar y Aplicar"}

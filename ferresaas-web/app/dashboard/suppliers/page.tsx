@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -194,13 +193,35 @@ export default function SuppliersPage() {
   }));
   
   const meta = suppliersData?.meta || { page: 1, limit: 10, total: 0, totalPages: 0, hasMore: false };
+  const activeSuppliers = suppliers.filter((supplier) => supplier.isActive).length;
+  const suppliersWithDebt = suppliers.filter((supplier) => supplier.currentBalance > 0).length;
 
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <Header title="Proveedores" />
+    <div className="app-page">
+      <div className="app-section">
+        <Header
+          title="Proveedores"
+          description="Relación comercial, condiciones de pago y deuda activa en una sola vista operativa."
+        />
 
-        {/* Search and Actions */}
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Resultados</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total || suppliers.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Proveedores encontrados con el filtro actual.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Activos</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{activeSuppliers}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Contactos listos para operar o comprar.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Con deuda pendiente</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{suppliersWithDebt}</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Proveedores con saldo adeudado en este momento.</p>
+          </div>
+        </div>
+
         <div className="flex gap-4 mb-6">
           <SearchBar
             value={search}
@@ -386,11 +407,13 @@ export default function SuppliersPage() {
           <>
             <div className="space-y-4">
               {suppliers.map((supplier: Supplier) => (
-                <Card key={supplier.id}>
+                <Card key={supplier.id} className="app-orbit overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex items-start gap-4 flex-1">
-                        <Building2 className="h-5 w-5 mt-1 text-muted-foreground" />
+                        <span className="app-icon-badge h-11 w-11 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                          <Building2 className="h-5 w-5" />
+                        </span>
                         <div className="flex-1">
                           <CardTitle className="text-lg">
                             {supplier.name}

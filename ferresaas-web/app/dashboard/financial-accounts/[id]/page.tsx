@@ -98,7 +98,7 @@ const movementTypeLabels = {
 const movementTypeColors = {
   INCOME: "text-green-600",
   EXPENSE: "text-red-600",
-  TRANSFER_IN: "text-blue-600",
+  TRANSFER_IN: "brand-accent-text",
   TRANSFER_OUT: "text-orange-600",
 };
 
@@ -222,31 +222,30 @@ export default function AccountDetailPage() {
   const movements = movementsData?.items || [];
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6 flex items-center justify-between">
-        <Link href="/dashboard/financial-accounts">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-        </Link>
-        {canManage && (
-          <Button variant="outline" size="sm">
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Button>
-        )}
-      </div>
+    <div className="app-page">
+      <div className="app-section space-y-6">
+        <Header
+          title={account.name}
+          description={accountTypeLabels[account.type as keyof typeof accountTypeLabels]}
+          link="/dashboard/financial-accounts"
+          linkLabel="Volver a Cuentas"
+          actions={
+            canManage ? (
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            ) : undefined
+          }
+        />
 
-      <div className="space-y-6">
-        {/* Account Header Card */}
-        <Card className="border-2">
+        <Card className="app-orbit overflow-hidden border-2">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Icon className="h-8 w-8 text-primary" />
-                </div>
+                <span className="app-icon-badge h-16 w-16 rounded-[1.4rem] border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                  <Icon className="h-8 w-8" />
+                </span>
                 <div>
                   <CardTitle className="text-3xl flex items-center gap-2">
                     {account.name}
@@ -337,7 +336,6 @@ export default function AccountDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Movements Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Movimientos</h2>

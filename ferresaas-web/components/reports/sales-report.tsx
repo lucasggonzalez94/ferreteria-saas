@@ -114,8 +114,8 @@ export function SalesReport({ data }: SalesReportProps) {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Icon className="h-5 w-5 text-blue-600" />
+              <div className="app-icon-badge h-11 w-11 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                <Icon className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{title}</p>
@@ -200,9 +200,9 @@ export function SalesReport({ data }: SalesReportProps) {
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                      <div className="rounded-[1rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
                         <p className="text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">{payload[0].payload.fullDate}</p>
-                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                        <p className="text-sm brand-accent-text">
                           Ingresos: ${Number(payload[0].value).toFixed(2)}
                         </p>
                         <p className="text-sm text-green-600 dark:text-green-400">
@@ -219,7 +219,7 @@ export function SalesReport({ data }: SalesReportProps) {
                 yAxisId="left"
                 type="monotone"
                 dataKey="ingresos"
-                stroke="#2563eb"
+                stroke="#e86a2a"
                 strokeWidth={2}
                 name="Ingresos ($)"
                 dot={{ r: 3 }}
@@ -261,7 +261,7 @@ export function SalesReport({ data }: SalesReportProps) {
                     formatter={(value) => `$${Number(value).toFixed(2)}`}
                     labelFormatter={(label) => `Producto: ${label}`}
                   />
-                  <Bar dataKey="totalRevenue" fill="#2563eb" radius={[0, 4, 4, 0]} name="Ingresos" />
+                  <Bar dataKey="totalRevenue" fill="#e86a2a" radius={[0, 4, 4, 0]} name="Ingresos" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -286,14 +286,14 @@ export function SalesReport({ data }: SalesReportProps) {
                       <span className="text-sm font-medium">
                         {index + 1}. {category.categoryName}
                       </span>
-                      <span className="text-sm font-bold text-blue-600">
+                      <span className="text-sm font-bold brand-accent-text">
                         ${category.totalRevenue.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-blue-600 h-2 rounded-full"
+                          className="h-2 rounded-full bg-[hsl(var(--accent))]"
                           style={{ width: `${category.percentage}%` }}
                         />
                       </div>
@@ -326,7 +326,7 @@ export function SalesReport({ data }: SalesReportProps) {
                   <p className="text-sm text-muted-foreground mb-1">
                     {PAYMENT_METHOD_LABELS[method] || method}
                   </p>
-                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  <p className="text-xl font-bold brand-accent-text">
                     ${amount.toFixed(2)}
                   </p>
                 </div>

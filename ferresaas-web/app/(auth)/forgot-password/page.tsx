@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,11 +35,33 @@ export default function ForgotPasswordPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-        <Card className="w-full max-w-md">
+      <div className="app-page flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-lg overflow-hidden">
           <CardHeader className="space-y-2">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <span className="app-kicker">
+                <span className="app-brand-dot" aria-hidden="true" />
+                Recuperación
+              </span>
+              <Image
+                src="/icons/logo-principal-oscuro.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="h-11 w-auto dark:hidden"
+                priority
+              />
+              <Image
+                src="/icons/logo-principal-blanco.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="hidden h-11 w-auto dark:block"
+                priority
+              />
+            </div>
             <div className="flex justify-center mb-4">
-              <div className="bg-green-100 p-3 rounded-full">
+              <div className="app-icon-badge h-14 w-14 rounded-full border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
             </div>
@@ -48,8 +71,8 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
+            <div className="brand-accent-panel p-4">
+              <p className="text-sm brand-accent-subtle">
                 El enlace expira en <strong>30 minutos</strong>. Si no recibes el email, revisa tu carpeta de spam.
               </p>
             </div>
@@ -66,12 +89,34 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-      <Card className="w-full max-w-md">
+    <div className="app-page flex min-h-screen items-center justify-center">
+      <Card className="w-full max-w-lg overflow-hidden">
         <CardHeader className="space-y-2">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <span className="app-kicker">
+              <span className="app-brand-dot" aria-hidden="true" />
+              Acceso seguro
+            </span>
+            <Image
+              src="/icons/logo-principal-oscuro.png"
+              alt="Ferrahock"
+              width={148}
+              height={48}
+              className="h-11 w-auto dark:hidden"
+              priority
+            />
+            <Image
+              src="/icons/logo-principal-blanco.png"
+              alt="Ferrahock"
+              width={148}
+              height={48}
+              className="hidden h-11 w-auto dark:block"
+              priority
+            />
+          </div>
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <Mail className="w-6 h-6 text-blue-600" />
+            <div className="app-icon-badge h-14 w-14 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+              <Mail className="w-6 h-6" />
             </div>
           </div>
           <CardTitle className="text-center">¿Olvidaste tu contraseña?</CardTitle>
@@ -114,7 +159,7 @@ export default function ForgotPasswordPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 ¿Recordaste tu contraseña?{" "}
-                <Link href="/login" className="text-blue-600 hover:underline font-medium">
+                <Link href="/login" className="font-medium text-[hsl(var(--accent))] hover:underline">
                   Volver al login
                 </Link>
               </p>

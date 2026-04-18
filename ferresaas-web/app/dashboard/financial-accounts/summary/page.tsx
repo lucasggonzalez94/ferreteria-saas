@@ -137,34 +137,34 @@ export default function FinancialAccountsSummaryPage() {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <Header
-        title="Resumen Financiero"
-        description="Estado actual de todas tus cuentas financieras"
-        actions={
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualizar
-          </Button>
-        }
-        link="/dashboard/financial-accounts"
-        linkLabel="Volver Finanzas"
-      />
+    <div className="app-page">
+      <div className="app-section">
+        <Header
+          title="Resumen Financiero"
+          description="Estado consolidado de cuentas y movimientos diarios para validar cierres con mayor claridad."
+          actions={
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualizar
+            </Button>
+          }
+          link="/dashboard/financial-accounts"
+          linkLabel="Volver Finanzas"
+        />
 
-      <div className="space-y-6">
-        {/* Total Balance Card */}
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 dark:from-blue-950 dark:to-blue-900 dark:border-blue-800">
+        <div className="space-y-6">
+        <Card className="app-orbit overflow-hidden border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))]">
           <CardHeader>
-            <CardTitle className="text-blue-900 dark:text-blue-100">Balance Total</CardTitle>
+            <CardTitle className="text-foreground">Balance Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-blue-900 dark:text-blue-50">
+            <div className="text-4xl font-bold text-foreground">
               $
               {totalBalance.toLocaleString("es-AR", {
                 minimumFractionDigits: 2,
               })}
             </div>
-            <p className="text-sm text-blue-700 dark:text-blue-200 mt-2">
+            <p className="mt-2 text-sm brand-accent-subtle">
               Suma de todas las cuentas activas
             </p>
           </CardContent>
@@ -194,16 +194,13 @@ export default function FinancialAccountsSummaryPage() {
                 );
 
               return (
-                <Card
-                  key={account.id}
-                  className="hover:shadow-lg transition-shadow flex flex-col min-h-[280px]"
-                >
+                <Card key={account.id} className="app-orbit flex min-h-[280px] flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Icon className="h-5 w-5 text-primary" />
-                        </div>
+                          <span className="app-icon-badge h-10 w-10 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                            <Icon className="h-5 w-5" />
+                          </span>
                         <div>
                           <CardTitle className="text-base">
                             {account.name}
@@ -288,7 +285,6 @@ export default function FinancialAccountsSummaryPage() {
           </div>
         </div>
 
-        {/* Daily Movements */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Movimientos del Día</h2>
@@ -375,7 +371,6 @@ export default function FinancialAccountsSummaryPage() {
           )}
         </div>
 
-        {/* End of Day Report */}
         <Card className="border-2 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
           <CardHeader>
             <CardTitle className="text-amber-900 dark:text-amber-100 flex items-center gap-2">
@@ -431,6 +426,7 @@ export default function FinancialAccountsSummaryPage() {
             </Button>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

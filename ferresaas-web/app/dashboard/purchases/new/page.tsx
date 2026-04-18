@@ -477,13 +477,13 @@ export default function NewPurchasePage() {
                 <div className="flex items-center justify-between mb-2">
                   <Label htmlFor="dueDate">Fecha de Vencimiento (opcional)</Label>
                   {dueDate && (
-                    <button
-                      type="button"
-                      onClick={() => setDueDate("")}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      Limpiar
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setDueDate("")}
+                        className="text-xs font-medium text-[hsl(var(--accent))] hover:text-foreground"
+                      >
+                        Limpiar
+                      </button>
                   )}
                 </div>
                 <DatePicker
@@ -728,9 +728,9 @@ export default function NewPurchasePage() {
 
               {/* Calculadora de conversión USD -> ARS */}
               {currency === 'USD' && exchangeRate && totals.total > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">💱 Conversión a Pesos</p>
-                  <div className="space-y-2 text-sm text-blue-700 dark:text-blue-200">
+                <div className="brand-accent-panel p-4">
+                  <p className="mb-2 text-sm font-medium text-foreground">💱 Conversión a pesos</p>
+                  <div className="space-y-2 text-sm brand-accent-subtle">
                     <div className="flex justify-between">
                       <span>Total en USD:</span>
                       <span className="font-medium">${totals.total.toFixed(2)}</span>
@@ -739,9 +739,9 @@ export default function NewPurchasePage() {
                       <span>Tipo de cambio:</span>
                       <span className="font-medium">1 USD = ${exchangeRate.rate.toFixed(2)} ARS</span>
                     </div>
-                    <div className="flex justify-between border-t border-blue-300 dark:border-blue-700 pt-2 mt-2">
+                    <div className="mt-2 flex justify-between border-t border-[hsl(var(--brand-accent-border))] pt-2">
                       <span className="font-semibold">Equivalente en ARS:</span>
-                      <span className="font-bold text-blue-900 dark:text-blue-100">${(totals.total * exchangeRate.rate).toFixed(2)}</span>
+                      <span className="font-bold text-foreground">${(totals.total * exchangeRate.rate).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -847,14 +847,14 @@ export default function NewPurchasePage() {
                   </>
                 )}
 
-                <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                <div className="brand-accent-panel p-3">
                   <div className="flex justify-between mb-2">
-                    <span className="text-sm text-blue-700 dark:text-blue-200">Saldo Pendiente</span>
-                    <span className="font-semibold text-blue-900 dark:text-blue-100">
+                    <span className="text-sm brand-accent-subtle">Saldo pendiente</span>
+                    <span className="font-semibold text-foreground">
                       ${Math.max(0, totals.total - (amountPaid ? parseNumericInput(amountPaid) : 0)).toFixed(2)}
                     </span>
                   </div>
-                  <p className="text-xs text-blue-600 dark:text-blue-300">
+                  <p className="text-xs brand-accent-subtle">
                     {amountPaid && parseNumericInput(amountPaid) > 0
                       ? `Pagado: $${parseNumericInput(amountPaid).toFixed(2)}`
                       : "Compra completamente pendiente de pago"}

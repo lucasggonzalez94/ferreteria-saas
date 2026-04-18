@@ -21,21 +21,16 @@ import {
   DollarSign,
   TrendingUp,
   AlertTriangle,
-  Settings,
   CheckCircle,
   BarChart3,
   Lock,
   GripVertical,
   ChevronUp,
   ChevronDown,
-  Edit,
-  Save,
-  X,
   Wallet,
   PieChart,
   RefreshCw,
-  Wifi,
-  WifiOff,
+  ArrowUpRight,
 } from "lucide-react";
 import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
 import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
@@ -43,7 +38,7 @@ import { NotificationBadge } from "@/components/ui/notification-badge";
 import { Tooltip } from "@/components/ui/tooltip";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const isOnline = useConnectionStatus();
   const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [quickActions, setQuickActions] = useState<Array<{
@@ -86,6 +81,24 @@ export default function DashboardPage() {
 
   // Obtener conteos de aprobaciones pendientes
   const { data: approvalCounts, refetch: refetchApprovalCounts, isRefetching } = useApprovalCounts();
+
+  const pendingApprovals =
+    (approvalCounts?.discounts || 0) + (approvalCounts?.prices || 0);
+  const welcomeName = user?.firstName || user?.email?.split("@")[0] || "equipo";
+  const actionCaptions: Record<string, string> = {
+    cash: "Apertura, movimientos y cierre.",
+    pos: "Cobro rápido con scanner y atajos.",
+    products: "Catálogo, precios y stock visual.",
+    customers: "Historial, saldos y cuentas corrientes.",
+    inventory: "Alertas, ajustes y control fino.",
+    suppliers: "Relación comercial y abastecimiento.",
+    finances: "Cuentas y movimientos centralizados.",
+    purchases: "Compras activas y seguimiento.",
+    payables: "Vencimientos y pagos pendientes.",
+    prices: "Validación de sugerencias de precio.",
+    discounts: "Descuentos con autorización.",
+    reports: "Lecturas clave del negocio.",
+  };
 
   // Obtener datos del dashboard solo si tiene permisos
   const { data: dashboardData, refetch: refetchDashboardData } = useQuery({
@@ -287,117 +300,182 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [refetchApprovalCounts, refetchDashboardData]);
 
+  const stats = [
+    canViewSales
+      ? {
+          key: "sales",
+          title: "Ventas hoy",
+          value: `$${Number(dashboardData?.totalSalesToday || 0).toFixed(2)}`,
+          description: "Confirmadas durante la jornada",
+          icon: <DollarSign className="h-5 w-5" />,
+        }
+      : null,
+    canViewProducts
+      ? {
+          key: "products",
+          title: "Productos",
+          value: String(dashboardData?.totalProducts || 0),
+          description: "Ítems disponibles en catálogo",
+          icon: <Package className="h-5 w-5" />,
+        }
+      : null,
+    canViewCustomers
+      ? {
+          key: "customers",
+          title: "Clientes",
+          value: String(dashboardData?.totalCustomers || 0),
+          description: "Registros con seguimiento activo",
+          icon: <Users className="h-5 w-5" />,
+        }
+      : null,
+    canViewProducts && canViewInventory
+      ? {
+          key: "low-stock",
+          title: "Stock bajo",
+          value: String(dashboardData?.lowStockProducts || 0),
+          description: "Productos que requieren atención",
+          icon: <AlertTriangle className="h-5 w-5" />,
+        }
+      : null,
+  ].filter(
+    (
+      stat,
+    ): stat is {
+      key: string;
+      title: string;
+      value: string;
+      description: string;
+      icon: JSX.Element;
+    } => Boolean(stat),
+  );
+
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            {businessLogo && (
-              <Image
-                src={businessLogo}
-                alt="Logo negocio"
-                width={48}
-                height={48}
-                unoptimized
-                className="h-12 w-12 object-contain rounded-md"
-              />
-            )}
-            <div>
-              <h1 className="text-3xl font-bold">Dashboard</h1>
-              <p className="text-muted-foreground">
-                Bienvenido, {user?.firstName || user?.email}
+    <div className="app-page">
+      <div className="app-section space-y-6">
+        <section className="app-panel app-orbit overflow-hidden p-6 sm:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              {businessLogo ? (
+                <div className="app-panel-muted flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.4rem] p-2">
+                  <Image
+                    src={businessLogo}
+                    alt="Logo negocio"
+                    width={56}
+                    height={56}
+                    unoptimized
+                    className="h-12 w-12 object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="app-icon-badge h-16 w-16 rounded-[1.4rem] border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                  <BarChart3 className="h-7 w-7" />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <span className="app-kicker">
+                  <span className="app-brand-dot" aria-hidden="true" />
+                  Vista general
+                </span>
+                <div>
+                  <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
+                    Bienvenido, {welcomeName}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Visualiza el estado del negocio y entra a los flujos más usados con una interfaz más clara, más rápida y mejor jerarquizada.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="app-panel-muted hidden items-center gap-2 rounded-full px-4 py-2 sm:flex">
+                <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`} />
+                <span className="text-sm font-medium text-foreground">
+                  {isOnline ? "Sistema en línea" : "Sin conexión"}
+                </span>
+              </div>
+              <Tooltip content="Refrescar datos">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label="Refrescar datos del dashboard"
+                  aria-keyshortcuts="R"
+                  onClick={() => {
+                    refetchApprovalCounts();
+                    refetchDashboardData();
+                  }}
+                  disabled={isRefetching}
+                >
+                  <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="app-panel-muted rounded-[1.4rem] p-4">
+              <p className="text-sm font-semibold text-foreground">Pendientes por resolver</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">{pendingApprovals}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Entre descuentos y sugerencias de precio esperando definición.
+              </p>
+            </div>
+            <div className="app-panel-muted rounded-[1.4rem] p-4">
+              <p className="text-sm font-semibold text-foreground">Accesos disponibles</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">{quickActions.length}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Módulos listos para usar según tus permisos y tu rol actual.
+              </p>
+            </div>
+            <div className="app-panel-muted rounded-[1.4rem] p-4">
+              <p className="text-sm font-semibold text-foreground">Atajo sugerido</p>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="rounded-full border border-border/70 bg-background/75 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Ctrl + K
+                </span>
+                <span className="text-sm font-medium text-foreground">Búsqueda global</span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Entrá más rápido a caja, productos, reportes o configuración.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Tooltip content="Refrescar datos">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Refrescar datos del dashboard"
-                aria-keyshortcuts="R"
-                onClick={() => {
-                  refetchApprovalCounts();
-                  refetchDashboardData();
-                }}
-                disabled={isRefetching}
-              >
-                <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
-              </Button>
-            </Tooltip>
-          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {stats.map((stat) => (
+            <Card key={stat.key} className="app-orbit overflow-hidden">
+              <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+                <div>
+                  <CardDescription className="text-xs font-semibold uppercase tracking-[0.18em]">
+                    {stat.title}
+                  </CardDescription>
+                  <CardTitle className="mt-3 text-3xl">{stat.value}</CardTitle>
+                </div>
+                <div className="app-icon-badge h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                  {stat.icon}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{stat.description}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {canViewSales && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ventas Hoy</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${Number(dashboardData?.totalSalesToday || 0).toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground">Confirmadas</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {canViewProducts && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Productos</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData?.totalProducts || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">En catálogo</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {canViewCustomers && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData?.totalCustomers || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Registrados</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {canViewProducts && canViewInventory && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Stock Bajo</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {dashboardData?.lowStockProducts || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Productos</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Quick Actions */}
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle>Accesos Rápidos</CardTitle>
-              <CardDescription>Acciones frecuentes del sistema</CardDescription>
+              <div className="mb-3">
+                <span className="app-kicker">
+                  <span className="app-brand-dot" aria-hidden="true" />
+                  Flujo diario
+                </span>
+              </div>
+              <CardTitle>Accesos rápidos</CardTitle>
+              <CardDescription>Entradas directas a los módulos más usados del sistema.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {isEditingQuickActions && (
@@ -440,10 +518,10 @@ export default function DashboardPage() {
                       className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
                     >
                       {isEditingQuickActions && (
-                        <div className="absolute top-2 right-2 text-muted-foreground z-10 flex items-center gap-1">
+                        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
                           <button
                             type="button"
-                            className="h-6 w-6 inline-flex items-center justify-center rounded border bg-background hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             onClick={(e) => {
                               e.preventDefault();
                               moveQuickAction(action.id, "up");
@@ -454,7 +532,7 @@ export default function DashboardPage() {
                           </button>
                           <button
                             type="button"
-                            className="h-6 w-6 inline-flex items-center justify-center rounded border bg-background hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             onClick={(e) => {
                               e.preventDefault();
                               moveQuickAction(action.id, "down");
@@ -472,10 +550,19 @@ export default function DashboardPage() {
                       <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
                         <Button
                           variant="outline"
-                          className={`w-full h-20 flex flex-col gap-2 ${isEditingQuickActions ? "border-dashed cursor-grab active:cursor-grabbing" : ""}`}
+                          className={`h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] ${isEditingQuickActions ? "cursor-grab border-dashed active:cursor-grabbing" : ""}`}
                         >
-                          {action.icon}
-                          <span>{action.label}</span>
+                          <span className="app-icon-badge mb-4 h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                            {action.icon}
+                          </span>
+                          <span className="text-sm font-semibold text-foreground">{action.label}</span>
+                          <span className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {actionCaptions[action.id] || "Acceso directo al módulo."}
+                          </span>
+                          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Abrir
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </span>
                         </Button>
                       </Link>
                     </div>

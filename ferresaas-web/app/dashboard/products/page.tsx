@@ -126,20 +126,43 @@ export default function ProductsPage() {
     },
   });
 
+  const products = data || [];
+  const activeProducts = products.filter((product) => product.isActive).length;
+  const lowStockProducts = products.filter(
+    (product) => product.minStock && product.stockQuantity <= product.minStock,
+  ).length;
+
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="app-page">
+      <div className="app-section">
         <Header
           title="Productos"
-          description="Gestión de catálogo de productos"
+          description="Catálogo operativo con filtros rápidos, lectura más clara y acceso directo a edición y stock crítico."
           showButton={canCreateProducts}
           buttonLabel="Nuevo Producto"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
           buttonAction={() => router.push("/dashboard/products/new")}
         />
 
-        {/* Search */}
-        <Card className="mb-6">
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Resultados</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{products.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Productos visibles según filtros actuales.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Activos</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{activeProducts}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ítems listos para vender o seguir operando.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Bajo stock</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{lowStockProducts}</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Productos que conviene revisar o reponer primero.</p>
+          </div>
+        </div>
+
+        <Card className="mb-6 overflow-hidden">
           <CardContent className="pt-6">
             <SearchBar
               value={search}
@@ -243,12 +266,12 @@ export default function ProductsPage() {
           <div className="text-center py-12">
             <LoadingSpinner text="Cargando productos..." />
           </div>
-        ) : data && data.length > 0 ? (
+        ) : products.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-            {data.map((product) => (
+            {products.map((product) => (
               <Card
                 key={product.id}
-                className="hover:shadow-lg transition-shadow h-full flex flex-col cursor-pointer"
+                className="app-orbit h-full cursor-pointer overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]"
                 onClick={() => router.push(`/dashboard/products/${product.id}/view`)}
               >
                 <CardHeader className="relative pb-2">
@@ -261,7 +284,7 @@ export default function ProductsPage() {
                           width={80}
                           height={80}
                           unoptimized
-                          className="w-20 h-20 object-cover rounded-md border border-gray-200"
+                          className="w-20 h-20 object-cover rounded-xl border border-border/70"
                         />
                       </div>
                     )}
@@ -278,7 +301,7 @@ export default function ProductsPage() {
                     </div>
                     <div className="flex items-start gap-2">
                       <div
-                        className={`px-2 py-1 rounded text-xs font-medium ${
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                           product.isActive
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-800"
@@ -336,7 +359,7 @@ export default function ProductsPage() {
                         className={
                           product.minStock &&
                           product.stockQuantity <= product.minStock
-                            ? "text-red-600 font-semibold"
+                            ? "brand-accent-text font-semibold"
                             : ""
                         }
                       >

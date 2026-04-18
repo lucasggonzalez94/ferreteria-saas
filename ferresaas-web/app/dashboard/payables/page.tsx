@@ -278,7 +278,7 @@ export default function PayablesPage() {
       case "OVERDUE":
         return "bg-red-100 text-red-800";
       default:
-        return "bg-blue-100 text-blue-800";
+        return "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground";
     }
   };
 

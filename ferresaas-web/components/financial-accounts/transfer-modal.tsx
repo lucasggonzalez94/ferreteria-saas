@@ -262,9 +262,9 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
         </div>
 
         {fromAccount && toAccount && amount && transferAmount > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md border border-blue-200 dark:border-blue-800">
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Resumen de Transferencia</p>
-            <div className="space-y-1 text-sm text-blue-700 dark:text-blue-200">
+          <div className="brand-accent-panel p-3">
+            <p className="mb-2 text-sm font-medium text-foreground">Resumen de transferencia</p>
+            <div className="space-y-1 text-sm brand-accent-subtle">
               <div className="flex justify-between">
                 <span>Desde:</span>
                 <span className="font-medium">{fromAccount.name} ({fromAccount.currency})</span>
@@ -283,7 +283,7 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
                   <span className="font-medium">{receivedAmount.toFixed(2)} {toAccount.currency}</span>
                 </div>
               )}
-              <div className="border-t border-blue-300 dark:border-blue-800 my-2 pt-2">
+              <div className="my-2 border-t border-[hsl(var(--brand-accent-border))] pt-2">
                 <div className="flex justify-between">
                   <span>Nuevo balance origen:</span>
                   <span className="font-medium">{(fromBalance - transferAmount).toFixed(2)} {fromAccount.currency}</span>

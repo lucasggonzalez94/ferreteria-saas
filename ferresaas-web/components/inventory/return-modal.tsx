@@ -192,7 +192,7 @@ export default function ReturnModal({
                         key={item.productId}
                         className={`p-3 rounded-lg border transition-colors ${
                           returnItem
-                            ? "bg-blue-50 border-blue-200"
+                            ? "bg-[hsl(var(--brand-accent-soft))] border-[hsl(var(--brand-accent-border))]"
                             : "bg-gray-50 border-gray-200"
                         }`}
                       >
@@ -203,7 +203,7 @@ export default function ReturnModal({
                               Vendido: {saleQty.toFixed(2)} {item.product.unit}
                             </p>
                             {returnItem && (
-                              <p className="text-xs text-blue-700 mt-1">
+                              <p className="mt-1 text-xs brand-accent-subtle">
                                 A devolver: {returnItem.quantity.toFixed(2)} {item.product.unit}
                               </p>
                             )}
@@ -266,11 +266,11 @@ export default function ReturnModal({
 
           {/* Resumen de devolución */}
           {returnItems.length > 0 && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="font-medium text-sm text-blue-900">
+            <div className="brand-accent-panel p-3">
+              <p className="text-sm font-medium text-foreground">
                 Productos a devolver: {returnItems.length}
               </p>
-              <ul className="text-sm text-blue-800 mt-1 space-y-1">
+              <ul className="mt-1 space-y-1 text-sm brand-accent-subtle">
                 {returnItems.map((item) => {
                   const saleItem = selectedSale?.items.find(
                     (si: any) => si.productId === item.productId

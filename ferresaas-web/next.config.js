@@ -51,6 +51,17 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+
+  webpack: (config, { dev }) => {
+    // En Windows el cache de webpack en desarrollo está quedando corrupto
+    // y genera 404 de chunks bajo .next/server/vendor-chunks.
+    // Desactivarlo solo en dev estabiliza next dev sin afectar producción.
+    if (dev) {
+      config.cache = false;
+    }
+
+    return config;
+  },
   
   // Content Security Policy (CSP) headers
   async headers() {

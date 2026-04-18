@@ -119,7 +119,7 @@ export default function PurchaseDetailPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Nombre</p>
                   <Link href={`/dashboard/suppliers/${purchase.supplier.id}`}>
-                    <p className="font-semibold text-blue-600 hover:underline">
+                    <p className="font-semibold text-[hsl(var(--accent))] hover:underline">
                       {purchase.supplier.name}
                     </p>
                   </Link>

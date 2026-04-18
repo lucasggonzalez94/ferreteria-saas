@@ -130,7 +130,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       )}
 
       {showDropdown && entities.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
           {isLoading ? (
             <div className="p-3 text-sm text-muted-foreground text-center">
               Buscando...
@@ -140,7 +140,7 @@ export function EntityAutocomplete<T extends { id: string }>({
               <button
                 key={entity.id}
                 onClick={() => handleSelect(entity)}
-                className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-slate-800 last:border-b-0 text-sm transition-colors text-foreground"
+                className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-[hsl(var(--brand-accent-soft))]"
                 type="button"
               >
                 {renderItem ? renderItem(entity) : displayFn(entity)}
@@ -151,7 +151,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       )}
 
       {showDropdown && !isLoading && entities.length === 0 && search.length >= minSearchLength && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg z-50 p-3">
+        <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-[1.25rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
           <p className="text-sm text-muted-foreground text-center">
             No se encontraron resultados
           </p>

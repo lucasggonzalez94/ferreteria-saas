@@ -272,11 +272,11 @@ export default function InventoryPage() {
                           {alerts.summary?.warning || 0}
                         </p>
                       </div>
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-600 font-medium">
+                      <div className="brand-accent-panel p-4">
+                        <p className="text-sm font-medium brand-accent-subtle">
                           Total
                         </p>
-                        <p className="text-2xl font-bold text-blue-700">
+                        <p className="text-2xl font-bold text-foreground">
                           {alerts.summary?.total || 0}
                         </p>
                       </div>
@@ -478,9 +478,9 @@ export default function InventoryPage() {
                                     : movement.type === "PURCHASE_RECEIPT"
                                     ? "bg-green-100 text-green-700"
                                     : movement.type === "RETURN"
-                                    ? "bg-blue-100 text-blue-700"
+                                    ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
                                     : "bg-gray-100 text-gray-700"
-                                }`}
+                                 }`}
                               >
                                 {movement.type === "SALE"
                                   ? "Venta"

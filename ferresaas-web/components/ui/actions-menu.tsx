@@ -38,7 +38,7 @@ export function ActionsMenu({ actions }: ActionsMenuProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 rounded-full transition-colors hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
+        className="h-9 w-9 rounded-full border border-transparent bg-background/60 text-muted-foreground shadow-none hover:border-border/70 hover:bg-[hsl(var(--brand-accent-soft))] hover:text-foreground"
         onClick={(e) => {
           e.stopPropagation();
           setOpen((prev) => !prev);
@@ -55,12 +55,12 @@ export function ActionsMenu({ actions }: ActionsMenuProps) {
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 mt-1 w-44 rounded-md border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-md z-10"
+          className="absolute right-0 z-10 mt-2 w-48 rounded-2xl border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl"
         >
           {actions.map((action, idx) => (
             <button
               key={`${action.label}-${idx}`}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-slate-200 dark:hover:bg-slate-800 ${
+              className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-[hsl(var(--brand-accent-soft))] ${
                 action.variant === "danger" ? "text-red-600 dark:text-red-400" : ""
               } ${action.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               type="button"

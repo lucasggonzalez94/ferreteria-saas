@@ -177,13 +177,13 @@ export default function PurchasesPage() {
             linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"} 
           />
           {supplierId && supplierName && (
-            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-              <span className="text-sm text-blue-700">
+            <div className="brand-accent-panel flex items-center gap-2 px-4 py-2">
+              <span className="text-sm brand-accent-subtle">
                 Filtrado por: <strong>{supplierName}</strong>
               </span>
               <button
                 onClick={handleClearFilter}
-                className="text-blue-600 hover:text-blue-800 font-semibold ml-2"
+                className="ml-2 font-semibold brand-accent-text hover:text-foreground"
               >
                 ✕
               </button>

@@ -531,7 +531,7 @@ export default function POSPage() {
   }, [cart.length, clearSaleDraft, handleCheckout]);
 
   return (
-    <div className="p-8">
+    <div className="app-page">
       {/* Modal de fallback para tipo de cambio */}
       <ManualExchangeRateModal
         isOpen={showManualModal}
@@ -542,8 +542,11 @@ export default function POSPage() {
         lastKnownRate={lastKnownRate}
       />
 
-      <div className="max-w-7xl mx-auto">
-        <Header title="Punto de Venta" />
+      <div className="app-section">
+        <Header
+          title="Punto de Venta"
+          description="Cobro rápido, búsqueda asistida por scanner y resumen de pagos con mejor jerarquía visual."
+        />
 
         {/* Banner de advertencia si la cotización está desactualizada */}
         {(isStale || isFallback) && exchangeRate && (
@@ -557,11 +560,47 @@ export default function POSPage() {
           </div>
         )}
 
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Carrito activo</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{cart.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Productos preparados para cobrar en esta venta.
+            </p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Total actual</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">${total.toFixed(2)}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Importe listo para confirmar con medios de pago.
+            </p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Estado de cobro</p>
+            <p className="mt-3 text-lg font-semibold text-foreground">
+              {payments.length === 0
+                ? "Esperando pagos"
+                : remainingAmount > 0
+                  ? `Faltan $${remainingAmount.toFixed(2)}`
+                  : "Listo para cobrar"}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {payments.length} medio(s) cargado(s) en la venta actual.
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Product Search */}
           <div className="lg:col-span-2 space-y-4">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
+                <div className="mb-3">
+                  <span className="app-kicker">
+                    <span className="app-brand-dot" aria-hidden="true" />
+                    Scanner listo
+                  </span>
+                </div>
                 <CardTitle>Buscar Producto</CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Atajos: F2 buscar, Ctrl/Cmd + Enter cobrar, Ctrl/Cmd + Backspace limpiar carrito.
@@ -587,7 +626,7 @@ export default function POSPage() {
             </Card>
 
             {/* Cart */}
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle>Carrito ({cart.length} productos)</CardTitle>
               </CardHeader>
@@ -601,7 +640,7 @@ export default function POSPage() {
                     {cart.map((item) => (
                       <div
                         key={item.product.id}
-                        className="flex items-center gap-3 p-3 border rounded-lg"
+                        className="flex items-center gap-3 rounded-[1.25rem] border border-border/70 bg-background/70 p-4"
                       >
                         <div className="flex-1">
                           <p className="font-medium">{item.product.name}</p>
@@ -729,7 +768,7 @@ export default function POSPage() {
                               setDiscountReason(item.discountReason || "");
                               setDiscountModalOpen(true);
                             }}
-                            className="text-xs h-7"
+                            className="h-8 text-xs"
                           >
                             {item.discountedPrice
                               ? "Editar desc."
@@ -741,8 +780,9 @@ export default function POSPage() {
                           variant="ghost"
                           aria-label={`Eliminar ${item.product.name} del carrito`}
                           onClick={() => removeFromCart(item.product.id)}
+                          className="text-red-500 hover:text-red-600"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
@@ -754,20 +794,30 @@ export default function POSPage() {
 
           {/* Right: Checkout */}
           <div className="space-y-4">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle>Resumen</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span>${Number(total).toFixed(2)}</span>
+                <div className="app-panel-muted rounded-[1.25rem] p-4">
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total:</span>
+                    <span>${Number(total).toFixed(2)}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Incluye IVA y descuentos aplicados.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">(Incluye IVA)</p>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Items cargados</span>
+                  <span className="font-medium text-foreground">{cart.length}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Pagos agregados</span>
+                  <span className="font-medium text-foreground">{payments.length}</span>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle>Cliente</CardTitle>
               </CardHeader>
@@ -803,9 +853,9 @@ export default function POSPage() {
 
                 {selectedCustomer && (
                   <div className="space-y-2">
-                    <div className="p-2 bg-blue-50 rounded-lg text-xs">
-                      <p className="text-blue-700">
-                        <span className="font-medium">Saldo:</span> $
+                    <div className="rounded-[1.15rem] border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] p-3 text-xs text-foreground/80">
+                      <p>
+                        <span className="font-semibold text-foreground">Saldo:</span> $
                         {Number(selectedCustomer.currentBalance).toFixed(2)}
                       </p>
                     </div>
@@ -829,7 +879,7 @@ export default function POSPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader>
                 <CardTitle>Pago</CardTitle>
               </CardHeader>
@@ -900,11 +950,11 @@ export default function POSPage() {
 
                     {/* Calculadora automática */}
                     {amountUSD && exchangeRate && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-blue-900 mb-2">
-                          💱 Conversión Automática
+                      <div className="rounded-[1.2rem] border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground/75">
+                          Conversión automática
                         </p>
-                        <div className="space-y-1 text-xs text-blue-700">
+                        <div className="space-y-1 text-xs text-foreground/80">
                           <div className="flex justify-between">
                             <span>Monto USD:</span>
                             <span className="font-medium">
@@ -917,9 +967,9 @@ export default function POSPage() {
                               1 USD = ${exchangeRate.rate.toFixed(2)} ARS
                             </span>
                           </div>
-                          <div className="flex justify-between border-t border-blue-300 pt-1 mt-1">
+                          <div className="mt-1 flex justify-between border-t border-[hsl(var(--brand-accent-border))] pt-2">
                             <span>Equivalente ARS:</span>
-                            <span className="font-medium">
+                            <span className="font-semibold text-foreground">
                               ${paymentAmount}
                             </span>
                           </div>
@@ -1004,14 +1054,14 @@ export default function POSPage() {
 
                 {/* Lista de pagos agregados */}
                 {payments.length > 0 && (
-                  <div className="space-y-2 border-t pt-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Pagos agregados:
+                    <div className="space-y-2 border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Pagos agregados:
                     </p>
                     {payments.map((payment, index) => (
                       <div
                         key={index}
-                        className="flex justify-between items-center text-sm bg-slate-50 p-2 rounded"
+                        className="flex items-center justify-between rounded-[1rem] border border-border/60 bg-background/70 p-3 text-sm"
                       >
                         <div className="flex-1">
                           <p className="font-medium">
@@ -1121,7 +1171,7 @@ export default function POSPage() {
                     totalPaid < total ||
                     createSaleMutation.isPending
                   }
-                  className="w-full h-12 text-lg"
+                  className="h-12 w-full bg-[hsl(var(--accent))] text-lg text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]"
                 >
                   <DollarSign className="h-5 w-5 mr-2" />
                   {createSaleMutation.isPending ? "Procesando..." : "Cobrar"}
@@ -1210,7 +1260,7 @@ export default function POSPage() {
                       </div>
 
                       {discountFinalPrice && (
-                        <div className="bg-slate-50 p-3 rounded-lg space-y-1">
+                        <div className="space-y-1 rounded-[1.15rem] border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] p-3">
                           <p className="text-sm">
                             <span className="font-medium">Descuento:</span> $
                             {discountAmount.toFixed(2)} ({discountPercent}%)
@@ -1325,7 +1375,7 @@ export default function POSPage() {
 
                   return (
                     <>
-                      <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
+                      <div className="space-y-2 rounded-[1.15rem] border border-border/60 bg-background/70 p-3">
                         <p className="text-sm font-medium">
                           Producto: {item.product.name}
                         </p>

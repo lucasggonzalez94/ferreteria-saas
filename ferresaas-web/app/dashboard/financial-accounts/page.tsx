@@ -160,17 +160,19 @@ export default function FinancialAccountsPage() {
 
   const activeAccounts = accounts?.filter((acc) => acc.isActive) || [];
   const totalBalance = summary?.totalBalance || 0;
+  const favoriteAccounts = activeAccounts.filter((account) => account.isDefault).length;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <Header
-        title="Cuentas Financieras"
-        description="Gestiona tus cuentas de efectivo, bancos y billeteras virtuales"
-        actions={
-          <div className="flex items-center gap-2">
-            <Tooltip content="Refrescar datos">
-              <Button
-                variant="outline"
+    <div className="app-page">
+      <div className="app-section">
+        <Header
+          title="Cuentas Financieras"
+          description="Caja, bancos y billeteras con acceso rápido a movimientos, transferencias y balance consolidado."
+          actions={
+            <div className="flex items-center gap-2">
+              <Tooltip content="Refrescar datos">
+                <Button
+                  variant="outline"
                 size="icon"
                 aria-label="Refrescar cuentas financieras"
                 onClick={() => {
@@ -190,14 +192,33 @@ export default function FinancialAccountsPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Nueva Cuenta
               </Button>
-            )}
-          </div>
-        }
-      />
+              )}
+            </div>
+          }
+        />
 
-      <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="app-panel-muted rounded-[1.4rem] p-4">
+              <p className="text-sm font-semibold text-foreground">Cuentas activas</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">{activeAccounts.length}</p>
+              <p className="mt-2 text-sm text-muted-foreground">Fuentes de dinero disponibles para operar.</p>
+            </div>
+            <div className="app-panel-muted rounded-[1.4rem] p-4">
+              <p className="text-sm font-semibold text-foreground">Favoritas</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">{favoriteAccounts}</p>
+              <p className="mt-2 text-sm text-muted-foreground">Cuentas marcadas como principales o preferidas.</p>
+            </div>
+            <div className="brand-accent-panel p-4">
+              <p className="text-sm font-semibold text-foreground">Balance consolidado</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">
+                ${totalBalance.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+              </p>
+              <p className="mt-2 text-sm brand-accent-subtle">Referencia rápida del total financiero actual.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
             title="Balance Total"
             value={`$${totalBalance.toLocaleString("es-AR", {
@@ -230,8 +251,7 @@ export default function FinancialAccountsPage() {
             )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-4 flex-wrap">
           <Button
             variant="outline"
             onClick={() => router.push("/dashboard/financial-accounts/summary")}
@@ -259,8 +279,7 @@ export default function FinancialAccountsPage() {
           )}
         </div>
 
-        {/* Accounts List */}
-        <div className="space-y-4">
+          <div className="space-y-4">
           <h2 className="text-xl font-semibold">Cuentas Activas</h2>
 
           {activeAccounts.length === 0 ? (
@@ -279,16 +298,13 @@ export default function FinancialAccountsPage() {
                   ] || Wallet;
 
                 return (
-                  <Card
-                    key={account.id}
-                    className="hover:shadow-lg transition-shadow h-full flex flex-col"
-                  >
+                  <Card key={account.id} className="app-orbit h-full flex flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded-lg">
-                            <Icon className="h-5 w-5 text-primary" />
-                          </div>
+                          <span className="app-icon-badge h-11 w-11 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                            <Icon className="h-5 w-5" />
+                          </span>
                           <div>
                             <CardTitle className="text-lg">{account.name}</CardTitle>
                             <p className="text-sm text-muted-foreground">
@@ -433,30 +449,30 @@ export default function FinancialAccountsPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <CreateAccountModal
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-      />
-      <TransferModal
-        open={showTransferModal}
-        onOpenChange={setShowTransferModal}
-        accounts={activeAccounts}
-      />
-      <MovementModal
-        open={showMovementModal}
-        onOpenChange={setShowMovementModal}
-        accounts={activeAccounts}
-      />
-      <ConfirmDialog
-        open={deleteDialog.isOpen}
-        onOpenChange={(open) => !open && deleteDialog.close()}
-        onConfirm={confirmDelete}
-        title="Eliminar Cuenta"
-        description={`¿Estás seguro de que deseas eliminar la cuenta "${deleteDialog.data?.name}"?`}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-      />
+        <CreateAccountModal
+          open={showCreateModal}
+          onOpenChange={setShowCreateModal}
+        />
+        <TransferModal
+          open={showTransferModal}
+          onOpenChange={setShowTransferModal}
+          accounts={activeAccounts}
+        />
+        <MovementModal
+          open={showMovementModal}
+          onOpenChange={setShowMovementModal}
+          accounts={activeAccounts}
+        />
+        <ConfirmDialog
+          open={deleteDialog.isOpen}
+          onOpenChange={(open) => !open && deleteDialog.close()}
+          onConfirm={confirmDelete}
+          title="Eliminar Cuenta"
+          description={`¿Estás seguro de que deseas eliminar la cuenta "${deleteDialog.data?.name}"?`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+        />
+      </div>
     </div>
   );
 }

@@ -176,8 +176,8 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="app-page">
+      <div className="app-section max-w-4xl">
         <Header
           title={user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
           description={user.email}
@@ -185,7 +185,24 @@ export default function UserDetailPage() {
           linkLabel="Volver a Usuarios"
         />
 
-        {/* Información del Usuario */}
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Estado</p>
+            <p className="mt-3 text-lg font-semibold text-foreground">{user.isActive ? "Usuario activo" : "Usuario inactivo"}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Disponibilidad actual para ingresar al sistema.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Roles asignados</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{user.roleCount || 0}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Cantidad de perfiles activos en esta cuenta.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Seguridad</p>
+            <p className="mt-3 text-lg font-semibold text-foreground">Reset y roles en un solo lugar</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Ideal para resolver accesos y permisos sin cambiar de contexto.</p>
+          </div>
+        </div>
+
         <Card className="mb-6">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>

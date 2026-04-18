@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, User } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
@@ -142,21 +141,42 @@ export default function CustomersPage() {
     createMutation.mutate(payload);
   };
 
+  const customerList = customers || [];
+  const companyCount = customerList.filter((customer: any) => customer.type === "COMPANY").length;
+  const positiveBalanceCount = customerList.filter((customer: any) => Number(customer.currentBalance) > 0).length;
+
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="app-page">
+      <div className="app-section">
         <Header
           title="Clientes"
-          description="Gestión de clientes y cuenta corriente"
+          description="Gestión comercial con cuenta corriente, búsqueda rápida y alta de personas o empresas desde una misma vista."
           showButton={canCreateCustomers}
           buttonLabel="Nuevo Cliente"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
           buttonAction={() => setShowForm(!showForm)}
         />
 
-        {/* Form */}
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Clientes visibles</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{customerList.length}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Resultados según búsqueda actual.</p>
+          </div>
+          <div className="app-panel-muted rounded-[1.4rem] p-4">
+            <p className="text-sm font-semibold text-foreground">Empresas</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{companyCount}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Clientes corporativos dentro del padrón.</p>
+          </div>
+          <div className="brand-accent-panel p-4">
+            <p className="text-sm font-semibold text-foreground">Con saldo activo</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{positiveBalanceCount}</p>
+            <p className="mt-2 text-sm brand-accent-subtle">Cuentas corrientes que conviene revisar primero.</p>
+          </div>
+        </div>
+
         {showForm && (
-          <Card className="mb-6">
+          <Card className="app-orbit mb-6 overflow-hidden">
             <CardHeader>
               <CardTitle>Nuevo Cliente</CardTitle>
             </CardHeader>
@@ -282,6 +302,9 @@ export default function CustomersPage() {
                       }
                       placeholder="0.00"
                     />
+                    <p className="mt-2 text-xs brand-accent-subtle">
+                      Úsalo para migrar saldos previos sin perder contexto contable.
+                    </p>
                   </div>
                 </div>
 
@@ -302,8 +325,7 @@ export default function CustomersPage() {
           </Card>
         )}
 
-        {/* Search */}
-        <Card className="mb-6">
+        <Card className="mb-6 overflow-hidden">
           <CardContent className="pt-6">
             <SearchBar
               value={search}
@@ -318,14 +340,14 @@ export default function CustomersPage() {
           <div className="text-center py-12">
             <LoadingSpinner text="Cargando clientes..." />
           </div>
-        ) : customers && customers.length > 0 ? (
+        ) : customerList.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {customers.map((customer: any) => (
-              <Card key={customer.id}>
+            {customerList.map((customer: any) => (
+              <Card key={customer.id} className="app-orbit overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
                 <CardHeader>
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <User className="h-5 w-5 text-primary" />
+                    <div className="app-icon-badge h-11 w-11 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                      <User className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-lg">
@@ -382,13 +404,13 @@ export default function CustomersPage() {
                       {customer.phone}
                     </p>
                   )}
-                  <div className="pt-2 border-t">
+                  <div className="pt-3 border-t border-border/60">
                     <p className="text-sm text-muted-foreground">Saldo:</p>
                     <p
                       className={`text-lg font-semibold ${
                         Number(customer.currentBalance) < 0
                           ? "text-red-600"
-                          : "text-green-600"
+                          : "brand-accent-text"
                       }`}
                     >
                       ${Number(customer.currentBalance).toFixed(2)}

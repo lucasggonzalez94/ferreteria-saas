@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ const PASSWORD_REQUIREMENTS = [
   { regex: /[!@#$%^&*]/, label: "Un carácter especial (!@#$%^&*)" },
 ];
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -88,9 +89,31 @@ export default function ResetPasswordPage() {
 
   if (!token || tokenError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-        <Card className="w-full max-w-md">
+      <div className="app-page flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-lg overflow-hidden">
           <CardHeader className="space-y-2">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <span className="app-kicker">
+                <span className="app-brand-dot" aria-hidden="true" />
+                Enlace inválido
+              </span>
+              <Image
+                src="/icons/logo-principal-oscuro.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="h-11 w-auto dark:hidden"
+                priority
+              />
+              <Image
+                src="/icons/logo-principal-blanco.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="hidden h-11 w-auto dark:block"
+                priority
+              />
+            </div>
             <div className="flex justify-center mb-4">
               <div className="bg-red-100 p-3 rounded-full">
                 <AlertCircle className="w-6 h-6 text-red-600" />
@@ -102,8 +125,8 @@ export default function ResetPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
+            <div className="brand-accent-panel p-4">
+              <p className="text-sm brand-accent-subtle">
                 Los enlaces de recuperación expiran en <strong>30 minutos</strong>. Solicita uno nuevo.
               </p>
             </div>
@@ -128,11 +151,33 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-        <Card className="w-full max-w-md">
+      <div className="app-page flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-lg overflow-hidden">
           <CardHeader className="space-y-2">
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <span className="app-kicker">
+                <span className="app-brand-dot" aria-hidden="true" />
+                Contraseña actualizada
+              </span>
+              <Image
+                src="/icons/logo-principal-oscuro.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="h-11 w-auto dark:hidden"
+                priority
+              />
+              <Image
+                src="/icons/logo-principal-blanco.png"
+                alt="Ferrahock"
+                width={148}
+                height={48}
+                className="hidden h-11 w-auto dark:block"
+                priority
+              />
+            </div>
             <div className="flex justify-center mb-4">
-              <div className="bg-green-100 p-3 rounded-full">
+              <div className="app-icon-badge h-14 w-14 rounded-full border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
             </div>
@@ -142,8 +187,8 @@ export default function ResetPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
+            <div className="brand-accent-panel p-4">
+              <p className="text-sm brand-accent-subtle">
                 Por seguridad, todas tus sesiones activas han sido cerradas. Inicia sesión nuevamente con tu nueva contraseña.
               </p>
             </div>
@@ -163,12 +208,34 @@ export default function ResetPasswordPage() {
   const strengthPercent = (strength / PASSWORD_REQUIREMENTS.length) * 100;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
-      <Card className="w-full max-w-md">
+    <div className="app-page flex min-h-screen items-center justify-center">
+      <Card className="w-full max-w-lg overflow-hidden">
         <CardHeader className="space-y-2">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <span className="app-kicker">
+              <span className="app-brand-dot" aria-hidden="true" />
+              Restablecer acceso
+            </span>
+            <Image
+              src="/icons/logo-principal-oscuro.png"
+              alt="Ferrahock"
+              width={148}
+              height={48}
+              className="h-11 w-auto dark:hidden"
+              priority
+            />
+            <Image
+              src="/icons/logo-principal-blanco.png"
+              alt="Ferrahock"
+              width={148}
+              height={48}
+              className="hidden h-11 w-auto dark:block"
+              priority
+            />
+          </div>
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <Lock className="w-6 h-6 text-blue-600" />
+            <div className="app-icon-badge h-14 w-14 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+              <Lock className="w-6 h-6" />
             </div>
           </div>
           <CardTitle className="text-center">Restablecer contraseña</CardTitle>
@@ -203,7 +270,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -214,8 +281,8 @@ export default function ResetPasswordPage() {
             {password && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-medium text-gray-600">Fortaleza</span>
-                  <span className="text-xs font-medium text-gray-600">
+                  <span className="text-xs font-medium text-muted-foreground">Fortaleza</span>
+                  <span className="text-xs font-medium text-muted-foreground">
                     {strength}/{PASSWORD_REQUIREMENTS.length}
                   </span>
                 </div>
@@ -227,7 +294,7 @@ export default function ResetPasswordPage() {
                         : strength <= 3
                         ? "bg-yellow-500"
                         : strength <= 4
-                        ? "bg-blue-500"
+                        ? "bg-[hsl(var(--accent))]"
                         : "bg-green-500"
                     }`}
                     style={{ width: `${strengthPercent}%` }}
@@ -239,7 +306,7 @@ export default function ResetPasswordPage() {
             {/* Requisitos */}
             {password && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-600">Requisitos:</p>
+                <p className="text-xs font-medium text-muted-foreground">Requisitos:</p>
                 <div className="space-y-1">
                   {PASSWORD_REQUIREMENTS.map((req) => (
                     <div
@@ -261,7 +328,7 @@ export default function ResetPasswordPage() {
                         className={
                           req.regex.test(password)
                             ? "text-green-700"
-                            : "text-gray-600"
+                            : "text-muted-foreground"
                         }
                       >
                         {req.label}
@@ -294,7 +361,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -319,7 +386,7 @@ export default function ResetPasswordPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 ¿Recordaste tu contraseña?{" "}
-                <Link href="/login" className="text-blue-600 hover:underline font-medium">
+                <Link href="/login" className="font-medium text-[hsl(var(--accent))] hover:underline">
                   Volver al login
                 </Link>
               </p>
@@ -328,5 +395,27 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <div className="app-page flex min-h-screen items-center justify-center">
+      <div className="app-panel w-full max-w-lg p-8 text-center">
+        <span className="app-kicker">
+          <span className="app-brand-dot" aria-hidden="true" />
+          Cargando enlace
+        </span>
+        <p className="mt-4 text-sm text-muted-foreground">Validando la solicitud de recuperación...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }

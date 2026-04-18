@@ -249,8 +249,8 @@ export function UnknownBarcodeModal({
                     onClick={() => setStep("create")}
                     className="flex items-center gap-4 p-4 border-2 rounded-lg text-left hover:border-primary hover:bg-primary/5 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 flex items-center justify-center flex-shrink-0 transition-colors">
-                      <PackagePlus className="h-5 w-5 text-blue-600" />
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] transition-colors group-hover:bg-[hsl(var(--brand-accent-soft))]">
+                      <PackagePlus className="h-5 w-5 brand-accent-text" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">

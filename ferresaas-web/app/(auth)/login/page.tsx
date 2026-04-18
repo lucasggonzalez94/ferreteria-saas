@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -49,71 +49,179 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4">
-      <Card className="w-full max-w-md border border-border bg-card text-card-foreground shadow-lg">
-        <CardHeader className="space-y-1">
-          <CardTitle className="flex justify-center">
-            <Image
-              src="/icons/logo-principal-oscuro.png"
-              alt="Ferrahock"
-              width={198}
-              height={66}
-              className="h-16 w-auto dark:hidden"
-              priority
-            />
-            <Image
-              src="/icons/logo-principal-blanco.png"
-              alt="Ferrahock"
-              width={198}
-              height={66}
-              className="hidden h-16 w-auto dark:block"
-              priority
-            />
-          </CardTitle>
-          <CardDescription className="text-center text-muted-foreground">
-            Ingresá tus credenciales para acceder
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@ferreteria-demo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
+    <div className="app-page flex min-h-screen items-center justify-center">
+      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="app-panel app-orbit hidden overflow-hidden p-8 lg:flex lg:min-h-[640px] lg:flex-col lg:justify-between xl:p-10">
+          <div className="space-y-6">
+            <span className="app-kicker">
+              <span className="app-brand-dot" aria-hidden="true" />
+              Moderna / Premium
+            </span>
+
+            <div className="space-y-5">
+              <div>
+                <Image
+                  src="/icons/logo-principal-oscuro.png"
+                  alt="Ferrahock"
+                  width={246}
+                  height={82}
+                  className="h-20 w-auto dark:hidden"
+                  priority
+                />
+                <Image
+                  src="/icons/logo-principal-blanco.png"
+                  alt="Ferrahock"
+                  width={246}
+                  height={82}
+                  className="hidden h-20 w-auto dark:block"
+                  priority
+                />
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
+
+              <div className="max-w-xl space-y-3">
+                <h1 className="text-4xl font-semibold leading-tight text-foreground xl:text-5xl">
+                  Operación diaria con una interfaz clara, robusta y lista para vender.
+                </h1>
+                <p className="text-base leading-7 text-muted-foreground">
+                  Ferrahock combina caja, inventario, compras y gestión en una experiencia más precisa, más rápida y con una identidad visual alineada a la marca.
+                </p>
+              </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Ingresando..." : "Ingresar"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ["POS", "Cobro ágil con scanner y atajos"],
+              ["Stock", "Alertas y catálogo operativo"],
+              ["Caja", "Control y cierre con contexto"],
+            ].map(([title, copy]) => (
+              <div key={title} className="app-panel-muted rounded-[1.4rem] p-4">
+                <p className="text-sm font-semibold text-foreground">{title}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Card className="mx-auto w-full max-w-xl overflow-hidden">
+          <CardHeader className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <span className="app-kicker lg:hidden">
+                <span className="app-brand-dot" aria-hidden="true" />
+                Acceso seguro
+              </span>
+              <div className="ml-auto lg:hidden">
+                <Image
+                  src="/icons/logo-principal-oscuro.png"
+                  alt="Ferrahock"
+                  width={176}
+                  height={58}
+                  className="h-14 w-auto dark:hidden"
+                  priority
+                />
+                <Image
+                  src="/icons/logo-principal-blanco.png"
+                  alt="Ferrahock"
+                  width={176}
+                  height={58}
+                  className="hidden h-14 w-auto dark:block"
+                  priority
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <CardTitle className="text-3xl">Ingresar al sistema</CardTitle>
+              <CardDescription className="max-w-md">
+                Accedé a ventas, inventario y administración desde un panel unificado.
+              </CardDescription>
+            </div>
+
+            <div className="app-panel-muted flex items-start gap-3 rounded-[1.25rem] p-4 text-sm">
+              <div className="app-icon-badge h-10 w-10 border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                <span className="text-base font-bold">+</span>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Acceso preparado para operación mixta</p>
+                <p className="mt-1 text-muted-foreground">
+                  Navegación rápida, foco visible y jerarquía pensada para mostrador y administración.
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@ferreteria-demo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-semibold text-[hsl(var(--accent))] transition-colors hover:text-foreground hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                <p className="app-inline-hint">
+                  Ingresá con tu usuario para continuar trabajando en caja, stock o configuración.
+                </p>
+                <Button
+                  type="submit"
+                  className="w-full bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)] sm:w-auto"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Ingresando..." : "Ingresar"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="app-page flex min-h-screen items-center justify-center">
+      <div className="app-panel w-full max-w-lg p-8 text-center">
+        <span className="app-kicker">
+          <span className="app-brand-dot" aria-hidden="true" />
+          Cargando acceso
+        </span>
+        <p className="mt-4 text-sm text-muted-foreground">Preparando el formulario de ingreso...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
