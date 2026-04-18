@@ -326,7 +326,7 @@ export default function CustomersPage() {
         )}
 
         <Card className="mb-6 overflow-hidden">
-          <CardContent className="pt-6">
+          <CardContent>
             <SearchBar
               value={search}
               onChange={setSearch}

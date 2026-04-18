@@ -347,7 +347,7 @@ export default function InventoryPage() {
               </div>
             ) : (
               <Card>
-                <CardContent className="pt-6">
+                <CardContent>
                   <p className="text-center text-muted-foreground">
                     No hay alertas de stock
                   </p>
@@ -362,7 +362,7 @@ export default function InventoryPage() {
               <LoadingSpinner text="Cargando productos..." />
             ) : products && products.length > 0 ? (
               <Card>
-                <CardContent className="pt-6">
+                <CardContent>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -430,7 +430,7 @@ export default function InventoryPage() {
               </Card>
             ) : (
               <Card>
-                <CardContent className="pt-6">
+                <CardContent>
                   <p className="text-center text-muted-foreground">
                     No hay productos
                   </p>
@@ -483,7 +483,7 @@ export default function InventoryPage() {
               <LoadingSpinner text="Cargando movimientos..." />
             ) : movements && movements.length > 0 ? (
               <Card>
-                <CardContent className="pt-6">
+                <CardContent>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>

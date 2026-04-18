@@ -77,7 +77,7 @@ export default function CashRegisterHistoryPage() {
           {sessions && sessions.length > 0 ? (
             sessions.map((session: any) => (
               <Card key={session.id}>
-                <CardContent className="pt-6">
+                <CardContent>
                   <div className="grid grid-cols-5 gap-4 items-center">
                     <div>
                       <p className="text-sm text-muted-foreground">Cajero</p>

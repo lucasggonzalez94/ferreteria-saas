@@ -362,7 +362,7 @@ export default function ProfilePage() {
 
         {/* Información de seguridad */}
         <Card className="mt-6 border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))]">
-          <CardContent className="pt-6">
+          <CardContent>
             <div className="flex gap-3">
               <div className="brand-accent-text mt-0.5">ℹ️</div>
               <div>

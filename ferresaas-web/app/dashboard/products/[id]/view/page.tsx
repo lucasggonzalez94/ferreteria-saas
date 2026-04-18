@@ -378,7 +378,7 @@ export default function ProductDetailViewPage() {
 
         {/* Filtro de rango de fechas */}
         <Card>
-          <CardContent className="pt-6">
+          <CardContent>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground mr-2">
                 Rango:

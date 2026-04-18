@@ -494,10 +494,6 @@ export default function DashboardPage() {
               )}
 
               <div className="space-y-3">
-                <span className="app-kicker">
-                  <span className="app-brand-dot" aria-hidden="true" />
-                  Resumen del dia
-                </span>
                 <div>
                   <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
                     Buen turno, {welcomeName}
@@ -565,14 +561,8 @@ export default function DashboardPage() {
         </div>
 
         <Card>
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardHeader className="flex flex-col sm:items-center sm:flex-row sm:justify-between gap-3">
             <div>
-              <div className="mb-3">
-                <span className="app-kicker">
-                  <span className="app-brand-dot" aria-hidden="true" />
-                  Flujo diario
-                </span>
-              </div>
               <CardTitle>Accesos rápidos</CardTitle>
               <CardDescription>
                 Entradas directas a los modulos que mas usas en el dia.

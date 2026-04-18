@@ -297,7 +297,7 @@ export default function FinancialAccountsSummaryPage() {
 
           {movements && movements.length > 0 ? (
             <Card>
-              <CardContent className="pt-6">
+              <CardContent>
                 <div className="space-y-3">
                   {movements.map((movement) => {
                     const account = activeAccounts.find(
