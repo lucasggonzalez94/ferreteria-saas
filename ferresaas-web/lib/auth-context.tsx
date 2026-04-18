@@ -89,9 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      // Si falla, no hay sesión válida
-      // No hacer nada, simplemente dejar user como null
+      // Si falla, no hay sesión válida - redirigir al login
       console.log('No active session', error);
+      router.push('/login');
     } finally {
       setIsLoading(false);
     }

@@ -65,7 +65,7 @@ export const errorHandler = (
 
   // Default error
   const statusCode = (err as any).statusCode || 500;
-  const message = env.app.isProduction ? 'Internal server error' : err.message;
+  const message = env.app.isProduction ? 'Error interno del servidor. Intenta nuevamente.' : err.message;
 
   res.status(statusCode).json({
     success: false,

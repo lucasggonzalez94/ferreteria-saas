@@ -10,7 +10,10 @@ import { AlertTriangle, Plus, TrendingDown, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
-import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import {
+  usePermissionGuard,
+  usePermissions,
+} from "@/lib/hooks/usePermissionGuard";
 import {
   Table,
   TableBody,
@@ -24,7 +27,12 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import ReturnModal from "@/components/inventory/return-modal";
-import { todayLocal, monthsAgoLocal, rangeForLocalDays, formatDate } from "@/lib/timezone";
+import {
+  todayLocal,
+  monthsAgoLocal,
+  rangeForLocalDays,
+  formatDate,
+} from "@/lib/timezone";
 
 interface InventoryProduct {
   id: string;
@@ -84,31 +92,35 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
 
   usePermissionGuard("inventory:read");
-  const {
-    canRead: canViewInventory,
-    canManage: canManageInventory,
-  } = usePermissions({
-    canRead: "inventory:read",
-    canManage: "inventory:manage",
-  });
+  const { canRead: canViewInventory, canManage: canManageInventory } =
+    usePermissions({
+      canRead: "inventory:read",
+      canManage: "inventory:manage",
+    });
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(() => {
-    // Usar utilidades de timezone para obtener fechas locales correctas
-    return {
-      from: monthsAgoLocal(1),
-      to: todayLocal(),
-    };
-  });
+  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
+    () => {
+      // Usar utilidades de timezone para obtener fechas locales correctas
+      return {
+        from: monthsAgoLocal(1),
+        to: todayLocal(),
+      };
+    },
+  );
 
   // Obtener productos con stock
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["inventory", "products"],
     queryFn: async () => {
       try {
-        const response = await api.get<InventoryProduct[] | { data: InventoryProduct[] }>("/inventory");
-        const productList = Array.isArray(response.data) ? response.data : (response.data as { data: InventoryProduct[] })?.data || [];
+        const response = await api.get<
+          InventoryProduct[] | { data: InventoryProduct[] }
+        >("/inventory");
+        const productList = Array.isArray(response.data)
+          ? response.data
+          : (response.data as { data: InventoryProduct[] })?.data || [];
         return productList as InventoryProduct[];
       } catch (error) {
         console.error("Error cargando productos:", error);
@@ -123,13 +135,22 @@ export default function InventoryPage() {
     queryKey: ["inventory", "alerts"],
     queryFn: async () => {
       try {
-        const response = await api.get<StockAlertsResponse | { data: StockAlertsResponse }>("/inventory-reports/stock-alerts");
-        const responseData = response.data as StockAlertsResponse | { data: StockAlertsResponse };
-        const alertsData = (responseData as { data: StockAlertsResponse })?.data || responseData || { items: [], summary: {} };
+        const response = await api.get<
+          StockAlertsResponse | { data: StockAlertsResponse }
+        >("/inventory-reports/stock-alerts");
+        const responseData = response.data as
+          | StockAlertsResponse
+          | { data: StockAlertsResponse };
+        const alertsData = (responseData as { data: StockAlertsResponse })
+          ?.data ||
+          responseData || { items: [], summary: {} };
         return alertsData as StockAlertsResponse;
       } catch (error) {
         console.error("Error cargando alertas:", error);
-        return { items: [], summary: { critical: 0, warning: 0, total: 0 } } as StockAlertsResponse;
+        return {
+          items: [],
+          summary: { critical: 0, warning: 0, total: 0 },
+        } as StockAlertsResponse;
       }
     },
     enabled: canViewInventory,
@@ -140,22 +161,26 @@ export default function InventoryPage() {
     queryKey: ["inventory", "movements", dateFilter],
     queryFn: async () => {
       try {
-        const params: Record<string, string | number> = { 
-          limit: 50, 
+        const params: Record<string, string | number> = {
+          limit: 50,
           page: 1,
         };
-        
+
         // Usar utilidades de timezone para convertir fechas locales a UTC
         if (dateFilter.from && dateFilter.to) {
           const utcRange = rangeForLocalDays(dateFilter.from, dateFilter.to);
           params.startDate = utcRange.startDate;
           params.endDate = utcRange.endDate;
         }
-        
-        const response = await api.get<InventoryMovement[] | { data: InventoryMovement[] }>("/inventory/movements", {
+
+        const response = await api.get<
+          InventoryMovement[] | { data: InventoryMovement[] }
+        >("/inventory/movements", {
           params,
         });
-        const movementList = Array.isArray(response.data) ? response.data : (response.data as { data: InventoryMovement[] })?.data || [];
+        const movementList = Array.isArray(response.data)
+          ? response.data
+          : (response.data as { data: InventoryMovement[] })?.data || [];
         return movementList as InventoryMovement[];
       } catch (error) {
         console.error("Error cargando movimientos:", error);
@@ -209,30 +234,32 @@ export default function InventoryPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <Header title="Inventario" />
-          <div className="flex gap-2">
-            {canManageInventory && (
-              <Button
-                onClick={() => setAdjustmentOpen(true)}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Ajuste Manual
-              </Button>
-            )}
-            {canManageInventory && (
-              <Button
-                onClick={() => setReturnOpen(true)}
-                variant="outline"
-                className="gap-2"
-              >
-                <TrendingDown className="h-4 w-4" />
-                Devolución
-              </Button>
-            )}
-          </div>
-        </div>
+        <Header
+          title="Inventario"
+          actions={
+            <div className="flex gap-2">
+              {canManageInventory && (
+                <Button
+                  onClick={() => setAdjustmentOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajuste Manual
+                </Button>
+              )}
+              {canManageInventory && (
+                <Button
+                  onClick={() => setReturnOpen(true)}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <TrendingDown className="h-4 w-4" />
+                  Devolución
+                </Button>
+              )}
+            </div>
+          }
+        />
 
         <Tabs defaultValue="alerts" className="w-full">
           <TabsList>
@@ -289,7 +316,7 @@ export default function InventoryPage() {
                     <div
                       key={alert.id}
                       className={`flex justify-between items-center p-4 rounded-lg border ${getAlertColor(
-                        alert.alertLevel
+                        alert.alertLevel,
                       )}`}
                     >
                       <div className="flex items-center gap-3">
@@ -355,8 +382,8 @@ export default function InventoryPage() {
                             product.stockQuantity < product.minStock
                               ? "low"
                               : product.stockQuantity === 0
-                              ? "critical"
-                              : "ok";
+                                ? "critical"
+                                : "ok";
 
                           return (
                             <TableRow key={product.id}>
@@ -416,18 +443,26 @@ export default function InventoryPage() {
           <TabsContent value="movements">
             <div className="mb-4 flex flex-wrap gap-4 items-end">
               <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Desde</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Desde
+                </p>
                 <DatePicker
                   value={dateFilter.from}
-                  onChange={(date) => setDateFilter((prev) => ({ ...prev, from: date }))}
+                  onChange={(date) =>
+                    setDateFilter((prev) => ({ ...prev, from: date }))
+                  }
                   className="w-[180px]"
                 />
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Hasta</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Hasta
+                </p>
                 <DatePicker
                   value={dateFilter.to}
-                  onChange={(date) => setDateFilter((prev) => ({ ...prev, to: date }))}
+                  onChange={(date) =>
+                    setDateFilter((prev) => ({ ...prev, to: date }))
+                  }
                   className="w-[180px]"
                 />
               </div>
@@ -468,7 +503,9 @@ export default function InventoryPage() {
                               {formatDate(movement.createdAt, "dd/MM/yyyy")}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
-                              {movement.user?.name || movement.user?.username || "Sistema"}
+                              {movement.user?.name ||
+                                movement.user?.username ||
+                                "Sistema"}
                             </TableCell>
                             <TableCell>
                               <span
@@ -476,19 +513,19 @@ export default function InventoryPage() {
                                   movement.type === "SALE"
                                     ? "bg-red-100 text-red-700"
                                     : movement.type === "PURCHASE_RECEIPT"
-                                    ? "bg-green-100 text-green-700"
-                                    : movement.type === "RETURN"
-                                    ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
-                                    : "bg-gray-100 text-gray-700"
-                                 }`}
+                                      ? "bg-green-100 text-green-700"
+                                      : movement.type === "RETURN"
+                                        ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
+                                        : "bg-gray-100 text-gray-700"
+                                }`}
                               >
                                 {movement.type === "SALE"
                                   ? "Venta"
                                   : movement.type === "PURCHASE_RECEIPT"
-                                  ? "Compra"
-                                  : movement.type === "RETURN"
-                                  ? "Devolución"
-                                  : "Ajuste"}
+                                    ? "Compra"
+                                    : movement.type === "RETURN"
+                                      ? "Devolución"
+                                      : "Ajuste"}
                               </span>
                             </TableCell>
                             <TableCell>{movement.product.name}</TableCell>
@@ -508,10 +545,8 @@ export default function InventoryPage() {
               </Card>
             ) : (
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-muted-foreground">
-                    No hay movimientos
-                  </p>
+                <CardContent className="flex items-center justify-center min-h-[200px]">
+                  <p className="text-muted-foreground">No hay movimientos</p>
                 </CardContent>
               </Card>
             )}

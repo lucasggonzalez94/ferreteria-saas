@@ -55,7 +55,7 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
 
   return (
     <Card className="mb-6 overflow-hidden">
-      <CardContent className="pt-6">
+      <CardContent>
         <div className="space-y-4">
           <div>
             <span className="app-kicker">

@@ -16,20 +16,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  ShoppingCart,
-  Package,
-  DollarSign,
-  Plus,
-  Eye,
-} from "lucide-react";
+import { ShoppingCart, Package, DollarSign, Plus, Eye } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
-import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";
+import {
+  getPurchaseStatusLabel,
+  getPurchaseStatusColor,
+} from "@/lib/purchase-status";
 import { StatCard } from "@/components/ui/stat-card";
 import { Pagination } from "@/components/ui/pagination";
-import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import {
+  usePermissionGuard,
+  usePermissions,
+} from "@/lib/hooks/usePermissionGuard";
 
 interface Purchase {
   id: string;
@@ -70,13 +70,11 @@ export default function PurchasesPage() {
   const searchParams = useSearchParams();
 
   usePermissionGuard("purchases:read");
-  const {
-    canRead: canViewPurchases,
-    canCreate: canCreatePurchase,
-  } = usePermissions({
-    canRead: "purchases:read",
-    canCreate: "purchases:create",
-  });
+  const { canRead: canViewPurchases, canCreate: canCreatePurchase } =
+    usePermissions({
+      canRead: "purchases:read",
+      canCreate: "purchases:create",
+    });
 
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState("");
@@ -91,7 +89,9 @@ export default function PurchasesPage() {
     }
   }, [supplierId]);
 
-  const { data: purchasesData, isLoading } = useQuery<PurchasesResponse | undefined>({
+  const { data: purchasesData, isLoading } = useQuery<
+    PurchasesResponse | undefined
+  >({
     queryKey: ["purchases", page, startDate, endDate, supplierId],
     queryFn: async () => {
       const response = await api.get<any>("/purchases", {
@@ -105,7 +105,13 @@ export default function PurchasesPage() {
       });
       return {
         data: response.data || [],
-        meta: (response as any).meta || { page: 1, limit: 10, total: 0, totalPages: 0, hasMore: false },
+        meta: (response as any).meta || {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          hasMore: false,
+        },
       } as PurchasesResponse;
     },
     enabled: canViewPurchases,
@@ -132,10 +138,20 @@ export default function PurchasesPage() {
     enabled: canViewPurchases,
   });
 
-  const purchases = Array.isArray(purchasesData?.data) ? purchasesData.data : (Array.isArray(purchasesData) ? purchasesData : []);
-  const meta = purchasesData?.meta || { page: 1, limit: 10, total: 0, totalPages: 0, hasMore: false };
+  const purchases = Array.isArray(purchasesData?.data)
+    ? purchasesData.data
+    : Array.isArray(purchasesData)
+      ? purchasesData
+      : [];
+  const meta = purchasesData?.meta || {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  };
   const summary = summaryData || {};
-  
+
   // suppliersData contiene { data: [...], meta: {...} }
   // Manejar tanto si suppliersData es un array directo como si es un objeto con propiedad data
   let suppliers: any[] = [];
@@ -149,10 +165,10 @@ export default function PurchasesPage() {
 
   const totalAmount = purchases.reduce((sum, p) => sum + Number(p.total), 0);
   const uniqueSuppliers = new Set(purchases.map((p) => p.supplier.id)).size;
-  
+
   // Obtener nombre del proveedor filtrado desde la lista de proveedores
-  const supplierName = supplierId 
-    ? suppliers.find((s: any) => s.id === supplierId)?.name 
+  const supplierName = supplierId
+    ? suppliers.find((s: any) => s.id === supplierId)?.name
     : null;
 
   const handleSupplierChange = (newSupplierId: string) => {
@@ -170,26 +186,26 @@ export default function PurchasesPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <Header 
-            title="Compras" 
-            link={supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"} 
-            linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"} 
-          />
-          {supplierId && supplierName && (
-            <div className="brand-accent-panel flex items-center gap-2 px-4 py-2">
-              <span className="text-sm brand-accent-subtle">
-                Filtrado por: <strong>{supplierName}</strong>
-              </span>
-              <button
-                onClick={handleClearFilter}
-                className="ml-2 font-semibold brand-accent-text hover:text-foreground"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
+        <Header
+          title="Compras"
+          link={
+            supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"
+          }
+          linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"}
+        />
+        {supplierId && supplierName && (
+          <div className="brand-accent-panel flex items-center gap-2 px-4 py-2">
+            <span className="text-sm brand-accent-subtle">
+              Filtrado por: <strong>{supplierName}</strong>
+            </span>
+            <button
+              onClick={handleClearFilter}
+              className="ml-2 font-semibold brand-accent-text hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -210,7 +226,9 @@ export default function PurchasesPage() {
           />
           <StatCard
             title="Pendiente Pagar"
-            value={isLoading ? "0,00" : `$${(summary.totalPending || 0).toFixed(2)}`}
+            value={
+              isLoading ? "0,00" : `$${(summary.totalPending || 0).toFixed(2)}`
+            }
             icon={DollarSign}
             valueClassName="text-amber-600"
           />
@@ -312,7 +330,8 @@ export default function PurchasesPage() {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <CardTitle className="text-lg">
-                          Compra #{purchase.invoiceNumber || purchase.id.slice(0, 8)}
+                          Compra #
+                          {purchase.invoiceNumber || purchase.id.slice(0, 8)}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           Proveedor: {purchase.supplier.name}
@@ -324,10 +343,12 @@ export default function PurchasesPage() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(purchase.createdAt).toLocaleDateString(
-                            "es-AR"
+                            "es-AR",
                           )}
                         </p>
-                        <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full border ${getPurchaseStatusColor(purchase.status)}`}>
+                        <span
+                          className={`inline-block mt-2 px-2 py-1 text-xs rounded-full border ${getPurchaseStatusColor(purchase.status)}`}
+                        >
                           {getPurchaseStatusLabel(purchase.status)}
                         </span>
                       </div>

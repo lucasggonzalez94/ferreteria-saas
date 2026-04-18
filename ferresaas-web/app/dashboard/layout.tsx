@@ -7,7 +7,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { COMMAND_ACTIONS, CommandPalette } from "@/components/ui/command-palette";
+import {
+  COMMAND_ACTIONS,
+  CommandPalette,
+} from "@/components/ui/command-palette";
 import { BarcodeProvider } from "@/lib/contexts/barcode-context";
 import { useGlobalBarcodeListener } from "@/lib/hooks/useGlobalBarcodeListener";
 import { BarcodeProductModal } from "@/components/barcode/barcode-product-modal";
@@ -18,7 +21,7 @@ import Image from "next/image";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   useGlobalBarcodeListener();
-  
+
   return <>{children}</>;
 }
 
@@ -36,7 +39,9 @@ export default function DashboardLayout({
     if (!isLoading && !isAuthenticated) {
       // Fallback client-side: redirigir a login con returnUrl
       // (El middleware ya maneja esto server-side, pero esto cubre sesión expirada)
-      const loginUrl = pathname ? `/login?returnUrl=${encodeURIComponent(pathname)}` : '/login';
+      const loginUrl = pathname
+        ? `/login?returnUrl=${encodeURIComponent(pathname)}`
+        : "/login";
       router.push(loginUrl);
     }
   }, [isAuthenticated, isLoading, router, pathname]);
@@ -59,11 +64,20 @@ export default function DashboardLayout({
         return;
       }
 
-      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && /^[1-8]$/.test(event.key)) {
+      if (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        /^[1-8]$/.test(event.key)
+      ) {
         const action = COMMAND_ACTIONS[Number(event.key) - 1];
         if (!action) return;
 
-        if (action.requiredPermission && !user?.permissions?.includes(action.requiredPermission)) {
+        if (
+          action.requiredPermission &&
+          !user?.permissions?.includes(action.requiredPermission)
+        ) {
           return;
         }
 
@@ -122,7 +136,7 @@ export default function DashboardLayout({
               </Link>
               <div className="flex items-center gap-2">
                 <ThemeToggle />
-                <Tooltip content="Navegar rápido (Ctrl/Cmd + K)">
+                <Tooltip content="Ir rapido (Ctrl/Cmd + K)">
                   <Button
                     variant="outline"
                     size="sm"
@@ -132,26 +146,42 @@ export default function DashboardLayout({
                     className="rounded-full px-4"
                   >
                     <Search className="h-4 w-4" />
-                    <span className="hidden md:inline">Buscar</span>
+                    <span className="hidden md:inline">Buscar modulo</span>
                     <span className="hidden lg:inline text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Ctrl K
+                      Ctrl + K
                     </span>
                   </Button>
                 </Tooltip>
                 <Link href="/dashboard/settings">
                   <Tooltip content="Configuración">
-                    <Button variant="outline" size="icon" aria-label="Ir a Configuración" className="rounded-full">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Abrir configuracion"
+                      className="rounded-full"
+                    >
                       <Settings className="h-4 w-4" />
                     </Button>
                   </Tooltip>
                 </Link>
                 <Link href="/dashboard/settings/profile">
-                  <Button variant="ghost" size="sm" className="rounded-full gap-2 px-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full gap-2 px-4"
+                  >
                     <User className="h-4 w-4" />
-                    <span className="hidden sm:inline">{user?.firstName || user?.email}</span>
+                    <span className="hidden sm:inline">
+                      {user?.firstName || user?.email}
+                    </span>
                   </Button>
                 </Link>
-                <Button variant="ghost" size="sm" onClick={logout} className="rounded-full gap-2 px-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="rounded-full gap-2 px-4"
+                >
                   <LogOut className="h-4 w-4" />
                   <span className="hidden sm:inline">Salir</span>
                 </Button>

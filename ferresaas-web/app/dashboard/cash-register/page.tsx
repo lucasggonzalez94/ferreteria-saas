@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   DollarSign,
   LogOut,
   TrendingUp,
@@ -37,7 +36,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import Link from "next/link";
 import Header from "@/components/ui/header";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -46,7 +44,8 @@ export default function CashRegisterPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const canAccessCashRegister = user?.permissions?.includes("cash_register:read");
+  const canAccessCashRegister =
+    user?.permissions?.includes("cash_register:read");
 
   useEffect(() => {
     if (!canAccessCashRegister) {
@@ -54,23 +53,36 @@ export default function CashRegisterPage() {
       return;
     }
   }, [canAccessCashRegister, router]);
+
   const [openingAmount, setOpeningAmount] = useState("");
   const [openingAmountUSD, setOpeningAmountUSD] = useState("");
   const [sourceAccountId, setSourceAccountId] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [closingAmountUSD, setClosingAmountUSD] = useState("");
   const [destinationAccountId, setDestinationAccountId] = useState("");
-  const [movementType, setMovementType] = useState<"INCOME" | "EXPENSE">("INCOME");
+  const [movementType, setMovementType] = useState<"INCOME" | "EXPENSE">(
+    "INCOME",
+  );
   const [movementAmount, setMovementAmount] = useState("");
   const [movementReason, setMovementReason] = useState("");
   const [showMovementDialog, setShowMovementDialog] = useState(false);
-  const [showDifferenceConfirmation, setShowDifferenceConfirmation] = useState(false);
-  const [pendingOpenAmount, setPendingOpenAmount] = useState<number | null>(null);
-  const [pendingOpenAmountUSD, setPendingOpenAmountUSD] = useState<number | null>(null);
+  const [showDifferenceConfirmation, setShowDifferenceConfirmation] =
+    useState(false);
+  const [pendingOpenAmount, setPendingOpenAmount] = useState<number | null>(
+    null,
+  );
+  const [pendingOpenAmountUSD, setPendingOpenAmountUSD] = useState<
+    number | null
+  >(null);
   const [suggestedAmount, setSuggestedAmount] = useState<number>(0);
   const [suggestedAmountUSD, setSuggestedAmountUSD] = useState<number>(0);
 
-  const { data: session, isLoading, refetch: refetchSession, isFetching: isFetchingSession } = useQuery({
+  const {
+    data: session,
+    isLoading,
+    refetch: refetchSession,
+    isFetching: isFetchingSession,
+  } = useQuery({
     queryKey: ["cash-register", "status"],
     queryFn: async () => {
       const response = await api.get<any>("/cash-register/status");
@@ -95,17 +107,26 @@ export default function CashRegisterPage() {
       setOpeningAmount(suggestedOpening.suggestedAmount.toString());
       setSuggestedAmount(suggestedOpening.suggestedAmount);
     }
-    if (suggestedOpening?.suggestedAmountUSD !== undefined && !openingAmountUSD) {
+    if (
+      suggestedOpening?.suggestedAmountUSD !== undefined &&
+      !openingAmountUSD
+    ) {
       setOpeningAmountUSD(suggestedOpening.suggestedAmountUSD.toString());
       setSuggestedAmountUSD(suggestedOpening.suggestedAmountUSD);
     }
   }, [suggestedOpening, openingAmount, openingAmountUSD]);
 
-  const { data: summary, refetch: refetchSummary, isFetching: isFetchingSummary } = useQuery({
+  const {
+    data: summary,
+    refetch: refetchSummary,
+    isFetching: isFetchingSummary,
+  } = useQuery({
     queryKey: ["cash-register", session?.id, "summary"],
     queryFn: async () => {
       if (!session?.id) return null;
-      const response = await api.get<any>(`/cash-register/${session.id}/summary`);
+      const response = await api.get<any>(
+        `/cash-register/${session.id}/summary`,
+      );
       return response.data;
     },
     enabled: !!session?.id,
@@ -125,24 +146,25 @@ export default function CashRegisterPage() {
       const messages = [];
       if (data.hasDifferenceARS) {
         const diffAmount = Math.abs(data.differenceWithAccountARS);
-        const diffType = data.differenceWithAccountARS > 0 ? "ingreso" : "retiro";
+        const diffType =
+          data.differenceWithAccountARS > 0 ? "ingreso" : "retiro";
         messages.push(`${diffType} de $${diffAmount.toFixed(2)} ARS`);
       }
       if (data.hasDifferenceUSD) {
         const diffAmount = Math.abs(data.differenceWithAccountUSD);
-        const diffType = data.differenceWithAccountUSD > 0 ? "ingreso" : "retiro";
+        const diffType =
+          data.differenceWithAccountUSD > 0 ? "ingreso" : "retiro";
         messages.push(`${diffType} de $${diffAmount.toFixed(2)} USD`);
       }
-      
+
       if (messages.length > 0) {
-        toast.success(
-          `Caja abierta. Se registró: ${messages.join(", ")}`,
-          { duration: 5000 }
-        );
+        toast.success(`Caja abierta. Se registró: ${messages.join(", ")}`, {
+          duration: 5000,
+        });
       } else {
         toast.success("Caja abierta exitosamente");
       }
-      
+
       setOpeningAmount("");
       setOpeningAmountUSD("");
       setSourceAccountId("");
@@ -213,7 +235,7 @@ export default function CashRegisterPage() {
   const handleOpen = () => {
     const amount = parseFloat(openingAmount);
     const amountUSD = openingAmountUSD ? parseFloat(openingAmountUSD) : 0;
-    
+
     if (isNaN(amount) || amount < 0) {
       toast.error("Ingrese un monto válido para ARS");
       return;
@@ -227,7 +249,7 @@ export default function CashRegisterPage() {
     // Verificar si hay diferencia con el balance de las cuentas
     const differenceARS = amount - suggestedAmount;
     const differenceUSD = amountUSD - suggestedAmountUSD;
-    
+
     if (Math.abs(differenceARS) > 0.01 || Math.abs(differenceUSD) > 0.01) {
       // Mostrar confirmación de diferencia
       setPendingOpenAmount(amount);
@@ -235,16 +257,16 @@ export default function CashRegisterPage() {
       setShowDifferenceConfirmation(true);
     } else {
       // No hay diferencia, abrir directamente
-      openMutation.mutate({ 
-        amount, 
-        amountUSD: amountUSD > 0 ? amountUSD : undefined 
+      openMutation.mutate({
+        amount,
+        amountUSD: amountUSD > 0 ? amountUSD : undefined,
       });
     }
   };
 
   const confirmOpenWithDifference = () => {
     if (pendingOpenAmount !== null) {
-      openMutation.mutate({ 
+      openMutation.mutate({
         amount: pendingOpenAmount,
         amountUSD: pendingOpenAmountUSD || undefined,
       });
@@ -267,7 +289,7 @@ export default function CashRegisterPage() {
   const handleClose = () => {
     const amount = parseFloat(closingAmount);
     const amountUSD = closingAmountUSD ? parseFloat(closingAmountUSD) : 0;
-    
+
     if (isNaN(amount) || amount < 0) {
       toast.error("Ingrese un monto válido para ARS");
       return;
@@ -278,24 +300,26 @@ export default function CashRegisterPage() {
       return;
     }
 
-    closeMutation.mutate({ 
-      amount, 
-      amountUSD: amountUSD > 0 ? amountUSD : undefined 
+    closeMutation.mutate({
+      amount,
+      amountUSD: amountUSD > 0 ? amountUSD : undefined,
     });
   };
 
   const handlePrintReport = async () => {
     if (!session) return;
     try {
-      const blob = await api.getBlob(`/cash-register/${session.id}/summary/pdf`);
+      const blob = await api.getBlob(
+        `/cash-register/${session.id}/summary/pdf`,
+      );
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `cierre-caja-${session.id}-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `cierre-caja-${session.id}-${new Date().toISOString().split("T")[0]}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error('Error al generar el PDF. Por favor, intenta nuevamente.');
+      toast.error("Error al generar el PDF. Por favor, intenta nuevamente.");
     }
   };
 
@@ -312,27 +336,37 @@ export default function CashRegisterPage() {
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <Header title="Caja" />
-          {session && (
-            <Tooltip content="Refrescar datos" placement="bottom">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Refrescar datos de caja"
-                onClick={() => {
-                  queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-                  queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-                  refetchSession();
-                  refetchSummary();
-                }}
-                disabled={isFetchingSession || isFetchingSummary}
-              >
-                <RefreshCw className={`h-5 w-5 ${isFetchingSession || isFetchingSummary ? "animate-spin" : ""}`} />
-              </Button>
-            </Tooltip>
-          )}
-        </div>
+        <Header
+          title="Caja"
+          actions={
+            <>
+              {session && (
+                <Tooltip content="Refrescar datos" placement="bottom">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Refrescar datos de caja"
+                    onClick={() => {
+                      queryClient.invalidateQueries({
+                        queryKey: ["cash-register"],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["financial-accounts"],
+                      });
+                      refetchSession();
+                      refetchSummary();
+                    }}
+                    disabled={isFetchingSession || isFetchingSummary}
+                  >
+                    <RefreshCw
+                      className={`h-5 w-5 ${isFetchingSession || isFetchingSummary ? "animate-spin" : ""}`}
+                    />
+                  </Button>
+                </Tooltip>
+              )}
+            </>
+          }
+        />
 
         {!session ? (
           <Card>
@@ -362,7 +396,8 @@ export default function CashRegisterPage() {
                   />
                   {suggestedOpening && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Balance actual: ${suggestedOpening.suggestedAmount.toFixed(2)} ARS
+                      Balance actual: $
+                      {suggestedOpening.suggestedAmount.toFixed(2)} ARS
                     </p>
                   )}
                 </div>
@@ -383,11 +418,13 @@ export default function CashRegisterPage() {
                     placeholder="0,00"
                     className="text-lg"
                   />
-                  {suggestedOpening && suggestedOpening.suggestedAmountUSD > 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      💵 Balance actual: ${suggestedOpening.suggestedAmountUSD.toFixed(2)} USD
-                    </p>
-                  )}
+                  {suggestedOpening &&
+                    suggestedOpening.suggestedAmountUSD > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        💵 Balance actual: $
+                        {suggestedOpening.suggestedAmountUSD.toFixed(2)} USD
+                      </p>
+                    )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Opcional - Solo si maneja efectivo en dólares
                   </p>
@@ -416,7 +453,9 @@ export default function CashRegisterPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Monto Inicial</p>
+                    <p className="text-sm text-muted-foreground">
+                      Monto Inicial
+                    </p>
                     <p className="text-2xl font-bold">
                       ${Number(session.openingAmount).toFixed(2)}
                     </p>
@@ -465,26 +504,28 @@ export default function CashRegisterPage() {
                               {method === "CASH_ARS"
                                 ? "Efectivo ARS"
                                 : method === "CASH_USD"
-                                ? "Efectivo USD"
-                                : method === "CARD"
-                                ? "Tarjeta"
-                                : method === "TRANSFER"
-                                ? "Transferencia"
-                                : method === "QR"
-                                ? "QR"
-                                : method}
+                                  ? "Efectivo USD"
+                                  : method === "CARD"
+                                    ? "Tarjeta"
+                                    : method === "TRANSFER"
+                                      ? "Transferencia"
+                                      : method === "QR"
+                                        ? "QR"
+                                        : method}
                             </p>
                             <p className="text-xl font-bold">
                               ${(amount as number).toFixed(2)}
                             </p>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
 
                     {summary.movements && summary.movements.length > 0 && (
                       <div className="pt-4 border-t">
-                        <p className="font-semibold mb-2">Movimientos Manuales:</p>
+                        <p className="font-semibold mb-2">
+                          Movimientos Manuales:
+                        </p>
                         <div className="space-y-2">
                           {summary.movements.map((movement: any) => (
                             <div
@@ -526,7 +567,10 @@ export default function CashRegisterPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Dialog open={showMovementDialog} onOpenChange={setShowMovementDialog}>
+                <Dialog
+                  open={showMovementDialog}
+                  onOpenChange={setShowMovementDialog}
+                >
                   <DialogTrigger asChild>
                     <Button className="w-full">Registrar Movimiento</Button>
                   </DialogTrigger>
@@ -542,9 +586,7 @@ export default function CashRegisterPage() {
                         <Label htmlFor="movementType">Tipo</Label>
                         <Select
                           value={movementType}
-                          onValueChange={(value: any) =>
-                            setMovementType(value)
-                          }
+                          onValueChange={(value: any) => setMovementType(value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -606,17 +648,23 @@ export default function CashRegisterPage() {
                 <div className="space-y-4">
                   {summary && (
                     <div className="brand-accent-panel mb-4 p-4">
-                      <p className="mb-3 font-semibold text-foreground">Montos esperados</p>
+                      <p className="mb-3 font-semibold text-foreground">
+                        Montos esperados
+                      </p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Esperado (ARS)</p>
+                          <p className="text-muted-foreground">
+                            Esperado (ARS)
+                          </p>
                           <p className="text-lg font-bold text-foreground">
                             ${Number(summary.expectedAmount).toFixed(2)}
                           </p>
                         </div>
                         {summary.expectedAmountUSD > 0 && (
                           <div>
-                            <p className="text-muted-foreground">Esperado (USD)</p>
+                            <p className="text-muted-foreground">
+                              Esperado (USD)
+                            </p>
                             <p className="text-lg font-bold text-foreground">
                               ${Number(summary.expectedAmountUSD).toFixed(2)}
                             </p>
@@ -626,31 +674,48 @@ export default function CashRegisterPage() {
                       {closingAmount && (
                         <div className="mt-3 grid grid-cols-2 gap-4 border-t border-[hsl(var(--brand-accent-border))] pt-3 text-sm">
                           <div>
-                            <p className="text-muted-foreground">Diferencia (ARS)</p>
+                            <p className="text-muted-foreground">
+                              Diferencia (ARS)
+                            </p>
                             <p
                               className={`text-lg font-bold ${
-                                parseFloat(closingAmount) - summary.expectedAmount === 0
+                                parseFloat(closingAmount) -
+                                  summary.expectedAmount ===
+                                0
                                   ? "text-green-600 dark:text-green-400"
                                   : "text-orange-600 dark:text-orange-400"
                               }`}
                             >
-                              ${(parseFloat(closingAmount) - summary.expectedAmount).toFixed(2)}
+                              $
+                              {(
+                                parseFloat(closingAmount) -
+                                summary.expectedAmount
+                              ).toFixed(2)}
                             </p>
                           </div>
-                          {closingAmountUSD && summary.expectedAmountUSD > 0 && (
-                            <div>
-                              <p className="text-muted-foreground">Diferencia (USD)</p>
-                              <p
-                                className={`text-lg font-bold ${
-                                  parseFloat(closingAmountUSD) - summary.expectedAmountUSD === 0
-                                    ? "text-green-600 dark:text-green-400"
-                                    : "text-orange-600 dark:text-orange-400"
-                                }`}
-                              >
-                                ${(parseFloat(closingAmountUSD) - summary.expectedAmountUSD).toFixed(2)}
-                              </p>
-                            </div>
-                          )}
+                          {closingAmountUSD &&
+                            summary.expectedAmountUSD > 0 && (
+                              <div>
+                                <p className="text-muted-foreground">
+                                  Diferencia (USD)
+                                </p>
+                                <p
+                                  className={`text-lg font-bold ${
+                                    parseFloat(closingAmountUSD) -
+                                      summary.expectedAmountUSD ===
+                                    0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-orange-600 dark:text-orange-400"
+                                  }`}
+                                >
+                                  $
+                                  {(
+                                    parseFloat(closingAmountUSD) -
+                                    summary.expectedAmountUSD
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+                            )}
                         </div>
                       )}
                     </div>
@@ -674,7 +739,9 @@ export default function CashRegisterPage() {
 
                   {summary && summary.expectedAmountUSD > 0 && (
                     <div>
-                      <Label htmlFor="closingAmountUSD">Monto Final (USD)</Label>
+                      <Label htmlFor="closingAmountUSD">
+                        Monto Final (USD)
+                      </Label>
                       <Input
                         id="closingAmountUSD"
                         type="number"
@@ -717,7 +784,10 @@ export default function CashRegisterPage() {
         )}
 
         {/* Modal de confirmación de diferencia */}
-        <Dialog open={showDifferenceConfirmation} onOpenChange={setShowDifferenceConfirmation}>
+        <Dialog
+          open={showDifferenceConfirmation}
+          onOpenChange={setShowDifferenceConfirmation}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -725,30 +795,44 @@ export default function CashRegisterPage() {
                 Diferencia Detectada
               </DialogTitle>
               <DialogDescription>
-                El monto ingresado no coincide con el balance actual de la cuenta de efectivo.
+                El monto ingresado no coincide con el balance actual de la
+                cuenta de efectivo.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm font-medium">Balance en cuenta:</span>
-                    <span className="text-sm font-bold">${suggestedAmount.toFixed(2)}</span>
+                    <span className="text-sm font-medium">
+                      Balance en cuenta:
+                    </span>
+                    <span className="text-sm font-bold">
+                      ${suggestedAmount.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Monto a abrir:</span>
-                    <span className="text-sm font-bold">${pendingOpenAmount?.toFixed(2) || 0}</span>
+                    <span className="text-sm font-bold">
+                      ${pendingOpenAmount?.toFixed(2) || 0}
+                    </span>
                   </div>
                   <div className="border-t border-yellow-300 pt-2 mt-2">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Diferencia:</span>
-                      <span className={`text-sm font-bold ${
-                        (pendingOpenAmount || 0) - suggestedAmount > 0 
-                          ? 'text-green-600' 
-                          : 'text-red-600'
-                      }`}>
-                        {(pendingOpenAmount || 0) - suggestedAmount > 0 ? '+' : ''}
-                        ${((pendingOpenAmount || 0) - suggestedAmount).toFixed(2)}
+                      <span
+                        className={`text-sm font-bold ${
+                          (pendingOpenAmount || 0) - suggestedAmount > 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {(pendingOpenAmount || 0) - suggestedAmount > 0
+                          ? "+"
+                          : ""}
+                        $
+                        {((pendingOpenAmount || 0) - suggestedAmount).toFixed(
+                          2,
+                        )}
                       </span>
                     </div>
                   </div>
@@ -756,9 +840,9 @@ export default function CashRegisterPage() {
               </div>
 
               <p className="text-sm text-muted-foreground">
-                {(pendingOpenAmount || 0) - suggestedAmount > 0 
-                  ? '⚠️ Se registrará un INGRESO de efectivo en la cuenta financiera.'
-                  : '⚠️ Se registrará un RETIRO de efectivo en la cuenta financiera.'}
+                {(pendingOpenAmount || 0) - suggestedAmount > 0
+                  ? "⚠️ Se registrará un INGRESO de efectivo en la cuenta financiera."
+                  : "⚠️ Se registrará un RETIRO de efectivo en la cuenta financiera."}
               </p>
 
               <div className="flex gap-2">

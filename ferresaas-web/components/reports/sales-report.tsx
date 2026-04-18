@@ -111,7 +111,7 @@ export function SalesReport({ data }: SalesReportProps) {
 
     return (
       <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="app-icon-badge h-11 w-11 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">

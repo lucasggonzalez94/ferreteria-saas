@@ -31,13 +31,14 @@ function LoginPageContent() {
 
     try {
       await login(email, password, returnUrl || undefined);
-      toast.success("¡Bienvenido!");
+      toast.success("Sesion iniciada correctamente.");
     } catch (error) {
-      let mensajeError = "Error al iniciar sesión";
+      let mensajeError = "No pudimos iniciar sesion.";
       if (error instanceof Error) {
         const texto = error.message.toLowerCase();
         if (texto.includes("failed to fetch") || texto.includes("network")) {
-          mensajeError = "No se pudo conectar con el servidor. Verifica tu conexión o el estado del backend.";
+          mensajeError =
+            "No se pudo conectar con el servidor. Verifica tu conexión o el estado del backend.";
         } else {
           mensajeError = error.message;
         }
@@ -53,11 +54,6 @@ function LoginPageContent() {
       <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="app-panel app-orbit hidden overflow-hidden p-8 lg:flex lg:min-h-[640px] lg:flex-col lg:justify-between xl:p-10">
           <div className="space-y-6">
-            <span className="app-kicker">
-              <span className="app-brand-dot" aria-hidden="true" />
-              Moderna / Premium
-            </span>
-
             <div className="space-y-5">
               <div>
                 <Image
@@ -80,10 +76,11 @@ function LoginPageContent() {
 
               <div className="max-w-xl space-y-3">
                 <h1 className="text-4xl font-semibold leading-tight text-foreground xl:text-5xl">
-                  Operación diaria con una interfaz clara, robusta y lista para vender.
+                  Vende, controla stock y cierra caja desde un solo lugar.
                 </h1>
                 <p className="text-base leading-7 text-muted-foreground">
-                  Ferrahock combina caja, inventario, compras y gestión en una experiencia más precisa, más rápida y con una identidad visual alineada a la marca.
+                  Ferrahock conecta ventas, inventario, compras y administracion
+                  para que tu equipo trabaje rapido y con menos errores.
                 </p>
               </div>
             </div>
@@ -91,13 +88,15 @@ function LoginPageContent() {
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              ["POS", "Cobro ágil con scanner y atajos"],
-              ["Stock", "Alertas y catálogo operativo"],
-              ["Caja", "Control y cierre con contexto"],
+              ["POS", "Cobra en segundos con scanner y atajos"],
+              ["Stock", "Evita quiebres con alertas y minimos"],
+              ["Caja", "Controla aperturas, movimientos y cierre"],
             ].map(([title, copy]) => (
               <div key={title} className="app-panel-muted rounded-[1.4rem] p-4">
                 <p className="text-sm font-semibold text-foreground">{title}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {copy}
+                </p>
               </div>
             ))}
           </div>
@@ -131,28 +130,17 @@ function LoginPageContent() {
             </div>
 
             <div className="space-y-2">
-              <CardTitle className="text-3xl">Ingresar al sistema</CardTitle>
+              <CardTitle className="text-3xl">Entra a tu panel</CardTitle>
               <CardDescription className="max-w-md">
-                Accedé a ventas, inventario y administración desde un panel unificado.
+                Gestiona ventas, inventario y administracion desde una sola
+                pantalla.
               </CardDescription>
-            </div>
-
-            <div className="app-panel-muted flex items-start gap-3 rounded-[1.25rem] p-4 text-sm">
-              <div className="app-icon-badge h-10 w-10 border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
-                <span className="text-base font-bold">+</span>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Acceso preparado para operación mixta</p>
-                <p className="mt-1 text-muted-foreground">
-                  Navegación rápida, foco visible y jerarquía pensada para mostrador y administración.
-                </p>
-              </div>
             </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Correo</Label>
                 <Input
                   id="email"
                   type="email"
@@ -186,14 +174,15 @@ function LoginPageContent() {
 
               <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
                 <p className="app-inline-hint">
-                  Ingresá con tu usuario para continuar trabajando en caja, stock o configuración.
+                  Entra con tu usuario para continuar en caja, stock y
+                  configuracion.
                 </p>
                 <Button
                   type="submit"
                   className="w-full bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)] sm:w-auto"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Ingresando..." : "Ingresar"}
+                  {isLoading ? "Entrando..." : "Entrar al panel"}
                 </Button>
               </div>
             </form>
@@ -212,7 +201,9 @@ function LoginFallback() {
           <span className="app-brand-dot" aria-hidden="true" />
           Cargando acceso
         </span>
-        <p className="mt-4 text-sm text-muted-foreground">Preparando el formulario de ingreso...</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Estamos preparando tu inicio de sesion...
+        </p>
       </div>
     </div>
   );

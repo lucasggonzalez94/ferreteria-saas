@@ -7,7 +7,13 @@ import Image from "next/image";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -27,7 +33,7 @@ export default function ForgotPasswordPage() {
       setSubmitted(true);
       setEmail("");
     } catch (err: any) {
-      setError(err.message || "Error al solicitar recuperación de contraseña");
+      setError(err.message || "No pudimos enviar el enlace de recuperacion");
     } finally {
       setIsLoading(false);
     }
@@ -65,22 +71,21 @@ export default function ForgotPasswordPage() {
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
             </div>
-            <CardTitle className="text-center">Revisa tu email</CardTitle>
+            <CardTitle className="text-center">Revisa tu correo</CardTitle>
             <CardDescription className="text-center">
-              Si la cuenta existe, recibirás un enlace para restablecer tu contraseña
+              Si el correo esta registrado, te enviaremos un enlace para crear
+              una nueva contrasena.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="brand-accent-panel p-4">
               <p className="text-sm brand-accent-subtle">
-                El enlace expira en <strong>30 minutos</strong>. Si no recibes el email, revisa tu carpeta de spam.
+                El enlace vence en <strong>30 minutos</strong>. Si no lo
+                encontras, revisa spam o promociones.
               </p>
             </div>
-            <Button
-              onClick={() => router.push("/login")}
-              className="w-full"
-            >
-              Volver al Login
+            <Button onClick={() => router.push("/login")} className="w-full">
+              Volver a iniciar sesion
             </Button>
           </CardContent>
         </Card>
@@ -119,9 +124,12 @@ export default function ForgotPasswordPage() {
               <Mail className="w-6 h-6" />
             </div>
           </div>
-          <CardTitle className="text-center">¿Olvidaste tu contraseña?</CardTitle>
+          <CardTitle className="text-center">
+            ¿Olvidaste tu contraseña?
+          </CardTitle>
           <CardDescription className="text-center">
-            Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
+            Escribi el correo asociado a tu cuenta y te enviamos un enlace para
+            recuperarla.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -135,7 +143,7 @@ export default function ForgotPasswordPage() {
 
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
-                Email
+                Correo
               </label>
               <Input
                 id="email"
@@ -153,14 +161,17 @@ export default function ForgotPasswordPage() {
               className="w-full"
               disabled={isLoading || !email}
             >
-              {isLoading ? "Enviando..." : "Enviar enlace de recuperación"}
+              {isLoading ? "Enviando..." : "Enviar enlace"}
             </Button>
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                ¿Recordaste tu contraseña?{" "}
-                <Link href="/login" className="font-medium text-[hsl(var(--accent))] hover:underline">
-                  Volver al login
+                ¿Ya recordaste tu contrasena?{" "}
+                <Link
+                  href="/login"
+                  className="font-medium text-[hsl(var(--accent))] hover:underline"
+                >
+                  Inicia sesion
                 </Link>
               </p>
             </div>

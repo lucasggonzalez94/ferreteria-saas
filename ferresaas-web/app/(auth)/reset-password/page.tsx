@@ -7,7 +7,13 @@ import Image from "next/image";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 
 const PASSWORD_REQUIREMENTS = [
@@ -39,11 +45,15 @@ function ResetPasswordPageContent() {
   }, [token]);
 
   const getPasswordStrength = () => {
-    return PASSWORD_REQUIREMENTS.filter((req) => req.regex.test(password)).length;
+    return PASSWORD_REQUIREMENTS.filter((req) => req.regex.test(password))
+      .length;
   };
 
   const isPasswordValid = () => {
-    return getPasswordStrength() === PASSWORD_REQUIREMENTS.length && password === confirmPassword;
+    return (
+      getPasswordStrength() === PASSWORD_REQUIREMENTS.length &&
+      password === confirmPassword
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,17 +61,17 @@ function ResetPasswordPageContent() {
     setError(null);
 
     if (!token) {
-      setError("Token inválido o expirado");
+      setError("Token invalido o vencido");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden");
+      setError("Las contrasenas no coinciden");
       return;
     }
 
     if (!isPasswordValid()) {
-      setError("La contraseña no cumple con los requisitos");
+      setError("La contrasena no cumple los requisitos");
       return;
     }
 
@@ -76,11 +86,14 @@ function ResetPasswordPageContent() {
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      if (err.message?.includes("expired") || err.message?.includes("invalid")) {
-        setError("El enlace de recuperación ha expirado. Solicita uno nuevo.");
+      if (
+        err.message?.includes("expired") ||
+        err.message?.includes("invalid")
+      ) {
+        setError("El enlace de recuperacion vencio. Solicita uno nuevo.");
         setTokenError(true);
       } else {
-        setError(err.message || "Error al restablecer la contraseña");
+        setError(err.message || "No pudimos actualizar la contrasena");
       }
     } finally {
       setIsLoading(false);
@@ -95,7 +108,7 @@ function ResetPasswordPageContent() {
             <div className="mb-3 flex items-center justify-between gap-4">
               <span className="app-kicker">
                 <span className="app-brand-dot" aria-hidden="true" />
-                Enlace inválido
+                Enlace invalido
               </span>
               <Image
                 src="/icons/logo-principal-oscuro.png"
@@ -119,29 +132,32 @@ function ResetPasswordPageContent() {
                 <AlertCircle className="w-6 h-6 text-red-600" />
               </div>
             </div>
-            <CardTitle className="text-center">Enlace inválido o expirado</CardTitle>
+            <CardTitle className="text-center">
+              Enlace invalido o vencido
+            </CardTitle>
             <CardDescription className="text-center">
-              El enlace de recuperación ha expirado o es inválido
+              El enlace de recuperacion ya no es valido.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="brand-accent-panel p-4">
               <p className="text-sm brand-accent-subtle">
-                Los enlaces de recuperación expiran en <strong>30 minutos</strong>. Solicita uno nuevo.
+                Los enlaces vencen en <strong>30 minutos</strong>. Solicita uno
+                nuevo para continuar.
               </p>
             </div>
             <Button
               onClick={() => router.push("/forgot-password")}
               className="w-full"
             >
-              Solicitar nuevo enlace
+              Pedir otro enlace
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push("/login")}
               className="w-full"
             >
-              Volver al login
+              Volver a iniciar sesion
             </Button>
           </CardContent>
         </Card>
@@ -157,7 +173,7 @@ function ResetPasswordPageContent() {
             <div className="mb-3 flex items-center justify-between gap-4">
               <span className="app-kicker">
                 <span className="app-brand-dot" aria-hidden="true" />
-                Contraseña actualizada
+                Contrasena actualizada
               </span>
               <Image
                 src="/icons/logo-principal-oscuro.png"
@@ -181,22 +197,22 @@ function ResetPasswordPageContent() {
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
             </div>
-            <CardTitle className="text-center">¡Contraseña restablecida!</CardTitle>
+            <CardTitle className="text-center">
+              Contrasena actualizada
+            </CardTitle>
             <CardDescription className="text-center">
-              Tu contraseña ha sido actualizada correctamente
+              Tu contrasena se actualizo correctamente.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="brand-accent-panel p-4">
               <p className="text-sm brand-accent-subtle">
-                Por seguridad, todas tus sesiones activas han sido cerradas. Inicia sesión nuevamente con tu nueva contraseña.
+                Por seguridad cerramos tus sesiones activas. Inicia sesion de
+                nuevo con tu nueva contrasena.
               </p>
             </div>
-            <Button
-              onClick={() => router.push("/login")}
-              className="w-full"
-            >
-              Ir al login
+            <Button onClick={() => router.push("/login")} className="w-full">
+              Iniciar sesion
             </Button>
           </CardContent>
         </Card>
@@ -240,7 +256,7 @@ function ResetPasswordPageContent() {
           </div>
           <CardTitle className="text-center">Restablecer contraseña</CardTitle>
           <CardDescription className="text-center">
-            Ingresa tu nueva contraseña
+            Escribi tu nueva contrasena.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -261,7 +277,7 @@ function ResetPasswordPageContent() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Ingresa tu nueva contraseña"
+                  placeholder="Escribi tu nueva contrasena"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
@@ -272,7 +288,11 @@ function ResetPasswordPageContent() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -281,7 +301,9 @@ function ResetPasswordPageContent() {
             {password && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-medium text-muted-foreground">Fortaleza</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Seguridad
+                  </span>
                   <span className="text-xs font-medium text-muted-foreground">
                     {strength}/{PASSWORD_REQUIREMENTS.length}
                   </span>
@@ -292,10 +314,10 @@ function ResetPasswordPageContent() {
                       strength <= 2
                         ? "bg-red-500"
                         : strength <= 3
-                        ? "bg-yellow-500"
-                        : strength <= 4
-                        ? "bg-[hsl(var(--accent))]"
-                        : "bg-green-500"
+                          ? "bg-yellow-500"
+                          : strength <= 4
+                            ? "bg-[hsl(var(--accent))]"
+                            : "bg-green-500"
                     }`}
                     style={{ width: `${strengthPercent}%` }}
                   />
@@ -306,7 +328,9 @@ function ResetPasswordPageContent() {
             {/* Requisitos */}
             {password && (
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Requisitos:</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Debe incluir:
+                </p>
                 <div className="space-y-1">
                   {PASSWORD_REQUIREMENTS.map((req) => (
                     <div
@@ -342,13 +366,13 @@ function ResetPasswordPageContent() {
             {/* Confirmar Contraseña */}
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirmar contraseña
+                Confirmar contrasena
               </label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirma tu nueva contraseña"
+                  placeholder="Repeti tu nueva contrasena"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
@@ -371,7 +395,9 @@ function ResetPasswordPageContent() {
                 </button>
               </div>
               {confirmPassword && password !== confirmPassword && (
-                <p className="text-xs text-red-600">Las contraseñas no coinciden</p>
+                <p className="text-xs text-red-600">
+                  Las contrasenas no coinciden
+                </p>
               )}
             </div>
 
@@ -380,14 +406,17 @@ function ResetPasswordPageContent() {
               className="w-full"
               disabled={isLoading || !isPasswordValid()}
             >
-              {isLoading ? "Restableciendo..." : "Restablecer contraseña"}
+              {isLoading ? "Actualizando..." : "Actualizar contrasena"}
             </Button>
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                ¿Recordaste tu contraseña?{" "}
-                <Link href="/login" className="font-medium text-[hsl(var(--accent))] hover:underline">
-                  Volver al login
+                ¿Ya recordaste tu contrasena?{" "}
+                <Link
+                  href="/login"
+                  className="font-medium text-[hsl(var(--accent))] hover:underline"
+                >
+                  Inicia sesion
                 </Link>
               </p>
             </div>
@@ -406,7 +435,9 @@ function ResetPasswordFallback() {
           <span className="app-brand-dot" aria-hidden="true" />
           Cargando enlace
         </span>
-        <p className="mt-4 text-sm text-muted-foreground">Validando la solicitud de recuperación...</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Estamos validando tu solicitud de recuperacion...
+        </p>
       </div>
     </div>
   );

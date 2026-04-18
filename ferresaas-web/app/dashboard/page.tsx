@@ -38,16 +38,26 @@ import { NotificationBadge } from "@/components/ui/notification-badge";
 import { Tooltip } from "@/components/ui/tooltip";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  // Redirect to login if not authenticated (after loading completes)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      window.location.href = "/login";
+    }
+  }, [isLoading, user]);
+
   const isOnline = useConnectionStatus();
   const [businessLogo, setBusinessLogo] = useState<string | null>(null);
-  const [quickActions, setQuickActions] = useState<Array<{
-    id: string;
-    label: string;
-    href: string;
-    icon: JSX.Element;
-    allowed: boolean;
-  }>>([]);
+  const [quickActions, setQuickActions] = useState<
+    Array<{
+      id: string;
+      label: string;
+      href: string;
+      icon: JSX.Element;
+      allowed: boolean;
+    }>
+  >([]);
   const [isEditingQuickActions, setIsEditingQuickActions] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -70,46 +80,63 @@ export default function DashboardPage() {
   const canViewCustomers = user?.permissions?.includes("customers:read");
   const canViewInventory = user?.permissions?.includes("inventory:read");
   const canAccessPOS = user?.permissions?.includes("sales:create");
-  const canAccessCashRegister = user?.permissions?.includes("cash_register:read");
+  const canAccessCashRegister =
+    user?.permissions?.includes("cash_register:read");
   const canAccessPurchases = user?.permissions?.includes("purchases:read");
   const canAccessSuppliers = user?.permissions?.includes("purchases:read");
   const canAccessPayables = user?.permissions?.includes("purchases:read");
-  const canAccessFinances = user?.permissions?.includes("financial_accounts:read");
+  const canAccessFinances = user?.permissions?.includes(
+    "financial_accounts:read",
+  );
   const canAccessReports = user?.permissions?.includes("reports:read");
-  const canApproveDiscounts = user?.permissions?.includes("sales:approve_discount");
+  const canApproveDiscounts = user?.permissions?.includes(
+    "sales:approve_discount",
+  );
   const canApprovePrices = user?.permissions?.includes("pricing:approve");
 
   // Obtener conteos de aprobaciones pendientes
-  const { data: approvalCounts, refetch: refetchApprovalCounts, isRefetching } = useApprovalCounts();
+  const {
+    data: approvalCounts,
+    refetch: refetchApprovalCounts,
+    isRefetching,
+  } = useApprovalCounts();
 
   const pendingApprovals =
     (approvalCounts?.discounts || 0) + (approvalCounts?.prices || 0);
   const welcomeName = user?.firstName || user?.email?.split("@")[0] || "equipo";
   const actionCaptions: Record<string, string> = {
-    cash: "Apertura, movimientos y cierre.",
-    pos: "Cobro rápido con scanner y atajos.",
-    products: "Catálogo, precios y stock visual.",
-    customers: "Historial, saldos y cuentas corrientes.",
-    inventory: "Alertas, ajustes y control fino.",
-    suppliers: "Relación comercial y abastecimiento.",
-    finances: "Cuentas y movimientos centralizados.",
-    purchases: "Compras activas y seguimiento.",
-    payables: "Vencimientos y pagos pendientes.",
-    prices: "Validación de sugerencias de precio.",
-    discounts: "Descuentos con autorización.",
-    reports: "Lecturas clave del negocio.",
+    cash: "Apertura, movimientos y cierre de turno.",
+    pos: "Cobro rapido con scanner y atajos.",
+    products: "Catalogo, precios y control de stock.",
+    customers: "Historial de compras y cuentas corrientes.",
+    inventory: "Alertas, ajustes y reposicion.",
+    suppliers: "Gestion de proveedores y abastecimiento.",
+    finances: "Cuentas bancarias, caja y movimientos.",
+    purchases: "Seguimiento de compras activas.",
+    payables: "Vencimientos y pagos por realizar.",
+    prices: "Aprobacion de cambios de precio.",
+    discounts: "Descuentos pendientes de autorizacion.",
+    reports: "Indicadores clave para decidir.",
   };
 
   // Obtener datos del dashboard solo si tiene permisos
   const { data: dashboardData, refetch: refetchDashboardData } = useQuery({
-    queryKey: ["dashboard", canViewSales, canViewProducts, canViewCustomers, canViewInventory],
+    queryKey: [
+      "dashboard",
+      canViewSales,
+      canViewProducts,
+      canViewCustomers,
+      canViewInventory,
+    ],
     queryFn: async () => {
       try {
         const requests = [];
-        
+
         if (canViewSales) requests.push(api.get<any>("/sales?limit=100"));
-        if (canViewProducts) requests.push(api.get<any>("/products?limit=1000"));
-        if (canViewCustomers) requests.push(api.get<any>("/customers?limit=1000"));
+        if (canViewProducts)
+          requests.push(api.get<any>("/products?limit=1000"));
+        if (canViewCustomers)
+          requests.push(api.get<any>("/customers?limit=1000"));
 
         if (requests.length === 0) {
           return {
@@ -121,7 +148,7 @@ export default function DashboardPage() {
         }
 
         const responses = await Promise.all(requests);
-        
+
         let sales = [];
         let products = [];
         let customers = [];
@@ -189,7 +216,10 @@ export default function DashboardPage() {
 
   const persistQuickActions = (actions: typeof quickActions) => {
     setQuickActions(actions);
-    localStorage.setItem("dashboardQuickActions", JSON.stringify(actions.map((a) => a.id)));
+    localStorage.setItem(
+      "dashboardQuickActions",
+      JSON.stringify(actions.map((a) => a.id)),
+    );
   };
 
   const handleDragStart = (id: string) => {
@@ -197,7 +227,10 @@ export default function DashboardPage() {
     setDraggingId(id);
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, overId: string) => {
+  const handleDragOver = (
+    event: React.DragEvent<HTMLDivElement>,
+    overId: string,
+  ) => {
     event.preventDefault();
     if (!isEditingQuickActions || draggingId === overId || !draggingId) return;
     const current = [...quickActions];
@@ -232,18 +265,90 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const baseActions = [
-      { id: "cash", label: "Caja", href: "/dashboard/cash-register", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessCashRegister },
-      { id: "pos", label: "Punto de Venta", href: "/dashboard/pos", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPOS },
-      { id: "products", label: "Productos", href: "/dashboard/products", icon: <Package className="h-6 w-6" />, allowed: !!canViewProducts },
-      { id: "customers", label: "Clientes", href: "/dashboard/customers", icon: <Users className="h-6 w-6" />, allowed: !!canViewCustomers },
-      { id: "inventory", label: "Inventario", href: "/dashboard/inventory", icon: <TrendingUp className="h-6 w-6" />, allowed: !!canViewInventory },
-      { id: "suppliers", label: "Proveedores", href: "/dashboard/suppliers", icon: <Package className="h-6 w-6" />, allowed: !!canAccessSuppliers },
-      { id: "finances", label: "Finanzas", href: "/dashboard/financial-accounts", icon: <Wallet className="h-6 w-6" />, allowed: !!canAccessFinances },
-      { id: "purchases", label: "Compras", href: "/dashboard/purchases", icon: <ShoppingCart className="h-6 w-6" />, allowed: !!canAccessPurchases },
-      { id: "payables", label: "Cuentas por Pagar", href: "/dashboard/payables", icon: <DollarSign className="h-6 w-6" />, allowed: !!canAccessPayables },
-      { id: "prices", label: "Aprobación de Precios", href: "/dashboard/price-suggestions", icon: <PieChart className="h-6 w-6" />, allowed: !!canApprovePrices },
-      { id: "discounts", label: "Aprobación de Descuentos", href: "/dashboard/discount-approvals", icon: <CheckCircle className="h-6 w-6" />, allowed: !!canApproveDiscounts },
-      { id: "reports", label: "Reportes", href: "/dashboard/reports", icon: <BarChart3 className="h-6 w-6" />, allowed: !!canAccessReports },
+      {
+        id: "cash",
+        label: "Caja",
+        href: "/dashboard/cash-register",
+        icon: <DollarSign className="h-6 w-6" />,
+        allowed: !!canAccessCashRegister,
+      },
+      {
+        id: "pos",
+        label: "Punto de Venta",
+        href: "/dashboard/pos",
+        icon: <ShoppingCart className="h-6 w-6" />,
+        allowed: !!canAccessPOS,
+      },
+      {
+        id: "products",
+        label: "Productos",
+        href: "/dashboard/products",
+        icon: <Package className="h-6 w-6" />,
+        allowed: !!canViewProducts,
+      },
+      {
+        id: "customers",
+        label: "Clientes",
+        href: "/dashboard/customers",
+        icon: <Users className="h-6 w-6" />,
+        allowed: !!canViewCustomers,
+      },
+      {
+        id: "inventory",
+        label: "Inventario",
+        href: "/dashboard/inventory",
+        icon: <TrendingUp className="h-6 w-6" />,
+        allowed: !!canViewInventory,
+      },
+      {
+        id: "suppliers",
+        label: "Proveedores",
+        href: "/dashboard/suppliers",
+        icon: <Package className="h-6 w-6" />,
+        allowed: !!canAccessSuppliers,
+      },
+      {
+        id: "finances",
+        label: "Finanzas",
+        href: "/dashboard/financial-accounts",
+        icon: <Wallet className="h-6 w-6" />,
+        allowed: !!canAccessFinances,
+      },
+      {
+        id: "purchases",
+        label: "Compras",
+        href: "/dashboard/purchases",
+        icon: <ShoppingCart className="h-6 w-6" />,
+        allowed: !!canAccessPurchases,
+      },
+      {
+        id: "payables",
+        label: "Cuentas por Pagar",
+        href: "/dashboard/payables",
+        icon: <DollarSign className="h-6 w-6" />,
+        allowed: !!canAccessPayables,
+      },
+      {
+        id: "prices",
+        label: "Aprobación de Precios",
+        href: "/dashboard/price-suggestions",
+        icon: <PieChart className="h-6 w-6" />,
+        allowed: !!canApprovePrices,
+      },
+      {
+        id: "discounts",
+        label: "Aprobación de Descuentos",
+        href: "/dashboard/discount-approvals",
+        icon: <CheckCircle className="h-6 w-6" />,
+        allowed: !!canApproveDiscounts,
+      },
+      {
+        id: "reports",
+        label: "Reportes",
+        href: "/dashboard/reports",
+        icon: <BarChart3 className="h-6 w-6" />,
+        allowed: !!canAccessReports,
+      },
     ];
 
     const storedOrderRaw = localStorage.getItem("dashboardQuickActions");
@@ -253,8 +358,12 @@ export default function DashboardPage() {
         const byId = Object.fromEntries(baseActions.map((a) => [a.id, a]));
         const restored = parsed
           .map((id) => byId[id])
-          .filter((item): item is typeof baseActions[number] => Boolean(item && item.allowed));
-        const missing = baseActions.filter((item) => item.allowed && !parsed.includes(item.id));
+          .filter((item): item is (typeof baseActions)[number] =>
+            Boolean(item && item.allowed),
+          );
+        const missing = baseActions.filter(
+          (item) => item.allowed && !parsed.includes(item.id),
+        );
         setQuickActions([...restored, ...missing]);
         return;
       } catch (error) {
@@ -349,6 +458,18 @@ export default function DashboardPage() {
     } => Boolean(stat),
   );
 
+  // Show loading state while checking authentication
+  if (isLoading || !user) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-page">
       <div className="app-section space-y-6">
@@ -375,14 +496,15 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <span className="app-kicker">
                   <span className="app-brand-dot" aria-hidden="true" />
-                  Vista general
+                  Resumen del dia
                 </span>
                 <div>
                   <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
-                    Bienvenido, {welcomeName}
+                    Buen turno, {welcomeName}
                   </h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                    Visualiza el estado del negocio y entra a los flujos más usados con una interfaz más clara, más rápida y mejor jerarquizada.
+                    Revisa el estado del negocio y entra a los modulos clave sin
+                    dar vueltas.
                   </p>
                 </div>
               </div>
@@ -390,7 +512,9 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-2">
               <div className="app-panel-muted hidden items-center gap-2 rounded-full px-4 py-2 sm:flex">
-                <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`} />
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`}
+                />
                 <span className="text-sm font-medium text-foreground">
                   {isOnline ? "Sistema en línea" : "Sin conexión"}
                 </span>
@@ -408,38 +532,11 @@ export default function DashboardPage() {
                   }}
                   disabled={isRefetching}
                 >
-                  <RefreshCw className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`h-5 w-5 ${isRefetching ? "animate-spin" : ""}`}
+                  />
                 </Button>
               </Tooltip>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <div className="app-panel-muted rounded-[1.4rem] p-4">
-              <p className="text-sm font-semibold text-foreground">Pendientes por resolver</p>
-              <p className="mt-3 text-3xl font-semibold text-foreground">{pendingApprovals}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Entre descuentos y sugerencias de precio esperando definición.
-              </p>
-            </div>
-            <div className="app-panel-muted rounded-[1.4rem] p-4">
-              <p className="text-sm font-semibold text-foreground">Accesos disponibles</p>
-              <p className="mt-3 text-3xl font-semibold text-foreground">{quickActions.length}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Módulos listos para usar según tus permisos y tu rol actual.
-              </p>
-            </div>
-            <div className="app-panel-muted rounded-[1.4rem] p-4">
-              <p className="text-sm font-semibold text-foreground">Atajo sugerido</p>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="rounded-full border border-border/70 bg-background/75 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Ctrl + K
-                </span>
-                <span className="text-sm font-medium text-foreground">Búsqueda global</span>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Entrá más rápido a caja, productos, reportes o configuración.
-              </p>
             </div>
           </div>
         </section>
@@ -459,7 +556,9 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{stat.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {stat.description}
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -475,11 +574,15 @@ export default function DashboardPage() {
                 </span>
               </div>
               <CardTitle>Accesos rápidos</CardTitle>
-              <CardDescription>Entradas directas a los módulos más usados del sistema.</CardDescription>
+              <CardDescription>
+                Entradas directas a los modulos que mas usas en el dia.
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {isEditingQuickActions && (
-                <span className="text-xs text-muted-foreground">Arrastra para reordenar</span>
+                <span className="text-xs text-muted-foreground">
+                  Arrastra para ordenar
+                </span>
               )}
               <Button
                 variant={isEditingQuickActions ? "secondary" : "outline"}
@@ -492,7 +595,7 @@ export default function DashboardPage() {
                   setIsEditingQuickActions((prev) => !prev);
                 }}
               >
-                {isEditingQuickActions ? "Guardar" : "Editar"}
+                {isEditingQuickActions ? "Guardar orden" : "Ordenar"}
               </Button>
             </div>
           </CardHeader>
@@ -500,13 +603,20 @@ export default function DashboardPage() {
             {quickActions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {quickActions.map((action) => {
-                  const showBadge = 
-                    (action.id === "discounts" && approvalCounts && approvalCounts.discounts > 0) ||
-                    (action.id === "prices" && approvalCounts && approvalCounts.prices > 0);
-                  
-                  const badgeCount = 
-                    action.id === "discounts" ? approvalCounts?.discounts || 0 :
-                    action.id === "prices" ? approvalCounts?.prices || 0 : 0;
+                  const showBadge =
+                    (action.id === "discounts" &&
+                      approvalCounts &&
+                      approvalCounts.discounts > 0) ||
+                    (action.id === "prices" &&
+                      approvalCounts &&
+                      approvalCounts.prices > 0);
+
+                  const badgeCount =
+                    action.id === "discounts"
+                      ? approvalCounts?.discounts || 0
+                      : action.id === "prices"
+                        ? approvalCounts?.prices || 0
+                        : 0;
 
                   return (
                     <div
@@ -541,13 +651,21 @@ export default function DashboardPage() {
                           >
                             <ChevronDown className="h-3 w-3" />
                           </button>
-                          <GripVertical className="h-4 w-4" aria-hidden="true" />
+                          <GripVertical
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          />
                         </div>
                       )}
                       {showBadge && !isEditingQuickActions && (
                         <NotificationBadge count={badgeCount} />
                       )}
-                      <Link href={action.href} onClick={(e) => isEditingQuickActions && e.preventDefault()}>
+                      <Link
+                        href={action.href}
+                        onClick={(e) =>
+                          isEditingQuickActions && e.preventDefault()
+                        }
+                      >
                         <Button
                           variant="outline"
                           className={`h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] ${isEditingQuickActions ? "cursor-grab border-dashed active:cursor-grabbing" : ""}`}
@@ -555,9 +673,12 @@ export default function DashboardPage() {
                           <span className="app-icon-badge mb-4 h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
                             {action.icon}
                           </span>
-                          <span className="text-sm font-semibold text-foreground">{action.label}</span>
+                          <span className="text-sm font-semibold text-foreground">
+                            {action.label}
+                          </span>
                           <span className="mt-1 text-xs leading-5 text-muted-foreground">
-                            {actionCaptions[action.id] || "Acceso directo al módulo."}
+                            {actionCaptions[action.id] ||
+                              "Acceso directo al módulo."}
                           </span>
                           <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             Abrir
@@ -572,7 +693,7 @@ export default function DashboardPage() {
             ) : (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
                 <Lock className="h-5 w-5 mr-2" />
-                <p>No tienes acceso a ninguna funcionalidad del sistema</p>
+                <p>No tenes modulos habilitados para tu usuario.</p>
               </div>
             )}
           </CardContent>

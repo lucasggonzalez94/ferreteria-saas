@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 const RECENT_ACTIONS_STORAGE_KEY = "command-palette-recent-actions";
@@ -27,7 +32,7 @@ interface CommandPaletteProps {
 export const COMMAND_ACTIONS: CommandAction[] = [
   {
     id: "dashboard",
-    label: "Ir a Dashboard",
+    label: "Abrir inicio",
     href: "/dashboard",
     category: "General",
     keywords: ["inicio", "home", "resumen"],
@@ -35,7 +40,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "pos",
-    label: "Ir a Punto de Venta",
+    label: "Abrir punto de venta",
     href: "/dashboard/pos",
     category: "Ventas",
     keywords: ["ventas", "cobrar", "caja"],
@@ -44,7 +49,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "products",
-    label: "Ir a Productos",
+    label: "Abrir productos",
     href: "/dashboard/products",
     category: "Inventario",
     keywords: ["catalogo", "inventario", "stock"],
@@ -53,7 +58,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "customers",
-    label: "Ir a Clientes",
+    label: "Abrir clientes",
     href: "/dashboard/customers",
     category: "Ventas",
     keywords: ["cliente", "cuentas"],
@@ -62,7 +67,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "cash-register",
-    label: "Ir a Caja",
+    label: "Abrir caja",
     href: "/dashboard/cash-register",
     category: "Ventas",
     keywords: ["apertura", "cierre", "arqueo"],
@@ -71,7 +76,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "purchases",
-    label: "Ir a Compras",
+    label: "Abrir compras",
     href: "/dashboard/purchases",
     category: "Inventario",
     keywords: ["proveedores", "orden"],
@@ -80,7 +85,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "reports",
-    label: "Ir a Reportes",
+    label: "Abrir reportes",
     href: "/dashboard/reports",
     category: "Analitica",
     keywords: ["estadisticas", "analitica"],
@@ -89,7 +94,7 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
   {
     id: "settings",
-    label: "Ir a Configuración",
+    label: "Abrir configuracion",
     href: "/dashboard/settings",
     category: "Sistema",
     keywords: ["ajustes", "preferencias"],
@@ -97,7 +102,11 @@ export const COMMAND_ACTIONS: CommandAction[] = [
   },
 ];
 
-export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({
+  permissions,
+  isOpen,
+  onOpenChange,
+}: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentActionIds, setRecentActionIds] = useState<string[]>([]);
@@ -110,7 +119,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
   const availableActions = useMemo(
     () =>
       COMMAND_ACTIONS.filter(
-        (action) => !action.requiredPermission || permissions.includes(action.requiredPermission),
+        (action) =>
+          !action.requiredPermission ||
+          permissions.includes(action.requiredPermission),
       ),
     [permissions],
   );
@@ -122,7 +133,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
       const parsed = JSON.parse(stored) as unknown;
       if (!Array.isArray(parsed)) return;
 
-      const validIds = parsed.filter((item): item is string => typeof item === "string");
+      const validIds = parsed.filter(
+        (item): item is string => typeof item === "string",
+      );
       setRecentActionIds(validIds.slice(0, MAX_RECENT_ACTIONS));
     } catch {
       // no-op
@@ -135,7 +148,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
         return true;
       }
 
-      const haystack = [action.label, action.href, ...action.keywords].join(" ").toLowerCase();
+      const haystack = [action.label, action.href, ...action.keywords]
+        .join(" ")
+        .toLowerCase();
       return haystack.includes(normalizedQuery);
     });
   }, [availableActions, normalizedQuery]);
@@ -200,10 +215,10 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
       openInNewTab?: boolean;
     },
   ) => {
-    const updatedRecentIds = [action.id, ...recentActionIds.filter((id) => id !== action.id)].slice(
-      0,
-      MAX_RECENT_ACTIONS,
-    );
+    const updatedRecentIds = [
+      action.id,
+      ...recentActionIds.filter((id) => id !== action.id),
+    ].slice(0, MAX_RECENT_ACTIONS);
     setRecentActionIds(updatedRecentIds);
     try {
       window.localStorage.setItem(
@@ -241,7 +256,10 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
       }
 
       return (
-        <mark key={`${text}-${index}`} className="rounded bg-yellow-200/70 px-0.5 text-foreground">
+        <mark
+          key={`${text}-${index}`}
+          className="rounded bg-yellow-200/70 px-0.5 text-foreground"
+        >
           {part}
         </mark>
       );
@@ -263,7 +281,8 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      const nextIndex = (index - 1 + visibleActions.length) % visibleActions.length;
+      const nextIndex =
+        (index - 1 + visibleActions.length) % visibleActions.length;
       setActiveIndex(nextIndex);
       itemRefs.current[nextIndex]?.focus();
       return;
@@ -336,7 +355,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((prev) => (prev - 1 + visibleActions.length) % visibleActions.length);
+      setActiveIndex(
+        (prev) => (prev - 1 + visibleActions.length) % visibleActions.length,
+      );
       return;
     }
 
@@ -374,7 +395,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
 
     if (event.altKey && /^[1-8]$/.test(event.key)) {
       const targetShortcut = `Alt + ${event.key}`;
-      const shortcutAction = availableActions.find((action) => action.shortcut === targetShortcut);
+      const shortcutAction = availableActions.find(
+        (action) => action.shortcut === targetShortcut,
+      );
       if (shortcutAction) {
         event.preventDefault();
         executeAction(shortcutAction);
@@ -386,7 +409,7 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Navegación rápida</DialogTitle>
+          <DialogTitle className="text-2xl">Ir a un modulo</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -395,14 +418,19 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Escribe un módulo o acción..."
+            placeholder="Busca un modulo o una accion..."
             aria-label="Buscar acción"
             aria-controls="command-palette-list"
-            aria-activedescendant={visibleActions[activeIndex] ? `command-option-${visibleActions[activeIndex].id}` : undefined}
+            aria-activedescendant={
+              visibleActions[activeIndex]
+                ? `command-option-${visibleActions[activeIndex].id}`
+                : undefined
+            }
           />
 
           <p className="text-xs text-muted-foreground">
-            Atajos: Ctrl/Cmd + K abrir, Alt + 1..8 ejecutar acción, Ctrl/Cmd + Enter abrir en nueva pestaña.
+            Atajos: Ctrl/Cmd + K abre el buscador, Alt + 1..8 ejecuta acciones,
+            Ctrl/Cmd + Enter abre en otra pestana.
           </p>
 
           <div
@@ -411,7 +439,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
             className="max-h-80 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-background/55 p-1 backdrop-blur-md"
           >
             {visibleActions.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">No se encontraron acciones.</p>
+              <p className="p-3 text-sm text-muted-foreground">
+                No encontramos acciones para esa busqueda.
+              </p>
             ) : (
               <div className="p-1">
                 {groupedActions.map(([category, actions]) => (
@@ -420,7 +450,9 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
                       {category}
                     </p>
                     {actions.map((action) => {
-                      const index = visibleActions.findIndex((item) => item.id === action.id);
+                      const index = visibleActions.findIndex(
+                        (item) => item.id === action.id,
+                      );
                       return (
                         <button
                           key={action.id}
@@ -435,21 +467,29 @@ export function CommandPalette({ permissions, isOpen, onOpenChange }: CommandPal
                             activeIndex === index
                               ? "bg-[hsl(var(--brand-accent-soft))] text-foreground"
                               : "hover:bg-[hsl(var(--brand-accent-soft))] hover:text-foreground"
-                           }`}
+                          }`}
                           onMouseEnter={() => setActiveIndex(index)}
-                          onKeyDown={(event) => handleOptionKeyDown(event, index, action)}
+                          onKeyDown={(event) =>
+                            handleOptionKeyDown(event, index, action)
+                          }
                           onClick={(event) => handleOptionClick(event, action)}
-                          onAuxClick={(event) => handleOptionAuxClick(event, action)}
+                          onAuxClick={(event) =>
+                            handleOptionAuxClick(event, action)
+                          }
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">{getHighlightedText(action.label)}</span>
+                            <span className="font-medium">
+                              {getHighlightedText(action.label)}
+                            </span>
                             {action.shortcut && (
                               <span className="rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[10px] text-muted-foreground">
                                 {action.shortcut}
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground">{getHighlightedText(action.href)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {getHighlightedText(action.href)}
+                          </span>
                         </button>
                       );
                     })}
