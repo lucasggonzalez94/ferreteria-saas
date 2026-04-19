@@ -408,11 +408,11 @@ export function CommandPalette({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
+        <DialogHeader className="pr-14">
           <DialogTitle className="text-2xl">Ir a un modulo</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3 pt-3">
           <Input
             ref={inputRef}
             value={query}

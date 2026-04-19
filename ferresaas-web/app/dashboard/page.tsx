@@ -647,12 +647,14 @@ export default function DashboardPage() {
                           variant="outline"
                           className={`h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] ${isEditingQuickActions ? "cursor-grab border-dashed active:cursor-grabbing" : ""}`}
                         >
-                          <span className="app-icon-badge mb-4 h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
-                            {action.icon}
-                          </span>
-                          <span className="text-sm font-semibold text-foreground">
-                            {action.label}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="app-icon-badge h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                              {action.icon}
+                            </span>
+                            <span className="text-sm font-semibold text-foreground">
+                              {action.label}
+                            </span>
+                          </div>
                           <span className="mt-1 text-xs leading-5 text-muted-foreground">
                             {actionCaptions[action.id] ||
                               "Acceso directo al módulo."}
