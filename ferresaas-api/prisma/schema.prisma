@@ -54,6 +54,7 @@ model Business {
   cashRegisterSessions CashRegisterSession[]
   customers           Customer[]
   invoices            Invoice[]
+  invoiceJobs         InvoiceJob[]
   auditLogs           AuditLog[]
   idempotencyKeys     IdempotencyKey[]
   exchangeRateSnapshots ExchangeRateSnapshot[]
@@ -675,6 +676,7 @@ model Sale {
   items          SaleItem[]
   payments       Payment[]
   invoice        Invoice?
+  invoiceJobs    InvoiceJob[]
   
   @@index([businessId])
   @@index([customerId])
@@ -949,6 +951,32 @@ model Invoice {
   @@index([businessId])
   @@index([status])
   @@map("invoices")
+}
+
+model InvoiceJob {
+  id          String   @id @default(cuid())
+  businessId  String
+  saleId      String
+  voucherType String   // A, B, C
+
+  status      String   @default("PENDING") // PENDING, PROCESSING, RETRYING, COMPLETED, FAILED
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(8)
+  nextRetryAt DateTime @default(now())
+  lockedAt    DateTime?
+  processedAt DateTime?
+  lastError   String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale     Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@unique([saleId, voucherType])
+  @@index([businessId])
+  @@index([status, nextRetryAt])
+  @@map("invoice_jobs")
 }
 
 // ============================================================================

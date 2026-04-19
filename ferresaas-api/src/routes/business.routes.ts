@@ -62,6 +62,8 @@ const updateBusinessSchema = z.object({
   phone: z.union([z.string().trim(), z.null()]).optional(),
   email: z.union([z.string().trim().email(), z.null()]).optional(),
   timezone: z.string().optional(),
+  invoiceProvider: z.enum(['mock', 'facturante', 'arca_direct']).optional(),
+  invoicePointOfSale: z.number().int().positive().optional(),
 });
 
 /**

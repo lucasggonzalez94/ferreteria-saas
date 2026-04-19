@@ -29,9 +29,13 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().email().default('noreply@ferresaas.com'),
 
   // Facturación
-  INVOICE_PROVIDER: z.enum(['mock', 'facturante']).default('mock'),
+  INVOICE_PROVIDER: z.enum(['mock', 'facturante', 'arca_direct']).default('mock'),
   FACTURANTE_API_KEY: z.string().optional(),
   FACTURANTE_API_URL: z.string().url().optional(),
+  INVOICE_JOB_WORKER_ENABLED: z.enum(['true', 'false']).default('true'),
+  INVOICE_JOB_POLL_SECONDS: z.string().default('30'),
+  INVOICE_JOB_MAX_ATTEMPTS: z.string().default('8'),
+  INVOICE_JOB_BACKOFF_SECONDS: z.string().default('60'),
 
   // Tipo de cambio
   EXCHANGE_RATE_PROVIDER: z.string().default('dolarapi'),
@@ -121,6 +125,12 @@ export const env = {
     facturante: {
       apiKey: parsed.data.FACTURANTE_API_KEY,
       apiUrl: parsed.data.FACTURANTE_API_URL,
+    },
+    jobs: {
+      workerEnabled: parsed.data.INVOICE_JOB_WORKER_ENABLED === 'true',
+      pollSeconds: parseInt(parsed.data.INVOICE_JOB_POLL_SECONDS),
+      maxAttempts: parseInt(parsed.data.INVOICE_JOB_MAX_ATTEMPTS),
+      backoffSeconds: parseInt(parsed.data.INVOICE_JOB_BACKOFF_SECONDS),
     },
   },
 

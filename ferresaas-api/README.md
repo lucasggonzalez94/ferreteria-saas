@@ -269,8 +269,16 @@ El sistema soporta dos modos:
 
 1. **Mock** (desarrollo): Simula facturación sin credenciales
 2. **Facturante** (producción): Integración real con Facturante.com
+3. **ARCA Direct** (en implementación): Integración directa con ARCA/AFIP
 
 El provider se selecciona automáticamente según `INVOICE_PROVIDER` en `.env`.
+
+La emisión se procesa con jobs asíncronos y reintentos automáticos (configurable):
+
+- `INVOICE_JOB_WORKER_ENABLED`
+- `INVOICE_JOB_POLL_SECONDS`
+- `INVOICE_JOB_MAX_ATTEMPTS`
+- `INVOICE_JOB_BACKOFF_SECONDS`
 
 ## Tipo de Cambio
 

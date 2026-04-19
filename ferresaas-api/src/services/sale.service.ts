@@ -5,9 +5,8 @@ import { InventoryService } from './inventory.service';
 import { ExchangeRateService } from './exchange-rate.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
-import { InvoiceProvider } from '../providers/invoice/invoice.provider.interface';
-import { MockInvoiceProvider } from '../providers/invoice/mock.provider';
-import { FacturanteProvider } from '../providers/invoice/facturante.provider';
+import { resolveInvoiceProvider } from '../providers/invoice/provider-resolver';
+import { logger } from '../config/logger';
 import { env } from '../config/env';
 import { Prisma } from '@prisma/client';
 
@@ -16,19 +15,170 @@ export class SaleService {
   private exchangeRateService: ExchangeRateService;
   private financialAccountService: FinancialAccountService;
   private financialMovementService: FinancialMovementService;
-  private invoiceProvider: InvoiceProvider;
 
   constructor() {
     this.inventoryService = new InventoryService();
     this.exchangeRateService = new ExchangeRateService();
     this.financialAccountService = new FinancialAccountService();
     this.financialMovementService = new FinancialMovementService();
+  }
 
-    // Seleccionar provider de facturación
-    if (env.invoice.provider === 'facturante' && env.invoice.facturante.apiKey) {
-      this.invoiceProvider = new FacturanteProvider();
-    } else {
-      this.invoiceProvider = new MockInvoiceProvider();
+  private getInvoiceJobBackoffSeconds(): number {
+    return Math.max(env.invoice.jobs.backoffSeconds, 30);
+  }
+
+  private getInvoiceJobMaxAttempts(): number {
+    return Math.max(env.invoice.jobs.maxAttempts, 1);
+  }
+
+  private nextRetryAt(attempts: number): Date {
+    const baseSeconds = this.getInvoiceJobBackoffSeconds();
+    const delaySeconds = baseSeconds * Math.pow(2, Math.max(0, attempts - 1));
+    return new Date(Date.now() + delaySeconds * 1000);
+  }
+
+  private async enqueueInvoiceJob(businessId: string, saleId: string, voucherType: 'A' | 'B' | 'C') {
+    return prisma.invoiceJob.upsert({
+      where: {
+        saleId_voucherType: {
+          saleId,
+          voucherType,
+        },
+      },
+      create: {
+        businessId,
+        saleId,
+        voucherType,
+        status: 'PENDING',
+        attempts: 0,
+        maxAttempts: this.getInvoiceJobMaxAttempts(),
+        nextRetryAt: new Date(),
+      },
+      update: {
+        status: 'PENDING',
+        attempts: 0,
+        maxAttempts: this.getInvoiceJobMaxAttempts(),
+        nextRetryAt: new Date(),
+        lastError: null,
+        lockedAt: null,
+        processedAt: null,
+      },
+    });
+  }
+
+  async processPendingInvoiceJobs(limit = 20) {
+    const jobs = await prisma.invoiceJob.findMany({
+      where: {
+        status: {
+          in: ['PENDING', 'RETRYING'],
+        },
+        nextRetryAt: {
+          lte: new Date(),
+        },
+      },
+      select: { id: true },
+      orderBy: { nextRetryAt: 'asc' },
+      take: Math.max(limit, 1),
+    });
+
+    let processed = 0;
+    for (const job of jobs) {
+      const didProcess = await this.processInvoiceJob(job.id);
+      if (didProcess) {
+        processed += 1;
+      }
+    }
+
+    return processed;
+  }
+
+  private async processInvoiceJob(jobId: string): Promise<boolean> {
+    const lockResult = await prisma.invoiceJob.updateMany({
+      where: {
+        id: jobId,
+        status: {
+          in: ['PENDING', 'RETRYING'],
+        },
+        nextRetryAt: {
+          lte: new Date(),
+        },
+      },
+      data: {
+        status: 'PROCESSING',
+        lockedAt: new Date(),
+      },
+    });
+
+    if (lockResult.count === 0) {
+      return false;
+    }
+
+    const job = await prisma.invoiceJob.findUnique({ where: { id: jobId } });
+    if (!job) {
+      return false;
+    }
+
+    try {
+      const result = await this.createInvoice(job.businessId, job.saleId, job.voucherType as 'A' | 'B' | 'C');
+
+      if (!result.success) {
+        throw new Error(result.error || 'Invoice provider returned unsuccessful result');
+      }
+
+      await prisma.invoiceJob.update({
+        where: { id: job.id },
+        data: {
+          status: 'COMPLETED',
+          processedAt: new Date(),
+          lockedAt: null,
+          lastError: null,
+        },
+      });
+
+      await prisma.sale.update({
+        where: { id: job.saleId },
+        data: { invoiceStatus: 'INVOICED' },
+      });
+
+      return true;
+    } catch (error) {
+      const attempts = job.attempts + 1;
+      const exhausted = attempts >= job.maxAttempts;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown invoice job error';
+
+      await prisma.invoiceJob.update({
+        where: { id: job.id },
+        data: {
+          status: exhausted ? 'FAILED' : 'RETRYING',
+          attempts,
+          lockedAt: null,
+          processedAt: exhausted ? new Date() : null,
+          nextRetryAt: exhausted ? job.nextRetryAt : this.nextRetryAt(attempts),
+          lastError: errorMessage,
+        },
+      });
+
+      await prisma.sale.update({
+        where: { id: job.saleId },
+        data: {
+          invoiceStatus: exhausted ? 'FAILED' : 'PENDING_INVOICE',
+        },
+      });
+
+      logger.warn(
+        {
+          jobId: job.id,
+          businessId: job.businessId,
+          saleId: job.saleId,
+          attempts,
+          maxAttempts: job.maxAttempts,
+          exhausted,
+          error: errorMessage,
+        },
+        'Invoice job processing failed'
+      );
+
+      return true;
     }
   }
 
@@ -422,16 +572,22 @@ export class SaleService {
       return updated;
     });
 
-    // 5. Intentar facturar (fuera de la transacción para no bloquear)
+    // 5. Encolar facturación (fuera de la transacción para no bloquear)
     if (data.invoiceType) {
+      await this.enqueueInvoiceJob(businessId, saleId, data.invoiceType);
+
+      // Intento inmediato oportunista. Si falla, el job queda para reintento automático.
       try {
-        await this.createInvoice(businessId, saleId, data.invoiceType);
+        await this.processPendingInvoiceJobs(1);
       } catch (error) {
-        // No fallar la venta si falla la facturación
-        await prisma.sale.update({
-          where: { id: saleId },
-          data: { invoiceStatus: 'FAILED' },
-        });
+        logger.warn(
+          {
+            businessId,
+            saleId,
+            error: error instanceof Error ? error.message : 'Unknown invoice processing error',
+          },
+          'Immediate invoice processing failed; job will be retried'
+        );
       }
     }
 
@@ -484,8 +640,13 @@ export class SaleService {
       total: item.subtotal.toNumber(),
     }));
 
+    const { provider, providerKey } = resolveInvoiceProvider({
+      businessId,
+      businessProvider: business.invoiceProvider,
+    });
+
     // Llamar al provider
-    const result = await this.invoiceProvider.createVoucher({
+    const result = await provider.createVoucher({
       businessId,
       saleId,
       voucherType,
@@ -498,11 +659,12 @@ export class SaleService {
     });
 
     // Guardar factura
-    await prisma.invoice.create({
-      data: {
+    await prisma.invoice.upsert({
+      where: { saleId },
+      create: {
         businessId,
         saleId,
-        provider: env.invoice.provider,
+        provider: providerKey,
         voucherType,
         cae: result.cae,
         caeExpiry: result.caeExpiry,
@@ -514,15 +676,30 @@ export class SaleService {
         errorMessage: result.error,
         issuedAt: result.success ? new Date() : undefined,
       },
-    });
-
-    // Actualizar estado de facturación de la venta
-    await prisma.sale.update({
-      where: { id: saleId },
-      data: {
-        invoiceStatus: result.success ? 'INVOICED' : 'FAILED',
+      update: {
+        provider: providerKey,
+        voucherType,
+        cae: result.cae,
+        caeExpiry: result.caeExpiry,
+        pointOfSale: business.invoicePointOfSale,
+        number: result.number,
+        qrData: result.qrData,
+        pdfUrl: result.pdfUrl,
+        status: result.success ? 'ISSUED' : 'FAILED',
+        errorMessage: result.error,
+        issuedAt: result.success ? new Date() : null,
       },
     });
+
+    if (result.success) {
+      // Actualizar estado de facturación de la venta
+      await prisma.sale.update({
+        where: { id: saleId },
+        data: {
+          invoiceStatus: 'INVOICED',
+        },
+      });
+    }
 
     return result;
   }
