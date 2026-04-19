@@ -137,6 +137,7 @@ export interface BusinessInfo {
   id: string;
   name: string;
   timezone: string;
+  logoUrl?: string | null;
 }
 
 export interface LoginResponse {

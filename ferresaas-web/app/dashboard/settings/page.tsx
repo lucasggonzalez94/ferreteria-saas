@@ -41,7 +41,7 @@ export default function SettingsPage() {
       icon: <Building2 className="h-5 w-5" />,
       title: "Negocio",
       description: "Nombre, CUIT, logo y datos fiscales",
-      requiredPermission: "settings:update",
+      requiredPermission: "settings:read",
     },
     {
       href: "/dashboard/settings/users",

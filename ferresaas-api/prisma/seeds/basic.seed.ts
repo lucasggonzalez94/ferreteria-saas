@@ -115,6 +115,11 @@ async function main() {
     }),
     // Configuración
     prisma.permission.upsert({
+      where: { resource_action: { resource: 'settings', action: 'read' } },
+      update: {},
+      create: { resource: 'settings', action: 'read', description: 'Ver configuración' },
+    }),
+    prisma.permission.upsert({
       where: { resource_action: { resource: 'settings', action: 'update' } },
       update: {},
       create: { resource: 'settings', action: 'update', description: 'Modificar configuración' },

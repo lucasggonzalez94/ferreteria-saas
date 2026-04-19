@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const PUBLIC_FILE_REGEX = /\.[^/]+$/;
+
 // Rutas públicas explícitas (accesibles SIN autenticación)
 const PUBLIC_PATHS = [
   '/login',
@@ -25,6 +27,18 @@ function isAuthPath(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Ignorar assets estáticos y rutas especiales del navegador.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/icons') ||
+    pathname.startsWith('/.well-known') ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    PUBLIC_FILE_REGEX.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
 
   // Obtener cookie de refreshToken (HttpOnly, seteada por el backend)
   const refreshToken = request.cookies.get('refreshToken')?.value;
@@ -62,14 +76,6 @@ export function middleware(request: NextRequest) {
 // Configurar qué rutas debe interceptar el middleware
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - manifest.json, icons, sw.js (PWA assets)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|icons|sw.js).*)',
+    '/((?!api).*)',
   ],
 };

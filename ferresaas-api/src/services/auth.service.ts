@@ -106,6 +106,8 @@ export class AuthService {
           select: {
             id: true,
             name: true,
+            timezone: true,
+            logoUrl: true,
           },
         },
         roles: {
@@ -187,6 +189,7 @@ export class AuthService {
         id: user.business.id,
         name: user.business.name,
         timezone: (user.business as any).timezone || 'America/Buenos_Aires',
+        logoUrl: (user.business as any).logoUrl || null,
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

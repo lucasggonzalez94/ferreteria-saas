@@ -17,6 +17,29 @@ interface Business {
   id: string;
   name: string;
   timezone: string;
+  logoUrl?: string | null;
+}
+
+function normalizeReturnUrl(returnUrl?: string) {
+  if (!returnUrl || !returnUrl.startsWith('/')) {
+    return '/dashboard';
+  }
+
+  if (
+    returnUrl.startsWith('/login') ||
+    returnUrl.startsWith('/forgot-password') ||
+    returnUrl.startsWith('/reset-password') ||
+    returnUrl.startsWith('/.well-known')
+  ) {
+    return '/dashboard';
+  }
+
+  const lastSegment = returnUrl.split('/').pop() || '';
+  if (lastSegment.includes('.')) {
+    return '/dashboard';
+  }
+
+  return returnUrl;
 }
 
 interface AuthContextType {
@@ -27,6 +50,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   updateUser: (userData: Partial<User>) => void;
+  updateBusiness: (businessData: Partial<Business>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,6 +127,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.get<any>("/auth/restore-session");
       if (response.success && response.data?.user) {
         setUser(response.data.user);
+        if (response.data.business) {
+          setBusiness(response.data.business);
+          setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
+        }
       }
     } catch (error) {
       // Si falla la sincronización, el siguiente request 401 lo manejará
@@ -127,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // Redirigir al destino original si existe, o al dashboard por defecto
-      const destination = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/dashboard';
+      const destination = normalizeReturnUrl(returnUrl);
       router.push(destination);
     } else {
       throw new Error(response.error?.message || "Login failed");
@@ -158,6 +186,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateBusiness = (businessData: Partial<Business>) => {
+    setBusiness((currentBusiness) => {
+      if (!currentBusiness) {
+        return currentBusiness;
+      }
+
+      return { ...currentBusiness, ...businessData };
+    });
+
+    if (businessData.timezone) {
+      setBusinessTimezone(businessData.timezone);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -168,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         isAuthenticated: !!user,
         updateUser,
+        updateBusiness,
       }}
     >
       {children}

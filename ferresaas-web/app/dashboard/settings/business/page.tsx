@@ -1,5 +1,12 @@
 "use client";
 
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Globe, Save } from "lucide-react";
+import { toast } from "sonner";
+import Header from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,18 +15,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Header from "@/components/ui/header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, Globe } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { COMMON_TIMEZONES, setBusinessTimezone } from "@/lib/timezone";
 import {
   Select,
   SelectContent,
@@ -27,77 +24,220 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
+import { COMMON_TIMEZONES, setBusinessTimezone } from "@/lib/timezone";
+
+interface BusinessSettingsData {
+  id: string;
+  name: string;
+  cuit: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  logoUrl: string | null;
+  timezone: string;
+}
+
+interface BusinessFormData {
+  name: string;
+  cuit: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
+const EMPTY_FORM: BusinessFormData = {
+  name: "",
+  cuit: "",
+  address: "",
+  phone: "",
+  email: "",
+};
+
+function toFormData(businessData: BusinessSettingsData): BusinessFormData {
+  return {
+    name: businessData.name,
+    cuit: businessData.cuit,
+    address: businessData.address ?? "",
+    phone: businessData.phone ?? "",
+    email: businessData.email ?? "",
+  };
+}
+
+function normalizeOptionalField(value: string) {
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : null;
+}
 
 export default function BusinessSettingsPage() {
   const router = useRouter();
-  const { user, business, isLoading: isAuthLoading } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "Ferreteria Demo",
-    cuit: "30-12345678-9",
-    email: "contacto@ferreteriademo.com",
-    address: "Av. Corrientes 1234, CABA",
-    phone: "+54 11 1234-5678",
-  });
+  const queryClient = useQueryClient();
+  const {
+    user,
+    business,
+    updateBusiness,
+    isLoading: isAuthLoading,
+  } = useAuth();
+  const [formData, setFormData] = useState<BusinessFormData>(EMPTY_FORM);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
 
   const canUpdateSettings = user?.permissions?.includes("settings:update");
   const canReadSettings = user?.permissions?.includes("settings:read");
 
   useEffect(() => {
-    if (!isAuthLoading && !canUpdateSettings) {
+    if (!isAuthLoading && !canReadSettings) {
       router.push("/dashboard/settings");
-      return;
     }
-  }, [canUpdateSettings, isAuthLoading, router]);
+  }, [canReadSettings, isAuthLoading, router]);
+
+  const {
+    data: businessData,
+    isLoading: isBusinessLoading,
+    error: businessError,
+  } = useQuery({
+    queryKey: ["business"],
+    queryFn: async () => {
+      const response = await api.get<BusinessSettingsData>("/business");
+      return response.data!;
+    },
+    enabled: Boolean(canReadSettings),
+  });
 
   useEffect(() => {
-    const savedLogo = localStorage.getItem("businessLogo");
-    if (savedLogo) {
-      setLogoPreview(savedLogo);
+    if (!businessData) {
+      return;
     }
-  }, []);
 
-  if (isAuthLoading) {
+    setFormData(toFormData(businessData));
+    setLogoPreview(businessData.logoUrl ?? null);
+    setSelectedLogoFile(null);
+  }, [businessData]);
+
+  const syncBusinessCache = (nextBusiness: BusinessSettingsData) => {
+    queryClient.setQueryData(["business"], nextBusiness);
+    updateBusiness({
+      name: nextBusiness.name,
+      timezone: nextBusiness.timezone,
+      logoUrl: nextBusiness.logoUrl,
+    });
+  };
+
+  const saveBusinessMutation = useMutation({
+    mutationFn: async (payload: BusinessFormData) => {
+      const response = await api.patch<BusinessSettingsData>("/business", {
+        name: payload.name.trim(),
+        cuit: payload.cuit.trim(),
+        address: normalizeOptionalField(payload.address),
+        phone: normalizeOptionalField(payload.phone),
+        email: normalizeOptionalField(payload.email),
+      });
+
+      return response.data!;
+    },
+    onSuccess: (nextBusiness) => {
+      syncBusinessCache(nextBusiness);
+    },
+  });
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formDataToUpload = new FormData();
+      formDataToUpload.append("image", file);
+
+      const response = await api.upload<BusinessSettingsData>(
+        "/business/image",
+        formDataToUpload,
+      );
+
+      return response.data!;
+    },
+    onSuccess: (nextBusiness) => {
+      syncBusinessCache(nextBusiness);
+      setLogoPreview(nextBusiness.logoUrl ?? null);
+      setSelectedLogoFile(null);
+    },
+  });
+
+  const isSubmitting =
+    saveBusinessMutation.isPending || uploadLogoMutation.isPending;
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setSelectedLogoFile(file);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    event.target.value = "";
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    try {
+      await saveBusinessMutation.mutateAsync(formData);
+
+      if (selectedLogoFile) {
+        try {
+          await uploadLogoMutation.mutateAsync(selectedLogoFile);
+        } catch (error: any) {
+          toast.warning(
+            error.message ||
+              "Los datos se guardaron, pero el logo no se pudo actualizar",
+          );
+          return;
+        }
+      }
+
+      toast.success("Datos del negocio actualizados correctamente");
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo actualizar el negocio");
+    }
+  };
+
+  if (isAuthLoading || (canReadSettings && isBusinessLoading)) {
     return <div className="p-8">Cargando...</div>;
   }
 
-  if (!canUpdateSettings) {
+  if (!canReadSettings) {
     return null;
   }
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Persist to localStorage for demo purposes
-    if (logoPreview) {
-      localStorage.setItem("businessLogo", logoPreview);
-      // Trigger a custom event to notify other components
-      window.dispatchEvent(new Event("businessLogoChanged"));
-    }
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Datos del negocio actualizados correctamente");
-    }, 1000);
-  };
+  if (businessError) {
+    return (
+      <div className="p-8">
+        <div className="mx-auto max-w-3xl">
+          <Header
+            title="Datos del Negocio"
+            description="Información general de tu ferretería"
+            link="/dashboard/settings"
+            linkLabel="Volver a Configuración"
+          />
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                No se pudieron cargar los datos del negocio.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="mx-auto max-w-3xl">
         <Header
           title="Datos del Negocio"
           description="Información general de tu ferretería"
@@ -117,20 +257,18 @@ export default function BusinessSettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="logo">Logo del Negocio</Label>
                 <div className="flex items-center gap-4">
-                  <div className="relative h-16 w-16 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50 overflow-hidden">
+                  <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50">
                     {logoPreview ? (
                       <Image
                         src={logoPreview}
-                        alt="Logo preview"
+                        alt="Logo del negocio"
                         width={64}
                         height={64}
                         unoptimized
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Logo
-                      </span>
+                      <span className="text-xs text-muted-foreground">Logo</span>
                     )}
                   </div>
                   <div className="grid w-full max-w-sm items-center gap-1.5">
@@ -139,6 +277,7 @@ export default function BusinessSettingsPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleLogoChange}
+                      disabled={!canUpdateSettings || isSubmitting}
                     />
                     <p className="text-xs text-muted-foreground">
                       Recomendado: 500x500px. PNG, JPG o WEBP.
@@ -147,15 +286,19 @@ export default function BusinessSettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre de Fantasía</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        name: event.target.value,
+                      }))
                     }
+                    disabled={!canUpdateSettings || isSubmitting}
                     required
                   />
                 </div>
@@ -164,9 +307,13 @@ export default function BusinessSettingsPage() {
                   <Input
                     id="cuit"
                     value={formData.cuit}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cuit: e.target.value })
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        cuit: event.target.value,
+                      }))
                     }
+                    disabled={!canUpdateSettings || isSubmitting}
                     required
                   />
                 </div>
@@ -177,21 +324,29 @@ export default function BusinessSettingsPage() {
                 <Input
                   id="address"
                   value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
+                  onChange={(event) =>
+                    setFormData((currentFormData) => ({
+                      ...currentFormData,
+                      address: event.target.value,
+                    }))
                   }
+                  disabled={!canUpdateSettings || isSubmitting}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Teléfono</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        phone: event.target.value,
+                      }))
                     }
+                    disabled={!canUpdateSettings || isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -200,36 +355,48 @@ export default function BusinessSettingsPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        email: event.target.value,
+                      }))
                     }
+                    disabled={!canUpdateSettings || isSubmitting}
                   />
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Guardar Cambios
-                    </>
-                  )}
-                </Button>
+              <div className="flex justify-end pt-4">
+                {canUpdateSettings ? (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Guardar Cambios
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Tienes acceso de solo lectura para esta configuración.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
         </form>
 
-        {/* Sección de Zona Horaria */}
         <TimezoneSection
           canReadBusiness={Boolean(canReadSettings)}
-          fallbackTimezone={business?.timezone || "America/Buenos_Aires"}
+          canUpdateBusiness={Boolean(canUpdateSettings)}
+          currentTimezone={
+            businessData?.timezone || business?.timezone || "America/Buenos_Aires"
+          }
         />
       </div>
     </div>
@@ -238,40 +405,33 @@ export default function BusinessSettingsPage() {
 
 function TimezoneSection({
   canReadBusiness,
-  fallbackTimezone,
+  canUpdateBusiness,
+  currentTimezone,
 }: {
   canReadBusiness: boolean;
-  fallbackTimezone: string;
+  canUpdateBusiness: boolean;
+  currentTimezone: string;
 }) {
   const queryClient = useQueryClient();
-  const [selectedTimezone, setSelectedTimezone] = useState(fallbackTimezone);
+  const { updateBusiness } = useAuth();
+  const [selectedTimezone, setSelectedTimezone] = useState(currentTimezone);
 
-  // Obtener datos del negocio
-  const { data: businessData, isLoading } = useQuery({
-    queryKey: ["business"],
-    queryFn: async () => {
-      const response = await api.get<any>("/business");
-      return response.data;
-    },
-    enabled: canReadBusiness,
-  });
-
-  // Actualizar timezone cuando se cargan los datos
   useEffect(() => {
-    if (canReadBusiness && businessData?.timezone) {
-      setSelectedTimezone(businessData.timezone);
-    }
-  }, [businessData, canReadBusiness]);
+    setSelectedTimezone(currentTimezone);
+  }, [currentTimezone]);
 
-  // Mutación para actualizar timezone
   const updateTimezoneMutation = useMutation({
     mutationFn: async (timezone: string) => {
-      const response = await api.patch<any>("/business/timezone", { timezone });
-      return response.data;
+      const response = await api.patch<{ message: string; timezone: string }>(
+        "/business/timezone",
+        { timezone },
+      );
+      return response.data!;
     },
     onSuccess: (data) => {
-      // Actualizar el timezone global en el frontend
-      setBusinessTimezone(data.timezone || selectedTimezone);
+      const nextTimezone = data.timezone || selectedTimezone;
+      setBusinessTimezone(nextTimezone);
+      updateBusiness({ timezone: nextTimezone });
       queryClient.invalidateQueries({ queryKey: ["business"] });
       toast.success("Zona horaria actualizada correctamente");
     },
@@ -279,14 +439,6 @@ function TimezoneSection({
       toast.error(error.message || "Error al actualizar la zona horaria");
     },
   });
-
-  const handleTimezoneChange = (value: string) => {
-    setSelectedTimezone(value);
-  };
-
-  const handleSaveTimezone = () => {
-    updateTimezoneMutation.mutate(selectedTimezone);
-  };
 
   return (
     <Card className="mt-6">
@@ -303,21 +455,24 @@ function TimezoneSection({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="timezone">Zona Horaria</Label>
-          <Select value={selectedTimezone} onValueChange={handleTimezoneChange}>
+          <Select
+            value={selectedTimezone}
+            onValueChange={setSelectedTimezone}
+            disabled={!canUpdateBusiness}
+          >
             <SelectTrigger className="w-full md:w-96">
               <SelectValue placeholder="Selecciona una zona horaria" />
             </SelectTrigger>
             <SelectContent>
-              {COMMON_TIMEZONES.map((tz) => (
-                <SelectItem key={tz.value} value={tz.value}>
-                  {tz.label}
+              {COMMON_TIMEZONES.map((timezoneOption) => (
+                <SelectItem key={timezoneOption.value} value={timezoneOption.value}>
+                  {timezoneOption.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            La zona horaria actual es:{" "}
-            <strong>{businessData?.timezone || fallbackTimezone}</strong>
+            La zona horaria actual es: <strong>{currentTimezone}</strong>
           </p>
           {!canReadBusiness && (
             <p className="text-xs text-muted-foreground">
@@ -328,16 +483,16 @@ function TimezoneSection({
 
         <div className="flex justify-end">
           <Button
-            onClick={handleSaveTimezone}
+            onClick={() => updateTimezoneMutation.mutate(selectedTimezone)}
             disabled={
-              isLoading ||
+              !canUpdateBusiness ||
               updateTimezoneMutation.isPending ||
-              selectedTimezone === (businessData?.timezone || fallbackTimezone)
+              selectedTimezone === currentTimezone
             }
           >
             {updateTimezoneMutation.isPending ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                 Guardando...
               </>
             ) : (

@@ -545,7 +545,7 @@ export default function POSPage() {
       <div className="app-section">
         <Header
           title="Punto de Venta"
-          description="Cobro rápido, búsqueda asistida por scanner y resumen de pagos con mejor jerarquía visual."
+          description="Cobro rápido, búsqueda asistida por scanner y resumen de pagos."
         />
 
         {/* Banner de advertencia si la cotización está desactualizada */}

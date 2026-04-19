@@ -38,7 +38,7 @@ import { NotificationBadge } from "@/components/ui/notification-badge";
 import { Tooltip } from "@/components/ui/tooltip";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useAuth();
+  const { user, business, isLoading } = useAuth();
 
   // Redirect to login if not authenticated (after loading completes)
   useEffect(() => {
@@ -48,7 +48,6 @@ export default function DashboardPage() {
   }, [isLoading, user]);
 
   const isOnline = useConnectionStatus();
-  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [quickActions, setQuickActions] = useState<
     Array<{
       id: string;
@@ -60,19 +59,7 @@ export default function DashboardPage() {
   >([]);
   const [isEditingQuickActions, setIsEditingQuickActions] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  const handleLogoUpdate = () => {
-    const logo = localStorage.getItem("businessLogo");
-    if (logo) setBusinessLogo(logo);
-  };
-
-  useEffect(() => {
-    handleLogoUpdate();
-    window.addEventListener("businessLogoChanged", handleLogoUpdate);
-    return () => {
-      window.removeEventListener("businessLogoChanged", handleLogoUpdate);
-    };
-  }, []);
+  const businessLogo = business?.logoUrl || null;
 
   // Validaciones de permisos
   const canViewSales = user?.permissions?.includes("sales:read");
@@ -106,16 +93,16 @@ export default function DashboardPage() {
   const welcomeName = user?.firstName || user?.email?.split("@")[0] || "equipo";
   const actionCaptions: Record<string, string> = {
     cash: "Apertura, movimientos y cierre de turno.",
-    pos: "Cobro rapido con scanner y atajos.",
-    products: "Catalogo, precios y control de stock.",
+    pos: "Cobro rápido con scanner y atajos.",
+    products: "Catálogo, precios y control de stock.",
     customers: "Historial de compras y cuentas corrientes.",
-    inventory: "Alertas, ajustes y reposicion.",
-    suppliers: "Gestion de proveedores y abastecimiento.",
+    inventory: "Alertas, ajustes y reposición.",
+    suppliers: "Gestión de proveedores y abastecimiento.",
     finances: "Cuentas bancarias, caja y movimientos.",
     purchases: "Seguimiento de compras activas.",
     payables: "Vencimientos y pagos por realizar.",
-    prices: "Aprobacion de cambios de precio.",
-    discounts: "Descuentos pendientes de autorizacion.",
+    prices: "Aprobación de cambios de precio.",
+    discounts: "Descuentos pendientes de autorización.",
     reports: "Indicadores clave para decidir.",
   };
 

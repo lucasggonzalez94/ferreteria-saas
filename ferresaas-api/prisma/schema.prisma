@@ -21,6 +21,8 @@ model Business {
   address   String?
   phone     String?
   email     String?
+  logoUrl   String?
+  logoPublicId String?
   
   // Configuración fiscal
   taxCondition String  // RESPONSABLE_INSCRIPTO, MONOTRIBUTO, EXENTO

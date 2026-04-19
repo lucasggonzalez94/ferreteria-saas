@@ -317,6 +317,8 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
           select: {
             id: true,
             name: true,
+            timezone: true,
+            logoUrl: true,
           },
         },
         roles: {
@@ -401,6 +403,7 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
       id: user.business.id,
       name: user.business.name,
       timezone: (user.business as any).timezone || 'America/Buenos_Aires',
+      logoUrl: (user.business as any).logoUrl || null,
     };
 
     sendSuccess(res, {
