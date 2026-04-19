@@ -72,7 +72,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
           onClick={onRetry}
           disabled={isRetrying}
           className="h-9 text-xs"
-          title="Intenta obtener la cotización más reciente de la API"
+          title="Intenta obtener la cotización más reciente"
         >
           <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
           Actualizar
