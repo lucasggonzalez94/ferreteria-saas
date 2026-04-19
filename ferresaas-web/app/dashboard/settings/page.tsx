@@ -88,32 +88,6 @@ export default function SettingsPage() {
           description="Administra negocio, usuarios, permisos y parámetros operativos desde un centro unificado."
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Opciones visibles</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">
-              {settings.filter((s) => hasPermission(s.requiredPermission)).length}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Módulos de configuración disponibles para tu rol actual.
-            </p>
-          </div>
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Acceso personal</p>
-            <p className="mt-3 text-lg font-semibold text-foreground">Mi perfil siempre disponible</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Tu cuenta, contraseña y preferencias quedan accesibles aunque tengas permisos limitados.
-            </p>
-          </div>
-          <div className="brand-accent-panel p-4">
-            <p className="text-sm font-semibold text-foreground">Recomendación</p>
-            <p className="mt-3 text-lg font-semibold text-foreground">Revisa permisos y facturación</p>
-            <p className="mt-2 text-sm brand-accent-subtle">
-              Son las áreas donde más impacta una configuración clara y consistente.
-            </p>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {settings.map((setting) => {
             if (!hasPermission(setting.requiredPermission)) {
