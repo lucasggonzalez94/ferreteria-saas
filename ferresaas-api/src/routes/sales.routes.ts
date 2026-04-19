@@ -6,7 +6,13 @@ import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
-import { createSaleSchema, confirmSaleSchema, salesFiltersSchema } from './sales.schemas';
+import {
+  createSaleSchema,
+  confirmSaleSchema,
+  salesFiltersSchema,
+  invoiceJobFiltersSchema,
+  invoiceJobParamsSchema,
+} from './sales.schemas';
 
 const router = Router();
 const saleService = new SaleService();
@@ -83,6 +89,52 @@ router.post(
       }
 
       sendSuccess(res, sale, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /sales/invoice-jobs
+ * Listar jobs de facturación
+ */
+router.get(
+  '/invoice-jobs',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const filters = invoiceJobFiltersSchema.parse(req.query);
+
+      const result = await saleService.listInvoiceJobs(authReq.businessId!, {
+        status: filters.status,
+        page: filters.page,
+        limit: filters.limit,
+      });
+
+      sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /sales/invoice-jobs/:jobId/retry
+ * Reintentar manualmente un job de facturación
+ */
+router.post(
+  '/invoice-jobs/:jobId/retry',
+  requirePermissions('sales:manage'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { jobId } = invoiceJobParamsSchema.parse(req.params);
+
+      const job = await saleService.retryInvoiceJob(authReq.businessId!, jobId);
+
+      sendSuccess(res, job);
     } catch (error) {
       next(error);
     }

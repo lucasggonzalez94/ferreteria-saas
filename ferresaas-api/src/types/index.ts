@@ -118,6 +118,7 @@ export interface CreateVoucherResult {
   qrData?: string;
   pdfUrl?: string;
   error?: string;
+  errorCategory?: 'technical' | 'fiscal';
 }
 
 export interface Voucher {

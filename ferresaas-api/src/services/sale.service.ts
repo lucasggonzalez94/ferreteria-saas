@@ -9,6 +9,7 @@ import { resolveInvoiceProvider } from '../providers/invoice/provider-resolver';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 import { Prisma } from '@prisma/client';
+import { CreateVoucherResult } from '../types';
 
 export class SaleService {
   private inventoryService: InventoryService;
@@ -92,6 +93,70 @@ export class SaleService {
     return processed;
   }
 
+  private isFiscalError(result?: CreateVoucherResult, fallbackError?: unknown): boolean {
+    if (result?.errorCategory) {
+      return result.errorCategory === 'fiscal';
+    }
+
+    const message =
+      (result?.error || (fallbackError instanceof Error ? fallbackError.message : '')).toLowerCase();
+
+    return (
+      message.includes('validation') ||
+      message.includes('invalid') ||
+      message.includes('400') ||
+      message.includes('401') ||
+      message.includes('403')
+    );
+  }
+
+  private async markInvoiceJobAsFailed(
+    job: {
+      id: string;
+      saleId: string;
+      attempts: number;
+      maxAttempts: number;
+    },
+    errorMessage: string,
+    isFiscalError: boolean
+  ) {
+    const attempts = job.attempts + 1;
+    const exhausted = attempts >= job.maxAttempts;
+    const shouldRetry = !isFiscalError && !exhausted;
+
+    await prisma.invoiceJob.update({
+      where: { id: job.id },
+      data: {
+        status: shouldRetry ? 'RETRYING' : 'FAILED',
+        attempts,
+        lockedAt: null,
+        processedAt: shouldRetry ? null : new Date(),
+        nextRetryAt: shouldRetry ? this.nextRetryAt(attempts) : new Date(),
+        lastError: errorMessage,
+      },
+    });
+
+    await prisma.sale.update({
+      where: { id: job.saleId },
+      data: {
+        invoiceStatus: shouldRetry ? 'PENDING_INVOICE' : 'FAILED',
+      },
+    });
+
+    logger.warn(
+      {
+        jobId: job.id,
+        saleId: job.saleId,
+        attempts,
+        maxAttempts: job.maxAttempts,
+        shouldRetry,
+        isFiscalError,
+        error: errorMessage,
+      },
+      'Invoice job processing failed'
+    );
+  }
+
   private async processInvoiceJob(jobId: string): Promise<boolean> {
     const lockResult = await prisma.invoiceJob.updateMany({
       where: {
@@ -122,7 +187,12 @@ export class SaleService {
       const result = await this.createInvoice(job.businessId, job.saleId, job.voucherType as 'A' | 'B' | 'C');
 
       if (!result.success) {
-        throw new Error(result.error || 'Invoice provider returned unsuccessful result');
+        await this.markInvoiceJobAsFailed(
+          job,
+          result.error || 'Invoice provider returned unsuccessful result',
+          this.isFiscalError(result)
+        );
+        return true;
       }
 
       await prisma.invoiceJob.update({
@@ -142,44 +212,113 @@ export class SaleService {
 
       return true;
     } catch (error) {
-      const attempts = job.attempts + 1;
-      const exhausted = attempts >= job.maxAttempts;
       const errorMessage = error instanceof Error ? error.message : 'Unknown invoice job error';
 
-      await prisma.invoiceJob.update({
-        where: { id: job.id },
-        data: {
-          status: exhausted ? 'FAILED' : 'RETRYING',
-          attempts,
-          lockedAt: null,
-          processedAt: exhausted ? new Date() : null,
-          nextRetryAt: exhausted ? job.nextRetryAt : this.nextRetryAt(attempts),
-          lastError: errorMessage,
-        },
-      });
-
-      await prisma.sale.update({
-        where: { id: job.saleId },
-        data: {
-          invoiceStatus: exhausted ? 'FAILED' : 'PENDING_INVOICE',
-        },
-      });
-
-      logger.warn(
-        {
-          jobId: job.id,
-          businessId: job.businessId,
-          saleId: job.saleId,
-          attempts,
-          maxAttempts: job.maxAttempts,
-          exhausted,
-          error: errorMessage,
-        },
-        'Invoice job processing failed'
-      );
+      await this.markInvoiceJobAsFailed(job, errorMessage, this.isFiscalError(undefined, error));
 
       return true;
     }
+  }
+
+  async listInvoiceJobs(
+    businessId: string,
+    filters: {
+      status?: 'PENDING' | 'PROCESSING' | 'RETRYING' | 'COMPLETED' | 'FAILED';
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const page = filters.page || 1;
+    const limit = Math.min(filters.limit || 50, 100);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.InvoiceJobWhereInput = { businessId };
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.invoiceJob.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          sale: {
+            select: {
+              id: true,
+              status: true,
+              invoiceStatus: true,
+              total: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: [{ nextRetryAt: 'asc' }, { createdAt: 'desc' }],
+      }),
+      prisma.invoiceJob.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+      },
+    };
+  }
+
+  async retryInvoiceJob(businessId: string, jobId: string) {
+    const job = await prisma.invoiceJob.findFirst({
+      where: {
+        id: jobId,
+        businessId,
+      },
+    });
+
+    if (!job) {
+      throw new AppError(404, 'INVOICE_JOB_NOT_FOUND', 'Invoice job not found');
+    }
+
+    if (job.status === 'PROCESSING') {
+      throw new AppError(409, 'INVOICE_JOB_PROCESSING', 'Invoice job is currently processing');
+    }
+
+    await prisma.invoiceJob.update({
+      where: { id: job.id },
+      data: {
+        status: 'PENDING',
+        attempts: 0,
+        nextRetryAt: new Date(),
+        lastError: null,
+        lockedAt: null,
+        processedAt: null,
+      },
+    });
+
+    await prisma.sale.update({
+      where: { id: job.saleId },
+      data: {
+        invoiceStatus: 'PENDING_INVOICE',
+      },
+    });
+
+    await this.processPendingInvoiceJobs(1);
+
+    return prisma.invoiceJob.findUnique({
+      where: { id: job.id },
+      include: {
+        sale: {
+          select: {
+            id: true,
+            status: true,
+            invoiceStatus: true,
+            total: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
   }
 
   /**

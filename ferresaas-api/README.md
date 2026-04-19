@@ -173,6 +173,8 @@ ferresaas-api/
 - `POST /v1/sales/:id/confirm` - Confirmar venta
 - `GET /v1/sales` - Listar ventas
 - `GET /v1/sales/:id` - Detalle
+- `GET /v1/sales/invoice-jobs` - Listar jobs de facturación
+- `POST /v1/sales/invoice-jobs/:jobId/retry` - Reintentar job manualmente
 
 ### Tipo de Cambio
 

@@ -78,3 +78,13 @@ export const salesFiltersSchema = z.object({
 });
 
 export type SalesFilters = z.infer<typeof salesFiltersSchema>;
+
+export const invoiceJobFiltersSchema = z.object({
+  status: z.enum(['PENDING', 'PROCESSING', 'RETRYING', 'COMPLETED', 'FAILED']).optional(),
+  page: z.string().regex(/^\d+$/).transform(Number).optional(),
+  limit: z.string().regex(/^\d+$/).transform(Number).optional(),
+});
+
+export const invoiceJobParamsSchema = z.object({
+  jobId: z.string().cuid(),
+});

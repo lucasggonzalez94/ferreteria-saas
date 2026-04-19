@@ -24,6 +24,8 @@ export class FacturanteProvider implements InvoiceProvider {
   }
 
   async createVoucher(input: CreateVoucherInput): Promise<CreateVoucherResult> {
+    let responseStatus: number | undefined;
+
     try {
       // TODO: Ajustar según formato real de Facturante API
       const payload = {
@@ -57,6 +59,8 @@ export class FacturanteProvider implements InvoiceProvider {
         body: JSON.stringify(payload),
       });
 
+      responseStatus = response.status;
+
       if (!response.ok) {
         const error = await response.text();
         logger.error({ error, status: response.status }, 'Facturante API error');
@@ -76,9 +80,16 @@ export class FacturanteProvider implements InvoiceProvider {
       };
     } catch (error) {
       logger.error({ error, input }, 'Failed to create voucher with Facturante');
+
+      const errorCategory =
+        responseStatus !== undefined && responseStatus >= 400 && responseStatus < 500
+          ? 'fiscal'
+          : 'technical';
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
+        errorCategory,
       };
     }
   }
