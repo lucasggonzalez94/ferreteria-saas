@@ -116,3 +116,7 @@ Implementar facturacion fiscal con **costo variable cero por comprobante** usand
 4. FS-114
 5. FS-112
 6. FS-113
+
+## Documentacion relacionada
+
+- `docs/arca-homologacion-credenciales-paso-a-paso.md`

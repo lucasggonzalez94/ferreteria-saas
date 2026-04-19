@@ -1,6 +1,7 @@
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 import { InvoiceProvider } from './invoice.provider.interface';
+import { ArcaDirectProvider } from './arca-direct.provider';
 import { FacturanteProvider } from './facturante.provider';
 import { MockInvoiceProvider } from './mock.provider';
 
@@ -45,6 +46,14 @@ function buildProvider(key: InvoiceProviderKey): InvoiceProvider | null {
     }
 
     return new FacturanteProvider();
+  }
+
+  if (key === 'arca_direct') {
+    if (!env.invoice.arca.cuit || !env.invoice.arca.token || !env.invoice.arca.sign) {
+      return null;
+    }
+
+    return new ArcaDirectProvider();
   }
 
   return null;

@@ -32,6 +32,10 @@ const envSchema = z.object({
   INVOICE_PROVIDER: z.enum(['mock', 'facturante', 'arca_direct']).default('mock'),
   FACTURANTE_API_KEY: z.string().optional(),
   FACTURANTE_API_URL: z.string().url().optional(),
+  ARCA_CUIT: z.string().optional(),
+  ARCA_TOKEN: z.string().optional(),
+  ARCA_SIGN: z.string().optional(),
+  ARCA_WSFE_URL: z.string().url().optional(),
   INVOICE_JOB_WORKER_ENABLED: z.enum(['true', 'false']).default('true'),
   INVOICE_JOB_POLL_SECONDS: z.string().default('30'),
   INVOICE_JOB_MAX_ATTEMPTS: z.string().default('8'),
@@ -125,6 +129,12 @@ export const env = {
     facturante: {
       apiKey: parsed.data.FACTURANTE_API_KEY,
       apiUrl: parsed.data.FACTURANTE_API_URL,
+    },
+    arca: {
+      cuit: parsed.data.ARCA_CUIT,
+      token: parsed.data.ARCA_TOKEN,
+      sign: parsed.data.ARCA_SIGN,
+      wsfeUrl: parsed.data.ARCA_WSFE_URL,
     },
     jobs: {
       workerEnabled: parsed.data.INVOICE_JOB_WORKER_ENABLED === 'true',

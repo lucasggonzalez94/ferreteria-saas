@@ -203,6 +203,13 @@ INVOICE_PROVIDER="facturante"
 FACTURANTE_API_KEY="tu-api-key"
 FACTURANTE_API_URL="https://api.facturante.com/v1"
 
+# Facturación ARCA directa (opcional)
+# Requiere Token/Sign vigentes obtenidos por WSAA
+ARCA_CUIT="20123456789"
+ARCA_TOKEN="token-wsaa"
+ARCA_SIGN="sign-wsaa"
+ARCA_WSFE_URL="https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+
 # Redis (recomendado)
 REDIS_ENABLED="true"
 REDIS_URL="redis://..."
