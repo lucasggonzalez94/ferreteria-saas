@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import type { ExchangeRateConfig } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -101,20 +102,31 @@ export default function CashRegisterPage() {
     enabled: !session, // Solo cuando no hay sesión abierta
   });
 
+  // Obtener configuración de tipo de cambio
+  const { data: exchangeConfig } = useQuery<ExchangeRateConfig>({
+    queryKey: ["exchange-rate-config"],
+    queryFn: async (): Promise<ExchangeRateConfig> => {
+      const response = await api.get("/exchange-rate/config");
+      return response.data as ExchangeRateConfig;
+    },
+  });
+
+  const usdEnabled = exchangeConfig?.usdEnabled ?? false;
+
   // Prellenar los inputs con los montos sugeridos
   useEffect(() => {
     if (suggestedOpening?.suggestedAmount !== undefined && !openingAmount) {
       setOpeningAmount(suggestedOpening.suggestedAmount.toString());
       setSuggestedAmount(suggestedOpening.suggestedAmount);
     }
-    if (
+    if (usdEnabled &&
       suggestedOpening?.suggestedAmountUSD !== undefined &&
       !openingAmountUSD
     ) {
       setOpeningAmountUSD(suggestedOpening.suggestedAmountUSD.toString());
       setSuggestedAmountUSD(suggestedOpening.suggestedAmountUSD);
     }
-  }, [suggestedOpening, openingAmount, openingAmountUSD]);
+  }, [suggestedOpening, openingAmount, openingAmountUSD, usdEnabled]);
 
   const {
     data: summary,
@@ -402,6 +414,7 @@ export default function CashRegisterPage() {
                   )}
                 </div>
 
+                {usdEnabled && (
                 <div>
                   <Label htmlFor="openingAmountUSD">Monto Inicial (USD)</Label>
                   <Input
@@ -429,6 +442,7 @@ export default function CashRegisterPage() {
                     Opcional - Solo si maneja efectivo en dólares
                   </p>
                 </div>
+                )}
 
                 <Button
                   onClick={handleOpen}
@@ -737,7 +751,7 @@ export default function CashRegisterPage() {
                     </p>
                   </div>
 
-                  {summary && summary.expectedAmountUSD > 0 && (
+                  {usdEnabled && summary && summary.expectedAmountUSD > 0 && (
                     <div>
                       <Label htmlFor="closingAmountUSD">
                         Monto Final (USD)

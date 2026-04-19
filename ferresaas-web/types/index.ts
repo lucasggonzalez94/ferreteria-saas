@@ -155,3 +155,16 @@ export interface ExchangeRateResponse {
   source: string;
   timestamp: string;
 }
+
+export interface ExchangeRateConfig {
+  id: string;
+  businessId: string;
+  usdEnabled: boolean;
+  dollarType: string;
+  marginPercent: number;
+  autoUpdate: boolean;
+  updateIntervalMinutes: number;
+  manualRate?: number;
+  useManualRate: boolean;
+  lastUpdated: string;
+}

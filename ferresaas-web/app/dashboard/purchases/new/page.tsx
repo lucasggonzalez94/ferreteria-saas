@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import type { ExchangeRateConfig } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +87,17 @@ export default function NewPurchasePage() {
     isStale,
     isFallback,
   } = useExchangeRateWithFallback();
+
+  // Obtener configuración de tipo de cambio
+  const { data: exchangeConfig } = useQuery<ExchangeRateConfig>({
+    queryKey: ["exchange-rate-config"],
+    queryFn: async (): Promise<ExchangeRateConfig> => {
+      const response = await api.get("/exchange-rate/config");
+      return response.data as ExchangeRateConfig;
+    },
+  });
+
+  const usdEnabled = exchangeConfig?.usdEnabled ?? false;
 
   useEffect(() => {
     if (!canCreatePurchase) {
@@ -367,7 +379,7 @@ export default function NewPurchasePage() {
         <Header title="Nueva Compra" link="/dashboard/purchases" linkLabel="Volver a Compras" />
 
         {/* Banner de advertencia si la cotización está desactualizada */}
-        {currency === 'USD' && (isStale || isFallback) && exchangeRate && (
+        {usdEnabled && currency === 'USD' && (isStale || isFallback) && exchangeRate && (
           <div className="mb-4">
             <StaleRateBanner
               rate={exchangeRate}
@@ -442,7 +454,7 @@ export default function NewPurchasePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ARS">Pesos Argentinos (ARS)</SelectItem>
-                    <SelectItem value="USD">Dólares (USD)</SelectItem>
+                    {usdEnabled && <SelectItem value="USD">Dólares (USD)</SelectItem>}
                   </SelectContent>
                 </Select>
                 {currency === 'USD' && exchangeRate && (

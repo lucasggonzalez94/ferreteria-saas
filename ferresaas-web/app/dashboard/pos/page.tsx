@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import type { ExchangeRateConfig } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +91,17 @@ export default function POSPage() {
 
   const canApproveDiscounts =
     user?.permissions?.includes("sales:approve_discount") ?? false;
+
+  // Obtener configuración de tipo de cambio
+  const { data: exchangeConfig } = useQuery<ExchangeRateConfig>({
+    queryKey: ["exchange-rate-config"],
+    queryFn: async (): Promise<ExchangeRateConfig> => {
+      const response = await api.get("/exchange-rate/config");
+      return response.data as ExchangeRateConfig;
+    },
+  });
+
+  const usdEnabled = exchangeConfig?.usdEnabled ?? false;
 
   // Hook para tipo de cambio con fallback
   const {
@@ -549,7 +561,7 @@ export default function POSPage() {
         />
 
         {/* Banner de advertencia si la cotización está desactualizada */}
-        {(isStale || isFallback) && exchangeRate && (
+        {usdEnabled && (isStale || isFallback) && exchangeRate && (
           <div className="mb-4">
             <StaleRateBanner
               rate={exchangeRate}
@@ -896,7 +908,7 @@ export default function POSPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CASH_ARS">Efectivo ARS</SelectItem>
-                      <SelectItem value="CASH_USD">Efectivo USD</SelectItem>
+                      {usdEnabled && <SelectItem value="CASH_USD">Efectivo USD</SelectItem>}
                       <SelectItem value="CARD">Tarjeta</SelectItem>
                       <SelectItem value="TRANSFER">Transferencia</SelectItem>
                       <SelectItem value="QR">QR</SelectItem>
@@ -923,7 +935,7 @@ export default function POSPage() {
                 </div>
 
                 {/* USD específico para CASH_USD */}
-                {paymentMethod === "CASH_USD" && (
+                {paymentMethod === "CASH_USD" && usdEnabled && (
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium">Monto USD *</label>
