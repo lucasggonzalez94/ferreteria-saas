@@ -675,7 +675,7 @@ model Sale {
   cashRegister   CashRegisterSession? @relation(fields: [cashRegisterId], references: [id], onDelete: SetNull)
   items          SaleItem[]
   payments       Payment[]
-  invoice        Invoice?
+  invoices       Invoice[]
   invoiceJobs    InvoiceJob[]
   
   @@index([businessId])
@@ -917,10 +917,14 @@ model AccountMovement {
 model Invoice {
   id          String  @id @default(cuid())
   businessId  String
-  saleId      String  @unique
+  saleId      String
   
   provider    String  // mock, facturante, arca_direct
-  voucherType String  // A, B, C
+  voucherType String  // A, B, C, NC_A, NC_B, NC_C, ND_A, ND_B, ND_C
+
+  relatedInvoiceId String?
+  adjustmentKind   String? // CREDIT_NOTE, DEBIT_NOTE
+  adjustmentReason String? @db.Text
   
   // Datos ARCA
   cae         String?
@@ -945,11 +949,15 @@ model Invoice {
   issuedAt  DateTime?
   
   // Relaciones
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  sale     Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  relatedInvoice Invoice? @relation("InvoiceAdjustment", fields: [relatedInvoiceId], references: [id], onDelete: SetNull)
+  adjustments    Invoice[] @relation("InvoiceAdjustment")
+
   @@index([businessId])
+  @@index([saleId])
   @@index([status])
+  @@unique([saleId, voucherType])
   @@map("invoices")
 }
 
@@ -957,7 +965,7 @@ model InvoiceJob {
   id          String   @id @default(cuid())
   businessId  String
   saleId      String
-  voucherType String   // A, B, C
+  voucherType String   // A, B, C, NC_A, NC_B, NC_C, ND_A, ND_B, ND_C
 
   status      String   @default("PENDING") // PENDING, PROCESSING, RETRYING, COMPLETED, FAILED
   attempts    Int      @default(0)

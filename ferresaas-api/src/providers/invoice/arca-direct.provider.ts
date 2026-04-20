@@ -1,14 +1,20 @@
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
-import { CreateVoucherInput, CreateVoucherResult, Voucher } from '../../types';
+import { CreateVoucherInput, CreateVoucherResult, Voucher, VoucherType } from '../../types';
 import { InvoiceProvider } from './invoice.provider.interface';
 
 const WSFE_NAMESPACE = 'http://ar.gov.afip.dif.FEV1/';
 
-const VOUCHER_TYPE_CODES: Record<'A' | 'B' | 'C', number> = {
+const VOUCHER_TYPE_CODES: Record<VoucherType, number> = {
   A: 1,
+  ND_A: 2,
+  NC_A: 3,
   B: 6,
+  ND_B: 7,
+  NC_B: 8,
   C: 11,
+  ND_C: 12,
+  NC_C: 13,
 };
 
 const IVA_CODE_BY_RATE: Record<string, number> = {
@@ -167,6 +173,10 @@ export class ArcaDirectProvider implements InvoiceProvider {
       const customerDocType = input.customer?.cuit ? 80 : 99;
       const customerDocNumber = input.customer?.cuit ? input.customer.cuit.replaceAll(/\D/g, '') : '0';
 
+      const associatedVoucherXml = input.relatedVoucher
+        ? `<CbtesAsoc><CbteAsoc><Tipo>${VOUCHER_TYPE_CODES[input.relatedVoucher.voucherType]}</Tipo><PtoVta>${input.relatedVoucher.pointOfSale}</PtoVta><Nro>${input.relatedVoucher.number}</Nro></CbteAsoc></CbtesAsoc>`
+        : '';
+
       const ivaTotals = new Map<number, number>();
       for (const item of input.items) {
         const rateKey = normalizeRate(item.taxRate);
@@ -213,6 +223,7 @@ export class ArcaDirectProvider implements InvoiceProvider {
                 <ImpTrib>0.00</ImpTrib>
                 <MonId>PES</MonId>
                 <MonCotiz>1</MonCotiz>
+                ${associatedVoucherXml}
                 ${ivaXml}
               </FECAEDetRequest>
             </FeDetReq>

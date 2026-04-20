@@ -12,6 +12,7 @@ import {
   salesFiltersSchema,
   invoiceJobFiltersSchema,
   invoiceJobParamsSchema,
+  createAdjustmentNoteSchema,
 } from './sales.schemas';
 
 const router = Router();
@@ -153,6 +154,56 @@ router.post(
       const job = await saleService.retryInvoiceJob(authReq.businessId!, jobId);
 
       sendSuccess(res, job);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /sales/:id/adjustment-note
+ * Crear nota de crédito o débito para una venta facturada
+ */
+router.post(
+  '/:id/adjustment-note',
+  requirePermissions('sales:manage'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+      const data = createAdjustmentNoteSchema.parse(req.body);
+
+      if (data.clientOperationId) {
+        const existing = await IdempotencyService.check(authReq.businessId!, data.clientOperationId);
+        if (existing.exists && existing.response) {
+          return res.status(existing.response.status).json(existing.response.body);
+        }
+      }
+
+      const result = await saleService.createAdjustmentNote(
+        authReq.businessId!,
+        authReq.user!.id,
+        id,
+        {
+          kind: data.kind,
+          letter: data.letter,
+          reason: data.reason,
+        }
+      );
+
+      const response = { success: true, data: result };
+
+      if (data.clientOperationId) {
+        await IdempotencyService.save(
+          authReq.businessId!,
+          data.clientOperationId,
+          `/sales/${id}/adjustment-note`,
+          200,
+          response
+        );
+      }
+
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }

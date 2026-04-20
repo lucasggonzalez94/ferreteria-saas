@@ -88,3 +88,10 @@ export const invoiceJobFiltersSchema = z.object({
 export const invoiceJobParamsSchema = z.object({
   jobId: z.string().cuid(),
 });
+
+export const createAdjustmentNoteSchema = z.object({
+  kind: z.enum(['CREDIT', 'DEBIT']),
+  letter: z.enum(['A', 'B', 'C']),
+  reason: z.string().trim().min(3).max(500),
+  clientOperationId: z.string().optional(),
+});

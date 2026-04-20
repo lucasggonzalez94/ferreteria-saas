@@ -88,10 +88,21 @@ export interface ExchangeRate {
 export * from './exchange-rate.types';
 
 // Facturación
+export type VoucherType =
+  | 'A'
+  | 'B'
+  | 'C'
+  | 'NC_A'
+  | 'NC_B'
+  | 'NC_C'
+  | 'ND_A'
+  | 'ND_B'
+  | 'ND_C';
+
 export interface CreateVoucherInput {
   businessId: string;
   saleId: string;
-  voucherType: 'A' | 'B' | 'C';
+  voucherType: VoucherType;
   pointOfSale: number;
   customer?: {
     name: string;
@@ -108,6 +119,11 @@ export interface CreateVoucherInput {
   subtotal: number;
   taxAmount: number;
   total: number;
+  relatedVoucher?: {
+    pointOfSale: number;
+    number: number;
+    voucherType: 'A' | 'B' | 'C';
+  };
 }
 
 export interface CreateVoucherResult {

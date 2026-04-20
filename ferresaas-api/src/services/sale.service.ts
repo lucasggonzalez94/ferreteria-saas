@@ -12,12 +12,24 @@ import {
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 import { Prisma } from '@prisma/client';
-import { CreateVoucherResult } from '../types';
+import { CreateVoucherResult, VoucherType } from '../types';
+
+const NOTE_TO_BASE_VOUCHER: Record<
+  Extract<VoucherType, 'NC_A' | 'NC_B' | 'NC_C' | 'ND_A' | 'ND_B' | 'ND_C'>,
+  'A' | 'B' | 'C'
+> = {
+  NC_A: 'A',
+  NC_B: 'B',
+  NC_C: 'C',
+  ND_A: 'A',
+  ND_B: 'B',
+  ND_C: 'C',
+};
 
 interface VoucherPayload {
   businessId: string;
   saleId: string;
-  voucherType: 'A' | 'B' | 'C';
+  voucherType: VoucherType;
   pointOfSale: number;
   customer?: {
     name: string;
@@ -34,6 +46,11 @@ interface VoucherPayload {
   subtotal: number;
   taxAmount: number;
   total: number;
+  relatedVoucher?: {
+    pointOfSale: number;
+    number: number;
+    voucherType: 'A' | 'B' | 'C';
+  };
 }
 
 export class SaleService {
@@ -63,7 +80,7 @@ export class SaleService {
     return new Date(Date.now() + delaySeconds * 1000);
   }
 
-  private async enqueueInvoiceJob(businessId: string, saleId: string, voucherType: 'A' | 'B' | 'C') {
+  private async enqueueInvoiceJob(businessId: string, saleId: string, voucherType: VoucherType) {
     return prisma.invoiceJob.upsert({
       where: {
         saleId_voucherType: {
@@ -289,7 +306,7 @@ export class SaleService {
     }
 
     try {
-      const result = await this.createInvoice(job.businessId, job.saleId, job.voucherType as 'A' | 'B' | 'C');
+      const result = await this.createInvoice(job.businessId, job.saleId, job.voucherType as VoucherType);
 
       if (!result.success) {
         await this.markInvoiceJobAsFailed(
@@ -895,10 +912,100 @@ export class SaleService {
     return this.getById(businessId, saleId);
   }
 
+  async createAdjustmentNote(
+    businessId: string,
+    userId: string,
+    saleId: string,
+    data: {
+      kind: 'CREDIT' | 'DEBIT';
+      letter: 'A' | 'B' | 'C';
+      reason: string;
+    }
+  ) {
+    const sale = await this.getById(businessId, saleId);
+
+    if (sale.status !== 'CONFIRMED') {
+      throw new AppError(400, 'SALE_NOT_CONFIRMED', 'Sale must be confirmed before issuing notes');
+    }
+
+    const voucherType =
+      data.kind === 'CREDIT'
+        ? (`NC_${data.letter}` as VoucherType)
+        : (`ND_${data.letter}` as VoucherType);
+
+    const baseInvoice = sale.invoices.find(
+      (invoice) => invoice.voucherType === data.letter && invoice.status === 'ISSUED'
+    );
+
+    if (!baseInvoice || !baseInvoice.number || !baseInvoice.pointOfSale) {
+      throw new AppError(
+        400,
+        'BASE_INVOICE_NOT_FOUND',
+        `Cannot issue ${voucherType} without an issued ${data.letter} invoice for this sale`
+      );
+    }
+
+    await prisma.invoice.upsert({
+      where: {
+        saleId_voucherType: {
+          saleId,
+          voucherType,
+        },
+      },
+      create: {
+        businessId,
+        saleId,
+        provider: sale.invoices[0]?.provider || 'mock',
+        voucherType,
+        relatedInvoiceId: baseInvoice.id,
+        adjustmentKind: data.kind === 'CREDIT' ? 'CREDIT_NOTE' : 'DEBIT_NOTE',
+        adjustmentReason: data.reason,
+        status: 'PENDING',
+      },
+      update: {
+        relatedInvoiceId: baseInvoice.id,
+        adjustmentKind: data.kind === 'CREDIT' ? 'CREDIT_NOTE' : 'DEBIT_NOTE',
+        adjustmentReason: data.reason,
+      },
+    });
+
+    await this.enqueueInvoiceJob(businessId, saleId, voucherType);
+
+    try {
+      await this.processPendingInvoiceJobs(1);
+    } catch (error) {
+      logger.warn(
+        {
+          businessId,
+          saleId,
+          voucherType,
+          error: error instanceof Error ? error.message : 'Unknown note processing error',
+        },
+        'Immediate adjustment-note processing failed; job will be retried'
+      );
+    }
+
+    await AuditService.log({
+      businessId,
+      userId,
+      action: data.kind === 'CREDIT' ? 'INVOICE_CREDIT_NOTE_CREATE' : 'INVOICE_DEBIT_NOTE_CREATE',
+      entity: 'invoices',
+      entityId: saleId,
+      after: {
+        saleId,
+        voucherType,
+        baseInvoiceId: baseInvoice.id,
+        reason: data.reason,
+      },
+    });
+
+    return this.getById(businessId, saleId);
+  }
+
   /**
    * Crear factura ARCA
    */
-  private async createInvoice(businessId: string, saleId: string, voucherType: 'A' | 'B' | 'C') {
+  private async createInvoice(businessId: string, saleId: string, voucherType: VoucherType) {
     const sale = await this.getById(businessId, saleId);
 
     const business = await prisma.business.findUnique({
@@ -907,6 +1014,23 @@ export class SaleService {
 
     if (!business) {
       throw new AppError(404, 'BUSINESS_NOT_FOUND', 'Business not found');
+    }
+
+    const baseVoucherTypeForNote = NOTE_TO_BASE_VOUCHER[
+      voucherType as keyof typeof NOTE_TO_BASE_VOUCHER
+    ];
+    const relatedInvoice = baseVoucherTypeForNote
+      ? sale.invoices.find(
+          (invoice) => invoice.voucherType === baseVoucherTypeForNote && invoice.status === 'ISSUED'
+        )
+      : null;
+
+    if (baseVoucherTypeForNote && (!relatedInvoice || !relatedInvoice.number || !relatedInvoice.pointOfSale)) {
+      throw new AppError(
+        400,
+        'BASE_INVOICE_NOT_FOUND',
+        `Cannot issue ${voucherType} without an issued ${baseVoucherTypeForNote} invoice`
+      );
     }
 
     // Preparar datos del cliente
@@ -941,6 +1065,13 @@ export class SaleService {
       subtotal: sale.subtotal.toNumber(),
       taxAmount: sale.taxAmount.toNumber(),
       total: sale.total.toNumber(),
+      relatedVoucher: relatedInvoice
+        ? {
+            pointOfSale: relatedInvoice.pointOfSale!,
+            number: relatedInvoice.number!,
+            voucherType: baseVoucherTypeForNote!,
+          }
+        : undefined,
     };
 
     const { result, providerKey } = await this.createVoucherWithFallback(
@@ -951,12 +1082,23 @@ export class SaleService {
 
     // Guardar factura
     await prisma.invoice.upsert({
-      where: { saleId },
+      where: {
+        saleId_voucherType: {
+          saleId,
+          voucherType,
+        },
+      },
       create: {
         businessId,
         saleId,
         provider: providerKey,
         voucherType,
+        relatedInvoiceId: relatedInvoice?.id,
+        adjustmentKind: voucherType.startsWith('NC_')
+          ? 'CREDIT_NOTE'
+          : voucherType.startsWith('ND_')
+            ? 'DEBIT_NOTE'
+            : null,
         cae: result.cae,
         caeExpiry: result.caeExpiry,
         pointOfSale: business.invoicePointOfSale,
@@ -970,6 +1112,12 @@ export class SaleService {
       update: {
         provider: providerKey,
         voucherType,
+        relatedInvoiceId: relatedInvoice?.id,
+        adjustmentKind: voucherType.startsWith('NC_')
+          ? 'CREDIT_NOTE'
+          : voucherType.startsWith('ND_')
+            ? 'DEBIT_NOTE'
+            : null,
         cae: result.cae,
         caeExpiry: result.caeExpiry,
         pointOfSale: business.invoicePointOfSale,
@@ -1101,7 +1249,9 @@ export class SaleService {
             exchangeRate: true,
           },
         },
-        invoice: true,
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
