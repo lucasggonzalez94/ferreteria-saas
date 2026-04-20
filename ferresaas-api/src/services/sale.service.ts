@@ -373,6 +373,53 @@ export class SaleService {
     };
   }
 
+  async getInvoiceJobStats(businessId: string) {
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    const [pending, processing, retrying, failed, completed, readyToProcess, providerGroups] =
+      await Promise.all([
+        prisma.invoiceJob.count({ where: { businessId, status: 'PENDING' } }),
+        prisma.invoiceJob.count({ where: { businessId, status: 'PROCESSING' } }),
+        prisma.invoiceJob.count({ where: { businessId, status: 'RETRYING' } }),
+        prisma.invoiceJob.count({ where: { businessId, status: 'FAILED' } }),
+        prisma.invoiceJob.count({ where: { businessId, status: 'COMPLETED' } }),
+        prisma.invoiceJob.count({
+          where: {
+            businessId,
+            status: { in: ['PENDING', 'RETRYING'] },
+            nextRetryAt: { lte: now },
+          },
+        }),
+        prisma.invoice.groupBy({
+          by: ['provider'],
+          where: {
+            businessId,
+            createdAt: { gte: last24h },
+            status: 'ISSUED',
+          },
+          _count: {
+            provider: true,
+          },
+        }),
+      ]);
+
+    return {
+      jobs: {
+        pending,
+        processing,
+        retrying,
+        failed,
+        completed,
+        readyToProcess,
+      },
+      providersLast24h: providerGroups.map((group) => ({
+        provider: group.provider,
+        issued: group._count.provider,
+      })),
+    };
+  }
+
   async retryInvoiceJob(businessId: string, jobId: string) {
     const job = await prisma.invoiceJob.findFirst({
       where: {

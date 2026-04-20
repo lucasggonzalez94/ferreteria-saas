@@ -174,6 +174,7 @@ ferresaas-api/
 - `GET /v1/sales` - Listar ventas
 - `GET /v1/sales/:id` - Detalle
 - `GET /v1/sales/invoice-jobs` - Listar jobs de facturación
+- `GET /v1/sales/invoice-jobs/stats` - Métricas de facturación
 - `POST /v1/sales/invoice-jobs/:jobId/retry` - Reintentar job manualmente
 
 ### Tipo de Cambio

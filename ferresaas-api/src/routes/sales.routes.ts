@@ -121,6 +121,24 @@ router.get(
 );
 
 /**
+ * GET /sales/invoice-jobs/stats
+ * Métricas operativas de jobs de facturación
+ */
+router.get(
+  '/invoice-jobs/stats',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const stats = await saleService.getInvoiceJobStats(authReq.businessId!);
+      sendSuccess(res, stats);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * POST /sales/invoice-jobs/:jobId/retry
  * Reintentar manualmente un job de facturación
  */
