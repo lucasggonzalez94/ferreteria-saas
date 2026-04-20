@@ -35,6 +35,7 @@ import { api } from "@/lib/api";
 
 type InvoiceProvider = "mock" | "facturante" | "arca_direct";
 type JobStatus = "PENDING" | "PROCESSING" | "RETRYING" | "COMPLETED" | "FAILED";
+type DatePreset = "all" | "today" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
 
 interface BusinessInvoicingData {
   id: string;
@@ -96,6 +97,57 @@ const PROVIDER_LABELS: Record<InvoiceProvider, string> = {
   arca_direct: "ARCA Direct",
 };
 
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDatePresetRange(preset: DatePreset): { startDate: string; endDate: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (preset === "today") {
+    return { startDate: formatDateInput(today), endDate: formatDateInput(today) };
+  }
+
+  if (preset === "last_7_days") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 6);
+    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+  }
+
+  if (preset === "last_30_days") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+  }
+
+  if (preset === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+  }
+
+  if (preset === "last_month") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { startDate: formatDateInput(start), endDate: formatDateInput(end) };
+  }
+
+  return { startDate: "", endDate: "" };
+}
+
+function toStartDateIso(dateValue?: string): string | undefined {
+  if (!dateValue) return undefined;
+  return new Date(`${dateValue}T00:00:00.000`).toISOString();
+}
+
+function toEndDateIso(dateValue?: string): string | undefined {
+  if (!dateValue) return undefined;
+  return new Date(`${dateValue}T23:59:59.999`).toISOString();
+}
+
 export default function InvoicingSettingsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -109,6 +161,9 @@ export default function InvoicingSettingsPage() {
   const [provider, setProvider] = useState<InvoiceProvider>("mock");
   const [pointOfSale, setPointOfSale] = useState("1");
   const [jobStatusFilter, setJobStatusFilter] = useState<JobStatus | "all">("all");
+  const [jobDatePreset, setJobDatePreset] = useState<DatePreset>("all");
+  const [jobStartDate, setJobStartDate] = useState("");
+  const [jobEndDate, setJobEndDate] = useState("");
 
   useEffect(() => {
     if (!isAuthLoading && !canReadSettings) {
@@ -136,11 +191,13 @@ export default function InvoicingSettingsPage() {
   });
 
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ["invoice-jobs", jobStatusFilter],
+    queryKey: ["invoice-jobs", jobStatusFilter, jobStartDate, jobEndDate],
     queryFn: async () => {
       const response = await api.get<InvoiceJobItem[]>("/sales/invoice-jobs", {
         params: {
           status: jobStatusFilter === "all" ? undefined : jobStatusFilter,
+          startDate: toStartDateIso(jobStartDate),
+          endDate: toEndDateIso(jobEndDate),
           page: 1,
           limit: 25,
         },
@@ -212,6 +269,18 @@ export default function InvoicingSettingsPage() {
       invoiceProvider: provider,
       invoicePointOfSale: parsedPointOfSale,
     });
+  };
+
+  const handleJobPresetChange = (preset: DatePreset) => {
+    setJobDatePreset(preset);
+
+    if (preset === "custom") {
+      return;
+    }
+
+    const range = getDatePresetRange(preset);
+    setJobStartDate(range.startDate);
+    setJobEndDate(range.endDate);
   };
 
   const formatDate = (value: string) => {
@@ -346,10 +415,10 @@ export default function InvoicingSettingsPage() {
                 <div>
                   <CardTitle>Cola de facturación</CardTitle>
                   <CardDescription>
-                    Jobs recientes con estado y reintento manual.
+                    Jobs recientes con estado, período y reintento manual.
                   </CardDescription>
                 </div>
-                <div className="w-full md:w-56">
+                <div className="grid w-full gap-3 md:grid-cols-4">
                   <Select
                     value={jobStatusFilter}
                     onValueChange={(value) => setJobStatusFilter(value as JobStatus | "all")}
@@ -366,6 +435,42 @@ export default function InvoicingSettingsPage() {
                       <SelectItem value="COMPLETED">Completados</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <Select
+                    value={jobDatePreset}
+                    onValueChange={(value) => handleJobPresetChange(value as DatePreset)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todo el historial</SelectItem>
+                      <SelectItem value="today">Hoy</SelectItem>
+                      <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                      <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
+                      <SelectItem value="this_month">Mes actual</SelectItem>
+                      <SelectItem value="last_month">Mes anterior</SelectItem>
+                      <SelectItem value="custom">Rango personalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    type="date"
+                    value={jobStartDate}
+                    onChange={(event) => {
+                      setJobDatePreset("custom");
+                      setJobStartDate(event.target.value);
+                    }}
+                  />
+
+                  <Input
+                    type="date"
+                    value={jobEndDate}
+                    onChange={(event) => {
+                      setJobDatePreset("custom");
+                      setJobEndDate(event.target.value);
+                    }}
+                  />
                 </div>
               </CardHeader>
               <CardContent>

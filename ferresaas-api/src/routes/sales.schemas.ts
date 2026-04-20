@@ -81,6 +81,8 @@ export type SalesFilters = z.infer<typeof salesFiltersSchema>;
 
 export const invoiceJobFiltersSchema = z.object({
   status: z.enum(['PENDING', 'PROCESSING', 'RETRYING', 'COMPLETED', 'FAILED']).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
 });

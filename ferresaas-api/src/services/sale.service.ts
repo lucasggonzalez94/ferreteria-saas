@@ -350,6 +350,8 @@ export class SaleService {
     businessId: string,
     filters: {
       status?: 'PENDING' | 'PROCESSING' | 'RETRYING' | 'COMPLETED' | 'FAILED';
+      startDate?: Date;
+      endDate?: Date;
       page?: number;
       limit?: number;
     }
@@ -361,6 +363,16 @@ export class SaleService {
     const where: Prisma.InvoiceJobWhereInput = { businessId };
     if (filters.status) {
       where.status = filters.status;
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = filters.endDate;
+      }
     }
 
     const [items, total] = await Promise.all([

@@ -34,6 +34,7 @@ import { api } from "@/lib/api";
 
 type InvoiceStatus = "PENDING" | "ISSUED" | "FAILED";
 type VoucherType = "A" | "B" | "C" | "NC_A" | "NC_B" | "NC_C" | "ND_A" | "ND_B" | "ND_C";
+type DatePreset = "all" | "today" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
 
 interface InvoiceListItem {
   id: string;
@@ -75,22 +76,93 @@ function customerName(invoice: InvoiceListItem): string {
   return fullName || "Cliente";
 }
 
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDatePresetRange(preset: DatePreset): { startDate: string; endDate: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (preset === "today") {
+    return {
+      startDate: formatDateInput(today),
+      endDate: formatDateInput(today),
+    };
+  }
+
+  if (preset === "last_7_days") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 6);
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
+  }
+
+  if (preset === "last_30_days") {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
+  }
+
+  if (preset === "this_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
+  }
+
+  if (preset === "last_month") {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0);
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(end),
+    };
+  }
+
+  return { startDate: "", endDate: "" };
+}
+
+function toStartDateIso(dateValue?: string): string | undefined {
+  if (!dateValue) return undefined;
+  return new Date(`${dateValue}T00:00:00.000`).toISOString();
+}
+
+function toEndDateIso(dateValue?: string): string | undefined {
+  if (!dateValue) return undefined;
+  return new Date(`${dateValue}T23:59:59.999`).toISOString();
+}
+
 export default function InvoicesPage() {
   const { user } = useAuth();
   const [status, setStatus] = useState<InvoiceStatus | "all">("all");
   const [voucherType, setVoucherType] = useState<VoucherType | "all">("all");
   const [saleId, setSaleId] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const canReadSales = user?.permissions?.includes("sales:read");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["invoices", status, voucherType, saleId],
+    queryKey: ["invoices", status, voucherType, saleId, startDate, endDate],
     queryFn: async () => {
       const response = await api.get<InvoiceListItem[]>("/sales/invoices", {
         params: {
           status: status === "all" ? undefined : status,
           voucherType: voucherType === "all" ? undefined : voucherType,
           saleId: saleId.trim() || undefined,
+          startDate: toStartDateIso(startDate),
+          endDate: toEndDateIso(endDate),
           page: 1,
           limit: 100,
         },
@@ -122,6 +194,18 @@ export default function InvoicesPage() {
     } catch (error: any) {
       toast.error(error.message || "No se pudo descargar el PDF");
     }
+  };
+
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+
+    if (preset === "custom") {
+      return;
+    }
+
+    const range = getDatePresetRange(preset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
   };
 
   if (!canReadSales) {
@@ -176,9 +260,9 @@ export default function InvoicesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Filtros</CardTitle>
-            <CardDescription>Refina por estado, tipo de comprobante o venta.</CardDescription>
+            <CardDescription>Refina por estado, tipo, venta y período.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-4">
+          <CardContent className="grid gap-4 md:grid-cols-6">
             <div className="space-y-2">
               <label className="text-sm font-medium">Estado</label>
               <Select value={status} onValueChange={(value) => setStatus(value as InvoiceStatus | "all")}> 
@@ -218,9 +302,51 @@ export default function InvoicesPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Venta (ID)</label>
               <Input
-                placeholder="cuid de venta"
+                placeholder="Cuid de venta"
                 value={saleId}
                 onChange={(event) => setSaleId(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Período</label>
+              <Select value={datePreset} onValueChange={(value) => handlePresetChange(value as DatePreset)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo el historial</SelectItem>
+                  <SelectItem value="today">Hoy</SelectItem>
+                  <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                  <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
+                  <SelectItem value="this_month">Mes actual</SelectItem>
+                  <SelectItem value="last_month">Mes anterior</SelectItem>
+                  <SelectItem value="custom">Rango personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Desde</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => {
+                  setDatePreset("custom");
+                  setStartDate(event.target.value);
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hasta</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(event) => {
+                  setDatePreset("custom");
+                  setEndDate(event.target.value);
+                }}
               />
             </div>
 

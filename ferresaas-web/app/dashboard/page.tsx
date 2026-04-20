@@ -31,6 +31,7 @@ import {
   PieChart,
   RefreshCw,
   ArrowUpRight,
+  FileText,
 } from "lucide-react";
 import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
 import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
@@ -104,6 +105,7 @@ export default function DashboardPage() {
     prices: "Aprobación de cambios de precio.",
     discounts: "Descuentos pendientes de autorización.",
     reports: "Indicadores clave para decidir.",
+    invoices: "Consulta comprobantes, CAE y descarga PDF.",
   };
 
   // Obtener datos del dashboard solo si tiene permisos
@@ -281,6 +283,13 @@ export default function DashboardPage() {
         allowed: !!canViewCustomers,
       },
       {
+        id: "invoices",
+        label: "Comprobantes",
+        href: "/dashboard/invoices",
+        icon: <FileText className="h-6 w-6" />,
+        allowed: !!canViewSales,
+      },
+      {
         id: "inventory",
         label: "Inventario",
         href: "/dashboard/inventory",
@@ -364,6 +373,7 @@ export default function DashboardPage() {
     canAccessPOS,
     canViewProducts,
     canViewCustomers,
+    canViewSales,
     canViewInventory,
     canAccessPurchases,
     canAccessSuppliers,

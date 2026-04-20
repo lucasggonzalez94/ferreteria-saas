@@ -112,6 +112,8 @@ router.get(
 
       const result = await saleService.listInvoiceJobs(authReq.businessId!, {
         status: filters.status,
+        startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+        endDate: filters.endDate ? new Date(filters.endDate) : undefined,
         page: filters.page,
         limit: filters.limit,
       });
