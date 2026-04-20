@@ -394,6 +394,143 @@ export class SaleService {
     };
   }
 
+  async listInvoices(
+    businessId: string,
+    filters: {
+      status?: 'PENDING' | 'ISSUED' | 'FAILED';
+      voucherType?: VoucherType;
+      saleId?: string;
+      customerId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const page = filters.page || 1;
+    const limit = Math.min(filters.limit || 50, 100);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.InvoiceWhereInput = {
+      businessId,
+    };
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.voucherType) {
+      where.voucherType = filters.voucherType;
+    }
+
+    if (filters.saleId) {
+      where.saleId = filters.saleId;
+    }
+
+    if (filters.customerId) {
+      where.sale = {
+        customerId: filters.customerId,
+      };
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = filters.endDate;
+      }
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.invoice.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          sale: {
+            select: {
+              id: true,
+              total: true,
+              customerId: true,
+              customer: {
+                select: {
+                  id: true,
+                  type: true,
+                  firstName: true,
+                  lastName: true,
+                  companyName: true,
+                  cuit: true,
+                },
+              },
+            },
+          },
+          relatedInvoice: {
+            select: {
+              id: true,
+              voucherType: true,
+              pointOfSale: true,
+              number: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }],
+      }),
+      prisma.invoice.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getInvoiceById(businessId: string, invoiceId: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        sale: {
+          include: {
+            customer: true,
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    internalSku: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        relatedInvoice: {
+          select: {
+            id: true,
+            voucherType: true,
+            pointOfSale: true,
+            number: true,
+            cae: true,
+            caeExpiry: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice || invoice.businessId !== businessId) {
+      throw new AppError(404, 'INVOICE_NOT_FOUND', 'Invoice not found');
+    }
+
+    return invoice;
+  }
+
   async getInvoiceJobStats(businessId: string) {
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const now = new Date();

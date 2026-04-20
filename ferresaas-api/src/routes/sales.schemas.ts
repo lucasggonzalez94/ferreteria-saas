@@ -95,3 +95,20 @@ export const createAdjustmentNoteSchema = z.object({
   reason: z.string().trim().min(3).max(500),
   clientOperationId: z.string().optional(),
 });
+
+export const invoiceFiltersSchema = z.object({
+  status: z.enum(['PENDING', 'ISSUED', 'FAILED']).optional(),
+  voucherType: z
+    .enum(['A', 'B', 'C', 'NC_A', 'NC_B', 'NC_C', 'ND_A', 'ND_B', 'ND_C'])
+    .optional(),
+  saleId: z.string().cuid().optional(),
+  customerId: z.string().cuid().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  page: z.string().regex(/^\d+$/).transform(Number).optional(),
+  limit: z.string().regex(/^\d+$/).transform(Number).optional(),
+});
+
+export const invoiceParamsSchema = z.object({
+  invoiceId: z.string().cuid(),
+});

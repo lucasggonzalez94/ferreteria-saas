@@ -93,6 +93,14 @@ export const COMMAND_ACTIONS: CommandAction[] = [
     requiredPermission: "reports:read",
   },
   {
+    id: "invoices",
+    label: "Abrir comprobantes",
+    href: "/dashboard/invoices",
+    category: "Ventas",
+    keywords: ["facturas", "invoices", "comprobantes", "cae"],
+    requiredPermission: "sales:read",
+  },
+  {
     id: "settings",
     label: "Abrir configuracion",
     href: "/dashboard/settings",

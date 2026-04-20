@@ -13,6 +13,8 @@ import {
   invoiceJobFiltersSchema,
   invoiceJobParamsSchema,
   createAdjustmentNoteSchema,
+  invoiceFiltersSchema,
+  invoiceParamsSchema,
 } from './sales.schemas';
 
 const router = Router();
@@ -115,6 +117,56 @@ router.get(
       });
 
       sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /sales/invoices
+ * Listado de comprobantes emitidos
+ */
+router.get(
+  '/invoices',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const filters = invoiceFiltersSchema.parse(req.query);
+
+      const result = await saleService.listInvoices(authReq.businessId!, {
+        status: filters.status,
+        voucherType: filters.voucherType,
+        saleId: filters.saleId,
+        customerId: filters.customerId,
+        startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+        endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+        page: filters.page,
+        limit: filters.limit,
+      });
+
+      sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /sales/invoices/:invoiceId
+ * Detalle de comprobante
+ */
+router.get(
+  '/invoices/:invoiceId',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { invoiceId } = invoiceParamsSchema.parse(req.params);
+
+      const invoice = await saleService.getInvoiceById(authReq.businessId!, invoiceId);
+      sendSuccess(res, invoice);
     } catch (error) {
       next(error);
     }
