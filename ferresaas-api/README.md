@@ -280,7 +280,13 @@ El sistema soporta dos modos:
 2. **Facturante** (producción): Integración real con Facturante.com
 3. **ARCA Direct** (en implementación): Integración directa con ARCA/AFIP
 
-El provider se selecciona automáticamente según `INVOICE_PROVIDER` en `.env`.
+El provider se selecciona automáticamente según `INVOICE_PROVIDER` en `.env` y configuración por negocio.
+
+Comportamiento de fallback en runtime:
+
+- Si el provider principal es `arca_direct` y falla por error técnico, se intenta fallback a `facturante`.
+- Si también falla `facturante`, queda error para reproceso por cola.
+- Si el error es fiscal (validación/rechazo), no se aplica fallback automático.
 
 La emisión se procesa con jobs asíncronos y reintentos automáticos (configurable):
 

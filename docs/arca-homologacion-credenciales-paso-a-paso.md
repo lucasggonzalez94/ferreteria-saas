@@ -319,3 +319,31 @@ Datos a incluir:
 - [ ] `ARCA_TOKEN` y `ARCA_SIGN` obtenidos.
 - [ ] `.env` actualizado con endpoints de homologacion.
 - [ ] Emision de prueba A/B/C exitosa en homologacion.
+
+---
+
+## 11) Modo desarrollo sin bloqueo (recomendado mientras ARCA falla)
+
+Si WSASS/ARCA homologacion esta inestable, continuar desarrollo con estrategia "plug and play":
+
+1. Mantener provider principal en `mock` o `facturante`.
+2. Mantener cola de facturacion activa (`invoice_jobs`) para simular operacion real.
+3. Dejar `arca_direct` listo por configuracion para activarlo cuando ARCA responda.
+
+Configuracion recomendada temporal:
+
+```env
+INVOICE_PROVIDER="facturante"
+```
+
+o en desarrollo puro:
+
+```env
+INVOICE_PROVIDER="mock"
+```
+
+Comportamiento implementado:
+
+- Si `arca_direct` falla por error tecnico, el backend intenta fallback runtime a `facturante`.
+- Si el error es fiscal, no hay fallback automatico.
+- Si ambos fallan, queda job en cola para reproceso.

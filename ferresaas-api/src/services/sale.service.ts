@@ -5,11 +5,36 @@ import { InventoryService } from './inventory.service';
 import { ExchangeRateService } from './exchange-rate.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
-import { resolveInvoiceProvider } from '../providers/invoice/provider-resolver';
+import {
+  InvoiceProviderKey,
+  resolveInvoiceProvider,
+} from '../providers/invoice/provider-resolver';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 import { Prisma } from '@prisma/client';
 import { CreateVoucherResult } from '../types';
+
+interface VoucherPayload {
+  businessId: string;
+  saleId: string;
+  voucherType: 'A' | 'B' | 'C';
+  pointOfSale: number;
+  customer?: {
+    name: string;
+    cuit?: string;
+    address?: string;
+  };
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxRate: number;
+    total: number;
+  }>;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+}
 
 export class SaleService {
   private inventoryService: InventoryService;
@@ -155,6 +180,86 @@ export class SaleService {
       },
       'Invoice job processing failed'
     );
+  }
+
+  private async createVoucherWithFallback(
+    businessId: string,
+    businessProvider: string | null,
+    payload: VoucherPayload
+  ): Promise<{ result: CreateVoucherResult; providerKey: InvoiceProviderKey }> {
+    const primaryResolution = resolveInvoiceProvider({
+      businessId,
+      businessProvider,
+    });
+
+    const primaryResult = await primaryResolution.provider.createVoucher(payload);
+    if (primaryResult.success) {
+      return {
+        result: primaryResult,
+        providerKey: primaryResolution.providerKey,
+      };
+    }
+
+    const shouldFallbackToFacturante =
+      primaryResolution.providerKey === 'arca_direct' && !this.isFiscalError(primaryResult);
+
+    if (!shouldFallbackToFacturante) {
+      return {
+        result: primaryResult,
+        providerKey: primaryResolution.providerKey,
+      };
+    }
+
+    const fallbackResolution = resolveInvoiceProvider({
+      businessId,
+      businessProvider: 'facturante',
+    });
+
+    if (fallbackResolution.providerKey === primaryResolution.providerKey) {
+      return {
+        result: primaryResult,
+        providerKey: primaryResolution.providerKey,
+      };
+    }
+
+    const fallbackResult = await fallbackResolution.provider.createVoucher(payload);
+    if (fallbackResult.success) {
+      logger.warn(
+        {
+          businessId,
+          saleId: payload.saleId,
+          fromProvider: primaryResolution.providerKey,
+          toProvider: fallbackResolution.providerKey,
+        },
+        'Invoice runtime fallback succeeded'
+      );
+
+      return {
+        result: fallbackResult,
+        providerKey: fallbackResolution.providerKey,
+      };
+    }
+
+    logger.warn(
+      {
+        businessId,
+        saleId: payload.saleId,
+        fromProvider: primaryResolution.providerKey,
+        toProvider: fallbackResolution.providerKey,
+        primaryError: primaryResult.error,
+        fallbackError: fallbackResult.error,
+      },
+      'Invoice runtime fallback failed'
+    );
+
+    return {
+      result: {
+        success: false,
+        errorCategory: fallbackResult.errorCategory || 'technical',
+        error: `Primary provider (${primaryResolution.providerKey}) failed: ${primaryResult.error || 'Unknown error'}. Fallback provider (${fallbackResolution.providerKey}) failed: ${fallbackResult.error || 'Unknown error'}`,
+      },
+      providerKey: fallbackResolution.providerKey,
+    };
   }
 
   private async processInvoiceJob(jobId: string): Promise<boolean> {
@@ -779,13 +884,7 @@ export class SaleService {
       total: item.subtotal.toNumber(),
     }));
 
-    const { provider, providerKey } = resolveInvoiceProvider({
-      businessId,
-      businessProvider: business.invoiceProvider,
-    });
-
-    // Llamar al provider
-    const result = await provider.createVoucher({
+    const payload: VoucherPayload = {
       businessId,
       saleId,
       voucherType,
@@ -795,7 +894,13 @@ export class SaleService {
       subtotal: sale.subtotal.toNumber(),
       taxAmount: sale.taxAmount.toNumber(),
       total: sale.total.toNumber(),
-    });
+    };
+
+    const { result, providerKey } = await this.createVoucherWithFallback(
+      businessId,
+      business.invoiceProvider,
+      payload
+    );
 
     // Guardar factura
     await prisma.invoice.upsert({
