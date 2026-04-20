@@ -5,6 +5,8 @@ import { InventoryService } from './inventory.service';
 import { ExchangeRateService } from './exchange-rate.service';
 import { FinancialAccountService } from './financial-account.service';
 import { FinancialMovementService } from './financial-movement.service';
+import { InvoicePdfService } from './invoice-pdf.service';
+import { CloudinaryService } from './cloudinary.service';
 import {
   InvoiceProviderKey,
   resolveInvoiceProvider,
@@ -58,12 +60,14 @@ export class SaleService {
   private exchangeRateService: ExchangeRateService;
   private financialAccountService: FinancialAccountService;
   private financialMovementService: FinancialMovementService;
+  private invoicePdfService: InvoicePdfService;
 
   constructor() {
     this.inventoryService = new InventoryService();
     this.exchangeRateService = new ExchangeRateService();
     this.financialAccountService = new FinancialAccountService();
     this.financialMovementService = new FinancialMovementService();
+    this.invoicePdfService = new InvoicePdfService();
   }
 
   private getInvoiceJobBackoffSeconds(): number {
@@ -1002,6 +1006,158 @@ export class SaleService {
     return this.getById(businessId, saleId);
   }
 
+  private async generateAndStoreInvoicePdf(
+    businessId: string,
+    sale: Awaited<ReturnType<SaleService['getById']>>,
+    invoiceId: string
+  ) {
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        name: true,
+        cuit: true,
+        address: true,
+        phone: true,
+        email: true,
+      },
+    });
+
+    if (!business) {
+      throw new AppError(404, 'BUSINESS_NOT_FOUND', 'Business not found');
+    }
+
+    const invoice = sale.invoices.find((row) => row.id === invoiceId);
+    if (!invoice) {
+      throw new AppError(404, 'INVOICE_NOT_FOUND', 'Invoice not found');
+    }
+
+    const relatedInvoice = invoice.relatedInvoiceId
+      ? sale.invoices.find((row) => row.id === invoice.relatedInvoiceId)
+      : null;
+
+    const pdfBuffer = await this.invoicePdfService.generateInvoicePdf({
+      business,
+      sale: {
+        id: sale.id,
+        createdAt: sale.createdAt,
+        subtotal: sale.subtotal.toNumber(),
+        taxAmount: sale.taxAmount.toNumber(),
+        total: sale.total.toNumber(),
+      },
+      invoice: {
+        id: invoice.id,
+        voucherType: invoice.voucherType,
+        pointOfSale: invoice.pointOfSale,
+        number: invoice.number,
+        cae: invoice.cae,
+        caeExpiry: invoice.caeExpiry,
+        issuedAt: invoice.issuedAt,
+        adjustmentKind: invoice.adjustmentKind,
+        adjustmentReason: invoice.adjustmentReason,
+        relatedInvoice: relatedInvoice
+          ? {
+              voucherType: relatedInvoice.voucherType,
+              pointOfSale: relatedInvoice.pointOfSale,
+              number: relatedInvoice.number,
+            }
+          : undefined,
+      },
+      customer: sale.customer
+        ? {
+            type: sale.customer.type as 'PERSON' | 'COMPANY',
+            firstName: sale.customer.firstName,
+            lastName: sale.customer.lastName,
+            companyName: sale.customer.companyName,
+            cuit: sale.customer.cuit,
+            address: sale.customer.address,
+          }
+        : undefined,
+      items: sale.items.map((item) => ({
+        quantity: item.quantity.toNumber(),
+        unitPrice: item.unitPrice.toNumber(),
+        subtotal: item.subtotal.toNumber(),
+        taxRate: item.taxRate.toNumber(),
+        productName: item.product.name,
+      })),
+    });
+
+    let pdfUrl: string | null = null;
+
+    try {
+      const uploadResult = (await CloudinaryService.uploadPdfBuffer(
+        pdfBuffer,
+        `${sale.id}-${invoice.voucherType}`,
+        `ferreteria/invoices/${businessId}`
+      )) as { secure_url?: string };
+
+      pdfUrl = uploadResult.secure_url || null;
+    } catch (error) {
+      logger.warn(
+        {
+          saleId: sale.id,
+          invoiceId: invoice.id,
+          error: error instanceof Error ? error.message : 'Unknown Cloudinary upload error',
+        },
+        'Could not upload invoice PDF to Cloudinary; serving generated buffer only'
+      );
+    }
+
+    if (pdfUrl) {
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { pdfUrl },
+      });
+    }
+
+    return {
+      buffer: pdfBuffer,
+      pdfUrl,
+    };
+  }
+
+  async downloadInvoicePdf(businessId: string, saleId: string, invoiceId: string) {
+    const sale = await this.getById(businessId, saleId);
+
+    const invoice = sale.invoices.find((row) => row.id === invoiceId);
+    if (!invoice) {
+      throw new AppError(404, 'INVOICE_NOT_FOUND', 'Invoice not found');
+    }
+
+    if (invoice.status !== 'ISSUED') {
+      throw new AppError(400, 'INVOICE_NOT_ISSUED', 'Invoice is not issued yet');
+    }
+
+    if (invoice.pdfUrl) {
+      try {
+        const response = await fetch(invoice.pdfUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          return {
+            filename: `comprobante-${invoice.voucherType}-${invoice.pointOfSale || 0}-${invoice.number || 0}.pdf`,
+            buffer: Buffer.from(arrayBuffer),
+          };
+        }
+      } catch (error) {
+        logger.warn(
+          {
+            invoiceId,
+            saleId,
+            pdfUrl: invoice.pdfUrl,
+            error: error instanceof Error ? error.message : 'Unknown fetch PDF error',
+          },
+          'Could not fetch stored invoice PDF; regenerating document'
+        );
+      }
+    }
+
+    const generated = await this.generateAndStoreInvoicePdf(businessId, sale, invoice.id);
+
+    return {
+      filename: `comprobante-${invoice.voucherType}-${invoice.pointOfSale || 0}-${invoice.number || 0}.pdf`,
+      buffer: generated.buffer,
+    };
+  }
+
   /**
    * Crear factura ARCA
    */
@@ -1081,7 +1237,7 @@ export class SaleService {
     );
 
     // Guardar factura
-    await prisma.invoice.upsert({
+    const storedInvoice = await prisma.invoice.upsert({
       where: {
         saleId_voucherType: {
           saleId,
@@ -1131,6 +1287,22 @@ export class SaleService {
     });
 
     if (result.success) {
+      if (!storedInvoice.pdfUrl) {
+        try {
+          await this.generateAndStoreInvoicePdf(businessId, sale, storedInvoice.id);
+        } catch (error) {
+          logger.warn(
+            {
+              businessId,
+              saleId,
+              invoiceId: storedInvoice.id,
+              error: error instanceof Error ? error.message : 'Unknown invoice PDF generation error',
+            },
+            'Could not generate/store invoice PDF after successful emission'
+          );
+        }
+      }
+
       // Actualizar estado de facturación de la venta
       await prisma.sale.update({
         where: { id: saleId },

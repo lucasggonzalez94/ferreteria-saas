@@ -43,6 +43,31 @@ export class CloudinaryService {
     });
   }
 
+  static async uploadPdfBuffer(buffer: Buffer, publicId: string, folder: string = 'ferreteria/invoices') {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          public_id: publicId,
+          resource_type: 'raw',
+          overwrite: true,
+          format: 'pdf',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary PDF upload error:', error);
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+
+      const bufferStream = Readable.from(buffer);
+      bufferStream.pipe(uploadStream);
+    });
+  }
+
   /**
    * Eliminar imagen de Cloudinary
    */

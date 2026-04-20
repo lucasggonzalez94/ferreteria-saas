@@ -177,6 +177,7 @@ ferresaas-api/
 - `GET /v1/sales/invoice-jobs/stats` - Métricas de facturación
 - `POST /v1/sales/invoice-jobs/:jobId/retry` - Reintentar job manualmente
 - `POST /v1/sales/:id/adjustment-note` - Emitir NC/ND sobre A/B/C
+- `GET /v1/sales/:saleId/invoices/:invoiceId/pdf` - Descargar PDF fiscal por tenant
 
 ### Tipo de Cambio
 

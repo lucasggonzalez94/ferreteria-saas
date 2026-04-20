@@ -211,6 +211,29 @@ router.post(
 );
 
 /**
+ * GET /sales/:saleId/invoices/:invoiceId/pdf
+ * Descargar PDF de comprobante
+ */
+router.get(
+  '/:saleId/invoices/:invoiceId/pdf',
+  requirePermissions('sales:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { saleId, invoiceId } = req.params;
+
+      const file = await saleService.downloadInvoicePdf(authReq.businessId!, saleId, invoiceId);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+      res.send(file.buffer);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /sales/:id
  * Obtener venta por ID
  */
