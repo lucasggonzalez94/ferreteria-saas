@@ -181,6 +181,12 @@ ferresaas-api/
 - `POST /v1/sales/:id/adjustment-note` - Emitir NC/ND sobre A/B/C
 - `GET /v1/sales/:saleId/invoices/:invoiceId/pdf` - Descargar PDF fiscal por tenant
 
+### Negocio / Configuración
+
+- `GET /v1/business/invoicing/arca-credentials` - Metadata de credenciales ARCA por tenant
+- `PATCH /v1/business/invoicing/arca-credentials` - Guardar/actualizar credenciales ARCA cifradas
+- `POST /v1/business/invoicing/arca-credentials/refresh` - Renovar Token/Sign vía WSAA para el tenant
+
 ### Tipo de Cambio
 
 - `GET /v1/exchange-rate/usd-ars` - Cotización actual
@@ -210,10 +216,15 @@ FACTURANTE_API_URL="https://api.facturante.com/v1"
 
 # Facturación ARCA directa (opcional)
 # Requiere Token/Sign vigentes obtenidos por WSAA
+# (fallback global; en multi-tenant se recomienda guardar por negocio)
 ARCA_CUIT="20123456789"
 ARCA_TOKEN="token-wsaa"
 ARCA_SIGN="sign-wsaa"
 ARCA_WSFE_URL="https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+ARCA_WSAA_URL="https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
+ARCA_OPENSSL_BIN="openssl"
+ARCA_WSAA_REFRESH_MINUTES_BEFORE_EXPIRY="20"
+ARCA_CREDENTIALS_SECRET="secret-32-chars-minimo-para-cifrado"
 
 # Redis (recomendado)
 REDIS_ENABLED="true"
@@ -286,6 +297,13 @@ El sistema soporta dos modos:
 3. **ARCA Direct** (en implementación): Integración directa con ARCA/AFIP
 
 El provider se selecciona automáticamente según `INVOICE_PROVIDER` en `.env` y configuración por negocio.
+
+Para ARCA Direct en multi-tenant:
+
+- Cada negocio puede tener sus propias credenciales ARCA (`CUIT`, `token`, `sign`) almacenadas cifradas en DB.
+- Si el tenant tiene `certificatePem` + `privateKeyPem`, el backend renueva `token/sign` automáticamente antes del vencimiento.
+- También se puede forzar la renovación con `POST /v1/business/invoicing/arca-credentials/refresh`.
+- Si el negocio no tiene credenciales cargadas, se usa fallback global de `.env` (modo compatibilidad).
 
 Comportamiento de fallback en runtime:
 

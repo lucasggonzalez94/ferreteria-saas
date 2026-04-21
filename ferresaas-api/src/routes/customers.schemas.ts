@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const customerTaxConditionSchema = z.enum([
+  'RESPONSABLE_INSCRIPTO',
+  'MONOTRIBUTO',
+  'EXENTO',
+  'CONSUMIDOR_FINAL',
+  'NO_CATEGORIZADO',
+  'IVA_NO_ALCANZADO',
+]);
+
 // Crear cliente
 export const createCustomerSchema = z.object({
   type: z.enum(['PERSON', 'COMPANY']),
@@ -7,6 +16,7 @@ export const createCustomerSchema = z.object({
   lastName: z.string().min(1).max(100).optional(),
   companyName: z.string().min(1).max(200).optional(),
   cuit: z.string().max(20).optional(),
+  taxCondition: customerTaxConditionSchema.optional(),
   email: z.string().email().optional(),
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
@@ -23,6 +33,7 @@ export const updateCustomerSchema = z.object({
   lastName: z.string().min(1).max(100).nullable().optional(),
   companyName: z.string().min(1).max(200).nullable().optional(),
   cuit: z.string().max(20).nullable().optional(),
+  taxCondition: customerTaxConditionSchema.optional(),
   email: z.string().email().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),

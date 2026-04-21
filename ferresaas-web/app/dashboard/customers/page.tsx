@@ -46,6 +46,7 @@ export default function CustomersPage() {
     lastName: "",
     companyName: "",
     cuit: "",
+    taxCondition: "CONSUMIDOR_FINAL",
     email: "",
     phone: "",
     address: "",
@@ -77,6 +78,7 @@ export default function CustomersPage() {
         lastName: "",
         companyName: "",
         cuit: "",
+        taxCondition: "CONSUMIDOR_FINAL",
         email: "",
         phone: "",
         address: "",
@@ -258,6 +260,27 @@ export default function CustomersPage() {
                         setFormData({ ...formData, cuit: e.target.value })
                       }
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="taxCondition">Condición IVA</Label>
+                    <Select
+                      value={formData.taxCondition}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, taxCondition: value })
+                      }
+                    >
+                      <SelectTrigger id="taxCondition" className="mt-1">
+                        <SelectValue placeholder="Selecciona condición IVA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CONSUMIDOR_FINAL">Consumidor Final</SelectItem>
+                        <SelectItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</SelectItem>
+                        <SelectItem value="MONOTRIBUTO">Monotributo</SelectItem>
+                        <SelectItem value="EXENTO">Exento</SelectItem>
+                        <SelectItem value="NO_CATEGORIZADO">No Categorizado</SelectItem>
+                        <SelectItem value="IVA_NO_ALCANZADO">IVA No Alcanzado</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="phone">Teléfono</Label>

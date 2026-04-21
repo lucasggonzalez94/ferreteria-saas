@@ -108,6 +108,13 @@ export interface CreateVoucherInput {
     name: string;
     cuit?: string;
     address?: string;
+    taxCondition?:
+      | 'RESPONSABLE_INSCRIPTO'
+      | 'MONOTRIBUTO'
+      | 'EXENTO'
+      | 'CONSUMIDOR_FINAL'
+      | 'NO_CATEGORIZADO'
+      | 'IVA_NO_ALCANZADO';
   };
   items: Array<{
     description: string;

@@ -68,10 +68,15 @@ router.post(
       const data = createCustomerSchema.parse(req.body);
       const { initialBalance, ...customerData } = data;
 
+      const normalizedTaxCondition =
+        customerData.taxCondition ||
+        (customerData.type === 'COMPANY' ? 'RESPONSABLE_INSCRIPTO' : 'CONSUMIDOR_FINAL');
+
       const customer = await prisma.customer.create({
         data: {
           businessId: authReq.businessId!,
           currentBalance: initialBalance || 0,
+          taxCondition: normalizedTaxCondition,
           ...customerData,
         },
       });

@@ -1,349 +1,231 @@
-# ARCA homologacion: obtencion de credenciales paso a paso
+# ARCA homologacion multi-tenant: paso a paso real (FerraSaaS)
 
 ## Objetivo
 
-Dejar un procedimiento completo para obtener credenciales de **homologacion** (testing) de ARCA/AFIP y poder probar la integracion de facturacion sin impacto fiscal real.
+Dejar un procedimiento claro para homologacion ARCA/AFIP en FerraSaaS, con foco en el modelo actual multi-tenant:
 
-## Que se obtiene al final
+- Cada ferreteria (cada CUIT) configura sus propias credenciales.
+- El backend emite con ARCA Direct y usa fallback tecnico a Facturante.
+- El usuario de negocio configura lo minimo en UI (CUIT + certificado + clave privada).
 
-- Certificado de homologacion (WSASS).
-- Autorizacion del servicio de Factura Electronica (`wsfe`) para ese certificado.
-- `ARCA_TOKEN` y `ARCA_SIGN` (WSAA) para usar en la API.
+## Resumen ejecutivo
 
-## Importante
-
-- En homologacion, los comprobantes son de prueba y no tienen efecto fiscal de produccion.
-- No usar endpoints productivos mientras se prueba.
+- Si, en produccion el proceso se repite por cada ferreteria/CUIT.
+- No, no hay que cargar `ARCA_TOKEN` y `ARCA_SIGN` manualmente por ferreteria en `.env`.
+- `ARCA_TOKEN` y `ARCA_SIGN` en `.env` hoy quedan como fallback global de compatibilidad.
+- En el flujo recomendado, token/sign se guardan cifrados por negocio en DB y se renuevan con WSAA.
 
 ---
 
-## 1) URLs oficiales a usar
+## 1) Que configura cada ferreteria y que configura el sistema
+
+### Por ferreteria (obligatorio)
+
+1. CUIT propio.
+2. Certificado WSASS de ese CUIT.
+3. Clave privada correspondiente a ese certificado.
+4. Autorizacion `wsfe` sobre ese alias en WSASS.
+
+### Por sistema (una sola vez por entorno)
+
+1. OpenSSL instalado en el servidor/API.
+2. `ARCA_OPENSSL_BIN` configurado si OpenSSL no esta en PATH.
+3. `ARCA_CREDENTIALS_SECRET` seguro (32+ chars) para cifrar secretos en DB.
+
+---
+
+## 2) Variables de entorno: para que sirve cada una
+
+### Variables activas en modelo multi-tenant
+
+- `ARCA_CREDENTIALS_SECRET`
+  - Se usa para cifrar y descifrar secretos de ARCA guardados por negocio en base de datos.
+  - Incluye token/sign y tambien certificado/clave privada.
+  - Si no esta definida, la API usa `JWT_ACCESS_SECRET` como fallback.
+
+- `ARCA_OPENSSL_BIN`
+  - Ruta al binario OpenSSL usado por el backend para generar CMS y pedir token/sign a WSAA.
+  - En Windows recomendado:
+  - `ARCA_OPENSSL_BIN="C:\\Program Files\\OpenSSL-Win64\\bin\\openssl.exe"`
+
+- `ARCA_WSAA_REFRESH_MINUTES_BEFORE_EXPIRY`
+  - Ventana para renovar token/sign antes de vencer.
+
+### Variables legacy/global (fallback)
+
+- `ARCA_CUIT`, `ARCA_TOKEN`, `ARCA_SIGN`, `ARCA_WSFE_URL`, `ARCA_WSAA_URL`
+  - Quedaron por compatibilidad como fallback global.
+  - No son la via recomendada en multi-tenant.
+  - En produccion multi-tenant conviene no depender de estas para operacion diaria.
+
+---
+
+## 3) URLs oficiales (homologacion)
 
 - Portal Clave Fiscal: `https://auth.afip.gob.ar/contribuyente_/`
-- WSASS Homologacion: `https://wsass-homo.afip.gov.ar/wsass/portal/main.aspx`
-- WSAA Homologacion: `https://wsaahomo.afip.gov.ar/ws/services/LoginCms`
-- WSFEv1 Homologacion: `https://wswhomo.afip.gov.ar/wsfev1/service.asmx`
+- WSASS Homo: `https://wsass-homo.afip.gov.ar/wsass/portal/main.aspx`
+- WSAA Homo: `https://wsaahomo.afip.gov.ar/ws/services/LoginCms`
+- WSFEv1 Homo: `https://wswhomo.afip.gov.ar/wsfev1/service.asmx`
 
 ---
 
-## 2) Prerrequisitos
+## 4) Prerrequisitos locales
 
-1. CUIT con acceso a Clave Fiscal.
-2. OpenSSL instalado en Windows.
-3. Carpeta local para guardar certificados (recomendado: `C:\temp\arca-cert`).
+1. OpenSSL instalado.
+2. Carpeta de trabajo (ejemplo): `C:\temp\arca-cert`.
+3. PowerShell con permisos para ejecutar script.
 
-### Verificar OpenSSL en Windows
-
-Si `openssl` no funciona por PATH, usar la ruta completa:
+Verificacion OpenSSL:
 
 ```powershell
 & "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" version
 ```
 
-Si muestra version, esta listo.
-
 ---
 
-## 3) Generar clave privada y CSR (PKCS#10)
+## 5) Paso a paso completo por CUIT (lo que hicimos)
 
-> Ejecutar en PowerShell. No pegar estos comandos dentro de ARCA.
+### 5.1 Generar clave privada y CSR
 
 ```powershell
 mkdir C:\temp\arca-cert -Force
 cd C:\temp\arca-cert
-
 & "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" genrsa -out arca_homo_private.key 2048
 & "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" req -new -key arca_homo_private.key -out arca_homo.csr -subj "/C=AR/O=FERRESAAS/CN=FERRESAAS-HOMO/serialNumber=CUIT 20383341397"
 ```
 
-Reemplazar `20383341397` por el CUIT correspondiente si cambia.
-
-### Validar el CSR antes de subir
+Validar CSR:
 
 ```powershell
 & "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" req -in C:\temp\arca-cert\arca_homo.csr -noout -subject
 ```
 
-Debe incluir `serialNumber=CUIT 20383341397` (o el CUIT que corresponda).
+### 5.2 Crear certificado en WSASS Homo
+
+1. Entrar a WSASS Homo.
+2. Nuevo Certificado -> Crear DN y certificado.
+3. Pegar CSR completo.
+4. Guardar certificado PEM como:
+
+`C:\temp\arca-cert\arca_homo_cert.crt`
+
+### 5.3 Autorizar `wsfe` en WSASS (clave para que funcione)
+
+No bloquearse en Administrador de Relaciones si muestra error de "Computadores Fiscales".
+
+Hacer en WSASS Homo:
+
+1. Ir al alias creado (DN).
+2. Click en "Agregar autorizaciones a este alias de DN".
+3. Autorizar servicio `wsfe`.
+4. Verificar en menu `Autorizaciones` que aparece fila con alias + `wsfe`.
+
+### 5.4 Obtener token/sign WSAA
+
+Comando recomendado:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\ferresaas-api\scripts\arca\get-wsaa-token-sign.ps1" -WorkDir "C:\temp\arca-cert" -CertPath "C:\temp\arca-cert\arca_homo_cert.crt" -KeyPath "C:\temp\arca-cert\arca_homo_private.key"
+```
+
+Si da error 500, revisar `C:\temp\arca-cert\wsaa-loginCms-response.xml`.
+
+Caso real encontrado: `xml.bad` por XML no valido/escapado. Se resolvio regenerando TRA y validando SOAP response.
+
+### 5.5 Cargar credenciales en la UI de FerraSaaS
+
+Ruta: `Dashboard -> Configuracion -> Facturacion`
+
+El usuario debe completar solo:
+
+1. `CUIT para facturar`
+2. `Certificado PEM` (completo, con BEGIN/END)
+3. `Clave privada PEM` (completa, con BEGIN/END)
+4. `Credenciales habilitadas = Si`
+
+Luego:
+
+1. Click `Guardar configuracion ARCA`
+2. Click `Renovar Token/Sign WSAA`
+
+Si todo esta bien, el estado deja de mostrar "Configurado: No".
 
 ---
 
-## 4) Crear certificado en WSASS Homologacion
+## 6) Operacion en produccion (multi-tenant)
 
-1. Ingresar a `https://wsass-homo.afip.gov.ar/wsass/portal/main.aspx`.
-2. Ir a **Nuevo Certificado** -> **Crear DN y certificado**.
-3. Completar formulario:
-   - `Nombre simbolico del DN`: alias unico, por ejemplo `ferrahock-homo-2026-01`.
-   - `CUIT del contribuyente`: el mismo CUIT del CSR.
-   - `Solicitud de certificado en formato PKCS#10`: pegar contenido completo de `arca_homo.csr`, incluyendo:
-     - `-----BEGIN CERTIFICATE REQUEST-----`
-     - `-----END CERTIFICATE REQUEST-----`
-4. Click en **Crear DN y obtener certificado**.
-5. Si no hay error, copiar el PEM resultante y guardarlo como:
+Para cada nueva ferreteria/CUIT:
 
-```text
-C:\temp\arca-cert\arca_homo_cert.crt
-```
+1. Generar clave/CSR para ese CUIT.
+2. Emitir certificado WSASS de ese CUIT.
+3. Autorizar `wsfe` para el alias.
+4. Cargar CUIT + cert + key en UI de ese negocio.
+5. Renovar token/sign desde UI.
+6. Probar emision A/B/C.
 
-Debe incluir:
-- `-----BEGIN CERTIFICATE-----`
-- `-----END CERTIFICATE-----`
+Conclusion: si, el onboarding ARCA es por CUIT/ferreteria.
 
 ---
 
-## 5) Autorizar Factura Electronica (`wsfe`) al Computador Fiscal
+## 7) Troubleshooting real (casos que vimos)
 
-1. Volver a `https://auth.afip.gob.ar/contribuyente_/`.
-2. Ir a **Administrador de Relaciones**.
-3. Elegir **Adherir servicio**.
-4. Buscar y seleccionar `Factura Electronica` / `WebService de Factura Electronica` / `wsfe`.
-5. Si solicita tipo de delegado para webservice, elegir **Computador Fiscal**.
-6. Seleccionar el alias/certificado creado en WSASS y confirmar.
+### A) "Ud no cuenta con Computadores Fiscales registrados"
 
-### Nota sobre error comun
+Aunque el cert este emitido, puede aparecer si la autorizacion `wsfe` no quedo bien propagada.
 
-Si aparece: _"El servicio a delegar es un Webservice. Necesita un Computador Fiscal para adherirlo"_, significa que hay que delegar al certificado (Computador Fiscal), no a un usuario CUIT.
+Accion:
 
----
+1. Verificar en WSASS > `Autorizaciones` la fila alias + `wsfe`.
+2. Cerrar sesion y reingresar.
+3. Reintentar.
 
-## 6) Obtener `ARCA_TOKEN` y `ARCA_SIGN` (WSAA homologacion)
+### B) `Invoke-WebRequest 500` en WSAA
 
-Se puede hacer de forma manual (pasos 6.1-6.3) o automatizada con script (paso 6.4).
+Abrir response SOAP y buscar faultstring.
 
-### 6.1 Crear TRA
+### C) `xml.bad` / "No se ha podido interpretar el XML contra el SCHEMA"
 
-Crear archivo `C:\temp\arca-cert\tra.xml` con este contenido:
+El request llego a WSAA pero TRA/CMS no cumple schema.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<loginTicketRequest version="1.0">
-  <header>
-    <uniqueId>1</uniqueId>
-    <generationTime>2026-04-19T12:00:00-03:00</generationTime>
-    <expirationTime>2026-04-19T12:10:00-03:00</expirationTime>
-  </header>
-  <service>wsfe</service>
-</loginTicketRequest>
-```
+Accion:
 
-Actualizar fechas/horas para el momento actual.
+1. Regenerar TRA con fechas validas.
+2. Guardar XML en ASCII/UTF-8 correcto.
+3. Refirmar CMS.
+4. Reenviar.
 
-### 6.2 Firmar TRA (CMS base64)
+### D) Boton UI "Renovar Token/Sign WSAA" falla
 
-```powershell
-cd C:\temp\arca-cert
+Causas comunes:
 
-& "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" smime -sign -in tra.xml -signer arca_homo_cert.crt -inkey arca_homo_private.key -nodetach -outform DER -out tra.cms
-& "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" base64 -in tra.cms -A > tra.b64
-```
+1. OpenSSL no encontrado por backend.
+2. Certificado o clave incompletos (faltan encabezados BEGIN/END).
+3. Certificado y clave no corresponden entre si.
 
-### 6.3 Invocar WSAA homologacion
-
-Enviar `loginCms` al endpoint:
-
-- `https://wsaahomo.afip.gov.ar/ws/services/LoginCms`
-
-Con el contenido de `tra.b64`. La respuesta devuelve XML con `token` y `sign`.
-
-### 6.4 Opcion recomendada: script automatico
-
-Se agrego el script:
-
-- `ferresaas-api/scripts/arca/get-wsaa-token-sign.ps1`
-- `ferresaas-api/scripts/arca/update-env-from-wsaa.ps1`
-
-Este script hace automaticamente:
-
-1. Genera `tra.xml` con ventana de tiempo valida.
-2. Firma el TRA con OpenSSL.
-3. Invoca `loginCms` en WSAA homologacion.
-4. Extrae `ARCA_TOKEN` y `ARCA_SIGN`.
-5. Opcional: guarda un archivo `.env` con ambos valores.
-
-#### Ejecucion basica
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "ferresaas-api/scripts/arca/get-wsaa-token-sign.ps1" `
-  -WorkDir "C:\temp\arca-cert" `
-  -CertPath "C:\temp\arca-cert\arca_homo_cert.crt" `
-  -KeyPath "C:\temp\arca-cert\arca_homo_private.key"
-```
-
-#### Ejecucion guardando salida para `.env`
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "ferresaas-api/scripts/arca/get-wsaa-token-sign.ps1" `
-  -WorkDir "C:\temp\arca-cert" `
-  -CertPath "C:\temp\arca-cert\arca_homo_cert.crt" `
-  -KeyPath "C:\temp\arca-cert\arca_homo_private.key" `
-  -OutputEnvPath "C:\temp\arca-cert\arca_wsaa.env"
-```
-
-El archivo `arca_wsaa.env` queda con:
+Accion recomendada:
 
 ```env
-ARCA_TOKEN="..."
-ARCA_SIGN="..."
+ARCA_OPENSSL_BIN="C:\\Program Files\\OpenSSL-Win64\\bin\\openssl.exe"
 ```
 
-Tambien se guardan request/response SOAP para diagnostico en:
-
-- `C:\temp\arca-cert\wsaa-loginCms-request.xml`
-- `C:\temp\arca-cert\wsaa-loginCms-response.xml`
-
-#### Parametros opcionales
-
-- `-OpenSSLPath`: ruta de OpenSSL si no esta en la default.
-- `-Service`: por default `wsfe`.
-- `-WsaaUrl`: por default homologacion.
-
-Ejemplo con OpenSSL custom:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "ferresaas-api/scripts/arca/get-wsaa-token-sign.ps1" `
-  -OpenSSLPath "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" `
-  -WorkDir "C:\temp\arca-cert" `
-  -CertPath "C:\temp\arca-cert\arca_homo_cert.crt" `
-  -KeyPath "C:\temp\arca-cert\arca_homo_private.key"
-```
-
-### 6.5 Inyectar token/sign en `ferresaas-api/.env` automaticamente
-
-Script:
-
-- `ferresaas-api/scripts/arca/update-env-from-wsaa.ps1`
-
-Este script toma `ARCA_TOKEN` y `ARCA_SIGN` desde un archivo origen (por default `C:\temp\arca-cert\arca_wsaa.env`) y actualiza `ferresaas-api/.env` creando backup previo.
-
-#### Ejecucion recomendada
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "ferresaas-api/scripts/arca/update-env-from-wsaa.ps1" `
-  -SourceEnvPath "C:\temp\arca-cert\arca_wsaa.env" `
-  -TargetEnvPath "ferresaas-api/.env"
-```
-
-Resultado:
-
-- Crea backup: `ferresaas-api/.env.bak.yyyymmddHHmmss`
-- Actualiza o agrega:
-  - `ARCA_TOKEN=...`
-  - `ARCA_SIGN=...`
-
-#### Sin backup (solo si es necesario)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "ferresaas-api/scripts/arca/update-env-from-wsaa.ps1" `
-  -SourceEnvPath "C:\temp\arca-cert\arca_wsaa.env" `
-  -TargetEnvPath "ferresaas-api/.env" `
-  -SkipBackup
-```
+Reiniciar API y reintentar.
 
 ---
 
-## 7) Configurar la API local
+## 8) Checklist final por negocio
 
-En `ferresaas-api/.env`:
-
-```env
-INVOICE_PROVIDER="arca_direct"
-ARCA_CUIT="20383341397"
-ARCA_TOKEN="<token_wsaa>"
-ARCA_SIGN="<sign_wsaa>"
-ARCA_WSFE_URL="https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
-```
-
-Si el negocio usa provider por tenant, verificar tambien `business.invoiceProvider='arca_direct'`.
+- [ ] Certificado WSASS valido para el CUIT correcto.
+- [ ] `wsfe` autorizado en WSASS para el alias.
+- [ ] CUIT cargado en UI.
+- [ ] Certificado PEM completo cargado en UI.
+- [ ] Clave privada PEM completa cargada en UI.
+- [ ] Renovacion WSAA exitosa desde UI.
+- [ ] Emision de prueba A/B/C exitosa.
 
 ---
 
-## 8) Prueba funcional minima (sin impacto fiscal real)
+## 9) Nota de seguridad
 
-1. Confirmar venta con `invoiceType` A/B/C.
-2. Revisar en DB:
-   - `invoices.cae`
-   - `invoices.caeExpiry`
-   - `invoices.number`
-   - `invoices.qrData`
-3. Verificar `sales.invoiceStatus = INVOICED`.
-
-Si falla, revisar `invoice_jobs.lastError` y logs del backend.
-
----
-
-## 9) Troubleshooting
-
-### Error actual conocido
-
-```text
-***ERROR*** clsCrearComputador ... The request was aborted: Could not create SSL/TLS secure channel.
-```
-
-Que significa:
-- Generalmente es incidencia/intermitencia del backend WSASS, no del CSR.
-
-Chequeos recomendados:
-1. Reintentar con alias nuevo unico.
-2. Usar ventana incognito y otro navegador.
-3. Probar otra red (hotspot celular).
-4. Confirmar TLS 1.2 local.
-5. Mantener el mismo CSR y reintentar mas tarde.
-
-### Verificacion de conectividad TLS desde PC
-
-```powershell
-& "C:\Program Files\OpenSSL-Win64\bin\openssl.exe" s_client -connect wsass-homo.afip.gov.ar:443 -servername wsass-homo.afip.gov.ar
-```
-
-Si muestra `CONNECTED` y un `Cipher`, hay conectividad TLS.
-
-### Contacto de soporte ARCA/AFIP
-
-- Email: `mayuda@afip.gov.ar`
-
-Datos a incluir:
-- CUIT
-- URL exacta
-- fecha/hora del error
-- alias utilizado
-- captura del error
-- salida de test TLS
-
----
-
-## 10) Checklist de cierre
-
-- [ ] CSR generado y validado con serialNumber correcto.
-- [ ] Certificado emitido en WSASS homologacion.
-- [ ] `wsfe` delegado al Computador Fiscal.
-- [ ] `ARCA_TOKEN` y `ARCA_SIGN` obtenidos.
-- [ ] `.env` actualizado con endpoints de homologacion.
-- [ ] Emision de prueba A/B/C exitosa en homologacion.
-
----
-
-## 11) Modo desarrollo sin bloqueo (recomendado mientras ARCA falla)
-
-Si WSASS/ARCA homologacion esta inestable, continuar desarrollo con estrategia "plug and play":
-
-1. Mantener provider principal en `mock` o `facturante`.
-2. Mantener cola de facturacion activa (`invoice_jobs`) para simular operacion real.
-3. Dejar `arca_direct` listo por configuracion para activarlo cuando ARCA responda.
-
-Configuracion recomendada temporal:
-
-```env
-INVOICE_PROVIDER="facturante"
-```
-
-o en desarrollo puro:
-
-```env
-INVOICE_PROVIDER="mock"
-```
-
-Comportamiento implementado:
-
-- Si `arca_direct` falla por error tecnico, el backend intenta fallback runtime a `facturante`.
-- Si el error es fiscal, no hay fallback automatico.
-- Si ambos fallan, queda job en cola para reproceso.
+- No compartir ni versionar certificados, claves privadas, token/sign en git.
+- Definir `ARCA_CREDENTIALS_SECRET` real y fuerte en cada entorno.
+- Rotar el secreto con plan controlado (implica recifrado/migracion de secretos existentes).

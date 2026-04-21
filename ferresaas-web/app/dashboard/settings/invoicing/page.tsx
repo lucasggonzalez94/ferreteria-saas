@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -41,6 +43,16 @@ interface BusinessInvoicingData {
   id: string;
   invoiceProvider: InvoiceProvider;
   invoicePointOfSale: number;
+}
+
+interface ArcaCredentialsMetadata {
+  configured: boolean;
+  cuit?: string;
+  isEnabled?: boolean;
+  tokenExpiresAt?: string | null;
+  hasCertificatePem?: boolean;
+  hasPrivateKeyPem?: boolean;
+  updatedAt?: string;
 }
 
 interface InvoiceJobItem {
@@ -157,13 +169,17 @@ export default function InvoicingSettingsPage() {
   const canUpdateSettings = user?.permissions?.includes("settings:update");
   const canReadSales = user?.permissions?.includes("sales:read");
   const canManageSales = user?.permissions?.includes("sales:manage");
+  const showMockMetrics = process.env.NODE_ENV !== "production";
 
-  const [provider, setProvider] = useState<InvoiceProvider>("mock");
   const [pointOfSale, setPointOfSale] = useState("1");
   const [jobStatusFilter, setJobStatusFilter] = useState<JobStatus | "all">("all");
   const [jobDatePreset, setJobDatePreset] = useState<DatePreset>("all");
   const [jobStartDate, setJobStartDate] = useState("");
   const [jobEndDate, setJobEndDate] = useState("");
+  const [arcaCuit, setArcaCuit] = useState("");
+  const [arcaCertificatePem, setArcaCertificatePem] = useState("");
+  const [arcaPrivateKeyPem, setArcaPrivateKeyPem] = useState("");
+  const [arcaEnabled, setArcaEnabled] = useState(true);
 
   useEffect(() => {
     if (!isAuthLoading && !canReadSettings) {
@@ -190,6 +206,15 @@ export default function InvoicingSettingsPage() {
     refetchInterval: 15000,
   });
 
+  const { data: arcaCredentialsData, isLoading: arcaCredentialsLoading } = useQuery({
+    queryKey: ["business", "invoicing", "arca-credentials"],
+    queryFn: async () => {
+      const response = await api.get<ArcaCredentialsMetadata>("/business/invoicing/arca-credentials");
+      return response.data!;
+    },
+    enabled: Boolean(canReadSettings),
+  });
+
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
     queryKey: ["invoice-jobs", jobStatusFilter, jobStartDate, jobEndDate],
     queryFn: async () => {
@@ -214,12 +239,20 @@ export default function InvoicingSettingsPage() {
       return;
     }
 
-    setProvider(businessData.invoiceProvider);
     setPointOfSale(String(businessData.invoicePointOfSale));
   }, [businessData]);
 
+  useEffect(() => {
+    if (!arcaCredentialsData) {
+      return;
+    }
+
+    setArcaCuit(arcaCredentialsData.cuit || "");
+    setArcaEnabled(arcaCredentialsData.isEnabled ?? true);
+  }, [arcaCredentialsData]);
+
   const updateBusinessMutation = useMutation({
-    mutationFn: async (payload: { invoiceProvider: InvoiceProvider; invoicePointOfSale: number }) => {
+    mutationFn: async (payload: { invoiceProvider: "arca_direct"; invoicePointOfSale: number }) => {
       const response = await api.patch<BusinessInvoicingData>("/business", payload);
       return response.data!;
     },
@@ -245,17 +278,74 @@ export default function InvoicingSettingsPage() {
     },
   });
 
+  const updateArcaCredentialsMutation = useMutation({
+    mutationFn: async () => {
+      if (!arcaCuit.trim()) {
+        throw new Error("El CUIT de ARCA es obligatorio");
+      }
+
+      const hasStoredCertificateMaterial = Boolean(
+        arcaCredentialsData?.hasCertificatePem && arcaCredentialsData?.hasPrivateKeyPem
+      );
+
+      const hasProvidedCertificateMaterial = Boolean(
+        arcaCertificatePem.trim() && arcaPrivateKeyPem.trim()
+      );
+
+      if (!hasStoredCertificateMaterial && !hasProvidedCertificateMaterial) {
+        throw new Error("Debés cargar certificado y clave privada de ARCA para habilitar la emisión")
+      }
+
+      const payload = {
+        cuit: arcaCuit.trim(),
+        certificatePem: arcaCertificatePem.trim() || undefined,
+        privateKeyPem: arcaPrivateKeyPem.trim() || undefined,
+        isEnabled: arcaEnabled,
+      };
+
+      const response = await api.patch("/business/invoicing/arca-credentials", payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["business", "invoicing", "arca-credentials"] });
+      setArcaCertificatePem("");
+      setArcaPrivateKeyPem("");
+      toast.success("Configuración ARCA guardada correctamente");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudieron guardar las credenciales ARCA");
+    },
+  });
+
+  const refreshArcaCredentialsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post("/business/invoicing/arca-credentials/refresh", { force: true });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["business", "invoicing", "arca-credentials"] });
+      toast.success("Token/Sign renovados con WSAA");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo renovar Token/Sign con WSAA");
+    },
+  });
+
   const providerBreakdown = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of statsData?.providersLast24h || []) {
       map.set(item.provider, item.issued);
     }
 
-    return ["arca_direct", "facturante", "mock"].map((key) => ({
+    const providerKeys = showMockMetrics
+      ? ["arca_direct", "facturante", "mock"]
+      : ["arca_direct", "facturante"];
+
+    return providerKeys.map((key) => ({
       provider: key,
       issued: map.get(key) || 0,
     }));
-  }, [statsData?.providersLast24h]);
+  }, [showMockMetrics, statsData?.providersLast24h]);
 
   const handleSave = () => {
     const parsedPointOfSale = Number(pointOfSale);
@@ -266,7 +356,7 @@ export default function InvoicingSettingsPage() {
     }
 
     updateBusinessMutation.mutate({
-      invoiceProvider: provider,
+      invoiceProvider: "arca_direct",
       invoicePointOfSale: parsedPointOfSale,
     });
   };
@@ -304,33 +394,16 @@ export default function InvoicingSettingsPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <Header
           title="Facturación"
-          description="Configura provider y monitorea la cola de emisión"
+          description="Configura datos de facturación y monitorea la cola de emisión"
           link="/dashboard/settings"
           linkLabel="Volver a Configuración"
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>Provider por negocio</CardTitle>
-            <CardDescription>
-              ARCA queda listo como plug and play. Si falla técnicamente, el sistema usa fallback a Facturante.
-            </CardDescription>
+            <CardTitle>Parámetros de emisión</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Provider principal</Label>
-              <Select value={provider} onValueChange={(value) => setProvider(value as InvoiceProvider)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mock">Mock</SelectItem>
-                  <SelectItem value="facturante">Facturante</SelectItem>
-                  <SelectItem value="arca_direct">ARCA Direct</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+          <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Punto de venta</Label>
               <Input
@@ -347,6 +420,108 @@ export default function InvoicingSettingsPage() {
                 disabled={!canUpdateSettings || updateBusinessMutation.isPending}
               >
                 Guardar configuración
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Credenciales ARCA por negocio</CardTitle>
+            <CardDescription>
+              Configurá los datos fiscales del negocio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="arca-cuit">CUIT para facturar</Label>
+                <Input
+                  id="arca-cuit"
+                  value={arcaCuit}
+                  onChange={(event) => setArcaCuit(event.target.value)}
+                  placeholder="20123456789"
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="arca-enabled">Credenciales habilitadas</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Si se desactiva, no se usarán para emitir con ARCA Direct.
+                  </p>
+                </div>
+                <Switch id="arca-enabled" checked={arcaEnabled} onCheckedChange={setArcaEnabled} />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="arca-cert">Certificado PEM (opcional)</Label>
+                <Textarea
+                  id="arca-cert"
+                  value={arcaCertificatePem}
+                  onChange={(event) => setArcaCertificatePem(event.target.value)}
+                  placeholder="-----BEGIN CERTIFICATE----- ..."
+                  rows={5}
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="arca-key">Clave privada PEM (opcional)</Label>
+                <Textarea
+                  id="arca-key"
+                  value={arcaPrivateKeyPem}
+                  onChange={(event) => setArcaPrivateKeyPem(event.target.value)}
+                  placeholder="-----BEGIN PRIVATE KEY----- ..."
+                  rows={5}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/20 p-3 text-sm">
+              {arcaCredentialsLoading ? (
+                <p className="text-muted-foreground">Cargando estado ARCA...</p>
+              ) : (
+                <div className="grid gap-1 md:grid-cols-2">
+                  <p>
+                    <strong>Configurado:</strong> {arcaCredentialsData?.configured ? "Sí" : "No"}
+                  </p>
+                  <p>
+                    <strong>Habilitado:</strong> {arcaCredentialsData?.isEnabled ? "Sí" : "No"}
+                  </p>
+                  <p>
+                    <strong>Certificado cargado:</strong> {arcaCredentialsData?.hasCertificatePem ? "Sí" : "No"}
+                  </p>
+                  <p>
+                    <strong>Clave privada cargada:</strong> {arcaCredentialsData?.hasPrivateKeyPem ? "Sí" : "No"}
+                  </p>
+                  <p>
+                    <strong>Vencimiento token:</strong>{" "}
+                    {arcaCredentialsData?.tokenExpiresAt
+                      ? formatDate(arcaCredentialsData.tokenExpiresAt)
+                      : "-"}
+                  </p>
+                  <p>
+                    <strong>Última actualización:</strong>{" "}
+                    {arcaCredentialsData?.updatedAt ? formatDate(arcaCredentialsData.updatedAt) : "-"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => updateArcaCredentialsMutation.mutate()}
+                disabled={!canUpdateSettings || updateArcaCredentialsMutation.isPending}
+              >
+                Guardar configuración ARCA
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => refreshArcaCredentialsMutation.mutate()}
+                disabled={!canUpdateSettings || refreshArcaCredentialsMutation.isPending}
+              >
+                Renovar Token/Sign WSAA
               </Button>
             </div>
           </CardContent>
@@ -392,23 +567,6 @@ export default function InvoicingSettingsPage() {
                 </CardHeader>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Emisiones exitosas (últimas 24h)</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-2 md:grid-cols-3">
-                {providerBreakdown.map((entry) => (
-                  <div
-                    key={entry.provider}
-                    className="rounded-md border px-3 py-2 text-sm flex items-center justify-between"
-                  >
-                    <span>{PROVIDER_LABELS[entry.provider as InvoiceProvider] || entry.provider}</span>
-                    <strong>{entry.issued}</strong>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

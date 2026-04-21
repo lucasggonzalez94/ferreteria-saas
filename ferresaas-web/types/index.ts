@@ -124,6 +124,13 @@ export interface Customer {
   lastName?: string;
   companyName?: string;
   cuit?: string;
+  taxCondition?:
+    | "RESPONSABLE_INSCRIPTO"
+    | "MONOTRIBUTO"
+    | "EXENTO"
+    | "CONSUMIDOR_FINAL"
+    | "NO_CATEGORIZADO"
+    | "IVA_NO_ALCANZADO";
   email?: string;
   phone?: string;
   address?: string;

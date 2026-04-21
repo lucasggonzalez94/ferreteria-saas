@@ -1,5 +1,6 @@
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
+import { ArcaCredentialsService } from '../../services/arca-credentials.service';
 import { InvoiceProvider } from './invoice.provider.interface';
 import { ArcaDirectProvider } from './arca-direct.provider';
 import { FacturanteProvider } from './facturante.provider';
@@ -35,7 +36,7 @@ function normalizeProviderKey(value?: string | null): InvoiceProviderKey | null 
   return null;
 }
 
-function buildProvider(key: InvoiceProviderKey): InvoiceProvider | null {
+async function buildProvider(businessId: string, key: InvoiceProviderKey): Promise<InvoiceProvider | null> {
   if (key === 'mock') {
     return new MockInvoiceProvider();
   }
@@ -49,26 +50,27 @@ function buildProvider(key: InvoiceProviderKey): InvoiceProvider | null {
   }
 
   if (key === 'arca_direct') {
-    if (!env.invoice.arca.cuit || !env.invoice.arca.token || !env.invoice.arca.sign) {
+    const credentials = await ArcaCredentialsService.getProviderCredentials(businessId);
+    if (!credentials) {
       return null;
     }
 
-    return new ArcaDirectProvider();
+    return new ArcaDirectProvider(credentials);
   }
 
   return null;
 }
 
-export function resolveInvoiceProvider({
+export async function resolveInvoiceProvider({
   businessId,
   businessProvider,
-}: ResolveInvoiceProviderInput): ResolvedInvoiceProvider {
+}: ResolveInvoiceProviderInput): Promise<ResolvedInvoiceProvider> {
   const envDefaultProvider = normalizeProviderKey(env.invoice.provider) ?? 'mock';
   const requestedProvider = normalizeProviderKey(businessProvider) ?? envDefaultProvider;
   const candidates = FALLBACKS[requestedProvider];
 
   for (const candidate of candidates) {
-    const provider = buildProvider(candidate);
+    const provider = await buildProvider(businessId, candidate);
     if (provider) {
       if (candidate !== requestedProvider) {
         logger.warn(

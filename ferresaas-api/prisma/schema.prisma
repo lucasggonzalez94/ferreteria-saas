@@ -60,6 +60,7 @@ model Business {
   exchangeRateSnapshots ExchangeRateSnapshot[]
   exchangeRateConfig  ExchangeRateConfig?
   refreshTokenSessions RefreshTokenSession[]
+  arcaCredential      BusinessArcaCredential?
   discountApprovals   DiscountApproval[]
   priceHistories      PriceHistory[]
   priceSuggestions    PriceSuggestion[]
@@ -863,6 +864,7 @@ model Customer {
   // Empresa
   companyName String?
   cuit        String?
+  taxCondition String  @default("CONSUMIDOR_FINAL") // RESPONSABLE_INSCRIPTO, MONOTRIBUTO, EXENTO, CONSUMIDOR_FINAL, NO_CATEGORIZADO, IVA_NO_ALCANZADO
   
   email       String?
   phone       String?
@@ -959,6 +961,34 @@ model Invoice {
   @@index([status])
   @@unique([saleId, voucherType])
   @@map("invoices")
+}
+
+model BusinessArcaCredential {
+  id         String @id @default(cuid())
+  businessId String @unique
+
+  cuit                  String
+  environment           String   @default("homo") // homo | prod
+  wsfeUrl               String?
+  wsaaUrl               String?
+  serviceName           String   @default("wsfe")
+  isEnabled             Boolean  @default(true)
+
+  tokenEncrypted        String?  @db.Text
+  signEncrypted         String?  @db.Text
+  tokenExpiresAt        DateTime?
+
+  certificatePemEncrypted String? @db.Text
+  privateKeyPemEncrypted  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([isEnabled])
+  @@map("business_arca_credentials")
 }
 
 model InvoiceJob {

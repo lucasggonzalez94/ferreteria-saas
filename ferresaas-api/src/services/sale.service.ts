@@ -37,6 +37,13 @@ interface VoucherPayload {
     name: string;
     cuit?: string;
     address?: string;
+    taxCondition?:
+      | 'RESPONSABLE_INSCRIPTO'
+      | 'MONOTRIBUTO'
+      | 'EXENTO'
+      | 'CONSUMIDOR_FINAL'
+      | 'NO_CATEGORIZADO'
+      | 'IVA_NO_ALCANZADO';
   };
   items: Array<{
     description: string;
@@ -53,6 +60,28 @@ interface VoucherPayload {
     number: number;
     voucherType: 'A' | 'B' | 'C';
   };
+}
+
+type CustomerTaxCondition = NonNullable<VoucherPayload['customer']>['taxCondition'];
+
+function normalizeCustomerTaxCondition(
+  value?: string | null,
+  customerType?: string
+): CustomerTaxCondition {
+  const allowed: CustomerTaxCondition[] = [
+    'RESPONSABLE_INSCRIPTO',
+    'MONOTRIBUTO',
+    'EXENTO',
+    'CONSUMIDOR_FINAL',
+    'NO_CATEGORIZADO',
+    'IVA_NO_ALCANZADO',
+  ];
+
+  if (value && allowed.includes(value as CustomerTaxCondition)) {
+    return value as CustomerTaxCondition;
+  }
+
+  return customerType === 'COMPANY' ? 'RESPONSABLE_INSCRIPTO' : 'CONSUMIDOR_FINAL';
 }
 
 export class SaleService {
@@ -208,9 +237,20 @@ export class SaleService {
     businessProvider: string | null,
     payload: VoucherPayload
   ): Promise<{ result: CreateVoucherResult; providerKey: InvoiceProviderKey }> {
-    const primaryResolution = resolveInvoiceProvider({
+    if (businessProvider && businessProvider !== 'arca_direct') {
+      logger.info(
+        {
+          businessId,
+          configuredProvider: businessProvider,
+          forcedProvider: 'arca_direct',
+        },
+        'Overriding business provider to enforce ARCA Direct as primary invoice provider'
+      );
+    }
+
+    const primaryResolution = await resolveInvoiceProvider({
       businessId,
-      businessProvider,
+      businessProvider: 'arca_direct',
     });
 
     const primaryResult = await primaryResolution.provider.createVoucher(payload);
@@ -231,7 +271,7 @@ export class SaleService {
       };
     }
 
-    const fallbackResolution = resolveInvoiceProvider({
+    const fallbackResolution = await resolveInvoiceProvider({
       businessId,
       businessProvider: 'facturante',
     });
@@ -1348,6 +1388,7 @@ export class SaleService {
             : `${sale.customer.firstName} ${sale.customer.lastName}`,
         cuit: sale.customer.cuit ?? undefined,
         address: sale.customer.address ?? undefined,
+        taxCondition: normalizeCustomerTaxCondition(sale.customer.taxCondition, sale.customer.type),
       };
     }
 

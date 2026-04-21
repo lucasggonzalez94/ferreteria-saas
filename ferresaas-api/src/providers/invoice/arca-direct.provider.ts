@@ -1,7 +1,7 @@
-import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 import { CreateVoucherInput, CreateVoucherResult, Voucher, VoucherType } from '../../types';
 import { InvoiceProvider } from './invoice.provider.interface';
+import { ArcaProviderCredentials } from '../../services/arca-credentials.service';
 
 const WSFE_NAMESPACE = 'http://ar.gov.afip.dif.FEV1/';
 
@@ -24,6 +24,15 @@ const IVA_CODE_BY_RATE: Record<string, number> = {
   '10.5': 4,
   '21': 5,
   '27': 6,
+};
+
+const RECEPTOR_IVA_CONDICION_ID: Record<string, number> = {
+  RESPONSABLE_INSCRIPTO: 1,
+  EXENTO: 4,
+  CONSUMIDOR_FINAL: 5,
+  MONOTRIBUTO: 6,
+  NO_CATEGORIZADO: 7,
+  IVA_NO_ALCANZADO: 15,
 };
 
 function formatAfipDate(date: Date): string {
@@ -94,22 +103,35 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
+function resolveCondicionIvaReceptorId(input: CreateVoucherInput): number {
+  const explicitCondition = input.customer?.taxCondition;
+  if (explicitCondition && RECEPTOR_IVA_CONDICION_ID[explicitCondition]) {
+    return RECEPTOR_IVA_CONDICION_ID[explicitCondition];
+  }
+
+  const hasCustomerCuit = Boolean(input.customer?.cuit);
+  if (hasCustomerCuit) {
+    return RECEPTOR_IVA_CONDICION_ID.RESPONSABLE_INSCRIPTO;
+  }
+
+  return RECEPTOR_IVA_CONDICION_ID.CONSUMIDOR_FINAL;
+}
+
 export class ArcaDirectProvider implements InvoiceProvider {
   private cuit: string;
   private token: string;
   private sign: string;
   private wsfeUrl: string;
 
-  constructor() {
-    if (!env.invoice.arca.cuit || !env.invoice.arca.token || !env.invoice.arca.sign) {
+  constructor(private credentials: ArcaProviderCredentials) {
+    if (!credentials.cuit || !credentials.token || !credentials.sign) {
       throw new Error('ARCA credentials not configured (CUIT/TOKEN/SIGN)');
     }
 
-    this.cuit = env.invoice.arca.cuit;
-    this.token = env.invoice.arca.token;
-    this.sign = env.invoice.arca.sign;
-    this.wsfeUrl =
-      env.invoice.arca.wsfeUrl || 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx';
+    this.cuit = credentials.cuit;
+    this.token = credentials.token;
+    this.sign = credentials.sign;
+    this.wsfeUrl = credentials.wsfeUrl;
   }
 
   private buildAuthXml(): string {
@@ -172,27 +194,41 @@ export class ArcaDirectProvider implements InvoiceProvider {
 
       const customerDocType = input.customer?.cuit ? 80 : 99;
       const customerDocNumber = input.customer?.cuit ? input.customer.cuit.replaceAll(/\D/g, '') : '0';
+      const condicionIvaReceptorId = resolveCondicionIvaReceptorId(input);
 
       const associatedVoucherXml = input.relatedVoucher
         ? `<CbtesAsoc><CbteAsoc><Tipo>${VOUCHER_TYPE_CODES[input.relatedVoucher.voucherType]}</Tipo><PtoVta>${input.relatedVoucher.pointOfSale}</PtoVta><Nro>${input.relatedVoucher.number}</Nro></CbteAsoc></CbtesAsoc>`
         : '';
 
-      const ivaTotals = new Map<number, number>();
+      const ivaTotals = new Map<number, { base: number; amount: number }>();
       for (const item of input.items) {
         const rateKey = normalizeRate(item.taxRate);
         const ivaId = IVA_CODE_BY_RATE[rateKey];
-        if (!ivaId || item.taxRate <= 0) {
+        if (!ivaId) {
           continue;
         }
 
         const netAmount = item.total;
         const amount = Number((netAmount * item.taxRate) / 100);
-        const previous = ivaTotals.get(ivaId) || 0;
-        ivaTotals.set(ivaId, previous + amount);
+        const previous = ivaTotals.get(ivaId) || { base: 0, amount: 0 };
+        ivaTotals.set(ivaId, {
+          base: previous.base + netAmount,
+          amount: previous.amount + amount,
+        });
+      }
+
+      if (ivaTotals.size === 0 && input.subtotal > 0) {
+        ivaTotals.set(3, {
+          base: input.subtotal,
+          amount: 0,
+        });
       }
 
       const ivaArrayXml = Array.from(ivaTotals.entries())
-        .map(([id, amount]) => `<AlicIva><Id>${id}</Id><BaseImp>${input.subtotal.toFixed(2)}</BaseImp><Importe>${amount.toFixed(2)}</Importe></AlicIva>`)
+        .map(
+          ([id, totals]) =>
+            `<AlicIva><Id>${id}</Id><BaseImp>${totals.base.toFixed(2)}</BaseImp><Importe>${totals.amount.toFixed(2)}</Importe></AlicIva>`
+        )
         .join('');
 
       const ivaXml = ivaArrayXml ? `<Iva>${ivaArrayXml}</Iva>` : '';
@@ -212,6 +248,7 @@ export class ArcaDirectProvider implements InvoiceProvider {
                 <Concepto>1</Concepto>
                 <DocTipo>${customerDocType}</DocTipo>
                 <DocNro>${customerDocNumber}</DocNro>
+                <CondicionIVAReceptorId>${condicionIvaReceptorId}</CondicionIVAReceptorId>
                 <CbteDesde>${nextNumber}</CbteDesde>
                 <CbteHasta>${nextNumber}</CbteHasta>
                 <CbteFch>${cbteDate}</CbteFch>

@@ -8,6 +8,7 @@ import { AuthRequest } from '../types';
 import { prisma } from '../config/database';
 import { z } from 'zod';
 import { AuditService } from '../services/audit.service';
+import { ArcaCredentialsService } from '../services/arca-credentials.service';
 import { CloudinaryService } from '../services/cloudinary.service';
 import { isValidTimezone, COMMON_TIMEZONES } from '../utils/timezone';
 import { PERMISSIONS } from '../config/constants';
@@ -64,6 +65,23 @@ const updateBusinessSchema = z.object({
   timezone: z.string().optional(),
   invoiceProvider: z.enum(['mock', 'facturante', 'arca_direct']).optional(),
   invoicePointOfSale: z.number().int().positive().optional(),
+});
+
+const updateArcaCredentialsSchema = z.object({
+  cuit: z.string().trim().min(11).max(13),
+  token: z.string().trim().min(10).optional(),
+  sign: z.string().trim().min(10).optional(),
+  wsfeUrl: z.string().trim().url().optional(),
+  wsaaUrl: z.string().trim().url().optional(),
+  environment: z.enum(['homo', 'prod']).optional(),
+  tokenExpiresAt: z.string().datetime().optional(),
+  certificatePem: z.string().trim().optional(),
+  privateKeyPem: z.string().trim().optional(),
+  isEnabled: z.boolean().default(true),
+});
+
+const refreshArcaCredentialsSchema = z.object({
+  force: z.boolean().default(true),
 });
 
 /**
@@ -127,6 +145,182 @@ router.patch(
       );
 
       sendSuccess(res, business);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /business/invoicing/arca-credentials
+ * Obtener metadata de credenciales ARCA del negocio (sin exponer secretos)
+ */
+router.get(
+  '/invoicing/arca-credentials',
+  requirePermissions(PERMISSIONS.SETTINGS_READ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+
+      const credential = await prisma.businessArcaCredential.findUnique({
+        where: { businessId: authReq.businessId! },
+        select: {
+          id: true,
+          cuit: true,
+          environment: true,
+          wsfeUrl: true,
+          wsaaUrl: true,
+          isEnabled: true,
+          tokenExpiresAt: true,
+          tokenEncrypted: true,
+          signEncrypted: true,
+          certificatePemEncrypted: true,
+          privateKeyPemEncrypted: true,
+          updatedAt: true,
+        },
+      });
+
+      if (!credential) {
+        return sendSuccess(res, {
+          configured: false,
+        });
+      }
+
+      sendSuccess(res, {
+        configured: Boolean(credential.tokenEncrypted && credential.signEncrypted),
+        cuit: credential.cuit,
+        environment: credential.environment,
+        wsfeUrl: credential.wsfeUrl,
+        wsaaUrl: credential.wsaaUrl,
+        isEnabled: credential.isEnabled,
+        tokenExpiresAt: credential.tokenExpiresAt,
+        hasCertificatePem: Boolean(credential.certificatePemEncrypted),
+        hasPrivateKeyPem: Boolean(credential.privateKeyPemEncrypted),
+        updatedAt: credential.updatedAt,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /business/invoicing/arca-credentials
+ * Guardar/actualizar credenciales ARCA por negocio (cifradas)
+ */
+router.patch(
+  '/invoicing/arca-credentials',
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const data = updateArcaCredentialsSchema.parse(req.body);
+
+      const credential = await ArcaCredentialsService.upsertTenantCredentials({
+        businessId: authReq.businessId!,
+        cuit: data.cuit,
+        token: data.token,
+        sign: data.sign,
+        wsfeUrl: data.wsfeUrl,
+        wsaaUrl: data.wsaaUrl,
+        environment: data.environment || (process.env.NODE_ENV === 'production' ? 'prod' : 'homo'),
+        tokenExpiresAt: data.tokenExpiresAt ? new Date(data.tokenExpiresAt) : undefined,
+        certificatePem: data.certificatePem,
+        privateKeyPem: data.privateKeyPem,
+        isEnabled: data.isEnabled,
+      });
+
+      await AuditService.logUpdate(
+        authReq.businessId!,
+        authReq.user?.id,
+        'business_arca_credentials',
+        credential.id,
+        {},
+        {
+          cuit: data.cuit,
+          environment: data.environment,
+          wsfeUrl: data.wsfeUrl,
+          wsaaUrl: data.wsaaUrl,
+          isEnabled: data.isEnabled,
+          tokenExpiresAt: data.tokenExpiresAt,
+          hasCertificatePem: Boolean(data.certificatePem),
+          hasPrivateKeyPem: Boolean(data.privateKeyPem),
+        }
+      );
+
+      sendSuccess(res, {
+        message: 'Credenciales ARCA actualizadas',
+        configured: true,
+        cuit: credential.cuit,
+        environment: credential.environment,
+        wsfeUrl: credential.wsfeUrl,
+        wsaaUrl: credential.wsaaUrl,
+        isEnabled: credential.isEnabled,
+        tokenExpiresAt: credential.tokenExpiresAt,
+        updatedAt: credential.updatedAt,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /business/invoicing/arca-credentials/refresh
+ * Fuerza renovación de Token/Sign vía WSAA usando certificado y clave privada del tenant.
+ */
+router.post(
+  '/invoicing/arca-credentials/refresh',
+  requirePermissions(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const data = refreshArcaCredentialsSchema.parse(req.body || {});
+
+      const refreshed = await ArcaCredentialsService.refreshTenantCredentialsIfNeeded(
+        authReq.businessId!,
+        {
+          force: data.force,
+        }
+      );
+
+      if (!refreshed) {
+        throw new AppError(
+          400,
+          'ARCA_REFRESH_UNAVAILABLE',
+          'No se pudo renovar Token/Sign. Verificar certificado, clave privada y configuración WSAA.'
+        );
+      }
+
+      const credential = await prisma.businessArcaCredential.findUnique({
+        where: { businessId: authReq.businessId! },
+        select: {
+          tokenExpiresAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await AuditService.logUpdate(
+        authReq.businessId!,
+        authReq.user?.id,
+        'business_arca_credentials',
+        authReq.businessId!,
+        {},
+        {
+          action: 'refresh_token_sign',
+          tokenExpiresAt: credential?.tokenExpiresAt,
+        }
+      );
+
+      sendSuccess(res, {
+        message: 'Token/Sign ARCA renovados correctamente',
+        cuit: refreshed.cuit,
+        environment: refreshed.environment,
+        wsfeUrl: refreshed.wsfeUrl,
+        wsaaUrl: refreshed.wsaaUrl,
+        tokenExpiresAt: credential?.tokenExpiresAt,
+        updatedAt: credential?.updatedAt,
+      });
     } catch (error) {
       next(error);
     }
