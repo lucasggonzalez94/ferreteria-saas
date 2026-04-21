@@ -158,7 +158,7 @@ export default function ReturnModal({
                     <SelectItem key={sale.id} value={sale.id}>
                       Venta #{sale.id.slice(0, 8)} - {sale.customer?.firstName}{" "}
                       {sale.customer?.lastName || sale.customer?.companyName || "Sin cliente"} - $
-                      {sale.total.toFixed(2)}
+                      {Number(sale.total).toFixed(2)}
                     </SelectItem>
                   ))}
                 </SelectContent>

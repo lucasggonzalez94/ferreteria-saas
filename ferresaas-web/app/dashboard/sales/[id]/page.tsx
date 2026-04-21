@@ -262,10 +262,6 @@ export default function SaleDetailPage() {
             )}
           </CardContent>
         </Card>
-
-        <Button asChild variant="outline">
-          <Link href="/dashboard/sales">Volver al listado</Link>
-        </Button>
       </div>
 
       {canRefundSales ? (

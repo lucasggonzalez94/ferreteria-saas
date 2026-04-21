@@ -1,12 +1,10 @@
 "use client";
 
-import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Plus, TrendingDown, Package } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
@@ -26,7 +24,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
-import ReturnModal from "@/components/inventory/return-modal";
 import {
   todayLocal,
   monthsAgoLocal,
@@ -80,15 +77,7 @@ interface AdjustmentData {
   reason: string;
 }
 
-interface ReturnData {
-  productId: string;
-  quantity: number;
-  reason: string;
-  saleId?: string;
-}
-
 export default function InventoryPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   usePermissionGuard("inventory:read");
@@ -99,7 +88,6 @@ export default function InventoryPage() {
     });
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
-  const [returnOpen, setReturnOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
     () => {
       // Usar utilidades de timezone para obtener fechas locales correctas
@@ -201,17 +189,6 @@ export default function InventoryPage() {
     },
   });
 
-  const returnMutation = useMutation({
-    mutationFn: async (data: ReturnData) => {
-      const response = await api.post("/inventory/returns", data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      setReturnOpen(false);
-    },
-  });
-
   const getAlertColor = (level: string) => {
     switch (level) {
       case "CRITICAL":
@@ -236,6 +213,7 @@ export default function InventoryPage() {
       <div className="max-w-7xl mx-auto">
         <Header
           title="Inventario"
+          description="Gestiona stock y ajustes manuales. Las devoluciones monetarias de clientes se realizan desde Ventas."
           actions={
             <div className="flex gap-2">
               {canManageInventory && (
@@ -245,16 +223,6 @@ export default function InventoryPage() {
                 >
                   <Plus className="h-4 w-4" />
                   Ajuste Manual
-                </Button>
-              )}
-              {canManageInventory && (
-                <Button
-                  onClick={() => setReturnOpen(true)}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <TrendingDown className="h-4 w-4" />
-                  Devolución
                 </Button>
               )}
             </div>
@@ -561,15 +529,6 @@ export default function InventoryPage() {
           onOpenChange={setAdjustmentOpen}
           onSubmit={(data) => adjustmentMutation.mutate(data)}
           isLoading={adjustmentMutation.isPending}
-        />
-      )}
-
-      {canManageInventory && (
-        <ReturnModal
-          open={returnOpen}
-          onOpenChange={setReturnOpen}
-          onSubmit={(data) => returnMutation.mutate(data)}
-          isLoading={returnMutation.isPending}
         />
       )}
     </div>
