@@ -4,15 +4,42 @@ import { authenticate } from '../middleware/auth';
 import { requirePermissions } from '../middleware/rbac';
 import { sendSuccess, sendPaginated } from '../utils/response';
 import { AuthRequest } from '../types';
+import { PERMISSIONS } from '../config/constants';
+import { issueCheckSchema } from './checks.schemas';
 
 const router = Router();
 const checkService = new CheckService();
 
 router.use(authenticate);
 
+router.post(
+  '/',
+  requirePermissions(PERMISSIONS.CHECKS_MANAGE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const data = issueCheckSchema.parse(req.body);
+
+      const check = await checkService.issueCheck(authReq.businessId!, authReq.user!.id, {
+        accountId: data.accountId,
+        checkNumber: data.checkNumber,
+        amount: data.amount,
+        currency: data.currency,
+        dueDate: new Date(data.dueDate),
+        recipientName: data.recipientName,
+        notes: data.notes,
+      });
+
+      sendSuccess(res, check, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 router.get(
   '/',
-  requirePermissions('checks:read'),
+  requirePermissions(PERMISSIONS.CHECKS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -34,7 +61,7 @@ router.get(
 
 router.get(
   '/summary',
-  requirePermissions('checks:read'),
+  requirePermissions(PERMISSIONS.CHECKS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -54,7 +81,7 @@ router.get(
 
 router.get(
   '/:id',
-  requirePermissions('checks:read'),
+  requirePermissions(PERMISSIONS.CHECKS_READ),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -71,7 +98,7 @@ router.get(
 
 router.post(
   '/:id/clear',
-  requirePermissions('checks:manage'),
+  requirePermissions(PERMISSIONS.CHECKS_MANAGE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -88,7 +115,7 @@ router.post(
 
 router.post(
   '/:id/bounce',
-  requirePermissions('checks:manage'),
+  requirePermissions(PERMISSIONS.CHECKS_MANAGE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
@@ -106,7 +133,7 @@ router.post(
 
 router.post(
   '/:id/cancel',
-  requirePermissions('checks:manage'),
+  requirePermissions(PERMISSIONS.CHECKS_MANAGE),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;

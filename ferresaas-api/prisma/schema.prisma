@@ -618,6 +618,7 @@ model CheckRegister {
   
   // Fechas
   issuedAt        DateTime  @default(now())
+  dueDate         DateTime? // Vencimiento operativo del cheque
   clearedAt       DateTime? // Cuando se cobró el cheque
   bouncedAt       DateTime? // Si rebotó
   cancelledAt     DateTime? // Si se canceló

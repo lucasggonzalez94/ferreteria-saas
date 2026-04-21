@@ -82,6 +82,15 @@ interface Supplier {
   name: string;
 }
 
+interface FinancialAccount {
+  id: string;
+  name: string;
+  type: string;
+  bankName?: string;
+  accountNumber?: string;
+  isActive: boolean;
+}
+
 interface SuppliersListResponse {
   data: Supplier[];
   meta: {
@@ -129,6 +138,8 @@ export default function PayablesPage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("TRANSFER");
   const [paymentReference, setPaymentReference] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
+  const [checkAccountId, setCheckAccountId] = useState("");
 
   const urlSupplierId = searchParams.get("supplierId");
 
@@ -150,6 +161,19 @@ export default function PayablesPage() {
   });
 
   const suppliers: Supplier[] = suppliersData?.data || [];
+
+  const { data: financialAccounts } = useQuery<FinancialAccount[]>({
+    queryKey: ["financial-accounts"],
+    queryFn: async () => {
+      const response = await api.get<FinancialAccount[]>("/financial-accounts");
+      return response.data || [];
+    },
+    enabled: canUpdatePayables,
+  });
+
+  const bankAccounts = (financialAccounts || []).filter(
+    (account) => account.type === "BANK" && account.isActive,
+  );
 
   const {
     data: payablesData,
@@ -229,6 +253,12 @@ export default function PayablesPage() {
         amount: parseNumericInput(paymentAmount),
         method: paymentMethod,
         reference: paymentReference || undefined,
+        checkNumber:
+          paymentMethod === "CHECK" && checkNumber.trim()
+            ? checkNumber.trim()
+            : undefined,
+        checkAccountId:
+          paymentMethod === "CHECK" && checkAccountId ? checkAccountId : undefined,
       });
     },
     onSuccess: () => {
@@ -239,6 +269,8 @@ export default function PayablesPage() {
       setPaymentAmount("");
       setPaymentMethod("TRANSFER");
       setPaymentReference("");
+      setCheckNumber("");
+      setCheckAccountId("");
     },
   });
 
@@ -617,6 +649,13 @@ export default function PayablesPage() {
                                 if (open) {
                                   setSelectedPayableId(payable.id);
                                   setPaymentAmount(pendingAmount.toFixed(2));
+                                } else {
+                                  setSelectedPayableId(null);
+                                  setPaymentAmount("");
+                                  setPaymentMethod("TRANSFER");
+                                  setPaymentReference("");
+                                  setCheckNumber("");
+                                  setCheckAccountId("");
                                 }
                                 setPaymentDialogOpen(open);
                               }}
@@ -690,9 +729,50 @@ export default function PayablesPage() {
                                       }
                                     />
                                   </div>
+                                  {paymentMethod === "CHECK" && (
+                                    <>
+                                      <div>
+                                        <Label htmlFor="checkAccountId">
+                                          Cuenta bancaria *
+                                        </Label>
+                                        <Select
+                                          value={checkAccountId}
+                                          onValueChange={setCheckAccountId}
+                                        >
+                                          <SelectTrigger id="checkAccountId" className="mt-1">
+                                            <SelectValue placeholder="Selecciona cuenta bancaria" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {bankAccounts.map((account) => (
+                                              <SelectItem key={account.id} value={account.id}>
+                                                {account.name}
+                                                {account.bankName ? ` - ${account.bankName}` : ""}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div>
+                                        <Label htmlFor="checkNumber">
+                                          Numero de cheque *
+                                        </Label>
+                                        <Input
+                                          id="checkNumber"
+                                          value={checkNumber}
+                                          onChange={(e) => setCheckNumber(e.target.value)}
+                                          placeholder="Ej: 00012345"
+                                          maxLength={100}
+                                        />
+                                      </div>
+                                    </>
+                                  )}
                                   <Button
                                     type="submit"
-                                    disabled={recordPaymentMutation.isPending}
+                                    disabled={
+                                      recordPaymentMutation.isPending ||
+                                      (paymentMethod === "CHECK" &&
+                                        (!checkNumber.trim() || !checkAccountId))
+                                    }
                                     className="w-full"
                                   >
                                     {recordPaymentMutation.isPending

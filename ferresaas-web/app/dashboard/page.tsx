@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const canAccessPurchases = user?.permissions?.includes("purchases:read");
   const canAccessSuppliers = user?.permissions?.includes("purchases:read");
   const canAccessPayables = user?.permissions?.includes("purchases:read");
+  const canAccessChecks = user?.permissions?.includes("checks:read");
   const canAccessFinances = user?.permissions?.includes(
     "financial_accounts:read",
   );
@@ -106,6 +107,7 @@ export default function DashboardPage() {
     discounts: "Descuentos pendientes de autorización.",
     reports: "Indicadores clave para decidir.",
     invoices: "Consulta comprobantes, CAE y descarga PDF.",
+    checks: "Cartera de cheques, estados y vencimientos.",
   };
 
   // Obtener datos del dashboard solo si tiene permisos
@@ -332,6 +334,13 @@ export default function DashboardPage() {
         allowed: !!canAccessPayables,
       },
       {
+        id: "checks",
+        label: "Cheques",
+        href: "/dashboard/checks",
+        icon: <FileText className="h-6 w-6" />,
+        allowed: !!canAccessChecks,
+      },
+      {
         id: "prices",
         label: "Aprobación de Precios",
         href: "/dashboard/price-suggestions",
@@ -385,6 +394,7 @@ export default function DashboardPage() {
     canAccessPurchases,
     canAccessSuppliers,
     canAccessPayables,
+    canAccessChecks,
     canAccessFinances,
     canApprovePrices,
     canApproveDiscounts,

@@ -223,6 +223,17 @@ async function main() {
       update: {},
       create: { resource: 'financial_accounts', action: 'manage', description: 'Gestionar cuentas financieras' },
     }),
+    // Cheques
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'checks', action: 'read' } },
+      update: {},
+      create: { resource: 'checks', action: 'read', description: 'Ver cheques emitidos' },
+    }),
+    prisma.permission.upsert({
+      where: { resource_action: { resource: 'checks', action: 'manage' } },
+      update: {},
+      create: { resource: 'checks', action: 'manage', description: 'Emitir y gestionar cheques' },
+    }),
     // Movimientos Financieros
     prisma.permission.upsert({
       where: { resource_action: { resource: 'financial_movements', action: 'create' } },

@@ -116,6 +116,14 @@ export const COMMAND_ACTIONS: CommandAction[] = [
     keywords: ["ajustes", "preferencias"],
     shortcut: "Alt + 8",
   },
+  {
+    id: "checks",
+    label: "Abrir cheques",
+    href: "/dashboard/checks",
+    category: "Analitica",
+    keywords: ["cheques", "emision", "cartera", "vencimientos"],
+    requiredPermission: "checks:read",
+  },
 ];
 
 export function CommandPalette({

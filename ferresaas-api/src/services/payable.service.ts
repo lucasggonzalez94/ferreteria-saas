@@ -252,6 +252,7 @@ export class PayableService {
             checkNumber: checkNumber!,
             amount: new Decimal(amount),
             currency: payable.currency,
+            dueDate: payable.dueDate,
             payableId,
             paymentId: newPayment.id,
             recipientName: supplier?.name,

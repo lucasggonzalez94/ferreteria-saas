@@ -30,6 +30,7 @@ export class CheckService {
       checkNumber: string;
       amount: number;
       currency?: string;
+      dueDate?: Date;
       payableId?: string;
       paymentId?: string;
       recipientName?: string;
@@ -67,6 +68,10 @@ export class CheckService {
       throw new AppError(400, 'CHECK_NUMBER_EXISTS', 'Check number already exists');
     }
 
+    if (data.amount <= 0) {
+      throw new AppError(400, 'INVALID_AMOUNT', 'Amount must be positive');
+    }
+
     const currency = data.currency || account.currency || 'ARS';
 
     // Crear registro de cheque
@@ -77,6 +82,7 @@ export class CheckService {
         checkNumber: data.checkNumber,
         amount: new Decimal(data.amount),
         currency,
+        dueDate: data.dueDate,
         payableId: data.payableId,
         paymentId: data.paymentId,
         recipientName: data.recipientName,

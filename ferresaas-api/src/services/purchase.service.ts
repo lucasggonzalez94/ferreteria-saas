@@ -285,6 +285,7 @@ export class PurchaseService {
                 checkNumber: data.checkNumber!,
                 amount: new Decimal(amountPaid),
                 currency,
+                dueDate,
                 payableId: payable.id,
                 paymentId: payment.id,
                 recipientName: supplier.name,

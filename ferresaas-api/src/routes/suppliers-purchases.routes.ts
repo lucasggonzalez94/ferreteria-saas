@@ -339,7 +339,7 @@ router.post(
     try {
       const authReq = req as AuthRequest;
       const { payableId } = req.params;
-      const { amount, method, reference, notes } = req.body;
+      const { amount, method, reference, notes, checkNumber, checkAccountId } = req.body;
 
       const payment = await payableService.recordPayment(
         authReq.businessId!,
@@ -348,7 +348,9 @@ router.post(
         amount,
         method,
         reference,
-        notes
+        notes,
+        checkNumber,
+        checkAccountId
       );
 
       sendSuccess(res, payment, 201);

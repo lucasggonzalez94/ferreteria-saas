@@ -50,6 +50,8 @@ export const createPurchaseSchema = z.object({
   notes: z.string().max(1000).optional(),
   amountPaid: z.number().min(0).optional(),
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
+  checkNumber: z.string().trim().min(1).max(100).optional(),
+  checkAccountId: z.string().cuid().optional(),
   dueDate: z.string().datetime().optional(), // ISO 8601 datetime string
 });
 
