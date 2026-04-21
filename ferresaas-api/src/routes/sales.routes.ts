@@ -15,6 +15,7 @@ import {
   createAdjustmentNoteSchema,
   invoiceFiltersSchema,
   invoiceParamsSchema,
+  refundSaleSchema,
 } from './sales.schemas';
 
 const router = Router();
@@ -252,6 +253,47 @@ router.post(
           authReq.businessId!,
           data.clientOperationId,
           `/sales/${id}/adjustment-note`,
+          200,
+          response
+        );
+      }
+
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /sales/:id/refund
+ * Procesar devolución monetaria de una venta confirmada
+ */
+router.post(
+  '/:id/refund',
+  requirePermissions('sales:refund'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+      const data = refundSaleSchema.parse(req.body);
+
+      if (data.clientOperationId) {
+        const existing = await IdempotencyService.check(authReq.businessId!, data.clientOperationId);
+        if (existing.exists && existing.response) {
+          return res.status(existing.response.status).json(existing.response.body);
+        }
+      }
+
+      const result = await saleService.refund(authReq.businessId!, authReq.user!.id, id, data);
+
+      const response = { success: true, data: result };
+
+      if (data.clientOperationId) {
+        await IdempotencyService.save(
+          authReq.businessId!,
+          data.clientOperationId,
+          `/sales/${id}/refund`,
           200,
           response
         );

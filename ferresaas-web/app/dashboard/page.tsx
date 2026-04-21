@@ -269,6 +269,13 @@ export default function DashboardPage() {
         allowed: !!canAccessPOS,
       },
       {
+        id: "sales",
+        label: "Ventas",
+        href: "/dashboard/sales",
+        icon: <ShoppingCart className="h-6 w-6" />,
+        allowed: !!canViewSales,
+      },
+      {
         id: "products",
         label: "Productos",
         href: "/dashboard/products",

@@ -101,6 +101,14 @@ export const COMMAND_ACTIONS: CommandAction[] = [
     requiredPermission: "sales:read",
   },
   {
+    id: "sales",
+    label: "Abrir ventas",
+    href: "/dashboard/sales",
+    category: "Ventas",
+    keywords: ["ventas", "tickets", "devoluciones", "refund"],
+    requiredPermission: "sales:read",
+  },
+  {
     id: "settings",
     label: "Abrir configuracion",
     href: "/dashboard/settings",

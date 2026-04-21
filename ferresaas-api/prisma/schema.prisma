@@ -51,6 +51,7 @@ model Business {
   purchases           Purchase[]
   inventoryMovements  InventoryMovement[]
   sales               Sale[]
+  saleRefunds         SaleRefund[]
   cashRegisterSessions CashRegisterSession[]
   customers           Customer[]
   invoices            Invoice[]
@@ -309,6 +310,7 @@ model Product {
   inventoryMovements InventoryMovement[]
   purchaseItems      PurchaseItem[]
   saleItems          SaleItem[]
+  saleRefundItems    SaleRefundItem[]
   discountApprovals  DiscountApproval[]
   
   @@index([businessId])
@@ -676,6 +678,7 @@ model Sale {
   cashRegister   CashRegisterSession? @relation(fields: [cashRegisterId], references: [id], onDelete: SetNull)
   items          SaleItem[]
   payments       Payment[]
+  refunds        SaleRefund[]
   invoices       Invoice[]
   invoiceJobs    InvoiceJob[]
   
@@ -710,6 +713,7 @@ model SaleItem {
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   discountApproval DiscountApproval? // Relación con solicitud de aprobación
+  refundItems SaleRefundItem[]
   
   @@index([saleId])
   @@index([productId])
@@ -782,6 +786,68 @@ model Payment {
   
   @@index([saleId])
   @@map("payments")
+}
+
+model SaleRefund {
+  id          String   @id @default(cuid())
+  businessId  String
+  saleId      String
+  reason      String?
+  status      String   @default("COMPLETED") // COMPLETED, CANCELLED
+  subtotal    Decimal  @db.Decimal(12, 2)
+  total       Decimal  @db.Decimal(12, 2)
+  defaultPayout Json?
+  appliedPayout Json?
+  notes       String?
+  clientOperationId String?
+  createdAt   DateTime @default(now())
+  createdBy   String?
+
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  items       SaleRefundItem[]
+  payments    SaleRefundPayment[]
+
+  @@index([businessId])
+  @@index([saleId])
+  @@index([createdAt])
+  @@index([clientOperationId])
+  @@map("sale_refunds")
+}
+
+model SaleRefundItem {
+  id            String   @id @default(cuid())
+  saleRefundId  String
+  saleItemId    String
+  productId     String
+  quantity      Decimal  @db.Decimal(12, 3)
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  amount        Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  saleRefund    SaleRefund @relation(fields: [saleRefundId], references: [id], onDelete: Cascade)
+  saleItem      SaleItem   @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([saleRefundId])
+  @@index([saleItemId])
+  @@index([productId])
+  @@map("sale_refund_items")
+}
+
+model SaleRefundPayment {
+  id            String   @id @default(cuid())
+  saleRefundId  String
+  method        String
+  amount        Decimal  @db.Decimal(12, 2)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  saleRefund    SaleRefund @relation(fields: [saleRefundId], references: [id], onDelete: Cascade)
+
+  @@index([saleRefundId])
+  @@index([method])
+  @@map("sale_refund_payments")
 }
 
 // ============================================================================

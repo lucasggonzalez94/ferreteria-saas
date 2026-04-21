@@ -24,6 +24,12 @@ const paymentSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+const refundPaymentSchema = z.object({
+  method: z.enum(['CASH_ARS', 'CASH_USD', 'CARD', 'TRANSFER', 'QR', 'ACCOUNT']),
+  amount: z.number().positive(),
+  notes: z.string().max(500).optional(),
+});
+
 // Crear venta (borrador)
 export const createSaleSchema = z.object({
   customerId: z.string().cuid().optional(),
@@ -95,6 +101,22 @@ export const createAdjustmentNoteSchema = z.object({
   kind: z.enum(['CREDIT', 'DEBIT']),
   letter: z.enum(['A', 'B', 'C']),
   reason: z.string().trim().min(3).max(500),
+  clientOperationId: z.string().optional(),
+});
+
+export const refundSaleSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        saleItemId: z.string().cuid(),
+        quantity: z.number().positive(),
+      })
+    )
+    .min(1),
+  refundPayments: z.array(refundPaymentSchema).min(1),
+  reason: z.string().trim().min(3).max(500),
+  notes: z.string().max(1000).optional(),
+  maxDaysSinceConfirmation: z.number().int().min(1).max(365).optional(),
   clientOperationId: z.string().optional(),
 });
 

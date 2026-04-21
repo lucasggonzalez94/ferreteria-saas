@@ -402,6 +402,7 @@ async function main() {
     'products:read',
     'sales:create',
     'sales:read',
+    'sales:refund',
     'inventory:read',
     'inventory:return',
     'cash_register:read',

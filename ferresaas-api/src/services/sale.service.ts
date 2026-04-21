@@ -113,6 +113,43 @@ export class SaleService {
     return new Date(Date.now() + delaySeconds * 1000);
   }
 
+  private buildDefaultRefundPayout(
+    payments: Array<{ method: string; amount: Prisma.Decimal | number }>,
+    totalRefund: number
+  ) {
+    const normalized = payments
+      .map((payment) => ({
+        method: payment.method,
+        amount:
+          typeof payment.amount === 'number'
+            ? payment.amount
+            : (payment.amount as Prisma.Decimal).toNumber(),
+      }))
+      .filter((payment) => payment.amount > 0);
+
+    if (normalized.length === 0) {
+      return [] as Array<{ method: string; amount: number }>;
+    }
+
+    const totalPaid = normalized.reduce((sum, payment) => sum + payment.amount, 0);
+    let remaining = totalRefund;
+
+    const suggested = normalized.map((payment, index) => {
+      if (index === normalized.length - 1) {
+        return {
+          method: payment.method,
+          amount: Number(Math.max(remaining, 0).toFixed(2)),
+        };
+      }
+
+      const amount = Number(((payment.amount / totalPaid) * totalRefund).toFixed(2));
+      remaining -= amount;
+      return { method: payment.method, amount };
+    });
+
+    return suggested.filter((payment) => payment.amount > 0);
+  }
+
   private async enqueueInvoiceJob(businessId: string, saleId: string, voucherType: VoucherType) {
     return prisma.invoiceJob.upsert({
       where: {
@@ -1105,6 +1142,337 @@ export class SaleService {
     return this.getById(businessId, saleId);
   }
 
+  async refund(
+    businessId: string,
+    userId: string,
+    saleId: string,
+    data: {
+      items: Array<{
+        saleItemId: string;
+        quantity: number;
+      }>;
+      refundPayments: Array<{
+        method: string;
+        amount: number;
+        notes?: string;
+      }>;
+      reason: string;
+      notes?: string;
+      maxDaysSinceConfirmation?: number;
+    }
+  ) {
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                unit: true,
+              },
+            },
+          },
+        },
+        payments: true,
+        cashRegister: true,
+      },
+    });
+
+    if (!sale) {
+      throw new AppError(404, 'SALE_NOT_FOUND', 'Sale not found');
+    }
+
+    if (sale.businessId !== businessId) {
+      throw new AppError(403, 'FORBIDDEN', 'Access denied');
+    }
+
+    if (sale.status !== 'CONFIRMED') {
+      throw new AppError(400, 'SALE_NOT_CONFIRMED', 'Only confirmed sales can be refunded');
+    }
+
+    if (!sale.confirmedAt) {
+      throw new AppError(400, 'SALE_CONFIRMATION_DATE_MISSING', 'Sale confirmation date is missing');
+    }
+
+    const maxDaysSinceConfirmation = data.maxDaysSinceConfirmation ?? 30;
+    const confirmationAgeMs = Date.now() - sale.confirmedAt.getTime();
+    const maxAgeMs = maxDaysSinceConfirmation * 24 * 60 * 60 * 1000;
+    if (confirmationAgeMs > maxAgeMs) {
+      throw new AppError(400, 'REFUND_WINDOW_EXPIRED', 'Refund window has expired');
+    }
+
+    const saleItemMap = new Map(sale.items.map((item) => [item.id, item]));
+    for (const item of data.items) {
+      const saleItem = saleItemMap.get(item.saleItemId);
+      if (!saleItem) {
+        throw new AppError(400, 'SALE_ITEM_NOT_FOUND', `Sale item ${item.saleItemId} not found`);
+      }
+      if (item.quantity <= 0) {
+        throw new AppError(400, 'INVALID_REFUND_QUANTITY', 'Refund quantities must be positive');
+      }
+    }
+
+    const existingRefundItems = await prisma.saleRefundItem.findMany({
+      where: {
+        saleRefund: {
+          saleId,
+          status: 'COMPLETED',
+          businessId,
+        },
+      },
+      select: {
+        saleItemId: true,
+        quantity: true,
+      },
+    });
+
+    const refundedByItem = new Map<string, number>();
+    for (const row of existingRefundItems) {
+      const current = refundedByItem.get(row.saleItemId) || 0;
+      refundedByItem.set(row.saleItemId, current + row.quantity.toNumber());
+    }
+
+    let subtotal = 0;
+    const normalizedItems = data.items.map((item) => {
+      const saleItem = saleItemMap.get(item.saleItemId)!;
+      const soldQty = saleItem.quantity.toNumber();
+      const alreadyRefunded = refundedByItem.get(item.saleItemId) || 0;
+      const availableToRefund = soldQty - alreadyRefunded;
+
+      if (item.quantity - availableToRefund > 0.0001) {
+        throw new AppError(
+          400,
+          'REFUND_QUANTITY_EXCEEDS_AVAILABLE',
+          `Item ${saleItem.product.name} exceeds available refundable quantity`
+        );
+      }
+
+      const effectiveUnitPrice = soldQty > 0 ? saleItem.subtotal.toNumber() / soldQty : saleItem.unitPrice.toNumber();
+      const amount = Number((effectiveUnitPrice * item.quantity).toFixed(2));
+      subtotal += amount;
+
+      return {
+        saleItemId: item.saleItemId,
+        productId: saleItem.productId,
+        quantity: item.quantity,
+        unitPrice: Number(effectiveUnitPrice.toFixed(2)),
+        amount,
+        productName: saleItem.product.name,
+      };
+    });
+
+    const totalRefund = Number(subtotal.toFixed(2));
+    if (totalRefund <= 0) {
+      throw new AppError(400, 'INVALID_REFUND_TOTAL', 'Refund total must be greater than zero');
+    }
+
+    const paymentTotal = Number(
+      data.refundPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0).toFixed(2)
+    );
+    if (Math.abs(paymentTotal - totalRefund) > 0.01) {
+      throw new AppError(400, 'REFUND_PAYMENTS_MISMATCH', 'Refund payment distribution does not match total');
+    }
+
+    const completedRefunds = await prisma.saleRefund.aggregate({
+      where: {
+        businessId,
+        saleId,
+        status: 'COMPLETED',
+      },
+      _sum: {
+        total: true,
+      },
+    });
+    const alreadyRefundedAmount = completedRefunds._sum.total?.toNumber() || 0;
+    const maxRefundableAmount = sale.total.toNumber() - alreadyRefundedAmount;
+    if (totalRefund - maxRefundableAmount > 0.01) {
+      throw new AppError(400, 'REFUND_AMOUNT_EXCEEDS_AVAILABLE', 'Refund amount exceeds available balance');
+    }
+
+    if (data.refundPayments.some((payment) => payment.method === 'ACCOUNT') && !sale.customerId) {
+      throw new AppError(
+        400,
+        'ACCOUNT_REFUND_REQUIRES_CUSTOMER',
+        'Account refunds require a sale linked to a customer'
+      );
+    }
+
+    const defaultPayout = this.buildDefaultRefundPayout(sale.payments, totalRefund);
+
+    const refund = await prisma.$transaction(async (tx) => {
+      const createdRefund = await tx.saleRefund.create({
+        data: {
+          businessId,
+          saleId,
+          reason: data.reason,
+          notes: data.notes,
+          subtotal: totalRefund,
+          total: totalRefund,
+          defaultPayout: defaultPayout as unknown as Prisma.InputJsonValue,
+          appliedPayout: data.refundPayments as unknown as Prisma.InputJsonValue,
+          createdBy: userId,
+          status: 'COMPLETED',
+        },
+      });
+
+      await tx.saleRefundItem.createMany({
+        data: normalizedItems.map((item) => ({
+          saleRefundId: createdRefund.id,
+          saleItemId: item.saleItemId,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          amount: item.amount,
+        })),
+      });
+
+      await tx.saleRefundPayment.createMany({
+        data: data.refundPayments.map((payment) => ({
+          saleRefundId: createdRefund.id,
+          method: payment.method,
+          amount: payment.amount,
+          notes: payment.notes,
+        })),
+      });
+
+      for (const item of normalizedItems) {
+        await tx.inventoryMovement.create({
+          data: {
+            businessId,
+            productId: item.productId,
+            type: 'RETURN',
+            quantity: item.quantity,
+            reason: `Devolucion monetaria venta #${saleId}`,
+            referenceId: createdRefund.id,
+            userId,
+          },
+        });
+
+        const product = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!product) {
+          throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found while processing refund');
+        }
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQuantity: product.stockQuantity.toNumber() + item.quantity },
+        });
+      }
+
+      for (const payment of data.refundPayments) {
+        if (payment.method !== 'ACCOUNT') {
+          const accountType = FinancialMovementService.getAccountTypeByPaymentMethod(payment.method);
+          const account = await tx.financialAccount.findFirst({
+            where: {
+              businessId,
+              type: accountType,
+              isDefault: true,
+              isActive: true,
+            },
+          });
+
+          if (!account) {
+            throw new AppError(
+              400,
+              'DEFAULT_ACCOUNT_NOT_FOUND',
+              `No default financial account found for ${payment.method}`
+            );
+          }
+
+          const currentBalance = account.balance.toNumber();
+          const newBalance = currentBalance - payment.amount;
+          if (newBalance < -0.01) {
+            throw new AppError(400, 'INSUFFICIENT_FUNDS', `Insufficient funds for ${payment.method} refund`);
+          }
+
+          await tx.financialAccount.update({
+            where: { id: account.id },
+            data: { balance: newBalance },
+          });
+
+          await tx.financialMovement.create({
+            data: {
+              businessId,
+              accountId: account.id,
+              type: 'EXPENSE',
+              amount: payment.amount,
+              sourceType: 'SALE_REFUND',
+              sourceId: createdRefund.id,
+              description: `Devolucion venta #${saleId} - ${payment.method}`,
+              balanceAfter: newBalance,
+              createdBy: userId,
+            },
+          });
+
+          if (payment.method === 'CASH_ARS' && sale.cashRegisterId) {
+            await tx.cashMovement.create({
+              data: {
+                businessId,
+                cashRegisterId: sale.cashRegisterId,
+                type: 'EXPENSE',
+                amount: payment.amount,
+                reason: `Devolucion monetaria venta #${saleId}`,
+                approvedBy: userId,
+              },
+            });
+          }
+        }
+
+        if (payment.method === 'ACCOUNT' && sale.customerId) {
+          const customer = await tx.customer.findUnique({ where: { id: sale.customerId } });
+          if (!customer) {
+            throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer not found for account refund');
+          }
+
+          const newBalance = customer.currentBalance.toNumber() - payment.amount;
+          await tx.accountMovement.create({
+            data: {
+              businessId,
+              customerId: sale.customerId,
+              type: 'ADJUSTMENT',
+              amount: -payment.amount,
+              balance: newBalance,
+              referenceId: createdRefund.id,
+              notes: `Devolucion monetaria venta #${saleId}`,
+            },
+          });
+
+          await tx.customer.update({
+            where: { id: sale.customerId },
+            data: { currentBalance: newBalance },
+          });
+        }
+      }
+
+      return createdRefund;
+    });
+
+    await AuditService.log({
+      businessId,
+      userId,
+      action: 'SALE_REFUND',
+      entity: 'sales',
+      entityId: saleId,
+      after: {
+        refundId: refund.id,
+        reason: data.reason,
+        totalRefund,
+        items: normalizedItems.map((item) => ({
+          saleItemId: item.saleItemId,
+          quantity: item.quantity,
+          amount: item.amount,
+        })),
+        payoutDefault: defaultPayout,
+        payoutApplied: data.refundPayments,
+      },
+    });
+
+    return this.getById(businessId, saleId);
+  }
+
   async createAdjustmentNote(
     businessId: string,
     userId: string,
@@ -1566,7 +1934,7 @@ export class SaleService {
             },
           },
           _count: {
-            select: { items: true, payments: true },
+            select: { items: true, payments: true, refunds: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -1613,6 +1981,23 @@ export class SaleService {
         },
         invoices: {
           orderBy: { createdAt: 'desc' },
+        },
+        refunds: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    unit: true,
+                  },
+                },
+              },
+            },
+            payments: true,
+          },
         },
       },
     });
