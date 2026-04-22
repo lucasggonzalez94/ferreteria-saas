@@ -1,9 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import type { Product } from "@/types";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,22 +16,49 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { ActionsMenu } from "@/components/ui/actions-menu";
-import { ImageIcon } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
+import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 import { CatalogImportDialog } from "@/components/products/catalog-import-dialog";
 import { Upload } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
+
+interface ProductListItem {
+  id: string;
+  name: string;
+  internalSku: string;
+  barcode?: string | null;
+  price: number;
+  cost: number;
+  stockQuantity: number;
+  unit?: string;
+  minStock?: number | null;
+  isActive: boolean;
+  imageUrl?: string | null;
+  category?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface ProductsResponse {
+  data: ProductListItem[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -44,6 +70,8 @@ export default function ProductsPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState("name-asc");
+  const [limit, setLimit] = useState(20);
+  const [page, setPage] = useState(1);
   const deleteDialog = useConfirmDialog<{ id: string; name: string }>();
 
   usePermissionGuard("products:read");
@@ -55,9 +83,11 @@ export default function ProductsPage() {
     canCreate: "products:create",
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ProductsResponse>({
     queryKey: [
       "products",
+      page,
+      limit,
       search,
       categoryId,
       status,
@@ -67,8 +97,10 @@ export default function ProductsPage() {
       sort,
     ],
     queryFn: async () => {
-      const response = await api.get<Product[]>("/products", {
+      const response = await api.get<ProductListItem[]>("/products", {
         params: {
+          page,
+          limit,
           q: search || undefined,
           categoryId: categoryId || undefined,
           active:
@@ -79,7 +111,16 @@ export default function ProductsPage() {
           sort: sort || undefined,
         },
       });
-      return response.data || [];
+      return {
+        data: response.data || [],
+        meta: (response as any).meta || {
+          page: 1,
+          limit,
+          total: 0,
+          totalPages: 1,
+          hasMore: false,
+        },
+      };
     },
     enabled: canViewProducts,
   });
@@ -100,6 +141,7 @@ export default function ProductsPage() {
     setPriceMin("");
     setPriceMax("");
     setSort("name-asc");
+    setPage(1);
   };
 
   const deleteMutation = useMutation({
@@ -128,11 +170,26 @@ export default function ProductsPage() {
     },
   });
 
-  const products = data || [];
-  const activeProducts = products.filter((product) => product.isActive).length;
-  const lowStockProducts = products.filter(
-    (product) => product.minStock && product.stockQuantity <= product.minStock,
-  ).length;
+  const products = useMemo(() => data?.data || [], [data?.data]);
+  const meta = data?.meta || { page: 1, limit: limit, total: 0, totalPages: 1, hasMore: false };
+
+  const totals = useMemo(() => {
+    const startIndex = products.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+    const endIndex = products.length === 0 ? 0 : startIndex + products.length - 1;
+    const activeProducts = products.filter((p) => p.isActive).length;
+    const lowStockProducts = products.filter(
+      (p) => p.minStock && p.stockQuantity <= p.minStock,
+    ).length;
+
+    return {
+      totalFiltered: meta.total,
+      pageCount: products.length,
+      startIndex,
+      endIndex,
+      activeProducts,
+      lowStockProducts,
+    };
+  }, [products, meta.page, meta.limit, meta.total]);
 
   const handleImportComplete = () => {
     queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -166,18 +223,20 @@ export default function ProductsPage() {
 
         <div className="mb-6 grid gap-3 md:grid-cols-3">
           <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Resultados</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{products.length}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Productos visibles según filtros actuales.</p>
+            <p className="text-sm font-semibold text-foreground">Resultados totales (filtro)</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Productos en la base de datos.</p>
           </div>
           <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Activos</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{activeProducts}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Ítems listos para vender o seguir operando.</p>
+            <p className="text-sm font-semibold text-foreground">Activos (pagina actual)</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{totals.activeProducts}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Mostrando {totals.pageCount} registros
+            </p>
           </div>
           <div className="brand-accent-panel p-4">
             <p className="text-sm font-semibold text-foreground">Bajo stock</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{lowStockProducts}</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{totals.lowStockProducts}</p>
             <p className="mt-2 text-sm brand-accent-subtle">Productos que conviene revisar o reponer primero.</p>
           </div>
         </div>
@@ -192,7 +251,7 @@ export default function ProductsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
               <div>
                 <Label className="text-sm text-muted-foreground">Categoría</Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
+                <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setPage(1); }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
@@ -209,7 +268,7 @@ export default function ProductsPage() {
 
               <div>
                 <Label className="text-sm text-muted-foreground">Estado</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
@@ -226,7 +285,7 @@ export default function ProductsPage() {
                   id="lowStock"
                   type="checkbox"
                   checked={lowStockOnly}
-                  onChange={(e) => setLowStockOnly(e.target.checked)}
+                  onChange={(e) => { setLowStockOnly(e.target.checked); setPage(1); }}
                   className="h-4 w-4"
                 />
                 <Label htmlFor="lowStock" className="text-sm text-muted-foreground">
@@ -241,7 +300,7 @@ export default function ProductsPage() {
                   min="0"
                   step="0.01"
                   value={priceMin}
-                  onChange={(e) => setPriceMin(e.target.value)}
+                  onChange={(e) => { setPriceMin(e.target.value); setPage(1); }}
                 />
               </div>
 
@@ -252,13 +311,13 @@ export default function ProductsPage() {
                   min="0"
                   step="0.01"
                   value={priceMax}
-                  onChange={(e) => setPriceMax(e.target.value)}
+                  onChange={(e) => { setPriceMax(e.target.value); setPage(1); }}
                 />
               </div>
 
               <div>
                 <Label className="text-sm text-muted-foreground">Orden</Label>
-                <Select value={sort} onValueChange={setSort}>
+                <Select value={sort} onValueChange={(value) => { setSort(value); setPage(1); }}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Nombre A-Z" />
                   </SelectTrigger>
@@ -287,47 +346,67 @@ export default function ProductsPage() {
             <LoadingSpinner text="Cargando productos..." />
           </div>
         ) : products.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-            {products.map((product) => (
-              <Card
-                key={product.id}
-                className="app-orbit h-full cursor-pointer overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]"
-                onClick={() => router.push(`/dashboard/products/${product.id}/view`)}
-              >
-                <CardHeader className="relative pb-2">
-                  <div className="flex justify-between items-start gap-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="rounded-lg border p-3 flex items-center gap-4 hover:bg-accent/5 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/dashboard/products/${product.id}/view`)}
+                  >
                     {product.imageUrl && (
-                      <div className="flex-shrink-0">
-                        <Image
-                          src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
-                          alt={product.name}
-                          width={80}
-                          height={80}
-                          unoptimized
-                          className="w-20 h-20 object-cover rounded-xl border border-border/70"
-                        />
-                      </div>
+                      <Image
+                        src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE}${product.imageUrl}`}
+                        alt={product.name}
+                        width={48}
+                        height={48}
+                        unoptimized
+                        className="w-12 h-12 object-cover rounded-lg border flex-shrink-0"
+                      />
                     )}
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg truncate">{product.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1 truncate">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{product.name}</p>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            product.isActive
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {product.isActive ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">
                         SKU: {product.internalSku}
+                        {product.barcode && ` | Código: ${product.barcode}`}
+                        {product.category && ` | ${product.category.name}`}
                       </p>
-                      {product.barcode && (
-                        <p className="text-sm text-muted-foreground truncate">
-                          Código: {product.barcode}
-                        </p>
-                      )}
                     </div>
-                    <div className="flex items-start gap-2">
-                      <div
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                          product.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {product.isActive ? "Activo" : "Inactivo"}
+
+                    <div className="flex items-center gap-6 flex-shrink-0">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-sm text-muted-foreground">Precio</p>
+                        <p className="font-semibold">${Number(product.price).toFixed(2)}</p>
+                      </div>
+                      <div className="text-right hidden md:block">
+                        <p className="text-sm text-muted-foreground">Costo</p>
+                        <p className="text-sm">${Number(product.cost).toFixed(2)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Stock</p>
+                        <p className={`text-sm font-medium ${
+                          product.minStock &&
+                          product.stockQuantity <= product.minStock
+                            ? "brand-accent-text"
+                            : ""
+                        }`}>
+                          {product.stockQuantity} {product.unit}
+                        </p>
                       </div>
                       <ActionsMenu
                         actions={[
@@ -360,38 +439,10 @@ export default function ProductsPage() {
                       />
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col gap-3">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Precio:</span>
-                      <span className="font-semibold">
-                        ${Number(product.price).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Costo:</span>
-                      <span>${Number(product.cost).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Stock:</span>
-                      <span
-                        className={
-                          product.minStock &&
-                          product.stockQuantity <= product.minStock
-                            ? "brand-accent-text font-semibold"
-                            : ""
-                        }
-                      >
-                        {product.stockQuantity} {product.unit}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-auto" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="py-12 text-center">
@@ -407,6 +458,45 @@ export default function ProductsPage() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {products.length > 0 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={meta.page}
+              totalPages={Math.max(meta.totalPages || 1, 1)}
+              hasMore={meta.hasMore}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
+
+        {products.length > 0 && (
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {totals.startIndex}-{totals.endIndex} de {meta.total} productos
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Filas por pagina</Label>
+              <Select
+                value={String(limit)}
+                onValueChange={(value) => {
+                  setLimit(Number(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[110px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         )}
       </div>
 
