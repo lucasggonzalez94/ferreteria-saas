@@ -14,6 +14,8 @@ import {
   calculateSuggestedPriceSchema,
 } from './products.schemas';
 import { calculateSuggestedPrice } from '../utils/pricing';
+import path from 'path';
+import { ProductImportService } from '../services/product-import.service';
 
 // Configurar multer para procesar imágenes en memoria (se enviarán a Cloudinary)
 const upload = multer({
@@ -31,6 +33,28 @@ const upload = multer({
 
 const router = Router();
 const productService = new ProductService();
+const productImportService = new ProductImportService();
+
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB máximo
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = [
+      'text/csv',
+      'application/csv',
+      'text/plain',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+    ];
+    const extension = path.extname(file.originalname || '').toLowerCase();
+
+    if (allowedMimeTypes.includes(file.mimetype) || extension === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, 'INVALID_FILE_TYPE', 'Solo se permiten archivos CSV') as any);
+    }
+  },
+});
 
 // Todas las rutas requieren autenticación y multi-tenant
 // EXCEPTO la ruta de upload que se define después
@@ -93,6 +117,58 @@ router.get(
       });
 
       sendPaginated(res, result.items, result.meta);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /products/import/preview
+ * Validar archivo CSV sin persistir datos
+ */
+router.post(
+  '/import/preview',
+  csvUpload.single('file'),
+  requirePermissions('products:create'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+
+      if (!req.file) {
+        throw new AppError(400, 'NO_FILE', 'No se recibió archivo para previsualizar');
+      }
+
+      const result = await productImportService.preview(authReq.businessId!, req.file.buffer);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /products/import/execute
+ * Ejecutar importación CSV
+ */
+router.post(
+  '/import/execute',
+  csvUpload.single('file'),
+  requirePermissions('products:create'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+
+      if (!req.file) {
+        throw new AppError(400, 'NO_FILE', 'No se recibió archivo para importar');
+      }
+
+      const result = await productImportService.execute(
+        authReq.businessId!,
+        authReq.user!.id,
+        req.file.buffer
+      );
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }

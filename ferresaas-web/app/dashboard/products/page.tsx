@@ -29,6 +29,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
+import { CatalogImportDialog } from "@/components/products/catalog-import-dialog";
+import { Upload } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
 
@@ -132,6 +134,12 @@ export default function ProductsPage() {
     (product) => product.minStock && product.stockQuantity <= product.minStock,
   ).length;
 
+  const handleImportComplete = () => {
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["brands"] });
+  };
+
   return (
     <div className="app-page">
       <div className="app-section">
@@ -142,6 +150,18 @@ export default function ProductsPage() {
           buttonLabel="Nuevo Producto"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
           buttonAction={() => router.push("/dashboard/products/new")}
+          buttonClassName="h-10 px-4"
+          actions={
+            canCreateProducts ? (
+              <div className="flex items-center gap-2">
+                <CatalogImportDialog
+                  triggerClassName="h-10 px-4"
+                  triggerIcon={<Upload className="h-4 w-4 mr-2" />}
+                  onImported={handleImportComplete}
+                />
+              </div>
+            ) : undefined
+          }
         />
 
         <div className="mb-6 grid gap-3 md:grid-cols-3">
@@ -253,7 +273,7 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end mt-3">
+<div className="mt-3 flex flex-wrap items-center justify-end gap-2">
               <Button variant="outline" size="sm" onClick={clearFilters}>
                 Limpiar filtros
               </Button>

@@ -19,6 +19,7 @@ interface HeaderProps {
     | "link"
     | "destructive"
     | "secondary";
+  buttonClassName?: string;
   actions?: React.ReactNode;
 }
 
@@ -32,6 +33,7 @@ const Header = ({
   buttonIcon,
   buttonAction = () => {},
   buttonVariant = "default",
+  buttonClassName,
   actions,
 }: HeaderProps) => {
   return (
@@ -60,7 +62,7 @@ const Header = ({
         <div className="flex flex-wrap items-center gap-3 lg:justify-end">
           {actions && actions}
           {showButton && (
-            <Button onClick={buttonAction} variant={buttonVariant || "default"}>
+            <Button onClick={buttonAction} variant={buttonVariant || "default"} className={buttonClassName}>
               {buttonIcon}
               {buttonLabel}
             </Button>

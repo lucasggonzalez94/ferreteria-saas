@@ -362,6 +362,91 @@ Crear producto.
 }
 ```
 
+#### `POST /v1/products/import/preview`
+
+Validar archivo CSV de importación masiva sin persistir datos.
+
+**Headers:** `Authorization: Bearer {token}`
+
+**Permisos:** `products:create`
+
+**Body (multipart/form-data):**
+
+- `file`: archivo `.csv`
+
+**Response 200:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "totalRows": 120,
+      "validRows": 80,
+      "rowsWithWarnings": 25,
+      "rowsWithErrors": 15,
+      "importableRows": 80,
+      "blockingRows": 40
+    },
+    "rows": [
+      {
+        "row": 2,
+        "importable": false,
+        "issues": [
+          {
+            "row": 2,
+            "field": "barcode",
+            "code": "PRODUCT_ALREADY_EXISTS",
+            "message": "Ya existe un producto en este tenant con el mismo código de barras.",
+            "severity": "warning",
+            "blocking": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### `POST /v1/products/import/execute`
+
+Ejecutar importación masiva CSV. Solo se crean filas importables.
+
+**Headers:** `Authorization: Bearer {token}`
+
+**Permisos:** `products:create`
+
+**Body (multipart/form-data):**
+
+- `file`: archivo `.csv`
+
+**Response 200:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "totalRows": 120,
+      "validRows": 80,
+      "rowsWithWarnings": 25,
+      "rowsWithErrors": 15,
+      "importableRows": 80,
+      "blockingRows": 40
+    },
+    "createdProducts": 78,
+    "createdCategories": 2,
+    "createdBrands": 1,
+    "rejectedRows": [
+      {
+        "row": 17,
+        "reasons": ["Barcode already exists"]
+      }
+    ]
+  }
+}
+```
+
 #### `GET /v1/products/:id`
 
 Obtener producto por ID.

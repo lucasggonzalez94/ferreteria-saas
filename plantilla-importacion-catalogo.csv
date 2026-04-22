@@ -1,0 +1,3 @@
+name,barcode,description,category,brand,unit,cost,price,taxRate,minStock,initialStock,isFractional,pricingMode,targetMargin,targetMarkup,priceLocked,roundingStep,costMethod
+"Taladro Inalambrico 18V",7791234567890,"Taladro percutor con bateria",Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+"Disco de corte 4.5","","Disco para amoladora",Accesorios,Stanley,u,2800,4200,21,10,20,false,fixed,,,false,10,avg_weighted
