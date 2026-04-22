@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { prisma } from '../config/database';
 import { PurchaseService } from '../services/purchase.service';
 import { SupplierService } from '../services/supplier.service';
 import { PayableService } from '../services/payable.service';
+import { PurchaseAttachmentService } from '../services/purchase-attachment.service';
 import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
@@ -15,10 +17,16 @@ import {
   createPurchaseSchema,
 } from './suppliers-purchases.schemas';
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
 const router = Router();
 const purchaseService = new PurchaseService();
 const supplierService = new SupplierService();
 const payableService = new PayableService();
+const attachmentService = new PurchaseAttachmentService();
 
 // Todas las rutas requieren autenticación y multi-tenant
 router.use(authenticate, multiTenant);
@@ -354,6 +362,83 @@ router.post(
       );
 
       sendSuccess(res, payment, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================================================
+// ADJUNTOS DE COMPRA
+// ============================================================================
+
+/**
+ * GET /purchases/:id/attachments
+ * Listar adjuntos de una compra
+ */
+router.get(
+  '/purchases/:id/attachments',
+  requirePermissions('purchases:read'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+
+      const attachments = await attachmentService.listAttachments(id, authReq.businessId!);
+      sendSuccess(res, attachments);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /purchases/:id/attachments
+ * Subir adjunto a una compra
+ */
+router.post(
+  '/purchases/:id/attachments',
+  requirePermissions('purchases:create'),
+  upload.single('file'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+
+      if (!req.file) {
+        throw new AppError(400, 'FILE_REQUIRED', 'No file uploaded');
+      }
+
+      const fileType = (req.body.fileType as string) || 'OTHER';
+      const attachment = await attachmentService.uploadAttachment(
+        authReq.businessId!,
+        id,
+        authReq.user!.id,
+        req.file,
+        fileType
+      );
+
+      sendSuccess(res, attachment, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /attachments/:id
+ * Eliminar adjunto
+ */
+router.delete(
+  '/attachments/:id',
+  requirePermissions('purchases:delete'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+
+      await attachmentService.deleteAttachment(id, authReq.businessId!, authReq.user!.id);
+      sendSuccess(res, { message: 'Attachment deleted' });
     } catch (error) {
       next(error);
     }

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from "react";
 import type { ExchangeRateConfig } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFall
 import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
 import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AttachmentManager } from "@/components/purchases/attachment-manager";
+import type { Attachment } from "@/components/purchases/attachment-manager";
 
 interface Supplier {
   id: string;
@@ -74,6 +76,10 @@ export default function NewPurchasePage() {
   const [fundError, setFundError] = useState<string>("");
   const [dueDate, setDueDate] = useState("");
   const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileType, setFileType] = useState("INVOICE");
+  const [uploading, setUploading] = useState(false);
 
   // Hook para tipo de cambio con fallback
   const {
@@ -197,6 +203,14 @@ export default function NewPurchasePage() {
       queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+
+      if (pendingAttachments.length > 0) {
+        sessionStorage.setItem(
+          "pendingPurchaseAttachments",
+          JSON.stringify(pendingAttachments)
+        );
+      }
+
       toast.success("Compra creada exitosamente");
       router.push(`/dashboard/purchases/${data.id}`);
     },
@@ -719,6 +733,66 @@ export default function NewPurchasePage() {
               <CardTitle>Resumen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {canCreatePurchase && (
+                <div className="border-b pb-4 mb-4">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    ¿Tienes documentos? Después de crear la compra podrás adjuntar facturas, remitos y notas.
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const tempAttachment: Attachment = {
+                          id: `temp-${Date.now()}`,
+                          fileName: file.name,
+                          fileUrl: "",
+                          fileType,
+                          fileSize: file.size,
+                          uploadedAt: new Date().toISOString(),
+                        };
+                        setPendingAttachments([...pendingAttachments, tempAttachment]);
+                        toast.info(`"${file.name}" listo para adjuntar`);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Seleccionar archivo
+                  </Button>
+                  {pendingAttachments.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {pendingAttachments.map((att) => (
+                        <li key={att.id} className="text-sm flex items-center gap-2">
+                          <span className="text-muted-foreground">📎</span>
+                          {att.fileName}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setPendingAttachments(
+                                pendingAttachments.filter((a) => a.id !== att.id)
+                              )
+                            }
+                          >
+                            ✕
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold">

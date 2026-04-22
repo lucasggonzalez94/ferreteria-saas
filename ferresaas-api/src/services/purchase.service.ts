@@ -504,6 +504,9 @@ export class PurchaseService {
             },
           },
         },
+        attachments: {
+          orderBy: { uploadedAt: 'desc' },
+        },
       },
     });
 

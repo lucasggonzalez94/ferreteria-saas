@@ -69,6 +69,18 @@ export class CloudinaryService {
   }
 
   /**
+   * Subir adjunto de compra
+   */
+  static async uploadAttachment(
+    file: Express.Multer.File,
+    businessId: string,
+    purchaseId: string
+  ) {
+    const folder = `ferreteria/purchases/${businessId}/${purchaseId}`;
+    return this.uploadImage(file, folder);
+  }
+
+  /**
    * Eliminar imagen de Cloudinary
    */
   static async deleteImage(publicId: string) {

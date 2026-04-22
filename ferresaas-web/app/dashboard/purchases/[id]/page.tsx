@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useParams } from "next/navigation";
@@ -12,6 +12,17 @@ import { ArrowLeft, Package, DollarSign } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";
+import { AttachmentManager } from "@/components/purchases/attachment-manager";
+import { toast } from "sonner";
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+}
 
 interface PurchaseDetail {
   id: string;
@@ -42,6 +53,16 @@ interface PurchaseDetail {
       unit: string;
     };
   }>;
+  attachments?: Attachment[];
+}
+
+interface PendingAttachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
 }
 
 export default function PurchaseDetailPage() {
@@ -50,13 +71,8 @@ export default function PurchaseDetailPage() {
   const { user } = useAuth();
 
   const canViewPurchases = user?.permissions?.includes("purchases:read");
-
-  useEffect(() => {
-    if (!canViewPurchases) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [canViewPurchases, router]);
+  const canUploadAttachments = user?.permissions?.includes("purchases:create");
+  const canDeleteAttachments = user?.permissions?.includes("purchases:delete");
 
   const { data: purchase, isLoading } = useQuery({
     queryKey: ["purchase", params.id],
@@ -66,6 +82,26 @@ export default function PurchaseDetailPage() {
     },
     enabled: canViewPurchases && !!params.id,
   });
+
+  useEffect(() => {
+    if (!canViewPurchases) {
+      router.push("/dashboard");
+      return;
+    }
+  }, [canViewPurchases, router]);
+
+  useEffect(() => {
+    if (purchase && canUploadAttachments) {
+      const stored = sessionStorage.getItem("pendingPurchaseAttachments");
+      if (stored) {
+        sessionStorage.removeItem("pendingPurchaseAttachments");
+        const pendingFiles: PendingAttachment[] = JSON.parse(stored);
+        if (pendingFiles.length > 0) {
+          toast.info(`${pendingFiles.length} archivo(s) pendiente(s) listo(s) para subir`);
+        }
+      }
+    }
+  }, [purchase, canUploadAttachments]);
 
   if (isLoading) {
     return (
@@ -207,6 +243,14 @@ export default function PurchaseDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Attachments */}
+            <AttachmentManager
+              purchaseId={purchase.id}
+              attachments={purchase.attachments || []}
+              canUpload={canUploadAttachments || false}
+              canDelete={canDeleteAttachments || false}
+            />
           </div>
 
           {/* Sidebar */}
