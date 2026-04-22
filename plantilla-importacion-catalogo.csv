@@ -1,3 +1,63 @@
-name,barcode,description,category,brand,unit,cost,price,taxRate,minStock,initialStock,isFractional,pricingMode,targetMargin,targetMarkup,priceLocked,roundingStep,costMethod
-"Taladro Inalambrico 18V",7791234567890,"Taladro percutor con bateria",Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
-"Disco de corte 4.5","","Disco para amoladora",Accesorios,Stanley,u,2800,4200,21,10,20,false,fixed,,,false,10,avg_weighted
+nombre,codigo_barras,descripcion,categoria,marca,unidad,precio_costo,precio_venta,IVA,stock_minimo,stock_inicial,es_fraccionable,modo_precio,margen,markup,precio_fijo,paso_redondeo,metodo_costo
+Taladro Inalambrico 18V,7791234567890,Taladro percutor con bateria Litio-ion 18V,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Disco de Corte 4.5 Pulgadas,7791234567891,Disco delgado para amoladora 125mm,Accesorios,Stanley,u,2800,4200,21,10,20,false,fixed,,false,10,avg_weighted
+Martillo de Boca 16oz,,Martillo de carpinteria con mango de fibra,FERRETERIA GENERAL,Truper,u,12500,18500,21,5,12,true,margin,32,,false,100,avg_weighted
+Serrucho Carpintero 20 pulgadas,7791234567893,Serrucho de mano para madera,FERRETERIA GENERAL,Truper,u,22000,34000,21,3,8,false,fixed,,false,100,avg_weighted
+Destornillador Plano 6x100mm,7791234567894,Destornillador aislado 1000V,Herramientas Manuales,Bosch,u,8500,12900,21,10,25,false,margin,34,,false,100,avg_weighted
+Pinza de Punta Larga 8 pulgadas,7791234567895,Pinza cromada con mango antideslizante,Herramientas Manuales,Stanley,u,9500,14500,21,8,20,false,margin,35,,false,100,avg_weighted
+Llave Mixta 13mm,7791234567896,Llave combinata de acero cromo vanadio,Herramientas Manuales,Bosch,u,11200,16900,21,10,30,false,margin,34,,false,100,avg_weighted
+Metro de Cinta 5m,7791234567897,Flexometro con freno y clip para cinturon,MEDICION,Truper,u,5500,8500,21,15,40,false,fixed,,false,50,avg_weighted
+Nivel de Burbuja 24 pulgadas,7791234567898,Nivel de precision con 3 burbujas,MEDICION,Stanley,u,18500,27900,21,4,10,false,margin,34,,false,100,avg_weighted
+Pinzas Electricista 1000V,7791234567899,Juego de 4 pinzas aisladas,Herramientas Manuales,Bosch,Set,35000,52900,21,2,5,false,margin,34,,false,100,avg_weighted
+Taladro Inalambrico 18V,7791234567890,Duplicado por codigo de barras,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Cautin Profesional 60W,7791234567900,Cautin ceramico con temperatura regulable,Herramientas Electricas,Hakko,u,45000,67900,21,3,6,false,margin,34,,false,100,avg_weighted
+Multimetro Digital,7791234567901,Voltimetro amperimetro con prueba de continuidad,MEDICION,Fluke,u,125000,189000,21,2,4,true,margin,34,,false,100,avg_weighted
+Taladro de Banco 13mm,7791234567902,Taladro de columna con motor 1/2 HP,MAQUINAS,Bosch,u,450000,679000,21,1,2,false,fixed,,false,1000,avg_weighted
+Cautin Profesional 60W,7791234567903,Duplicado por nombre y marca,Herramientas Electricas,Hakko,u,45000,67900,21,3,6,false,margin,34,,false,100,avg_weighted
+Barrena SDS Plus 6mm,7791234567904,Barrena para concreto,Accesorios,Bosch,u,4500,6900,21,20,50,false,fixed,,false,10,avg_weighted
+Juego de Llaves Hexagonales,7791234567905,Juego de 9 llaves Allen metricas,Herramientas Manuales,Stanley,Set,28000,41900,21,3,8,false,margin,33,,false,100,avg_weighted
+Abocardador para Tubo 1/2 pulgada,7791234567906,Abocardador para tuberias de cobre,Accesorios,Ridgid,u,18500,27900,21,5,12,false,margin,34,,false,100,avg_weighted
+Soporte de Taladro de Columna,7791234567907,Base giratoria para taladro de banco,MAQUINAS,Bosch,u,95000,142500,21,1,2,false,fixed,,false,100,avg_weighted
+Extension Electrica 10m 16A,7791234567908,Cable extension con tomacorriente,ELECTRICIDAD,Voltech,u,18000,26900,21,10,25,false,margin,33,,false,100,avg_weighted
+Guantes Aislantes Clase 2,7791234567909,Guantes de latex para electricista,SEGURIDAD,Vanguard,u,8500,12900,21,20,50,true,margin,34,,false,10,avg_weighted
+Alicates Universales 8 pulgadas,7791234567910,Alicates con corte lateral y mordazas estriadas,Herramientas Manuales,Knipex,u,18500,27900,21,8,20,false,margin,34,,false,100,avg_weighted
+Escalerilla Telescopica 4 Escalones,7791234567911,Escalerilla de aluminio con bandeja portaherramientas,SEGURIDAD,Werner,u,85000,127500,21,2,4,false,margin,33,,false,100,avg_weighted
+Cortador de Tubo Rollo,7791234567912,Cortador de precision para tubos de cobre,Accesorios,Ridgid,u,22000,33000,21,5,12,false,margin,33,,false,100,avg_weighted
+Grasa de Litio Multiuso 400g,7791234567913,Grasa lubricante para rodamientos,Accesorios,WD40,u,5500,8500,21,25,60,false,fixed,,false,10,avg_weighted
+Remache Pop 4.0mm Niquelado,7791234567914,Remaches de aluminio para estructuras,Accesorios,Pop,Set,2800,4200,21,50,200,true,fixed,,false,10,avg_weighted
+Espatula de Acero Inoxidable,7791234567915,Espatula flexible para empaste,FERRETERIA GENERAL,Truper,u,4500,6900,21,15,40,false,margin,35,,false,100,avg_weighted
+Tornillo Pasador 8x40mm Zinc,7791234567916,Pernos de alta resistencia,FERRETERIA GENERAL,Spax,Paq,2200,3300,21,100,500,true,fixed,,false,10,avg_weighted
+Arandela Plana 8mm Acero Inox,7791234567917,Arandelas planas para pernos M8,FERRETERIA GENERAL,Spax,Paq,1500,2200,21,200,1000,true,fixed,,false,10,avg_weighted
+Tubo de PVC 3/4 pulgada 3m,7791234567918,Tubo de agua potable,PLOMERIA,Arauco,u,5500,8500,21,20,50,false,fixed,,false,100,avg_weighted
+Codo 90 grados PVC 3/4 pulgada,7791234567919,Codo de reduccion para tuberia,PLOMERIA,Arauco,u,850,1300,21,50,200,true,fixed,,false,10,avg_weighted
+Cinta de TEFLON 19mm x 50m,7791234567920,Cinta selladora para roscas,PLOMERIA,Loctite,u,2200,3500,21,40,150,true,fixed,,false,10,avg_weighted
+Valvula de Esfera 1/2 pulgada Cromo,7791234567921,Valvula de paso rapido,PLOMERIA,Milimetrik,u,9500,14500,21,10,30,false,margin,35,,false,100,avg_weighted
+Candado de Laton 30mm,7791234567922,Candado resistente a la corrosion,SEGURIDAD,Master,u,8500,12900,21,15,40,false,margin,34,,false,100,avg_weighted
+Cerrojo de Embutir 60mm,7791234567923,Cerrojo de seguridad para puertas,SEGURIDAD,Tesa,u,12500,18900,21,10,25,false,margin,34,,false,100,avg_weighted
+Chapa de Sobreponer 50mm,7791234567924,Chapa para puertas de madera,SEGURIDAD,Tesa,u,22000,33000,21,5,12,false,margin,33,,false,100,avg_weighted
+Seguro de Pasador 6mm,7791234567925,Pasador elastico de acero,FERRETERIA GENERAL,Spax,Paq,1800,2800,21,100,500,true,fixed,,false,10,avg_weighted
+Tornillo para Madera 4x50mm,7791234567926,Tornillo autoroscante,FERRETERIA GENERAL,Spax,Paq,1200,1800,21,100,500,true,fixed,,false,10,avg_weighted
+Taladro Inalambrico Sin Nombre,7791234567927,Producto sin nombre completo en el campo,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Producto Sin Nombre,7791234567928,Producto sin nombre solo con barcode,Herramientas Electricas,,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Producto Sin Precio Venta,7791234567929,Producto sin precio de venta en el campo,Herramientas Electricas,Bosch,u,85000,,21,2,4,false,margin,35,,false,10,avg_weighted
+Producto Precio Costo Negativo,7791234567930,Producto con precio costo negativo,Herramientas Electricas,Bosch,u,-85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Producto Stock Negativo,7791234567931,Producto con stock inicial negativo,Herramientas Electricas,Bosch,u,85000,119900,21,2,-5,false,margin,35,,false,10,avg_weighted
+Producto IVA Invalido,7791234567932,Producto con IVA fuera de rango valido,Herramientas Electricas,Bosch,u,85000,119900,15,2,4,false,margin,35,,false,10,avg_weighted
+Producto Modo Precio Invalido,7791234567933,Producto con modo de precio desconocido,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,unknown,35,,false,10,avg_weighted
+Producto Booleano Invalido,7791234567934,Producto con flag booleano invalido,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,toggle,false,margin,35,,false,10,avg_weighted
+Producto Metodo Costo Invalido,7791234567935,Producto con metodo de costo desconocido,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,invalid_method
+Producto Margen y Markup,7791234567936,Producto con margen Y markup al mismo tiempo,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,25,false,10,avg_weighted
+Producto Barra Larga Invalida,77912345679371234567890,Producto con codigo de barras demasiado largo,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Producto Con Columnas Faltantes,7791234567938,Faltan columnas al final de la fila
+Producto Con Columnas Extra,7791234567939,Tiene columnas extra de mas en la fila,Herramientas Electricas,Bosch,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted,extra_field,extra_value
+Producto Con IVA Texto,7791234567940,IVA como texto no numerico,Herramientas Electricas,Bosch,u,85000,119900,veintiuno,2,4,false,margin,35,,false,10,avg_weighted
+Producto Con Marca Vacia,7791234567941,Producto sin marca en el campo,Herramientas Electricas,,u,85000,119900,21,2,4,false,margin,35,,false,10,avg_weighted
+Taladro Percutor 13mm 850W,7791234567942,Taladro percutor de alta potencia,Herramientas Electricas,Bosch,u,125000,189000,21,3,6,false,margin,34,,false,100,avg_weighted
+Sierra Caladora 600W,7791234567943,Sierra caladora con cambio rapido de hoja,Herramientas Electricas,Bosch,u,95000,142500,21,2,4,false,margin,34,,false,100,avg_weighted
+Esmeril Angular 4.5 pulgadas 1150W,7791234567944,Esmeril angular para corte y pulido,Herramientas Electricas,Bosch,u,85000,127500,21,3,6,false,margin,33,,false,100,avg_weighted
+Lijadora Orbital 125mm 300W,7791234567945,Lijadora de mano para acabados,Herramientas Electricas,Bosch,u,78000,117000,21,2,4,false,margin,33,,false,100,avg_weighted
+Compresor de Aire 2Gal 1HP,7791234567946,Compresor portatil para herramientas neumaticas,MAQUINAS,Campbell,u,225000,339000,21,1,2,false,fixed,,false,500,avg_weighted
+Motosierra 16 pulgadas 45cc,7791234567947,Motosierra para poda y corte,JARDINERIA,Stihl,u,350000,525000,21,1,2,false,fixed,,false,1000,avg_weighted
+Atomizador 5L,7791234567948,Atomizador de espalda para fumigacion,JARDINERIA,Stihl,u,45000,67900,21,2,4,false,fixed,,false,100,avg_weighted
+Carretilla 4 pies cubicos,7791234567949,Carretilla de carga con neumatico,FERRETERIA GENERAL,Truper,u,28000,41900,21,3,6,false,fixed,,false,100,avg_weighted
+Hormigonera 120L,7791234567950,Mezcladora de concreto portatil,MAQUINAS,Bosch,u,185000,279000,21,1,2,false,fixed,,false,500,avg_weighted

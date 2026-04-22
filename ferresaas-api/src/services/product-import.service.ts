@@ -3,10 +3,16 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { ProductService } from './product.service';
 
-const REQUIRED_COLUMNS = ['name', 'category', 'brand', 'unit', 'cost', 'price', 'taxRate'];
-const VALID_UNITS = new Set(['u', 'mt', 'kg', 'lt']);
-const VALID_PRICING_MODES = new Set(['fixed', 'margin', 'markup', 'suggest']);
-const VALID_COST_METHODS = new Set(['avg_weighted', 'last_cost']);
+const EXPECTED_COLUMNS = [
+  'nombre', 'codigo_barras', 'descripcion', 'categoria', 'marca', 
+  'unidad', 'precio_costo', 'precio_venta', 'IVA', 'stock_minimo', 
+  'stock_inicial', 'es_fraccionable', 'modo_precio', 'margen', 'markup', 
+  'precio_fijo', 'paso_redondeo', 'metodo_costo'
+];
+
+const REQUIRED_COLUMNS = ['nombre', 'categoria', 'marca', 'unidad', 'precio_costo', 'precio_venta', 'IVA'];
+const COST_METHOD_VALUES = new Set(['avg_weighted', 'last_cost']);
+const BOOLEAN_TEXT_VALUES = new Set(['true', 'false', '1', '0', 'yes', 'no', 'si', 'sí', 's', 'n']);
 
 type IssueSeverity = 'error' | 'warning';
 
@@ -103,6 +109,34 @@ const parseBoolean = (value: string | undefined, defaultValue = false): boolean 
   }
   const normalized = value.trim().toLowerCase();
   return ['true', '1', 'yes', 'si', 's'].includes(normalized);
+};
+
+const normalizeUnit = (value: string | undefined): 'u' | 'mt' | 'kg' | 'lt' | undefined => {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().trim();
+  if (['u', 'unidad'].includes(normalized)) return 'u';
+  if (['mt', 'metro'].includes(normalized)) return 'mt';
+  if (['kg', 'kilo'].includes(normalized)) return 'kg';
+  if (['lt', 'litro'].includes(normalized)) return 'lt';
+  return undefined;
+};
+
+const normalizePricingMode = (value: string | undefined): 'fixed' | 'margin' | 'markup' | 'suggest' | undefined => {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().trim();
+  if (['fixed', 'fijo'].includes(normalized)) return 'fixed';
+  if (['margin', 'margen'].includes(normalized)) return 'margin';
+  if (['markup'].includes(normalized)) return 'markup';
+  if (['suggest', 'sugerido'].includes(normalized)) return 'suggest';
+  return undefined;
+};
+
+const normalizeCostMethod = (value: string | undefined): 'avg_weighted' | 'last_cost' | undefined => {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().trim();
+  if (['avg_weighted', 'ponderado'].includes(normalized)) return 'avg_weighted';
+  if (['last_cost', 'último_costo', 'ultimo_costo'].includes(normalized)) return 'last_cost';
+  return undefined;
 };
 
 export class ProductImportService {
@@ -205,13 +239,37 @@ export class ProductImportService {
         bom: true,
         relax_column_count: true,
         relax_quotes: true,
+        escape: '"',
       });
     } catch (error) {
-      throw new AppError(400, 'INVALID_CSV', 'No se pudo procesar el CSV. Verifica el formato del archivo.');
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AppError(400, 'INVALID_CSV', `No se pudo procesar el CSV. Error: ${message}`);
     }
 
-    if (!records.length) {
+if (!records.length) {
       throw new AppError(400, 'EMPTY_FILE', 'El archivo CSV no contiene filas para importar.');
+    }
+
+    const headerColumns = Object.keys(records[0]);
+    const expectedColumnCount = EXPECTED_COLUMNS.length;
+
+    if (headerColumns.length !== expectedColumnCount) {
+      throw new AppError(400, 'INVALID_HEADER', 
+        `El archivo debe tener ${expectedColumnCount} columnas. Encontradas: ${headerColumns.length}. `
+        + `Columnas esperadas: ${EXPECTED_COLUMNS.join(', ')}`);
+    }
+
+    const missingColumns = EXPECTED_COLUMNS.filter(col => !headerColumns.includes(col));
+    if (missingColumns.length > 0) {
+      throw new AppError(400, 'MISSING_COLUMNS', 
+        `Faltan las siguientes columnas: ${missingColumns.join(', ')}`);
+    }
+
+    const extraColumns = headerColumns.filter(col => !EXPECTED_COLUMNS.includes(col));
+    if (extraColumns.length > 0) {
+      throw new AppError(400, 'EXTRA_COLUMNS', 
+        `Columnas no reconocidas: ${extraColumns.join(', ')}. `
+        + `Usa solo: ${EXPECTED_COLUMNS.join(', ')}`);
     }
 
     console.log('Parsed records:');
@@ -251,9 +309,28 @@ export class ProductImportService {
     const rows: RowValidationResult[] = [];
 
     records.forEach((rawRow, index) => {
-      const rowNumber = index + 2;
-      const row = this.normalizeRawRow(rawRow);
+      const rowNumber = index + 1;
+      const row = this.alignShiftedFixedRow(this.normalizeRawRow(rawRow));
+      const rowKeys = Object.keys(row);
       const issues: ImportIssue[] = [];
+
+      if (rowKeys.length !== EXPECTED_COLUMNS.length) {
+        const missingCols: string[] = [];
+        EXPECTED_COLUMNS.forEach(col => {
+          if (!rowKeys.includes(col)) {
+            missingCols.push(col);
+          }
+        });
+        
+        issues.push({
+          row: rowNumber,
+          field: '_column_count',
+          code: 'COLUMN_COUNT_MISMATCH',
+          message: `La fila tiene ${rowKeys.length} columnas pero debe tener ${EXPECTED_COLUMNS.length}. Faltan: ${missingCols.join(', ')}`,
+          severity: 'error',
+          blocking: true,
+        });
+      }
 
       for (const requiredColumn of REQUIRED_COLUMNS) {
         if (!row[requiredColumn] || !row[requiredColumn].trim()) {
@@ -261,7 +338,7 @@ export class ProductImportService {
             row: rowNumber,
             field: requiredColumn,
             code: 'REQUIRED_FIELD',
-            message: `El campo ${requiredColumn} es obligatorio.`,
+            message: `El campo ${requiredColumn} es obligatorio. Complete la celda.`,
             severity: 'error',
             blocking: true,
           });
@@ -275,9 +352,9 @@ export class ProductImportService {
           if (existingBarcodes.has(normalized.barcode)) {
             issues.push({
               row: rowNumber,
-              field: 'barcode',
+              field: 'codigo_barras',
               code: 'PRODUCT_ALREADY_EXISTS',
-              message: 'Ya existe un producto en este tenant con el mismo código de barras.',
+              message: 'Ya existe un producto en este negocio con el mismo código de barras.',
               value: normalized.barcode,
               severity: 'warning',
               blocking: true,
@@ -305,7 +382,7 @@ export class ProductImportService {
               row: rowNumber,
               field: 'name',
               code: 'PRODUCT_ALREADY_EXISTS',
-              message: 'Ya existe un producto en este tenant con el mismo nombre y marca.',
+              message: 'Ya existe un producto en este negocio con el mismo nombre y marca.',
               value: `${normalized.name} / ${normalized.brandName}`,
               severity: 'warning',
               blocking: true,
@@ -354,171 +431,195 @@ export class ProductImportService {
     }, {});
   }
 
+  private alignShiftedFixedRow(row: Record<string, string>): Record<string, string> {
+    const normalizedPricingMode = (row.modo_precio ?? '').trim().toLowerCase();
+    const normalizedMarkup = (row.markup ?? '').trim().toLowerCase();
+    const roundedStepValue = (row.paso_redondeo ?? '').trim();
+    const fixedPriceValue = (row.precio_fijo ?? '').trim();
+    const costMethodValue = (row.metodo_costo ?? '').trim();
+
+    const looksShiftedByOne =
+      normalizedPricingMode === 'fixed' &&
+      !costMethodValue &&
+      COST_METHOD_VALUES.has(roundedStepValue) &&
+      /^\d+$/.test(fixedPriceValue) &&
+      BOOLEAN_TEXT_VALUES.has(normalizedMarkup);
+
+    if (!looksShiftedByOne) {
+      return row;
+    }
+
+    return {
+      ...row,
+      markup: '',
+      precio_fijo: row.markup ?? '',
+      paso_redondeo: row.precio_fijo ?? '',
+      metodo_costo: row.paso_redondeo ?? '',
+    };
+  }
+
   private buildNormalizedRow(
     row: Record<string, string>,
     rowNumber: number,
     issues: ImportIssue[]
   ): NormalizedRow | null {
-    const name = parseOptionalText(row.name);
-    const categoryName = parseOptionalText(row.category);
-    const brandName = parseOptionalText(row.brand);
-    const barcode = parseOptionalText(row.barcode);
-    const description = parseOptionalText(row.description);
+    const name = parseOptionalText(row.nombre);
+    const categoryName = parseOptionalText(row.categoria);
+    const brandName = parseOptionalText(row.marca);
+    const barcode = parseOptionalText(row.codigo_barras);
+    const description = parseOptionalText(row.descripcion);
 
-    const unitValue = parseOptionalText(row.unit)?.toLowerCase();
-    const unit = unitValue as NormalizedRow['unit'] | undefined;
-    if (unitValue && !VALID_UNITS.has(unitValue)) {
+    const unit = normalizeUnit(row.unidad);
+    if (row.unidad && !unit) {
       issues.push({
         row: rowNumber,
-        field: 'unit',
+        field: 'unidad',
         code: 'INVALID_UNIT',
-        message: 'Unidad inválida. Valores permitidos: u, mt, kg, lt.',
-        value: row.unit,
+        message: 'Unidad inválida. Valores permitidos: u (unidad), mt (metro), kg (kilo), lt (litro).',
+        value: row.unidad,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const cost = parseOptionalNumber(row.cost);
-    if (row.cost && (cost === undefined || cost <= 0)) {
+    const cost = parseOptionalNumber(row.precio_costo);
+    if (row.precio_costo && (cost === undefined || cost <= 0)) {
       issues.push({
         row: rowNumber,
-        field: 'cost',
+        field: 'precio_costo',
         code: 'INVALID_COST',
         message: 'El costo debe ser un número mayor a 0.',
-        value: row.cost,
+        value: row.precio_costo,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const price = parseOptionalNumber(row.price);
-    if (row.price && (price === undefined || price <= 0)) {
+    const price = parseOptionalNumber(row.precio_venta);
+    if (row.precio_venta && (price === undefined || price <= 0)) {
       issues.push({
         row: rowNumber,
-        field: 'price',
+        field: 'precio_venta',
         code: 'INVALID_PRICE',
         message: 'El precio debe ser un número mayor a 0.',
-        value: row.price,
+        value: row.precio_venta,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const taxRate = parseOptionalNumber(row.taxRate);
-    if (row.taxRate && (taxRate === undefined || taxRate < 0 || taxRate > 100)) {
+    const taxRate = parseOptionalNumber(row.IVA);
+    if (row.IVA && (taxRate === undefined || taxRate < 0 || taxRate > 100)) {
       issues.push({
         row: rowNumber,
-        field: 'taxRate',
+        field: 'IVA',
         code: 'INVALID_TAX_RATE',
         message: 'IVA inválido. Debe estar entre 0 y 100.',
-        value: row.taxRate,
+        value: row.IVA,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const minStock = parseOptionalNumber(row.minStock);
+    const minStock = parseOptionalNumber(row.stock_minimo);
     if (minStock !== undefined && minStock < 0) {
       issues.push({
         row: rowNumber,
-        field: 'minStock',
+        field: 'stock_minimo',
         code: 'INVALID_MIN_STOCK',
         message: 'El stock mínimo no puede ser negativo.',
-        value: row.minStock,
+        value: row.stock_minimo,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const initialStock = parseOptionalNumber(row.initialStock);
+    const initialStock = parseOptionalNumber(row.stock_inicial);
     if (initialStock !== undefined && initialStock < 0) {
       issues.push({
         row: rowNumber,
-        field: 'initialStock',
+        field: 'stock_inicial',
         code: 'INVALID_INITIAL_STOCK',
         message: 'El stock inicial no puede ser negativo.',
-        value: row.initialStock,
+        value: row.stock_inicial,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const marginPercent = parseOptionalNumber(row.marginPercent);
+    const marginPercent = parseOptionalNumber(row.margen);
     if (marginPercent !== undefined && (marginPercent <= 0 || marginPercent >= 100)) {
       issues.push({
         row: rowNumber,
-        field: 'marginPercent',
+        field: 'margen',
         code: 'INVALID_MARGIN_PERCENT',
         message: 'El margen debe ser mayor a 0 y menor a 100.',
-        value: row.marginPercent,
+        value: row.margen,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const pricingModeValue = parseOptionalText(row.pricingMode)?.toLowerCase() || 'margin';
-    const pricingMode = pricingModeValue as NormalizedRow['pricingMode'];
-    if (!VALID_PRICING_MODES.has(pricingModeValue)) {
+    const pricingMode = normalizePricingMode(row.modo_precio);
+    if (row.modo_precio && !pricingMode) {
       issues.push({
         row: rowNumber,
-        field: 'pricingMode',
+        field: 'modo_precio',
         code: 'INVALID_PRICING_MODE',
-        message: 'pricingMode inválido. Valores permitidos: fixed, margin, markup, suggest.',
-        value: row.pricingMode,
+        message: 'Modo de precio inválido. Valores permitidos: fixed (fijo), margin (margen), markup, suggest (sugerido).',
+        value: row.modo_precio,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const targetMargin = parseOptionalNumber(row.targetMargin);
-    if (targetMargin !== undefined && (targetMargin <= 0 || targetMargin >= 100)) {
+    const targetMargin = parseOptionalNumber(row.margen);
+    if (row.margen && (targetMargin === undefined || targetMargin <= 0 || targetMargin >= 100)) {
       issues.push({
         row: rowNumber,
-        field: 'targetMargin',
+        field: 'margen',
         code: 'INVALID_TARGET_MARGIN',
-        message: 'targetMargin debe ser mayor a 0 y menor a 100.',
-        value: row.targetMargin,
+        message: 'El margen objetivo debe ser mayor a 0 y menor a 100.',
+        value: row.margen,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const targetMarkup = parseOptionalNumber(row.targetMarkup);
-    if (targetMarkup !== undefined && targetMarkup <= 0) {
+    const targetMarkup = parseOptionalNumber(row.markup);
+    if (row.markup && (targetMarkup === undefined || targetMarkup <= 0)) {
       issues.push({
         row: rowNumber,
-        field: 'targetMarkup',
+        field: 'markup',
         code: 'INVALID_TARGET_MARKUP',
-        message: 'targetMarkup debe ser mayor a 0.',
-        value: row.targetMarkup,
+        message: 'El markup debe ser mayor a 0.',
+        value: row.markup,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const roundingStep = parseOptionalNumber(row.roundingStep);
+    const roundingStep = parseOptionalNumber(row.paso_redondeo);
     if (roundingStep !== undefined && (!Number.isInteger(roundingStep) || roundingStep <= 0)) {
       issues.push({
         row: rowNumber,
-        field: 'roundingStep',
+        field: 'paso_redondeo',
         code: 'INVALID_ROUNDING_STEP',
-        message: 'roundingStep debe ser un entero mayor a 0.',
-        value: row.roundingStep,
+        message: 'El paso de redondeo debe ser un entero mayor a 0.',
+        value: row.paso_redondeo,
         severity: 'error',
         blocking: true,
       });
     }
 
-    const costMethodValue = parseOptionalText(row.costMethod)?.toLowerCase() || 'avg_weighted';
-    const costMethod = costMethodValue as NormalizedRow['costMethod'];
-    if (!VALID_COST_METHODS.has(costMethodValue)) {
+    const costMethod = normalizeCostMethod(row.metodo_costo);
+    if (row.metodo_costo && !costMethod) {
       issues.push({
         row: rowNumber,
-        field: 'costMethod',
+        field: 'metodo_costo',
         code: 'INVALID_COST_METHOD',
-        message: 'costMethod inválido. Valores permitidos: avg_weighted, last_cost.',
-        value: row.costMethod,
+        message: 'Método de costo inválido. Valores: avg_weighted (ponderado), last_cost (último costo).',
+        value: row.metodo_costo,
         severity: 'error',
         blocking: true,
       });
@@ -535,19 +636,19 @@ export class ProductImportService {
       categoryName,
       brandName,
       unit,
-      isFractional: parseBoolean(row.isFractional, false),
+      isFractional: parseBoolean(row.es_fraccionable, false),
       cost,
       price,
       taxRate,
       marginPercent,
       minStock,
       initialStock,
-      pricingMode: VALID_PRICING_MODES.has(pricingModeValue) ? pricingMode : 'margin',
+      pricingMode: pricingMode || 'margin',
       targetMargin,
       targetMarkup,
-      priceLocked: parseBoolean(row.priceLocked, false),
+      priceLocked: parseBoolean(row.precio_fijo, false),
       roundingStep: roundingStep ?? 10,
-      costMethod: VALID_COST_METHODS.has(costMethodValue) ? costMethod : 'avg_weighted',
+      costMethod: costMethod || 'avg_weighted',
     };
   }
 
