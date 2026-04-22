@@ -202,7 +202,7 @@ export default function ProductsPage() {
       <div className="app-section">
         <Header
           title="Productos"
-          description="Catálogo operativo con filtros rápidos, lectura más clara y acceso directo a edición y stock crítico."
+          description="Catálogo operativo con filtros rápidos, lectura clara y acceso directo a edición y stock crítico."
           showButton={canCreateProducts}
           buttonLabel="Nuevo Producto"
           buttonIcon={<Plus className="h-4 w-4 mr-2" />}
@@ -221,18 +221,11 @@ export default function ProductsPage() {
           }
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="mb-6 grid gap-3 md:grid-cols-2">
           <div className="app-panel-muted rounded-[1.4rem] p-4">
             <p className="text-sm font-semibold text-foreground">Resultados totales (filtro)</p>
             <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total}</p>
             <p className="mt-2 text-sm text-muted-foreground">Productos en la base de datos.</p>
-          </div>
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Activos (pagina actual)</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{totals.activeProducts}</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Mostrando {totals.pageCount} registros
-            </p>
           </div>
           <div className="brand-accent-panel p-4">
             <p className="text-sm font-semibold text-foreground">Bajo stock</p>

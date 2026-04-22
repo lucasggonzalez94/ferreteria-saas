@@ -35,7 +35,7 @@ const router = Router();
 const productService = new ProductService();
 const productImportService = new ProductImportService();
 
-const csvUpload = multer({
+const importUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB máximo
   fileFilter: (_req, file, cb) => {
@@ -45,13 +45,14 @@ const csvUpload = multer({
       'text/plain',
       'application/vnd.ms-excel',
       'application/octet-stream',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ];
     const extension = path.extname(file.originalname || '').toLowerCase();
 
-    if (allowedMimeTypes.includes(file.mimetype) || extension === '.csv') {
+    if (allowedMimeTypes.includes(file.mimetype) || extension === '.csv' || extension === '.xlsx') {
       cb(null, true);
     } else {
-      cb(new AppError(400, 'INVALID_FILE_TYPE', 'Solo se permiten archivos CSV') as any);
+      cb(new AppError(400, 'INVALID_FILE_TYPE', 'Solo se permiten archivos CSV o XLSX') as any);
     }
   },
 });
@@ -129,7 +130,7 @@ router.get(
  */
 router.post(
   '/import/preview',
-  csvUpload.single('file'),
+  importUpload.single('file'),
   requirePermissions('products:create'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -153,7 +154,7 @@ router.post(
  */
 router.post(
   '/import/execute',
-  csvUpload.single('file'),
+  importUpload.single('file'),
   requirePermissions('products:create'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

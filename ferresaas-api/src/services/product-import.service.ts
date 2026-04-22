@@ -1,7 +1,10 @@
 import { parse } from 'csv-parse/sync';
+import * as XLSX from 'xlsx';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { ProductService } from './product.service';
+
+export type FileFormat = 'csv' | 'xlsx';
 
 const EXPECTED_COLUMNS = [
   'nombre', 'codigo_barras', 'descripcion', 'categoria', 'marca', 
@@ -139,6 +142,63 @@ const normalizeCostMethod = (value: string | undefined): 'avg_weighted' | 'last_
   return undefined;
 };
 
+const detectFileFormat = (buffer: Buffer): FileFormat => {
+  const signature = buffer.slice(0, 4);
+  const xlsxSignature = [0x50, 0x4B, 0x03, 0x04];
+  const isXlsx = xlsxSignature.every((byte, index) => signature[index] === byte);
+  return isXlsx ? 'xlsx' : 'csv';
+};
+
+const parseCsvRecords = (buffer: Buffer): Record<string, string>[] => {
+  const fileContent = buffer.toString('utf-8').replace(/^\uFEFF/, '');
+  return parse(fileContent, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    bom: true,
+    relax_column_count: true,
+    relax_quotes: true,
+    escape: '"',
+  });
+};
+
+const parseXlsxRecords = (buffer: Buffer): Record<string, string>[] => {
+  const workbook = XLSX.read(buffer, { type: 'buffer', cellFormula: false, cellNF: true });
+  
+  if (workbook.SheetNames.length === 0) {
+    throw new AppError(400, 'EMPTY_FILE', 'El archivo XLSX no contiene hojas.');
+  }
+
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  const records = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: '' });
+
+  if (records.length === 0) {
+    throw new AppError(400, 'EMPTY_FILE', 'La hoja no contiene filas para importar.');
+  }
+
+  return records.map((row) => {
+    const normalized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      const cleanKey = key.trim();
+      if (cleanKey) {
+        normalized[cleanKey] = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+      }
+    }
+    return normalized;
+  });
+};
+
+const parseFile = (buffer: Buffer): Record<string, string>[] => {
+  const format = detectFileFormat(buffer);
+  
+  if (format === 'xlsx') {
+    return parseXlsxRecords(buffer);
+  }
+  
+  return parseCsvRecords(buffer);
+};
+
 export class ProductImportService {
   private productService: ProductService;
 
@@ -228,26 +288,22 @@ export class ProductImportService {
   }
 
   private async analyzeCsv(businessId: string, fileBuffer: Buffer): Promise<PreviewResult> {
-    const fileContent = fileBuffer.toString('utf-8').replace(/^\uFEFF/, '');
+    const format = detectFileFormat(fileBuffer);
+    const formatName = format === 'xlsx' ? 'XLSX' : 'CSV';
 
     let records: Record<string, string>[];
     try {
-      records = parse(fileContent, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-        bom: true,
-        relax_column_count: true,
-        relax_quotes: true,
-        escape: '"',
-      });
+      records = parseFile(fileBuffer);
     } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
-      throw new AppError(400, 'INVALID_CSV', `No se pudo procesar el CSV. Error: ${message}`);
+      throw new AppError(400, 'INVALID_FILE', `No se pudo procesar el archivo ${formatName}. Error: ${message}`);
     }
 
-if (!records.length) {
-      throw new AppError(400, 'EMPTY_FILE', 'El archivo CSV no contiene filas para importar.');
+    if (!records.length) {
+      throw new AppError(400, 'EMPTY_FILE', `El archivo ${formatName} no contiene filas para importar.`);
     }
 
     const headerColumns = Object.keys(records[0]);
@@ -272,7 +328,7 @@ if (!records.length) {
         + `Usa solo: ${EXPECTED_COLUMNS.join(', ')}`);
     }
 
-    console.log('Parsed records:');
+    console.log(`Parsed ${formatName} records:`);
     records.forEach((record, idx) => {
       console.log(`Row ${idx + 1}:`, JSON.stringify(record));
       console.log(`Row ${idx + 1} keys:`, Object.keys(record));

@@ -3,7 +3,13 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle, Download, HelpCircle, Info, Upload } from "lucide-react";
+import { AlertCircle, Download, FileSpreadsheet, HelpCircle, Info, Upload } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -101,6 +107,7 @@ export function CatalogImportDialog({
 }: CatalogImportDialogProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileFormat, setFileFormat] = useState<"csv" | "xlsx">("csv");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -178,7 +185,12 @@ export function CatalogImportDialog({
     },
   });
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = (format: "csv" | "xlsx") => {
+    if (format === "xlsx") {
+      window.open(`/templates/plantilla-importacion-catalogo.xlsx?v=${Date.now()}`, "_blank");
+      return;
+    }
+    
     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -195,6 +207,10 @@ export function CatalogImportDialog({
     if (!selectedFile) {
       return;
     }
+    
+    const extension = selectedFile.name.split('.').pop()?.toLowerCase();
+    const detectedFormat = extension === 'xlsx' ? 'xlsx' : 'csv';
+    setFileFormat(detectedFormat);
     setFile(selectedFile);
     setPreview(null);
     previewMutation.mutate(selectedFile);
@@ -212,15 +228,15 @@ export function CatalogImportDialog({
     <>
       <Button variant="outline" className={triggerClassName} onClick={() => setOpen(true)}>
         {triggerIcon}
-        Importar CSV
+        Importar
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Importar productos desde CSV</DialogTitle>
+            <DialogTitle>Importar productos desde CSV o XLSX</DialogTitle>
             <DialogDescription>
-              Cargá un archivo CSV con tu catálogo de productos. Te mostramos una vista previa para que puedas revisar los datos antes de importar.
+              Cargá un archivo CSV o XLSX con tu catálogo de productos. Te mostramos una vista previa para que puedas revisar los datos antes de importar.
             </DialogDescription>
           </DialogHeader>
 
@@ -301,28 +317,46 @@ export function CatalogImportDialog({
 <div className="brand-accent-panel rounded-2xl p-4">
               <p className="text-sm font-semibold text-foreground">1. Seleccionar archivo</p>
               <p className="mt-1 text-sm brand-accent-subtle">
-                Descargá la plantilla, completá tus productos y subí el archivo. Solo se acepta CSV en esta versión.
+                Descargá la plantilla, completá tus productos y subí el archivo. Aceptamos CSV y XLSX.
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={handleDownloadTemplate}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Descargar plantilla
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <Download className="mr-2 h-4 w-4" />
+                      Descargar plantilla
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => handleDownloadTemplate("csv")}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownloadTemplate("xlsx")}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      XLSX
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Seleccionar CSV
+                  Seleccionar archivo
                 </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   onChange={handleSelectFile}
                 />
                 {file ? (
-                  <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-foreground">
+                  <span className="flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-foreground">
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
                     {file.name}
+                    <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase">
+                      {fileFormat}
+                    </span>
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground">No hay archivo seleccionado</span>
