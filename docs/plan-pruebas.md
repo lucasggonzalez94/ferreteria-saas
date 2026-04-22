@@ -1,7 +1,7 @@
 # Plan Integral de Pruebas Manuales
 
-**Versión:** 2.0  
-**Fecha:** 2026-04-21  
+**Versión:** 2.1  
+**Fecha:** 2026-04-22  
 **Responsable:** Equipo de Desarrollo  
 **Perfil objetivo:** Desarrollador sin experiencia formal en QA
 
@@ -14,6 +14,7 @@ Este documento te permite ejecutar pruebas manuales ordenadas para validar:
 1. Facturación (ARCA/Facturante, credenciales, condición fiscal).
 2. Ventas y devoluciones monetarias (FS-117).
 3. Impacto contable y operativo (stock, caja, cuentas financieras, cuenta corriente, auditoría).
+4. Cheques (FS-118): alta operativa, listado/resumen/detalle, ciclo de vida e integración con compras/pagos.
 
 Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regresión.
 
@@ -35,6 +36,10 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 | F8 | Contable | Impacto en stock/caja/cuentas/cuenta corriente | Crítica |
 | F9 | Seguridad | Permisos `sales:read`, `sales:refund`, `sales:manage` | Alta |
 | F10 | Auditoría | Trazabilidad de confirmación y refund | Alta |
+| F11 | Cheques | Alta operativa de cheques con endpoint y UI (FS-118) | Crítica |
+| F12 | Cheques | Ciclo de vida (`ISSUED`, `CLEARED`, `BOUNCED`, `CANCELLED`) | Alta |
+| F13 | Seguridad | Permisos `checks:read`, `checks:manage` | Alta |
+| F14 | Integración | Emisión de cheque desde compras y pagos a proveedor | Alta |
 
 ### 2.2 Fuera de alcance
 
@@ -56,8 +61,10 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 
 - Migraciones aplicadas.
 - Seed ejecutado con roles/permisos actualizados.
+- Migración de cheques aplicada (`add_due_date_to_check_register`).
 - Caja abierta para probar POS/refunds en efectivo.
 - Al menos una cuenta financiera default activa por tipo esperado (`CASH`, `BANK`, `WALLET`).
+- Al menos una cuenta `BANK` activa para emitir cheques.
 
 ### 3.3 Usuarios sugeridos
 
@@ -66,6 +73,7 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 | Admin | Todos | Ejecución principal |
 | Cajero | `sales:create`, `sales:read`, `sales:refund` (si aplica), caja | Validar operación diaria |
 | Usuario sin refund | `sales:read` sin `sales:refund` | Validar permisos |
+| Usuario solo lectura cheques | `checks:read` sin `checks:manage` | Validar permisos del módulo de cheques |
 
 ---
 
@@ -94,6 +102,17 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 3. 100% transferencia.
 4. Parcial a cuenta corriente (`ACCOUNT`).
 
+### 4.4 Datos para cheques (FS-118)
+
+| Alias | Campo | Valor sugerido | Uso |
+|---|---|---|---|
+| CHK-001 | checkNumber | `CHK-0001` | Alta operativa manual |
+| CHK-002 | checkNumber | `CHK-0002` | Integración desde pago a proveedor |
+| CHK-DUP | checkNumber | `CHK-0001` | Validar duplicado |
+| CHK-DUE-FUT | dueDate | `hoy + 7 días` | Caso normal |
+| CHK-DUE-PAST | dueDate | `hoy - 1 día` | Borde de vencimiento pasado |
+| CHK-RECIP | recipientName | `Proveedor Demo SA` | Librador/Tercero obligatorio |
+
 ---
 
 ## 5. Estrategia de ejecución
@@ -103,13 +122,14 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 1. Smoke (15-30 min).
 2. Casos críticos P0/P1.
 3. Casos de error y borde.
-4. Regresión cruzada (facturación + ventas + inventario + caja).
+4. Regresión cruzada (facturación + ventas + inventario + caja + cheques + compras/pagos).
 
 ### 5.2 Criterios de salida
 
 - 100% de casos P0 ejecutados.
 - 0 bugs críticos abiertos.
 - 0 inconsistencias contables (saldos/stock/auditoría).
+- 0 inconsistencias en cheques (estado, vencimiento, cuenta, auditoría).
 - Evidencia mínima (capturas + notas de ejecución).
 
 ---
@@ -126,6 +146,10 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 | SMK-06 | Ver impacto en inventario | Stock reintegrado |
 | SMK-07 | Ver impacto en caja/finanzas | Egreso registrado |
 | SMK-08 | Ver historial de devoluciones en detalle | Refund visible |
+| SMK-09 | Entrar a `/dashboard/checks` | Carga listado/resumen/filtros |
+| SMK-10 | Emitir cheque manual | Alta exitosa en estado `ISSUED` |
+| SMK-11 | Ver detalle de cheque | Datos completos + trazabilidad |
+| SMK-12 | Marcar cheque como cobrado | Estado `CLEARED` + movimiento financiero |
 
 ---
 
@@ -458,17 +482,168 @@ Si seguís este plan completo, vas a cubrir flujo feliz, errores, bordes y regre
 **Esperado**
 - Se muestran todas las devoluciones con monto, fecha y métodos.
 
+## G. Cheques (FS-118)
+
+### TC-CHK-001: Acceso a listado de cheques
+
+**Prioridad:** Crítica
+
+**Pasos**
+1. Login con usuario admin.
+2. Ir a `/dashboard/checks`.
+
+**Esperado**
+- Carga la pantalla con header, resumen, filtros y listado.
+- Layout centrado consistente con el resto de módulos.
+
+### TC-CHK-002: Alta operativa manual exitosa
+
+**Prioridad:** Crítica
+
+**Pasos**
+1. Ir a `/dashboard/checks/new`.
+2. Completar: cuenta `BANK`, `checkNumber`, monto, moneda, vencimiento, librador/tercero.
+3. Confirmar alta.
+
+**Esperado**
+- Alta exitosa.
+- Redirección a detalle del cheque.
+- Estado inicial `ISSUED`.
+
+### TC-CHK-003: Validación de campos obligatorios en alta
+
+**Pasos**
+1. Intentar emitir cheque sin completar uno o más obligatorios.
+
+**Esperado**
+- No permite confirmar.
+- Mensajes de validación visibles y claros.
+
+### TC-CHK-004: Duplicado de número de cheque
+
+**Pasos**
+1. Emitir cheque con `CHK-0001`.
+2. Intentar emitir otro con el mismo número.
+
+**Esperado**
+- Error de negocio (`CHECK_NUMBER_EXISTS` o equivalente).
+- No se crea el segundo cheque.
+
+### TC-CHK-005: Permiso sin `checks:read`
+
+**Pasos**
+1. Login con usuario sin `checks:read`.
+2. Intentar abrir `/dashboard/checks`.
+
+**Esperado**
+- Acceso denegado o redirección controlada.
+
+### TC-CHK-006: Permiso sin `checks:manage`
+
+**Pasos**
+1. Login con usuario con `checks:read` pero sin `checks:manage`.
+2. Entrar a `/dashboard/checks`.
+3. Intentar navegar a `/dashboard/checks/new`.
+
+**Esperado**
+- Puede consultar listado/detalle.
+- No puede emitir ni ejecutar acciones de gestión.
+
+### TC-CHK-007: Visibilidad en listado, resumen y detalle
+
+**Pasos**
+1. Emitir cheque nuevo.
+2. Verificarlo en:
+   - listado `/dashboard/checks`
+   - resumen de pendientes
+   - detalle `/dashboard/checks/:id`
+
+**Esperado**
+- El cheque aparece correctamente en las tres vistas.
+
+### TC-CHK-008: Filtros por estado y cuenta
+
+**Pasos**
+1. Crear al menos 2 cheques con estados/cuentas distintas.
+2. Aplicar filtro por estado.
+3. Aplicar filtro por cuenta bancaria.
+
+**Esperado**
+- El resultado respeta los filtros seleccionados.
+
+### TC-CHK-009: Ciclo de vida - cobrado
+
+**Pasos**
+1. Abrir detalle de un cheque `ISSUED`.
+2. Ejecutar acción "Marcar cobrado".
+
+**Esperado**
+- Estado cambia a `CLEARED`.
+- Se registra movimiento financiero (`CHECK_CLEARED`).
+- Balance de cuenta bancaria disminuye.
+
+### TC-CHK-010: Ciclo de vida - rebotado / cancelado
+
+**Pasos**
+1. Sobre cheque `ISSUED`, ejecutar "Marcar rebotado" con motivo.
+2. Sobre otro cheque `ISSUED`, ejecutar "Cancelar cheque" con motivo.
+
+**Esperado**
+- Estados finales `BOUNCED` y `CANCELLED`.
+- Motivo queda trazado en notas/auditoría.
+
+### TC-CHK-011: Restricción de transiciones inválidas
+
+**Pasos**
+1. Tomar cheque ya `CLEARED`.
+2. Intentar volver a cobrar/cancelar desde UI o API.
+
+**Esperado**
+- Operación bloqueada por regla de estado.
+
+### TC-CHK-012: Integración desde Compras (pago inicial CHECK)
+
+**Pasos**
+1. Crear compra con pago inicial por `CHECK`.
+2. Cargar `checkNumber` y cuenta bancaria.
+
+**Esperado**
+- Se registra cheque `ISSUED` asociado al pago/compra.
+- Aparece en módulo de cheques.
+
+### TC-CHK-013: Integración desde Cuentas por Pagar (pago CHECK)
+
+**Pasos**
+1. Ir a `/dashboard/payables`.
+2. Registrar pago con método `CHECK`.
+3. Completar cuenta bancaria y número de cheque.
+
+**Esperado**
+- El pago se registra correctamente.
+- Se crea cheque asociado y visible en `/dashboard/checks`.
+
+### TC-CHK-014: Auditoría de alta y cambios de estado
+
+**Pasos**
+1. Emitir cheque.
+2. Cambiar estado (clear/bounce/cancel).
+3. Revisar auditoría.
+
+**Esperado**
+- Se registra evento de creación (`check_register`).
+- Se registran eventos de actualización con estado anterior/nuevo.
+
 ---
 
 ## 8. Matriz de regresión
 
 ## 8.1 Regresión rápida (antes de merge)
 
-Ejecutar: `SMK-01..08`, `TC-RFD-001`, `TC-RFD-003`, `TC-IMP-001`, `TC-IMP-002`, `TC-AUD-001`.
+Ejecutar: `SMK-01..12`, `TC-RFD-001`, `TC-RFD-003`, `TC-IMP-001`, `TC-IMP-002`, `TC-AUD-001`, `TC-CHK-001`, `TC-CHK-002`, `TC-CHK-009`, `TC-CHK-013`.
 
 ### 8.2 Regresión completa (release)
 
-Ejecutar todos los casos `TC-ARCA-*`, `TC-FISC-*`, `TC-SALES-*`, `TC-RFD-*`, `TC-IMP-*`, `TC-AUD-*`.
+Ejecutar todos los casos `TC-ARCA-*`, `TC-FISC-*`, `TC-SALES-*`, `TC-RFD-*`, `TC-IMP-*`, `TC-AUD-*`, `TC-CHK-*`.
 
 ---
 
@@ -484,6 +659,10 @@ Ejecutar todos los casos `TC-ARCA-*`, `TC-FISC-*`, `TC-SALES-*`, `TC-RFD-*`, `TC
 | SMK-06 | ☐ |  |  |
 | SMK-07 | ☐ |  |  |
 | SMK-08 | ☐ |  |  |
+| SMK-09 | ☐ |  |  |
+| SMK-10 | ☐ |  |  |
+| SMK-11 | ☐ |  |  |
+| SMK-12 | ☐ |  |  |
 | TC-ARCA-001 | ☐ |  |  |
 | TC-ARCA-002 | ☐ |  |  |
 | TC-ARCA-003 | ☐ |  |  |
@@ -516,6 +695,20 @@ Ejecutar todos los casos `TC-ARCA-*`, `TC-FISC-*`, `TC-SALES-*`, `TC-RFD-*`, `TC
 | TC-IMP-006 | ☐ |  |  |
 | TC-AUD-001 | ☐ |  |  |
 | TC-AUD-002 | ☐ |  |  |
+| TC-CHK-001 | ☐ |  |  |
+| TC-CHK-002 | ☐ |  |  |
+| TC-CHK-003 | ☐ |  |  |
+| TC-CHK-004 | ☐ |  |  |
+| TC-CHK-005 | ☐ |  |  |
+| TC-CHK-006 | ☐ |  |  |
+| TC-CHK-007 | ☐ |  |  |
+| TC-CHK-008 | ☐ |  |  |
+| TC-CHK-009 | ☐ |  |  |
+| TC-CHK-010 | ☐ |  |  |
+| TC-CHK-011 | ☐ |  |  |
+| TC-CHK-012 | ☐ |  |  |
+| TC-CHK-013 | ☐ |  |  |
+| TC-CHK-014 | ☐ |  |  |
 
 ---
 
@@ -545,4 +738,11 @@ Ejecutar todos los casos `TC-ARCA-*`, `TC-FISC-*`, `TC-SALES-*`, `TC-RFD-*`, `TC
 - `ferresaas-web/app/dashboard/sales/page.tsx`
 - `ferresaas-web/app/dashboard/sales/[id]/page.tsx`
 - `ferresaas-web/components/sales/refund-modal.tsx`
+- `ferresaas-api/src/routes/checks.routes.ts`
+- `ferresaas-api/src/routes/checks.schemas.ts`
+- `ferresaas-api/src/services/check.service.ts`
+- `ferresaas-web/app/dashboard/checks/page.tsx`
+- `ferresaas-web/app/dashboard/checks/new/page.tsx`
+- `ferresaas-web/app/dashboard/checks/[id]/page.tsx`
+- `ferresaas-web/app/dashboard/payables/page.tsx`
 - `docs/arca-homologacion-credenciales-paso-a-paso.md`
