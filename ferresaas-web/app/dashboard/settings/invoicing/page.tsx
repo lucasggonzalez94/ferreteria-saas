@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Table,
   TableBody,
@@ -34,10 +35,23 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import {
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUS_STYLES,
+  type InvoiceStatus,
+} from "@/lib/invoice-status";
 
 type InvoiceProvider = "mock" | "facturante" | "arca_direct";
 type JobStatus = "PENDING" | "PROCESSING" | "RETRYING" | "COMPLETED" | "FAILED";
-type DatePreset = "all" | "today" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
+type SaleInvoiceStatus = "PENDING_INVOICE" | "INVOICED" | "FAILED";
+type DatePreset =
+  | "all"
+  | "today"
+  | "last_7_days"
+  | "last_30_days"
+  | "this_month"
+  | "last_month"
+  | "custom";
 
 interface BusinessInvoicingData {
   id: string;
@@ -67,9 +81,14 @@ interface InvoiceJobItem {
   updatedAt: string;
   sale: {
     id: string;
-    invoiceStatus: string;
+    invoiceStatus: SaleInvoiceStatus;
     total: number;
   };
+}
+
+interface InvoiceListItem {
+  id: string;
+  status: "PENDING" | "ISSUED" | "FAILED";
 }
 
 interface InvoiceJobStats {
@@ -103,6 +122,12 @@ const STATUS_BADGE_CLASS: Record<JobStatus, string> = {
   FAILED: "bg-red-100 text-red-700",
 };
 
+const SALE_INVOICE_STATUS_MAP: Record<SaleInvoiceStatus, InvoiceStatus> = {
+  PENDING_INVOICE: "PENDING",
+  INVOICED: "ISSUED",
+  FAILED: "FAILED",
+};
+
 const PROVIDER_LABELS: Record<InvoiceProvider, string> = {
   mock: "Mock",
   facturante: "Facturante",
@@ -116,29 +141,44 @@ function formatDateInput(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getDatePresetRange(preset: DatePreset): { startDate: string; endDate: string } {
+function getDatePresetRange(preset: DatePreset): {
+  startDate: string;
+  endDate: string;
+} {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   if (preset === "today") {
-    return { startDate: formatDateInput(today), endDate: formatDateInput(today) };
+    return {
+      startDate: formatDateInput(today),
+      endDate: formatDateInput(today),
+    };
   }
 
   if (preset === "last_7_days") {
     const start = new Date(today);
     start.setDate(start.getDate() - 6);
-    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
   }
 
   if (preset === "last_30_days") {
     const start = new Date(today);
     start.setDate(start.getDate() - 29);
-    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
   }
 
   if (preset === "this_month") {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { startDate: formatDateInput(start), endDate: formatDateInput(today) };
+    return {
+      startDate: formatDateInput(start),
+      endDate: formatDateInput(today),
+    };
   }
 
   if (preset === "last_month") {
@@ -172,7 +212,9 @@ export default function InvoicingSettingsPage() {
   const showMockMetrics = process.env.NODE_ENV !== "production";
 
   const [pointOfSale, setPointOfSale] = useState("1");
-  const [jobStatusFilter, setJobStatusFilter] = useState<JobStatus | "all">("all");
+  const [jobStatusFilter, setJobStatusFilter] = useState<JobStatus | "all">(
+    "all",
+  );
   const [jobDatePreset, setJobDatePreset] = useState<DatePreset>("all");
   const [jobStartDate, setJobStartDate] = useState("");
   const [jobEndDate, setJobEndDate] = useState("");
@@ -199,21 +241,26 @@ export default function InvoicingSettingsPage() {
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["invoice-jobs", "stats"],
     queryFn: async () => {
-      const response = await api.get<InvoiceJobStats>("/sales/invoice-jobs/stats");
+      const response = await api.get<InvoiceJobStats>(
+        "/sales/invoice-jobs/stats",
+      );
       return response.data!;
     },
     enabled: Boolean(canReadSettings && canReadSales),
     refetchInterval: 15000,
   });
 
-  const { data: arcaCredentialsData, isLoading: arcaCredentialsLoading } = useQuery({
-    queryKey: ["business", "invoicing", "arca-credentials"],
-    queryFn: async () => {
-      const response = await api.get<ArcaCredentialsMetadata>("/business/invoicing/arca-credentials");
-      return response.data!;
-    },
-    enabled: Boolean(canReadSettings),
-  });
+  const { data: arcaCredentialsData, isLoading: arcaCredentialsLoading } =
+    useQuery({
+      queryKey: ["business", "invoicing", "arca-credentials"],
+      queryFn: async () => {
+        const response = await api.get<ArcaCredentialsMetadata>(
+          "/business/invoicing/arca-credentials",
+        );
+        return response.data!;
+      },
+      enabled: Boolean(canReadSettings),
+    });
 
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
     queryKey: ["invoice-jobs", jobStatusFilter, jobStartDate, jobEndDate],
@@ -252,8 +299,14 @@ export default function InvoicingSettingsPage() {
   }, [arcaCredentialsData]);
 
   const updateBusinessMutation = useMutation({
-    mutationFn: async (payload: { invoiceProvider: "arca_direct"; invoicePointOfSale: number }) => {
-      const response = await api.patch<BusinessInvoicingData>("/business", payload);
+    mutationFn: async (payload: {
+      invoiceProvider: "arca_direct";
+      invoicePointOfSale: number;
+    }) => {
+      const response = await api.patch<BusinessInvoicingData>(
+        "/business",
+        payload,
+      );
       return response.data!;
     },
     onSuccess: (updated) => {
@@ -261,7 +314,10 @@ export default function InvoicingSettingsPage() {
       toast.success("Configuración de facturación actualizada");
     },
     onError: (error: any) => {
-      toast.error(error.message || "No se pudo actualizar la configuración de facturación");
+      toast.error(
+        error.message ||
+          "No se pudo actualizar la configuración de facturación",
+      );
     },
   });
 
@@ -285,15 +341,18 @@ export default function InvoicingSettingsPage() {
       }
 
       const hasStoredCertificateMaterial = Boolean(
-        arcaCredentialsData?.hasCertificatePem && arcaCredentialsData?.hasPrivateKeyPem
+        arcaCredentialsData?.hasCertificatePem &&
+        arcaCredentialsData?.hasPrivateKeyPem,
       );
 
       const hasProvidedCertificateMaterial = Boolean(
-        arcaCertificatePem.trim() && arcaPrivateKeyPem.trim()
+        arcaCertificatePem.trim() && arcaPrivateKeyPem.trim(),
       );
 
       if (!hasStoredCertificateMaterial && !hasProvidedCertificateMaterial) {
-        throw new Error("Debés cargar certificado y clave privada de ARCA para habilitar la emisión")
+        throw new Error(
+          "Debés cargar certificado y clave privada de ARCA para habilitar la emisión",
+        );
       }
 
       const payload = {
@@ -303,33 +362,99 @@ export default function InvoicingSettingsPage() {
         isEnabled: arcaEnabled,
       };
 
-      const response = await api.patch("/business/invoicing/arca-credentials", payload);
+      const response = await api.patch(
+        "/business/invoicing/arca-credentials",
+        payload,
+      );
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business", "invoicing", "arca-credentials"] });
+      queryClient.invalidateQueries({
+        queryKey: ["business", "invoicing", "arca-credentials"],
+      });
       setArcaCertificatePem("");
       setArcaPrivateKeyPem("");
       toast.success("Configuración ARCA guardada correctamente");
     },
     onError: (error: any) => {
-      toast.error(error.message || "No se pudieron guardar las credenciales ARCA");
+      toast.error(
+        error.message || "No se pudieron guardar las credenciales ARCA",
+      );
     },
   });
 
   const refreshArcaCredentialsMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post("/business/invoicing/arca-credentials/refresh", { force: true });
+      const response = await api.post(
+        "/business/invoicing/arca-credentials/refresh",
+        { force: true },
+      );
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business", "invoicing", "arca-credentials"] });
+      queryClient.invalidateQueries({
+        queryKey: ["business", "invoicing", "arca-credentials"],
+      });
       toast.success("Token/Sign renovados con WSAA");
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo renovar Token/Sign con WSAA");
     },
   });
+
+  const getInvoiceBySaleId = async (saleId: string) => {
+    const response = await api.get<InvoiceListItem[]>("/sales/invoices", {
+      params: {
+        saleId,
+        page: 1,
+        limit: 1,
+      },
+    });
+
+    return (response.data || [])[0] || null;
+  };
+
+  const handleViewInvoiceDetail = async (job: InvoiceJobItem) => {
+    try {
+      const invoice = await getInvoiceBySaleId(job.saleId);
+      if (!invoice) {
+        toast.error("No se encontró un comprobante asociado a esta venta");
+        return;
+      }
+
+      router.push(`/dashboard/invoices/${invoice.id}`);
+    } catch (error: any) {
+      toast.error(
+        error.message || "No se pudo abrir el detalle del comprobante",
+      );
+    }
+  };
+
+  const handleDownloadPdf = async (job: InvoiceJobItem) => {
+    try {
+      const invoice = await getInvoiceBySaleId(job.saleId);
+      if (!invoice) {
+        toast.error("No se encontró un comprobante para descargar");
+        return;
+      }
+
+      if (invoice.status !== "ISSUED") {
+        toast.error("El comprobante todavía no está emitido");
+        return;
+      }
+
+      const blob = await api.getBlob(
+        `/sales/${job.saleId}/invoices/${invoice.id}/pdf`,
+      );
+      const url = URL.createObjectURL(blob);
+      const newWindow = window.open(url, "_blank");
+      if (!newWindow) {
+        toast.error("No se pudo abrir el PDF. Revisá bloqueador de popups.");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo descargar el PDF");
+    }
+  };
 
   const providerBreakdown = useMemo(() => {
     const map = new Map<string, number>();
@@ -417,7 +542,9 @@ export default function InvoicingSettingsPage() {
             <div className="flex items-end">
               <Button
                 onClick={handleSave}
-                disabled={!canUpdateSettings || updateBusinessMutation.isPending}
+                disabled={
+                  !canUpdateSettings || updateBusinessMutation.isPending
+                }
               >
                 Guardar configuración
               </Button>
@@ -451,7 +578,11 @@ export default function InvoicingSettingsPage() {
                     Si se desactiva, no se usarán para emitir con ARCA Direct.
                   </p>
                 </div>
-                <Switch id="arca-enabled" checked={arcaEnabled} onCheckedChange={setArcaEnabled} />
+                <Switch
+                  id="arca-enabled"
+                  checked={arcaEnabled}
+                  onCheckedChange={setArcaEnabled}
+                />
               </div>
 
               <div className="space-y-2 md:col-span-2">
@@ -459,7 +590,9 @@ export default function InvoicingSettingsPage() {
                 <Textarea
                   id="arca-cert"
                   value={arcaCertificatePem}
-                  onChange={(event) => setArcaCertificatePem(event.target.value)}
+                  onChange={(event) =>
+                    setArcaCertificatePem(event.target.value)
+                  }
                   placeholder="-----BEGIN CERTIFICATE----- ..."
                   rows={5}
                 />
@@ -483,16 +616,20 @@ export default function InvoicingSettingsPage() {
               ) : (
                 <div className="grid gap-1 md:grid-cols-2">
                   <p>
-                    <strong>Configurado:</strong> {arcaCredentialsData?.configured ? "Sí" : "No"}
+                    <strong>Configurado:</strong>{" "}
+                    {arcaCredentialsData?.configured ? "Sí" : "No"}
                   </p>
                   <p>
-                    <strong>Habilitado:</strong> {arcaCredentialsData?.isEnabled ? "Sí" : "No"}
+                    <strong>Habilitado:</strong>{" "}
+                    {arcaCredentialsData?.isEnabled ? "Sí" : "No"}
                   </p>
                   <p>
-                    <strong>Certificado cargado:</strong> {arcaCredentialsData?.hasCertificatePem ? "Sí" : "No"}
+                    <strong>Certificado cargado:</strong>{" "}
+                    {arcaCredentialsData?.hasCertificatePem ? "Sí" : "No"}
                   </p>
                   <p>
-                    <strong>Clave privada cargada:</strong> {arcaCredentialsData?.hasPrivateKeyPem ? "Sí" : "No"}
+                    <strong>Clave privada cargada:</strong>{" "}
+                    {arcaCredentialsData?.hasPrivateKeyPem ? "Sí" : "No"}
                   </p>
                   <p>
                     <strong>Vencimiento token:</strong>{" "}
@@ -502,7 +639,9 @@ export default function InvoicingSettingsPage() {
                   </p>
                   <p>
                     <strong>Última actualización:</strong>{" "}
-                    {arcaCredentialsData?.updatedAt ? formatDate(arcaCredentialsData.updatedAt) : "-"}
+                    {arcaCredentialsData?.updatedAt
+                      ? formatDate(arcaCredentialsData.updatedAt)
+                      : "-"}
                   </p>
                 </div>
               )}
@@ -511,7 +650,9 @@ export default function InvoicingSettingsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 onClick={() => updateArcaCredentialsMutation.mutate()}
-                disabled={!canUpdateSettings || updateArcaCredentialsMutation.isPending}
+                disabled={
+                  !canUpdateSettings || updateArcaCredentialsMutation.isPending
+                }
               >
                 Guardar configuración ARCA
               </Button>
@@ -519,7 +660,9 @@ export default function InvoicingSettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => refreshArcaCredentialsMutation.mutate()}
-                disabled={!canUpdateSettings || refreshArcaCredentialsMutation.isPending}
+                disabled={
+                  !canUpdateSettings || refreshArcaCredentialsMutation.isPending
+                }
               >
                 Renovar Token/Sign WSAA
               </Button>
@@ -533,37 +676,49 @@ export default function InvoicingSettingsPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Pendientes</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.pending || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.pending || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Reintentando</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.retrying || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.retrying || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Procesando</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.processing || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.processing || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Fallidos</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.failed || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.failed || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Completados</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.completed || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.completed || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Listos para correr</CardDescription>
-                  <CardTitle>{statsLoading ? "-" : statsData?.jobs.readyToProcess || 0}</CardTitle>
+                  <CardTitle>
+                    {statsLoading ? "-" : statsData?.jobs.readyToProcess || 0}
+                  </CardTitle>
                 </CardHeader>
               </Card>
             </div>
@@ -579,7 +734,9 @@ export default function InvoicingSettingsPage() {
                 <div className="grid w-full gap-3 md:grid-cols-4">
                   <Select
                     value={jobStatusFilter}
-                    onValueChange={(value) => setJobStatusFilter(value as JobStatus | "all")}
+                    onValueChange={(value) =>
+                      setJobStatusFilter(value as JobStatus | "all")
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -596,7 +753,9 @@ export default function InvoicingSettingsPage() {
 
                   <Select
                     value={jobDatePreset}
-                    onValueChange={(value) => handleJobPresetChange(value as DatePreset)}
+                    onValueChange={(value) =>
+                      handleJobPresetChange(value as DatePreset)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -604,11 +763,17 @@ export default function InvoicingSettingsPage() {
                     <SelectContent>
                       <SelectItem value="all">Todo el historial</SelectItem>
                       <SelectItem value="today">Hoy</SelectItem>
-                      <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
-                      <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
+                      <SelectItem value="last_7_days">
+                        Últimos 7 días
+                      </SelectItem>
+                      <SelectItem value="last_30_days">
+                        Últimos 30 días
+                      </SelectItem>
                       <SelectItem value="this_month">Mes actual</SelectItem>
                       <SelectItem value="last_month">Mes anterior</SelectItem>
-                      <SelectItem value="custom">Rango personalizado</SelectItem>
+                      <SelectItem value="custom">
+                        Rango personalizado
+                      </SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -633,15 +798,20 @@ export default function InvoicingSettingsPage() {
               </CardHeader>
               <CardContent>
                 {jobsLoading ? (
-                  <p className="text-sm text-muted-foreground">Cargando jobs...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Cargando jobs...
+                  </p>
                 ) : (jobsData?.length || 0) === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hay jobs para el filtro seleccionado.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No hay jobs para el filtro seleccionado.
+                  </p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Venta</TableHead>
-                        <TableHead>Estado</TableHead>
+                        <TableHead>Estado de emisión</TableHead>
+                        <TableHead>Estado comprobante</TableHead>
                         <TableHead>Intentos</TableHead>
                         <TableHead>Próximo reintento</TableHead>
                         <TableHead>Error</TableHead>
@@ -653,7 +823,9 @@ export default function InvoicingSettingsPage() {
                         <TableRow key={job.id}>
                           <TableCell>
                             <div className="font-medium">{job.saleId}</div>
-                            <div className="text-xs text-muted-foreground">Comprobante {job.voucherType}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Comprobante {job.voucherType}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span
@@ -663,21 +835,61 @@ export default function InvoicingSettingsPage() {
                             </span>
                           </TableCell>
                           <TableCell>
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                INVOICE_STATUS_STYLES[
+                                  SALE_INVOICE_STATUS_MAP[
+                                    job.sale.invoiceStatus
+                                  ]
+                                ]
+                              }`}
+                            >
+                              {
+                                INVOICE_STATUS_LABELS[
+                                  SALE_INVOICE_STATUS_MAP[
+                                    job.sale.invoiceStatus
+                                  ]
+                                ]
+                              }
+                            </span>
+                          </TableCell>
+                          <TableCell>
                             {job.attempts}/{job.maxAttempts}
                           </TableCell>
                           <TableCell>{formatDate(job.nextRetryAt)}</TableCell>
-                          <TableCell className="max-w-[280px] truncate" title={job.lastError || "-"}>
+                          <TableCell
+                            className="max-w-[280px] truncate"
+                            title={job.lastError || "-"}
+                          >
                             {job.lastError || "-"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!canManageSales || retryJobMutation.isPending || job.status === "PROCESSING"}
-                              onClick={() => retryJobMutation.mutate(job.id)}
-                            >
-                              Reintentar
-                            </Button>
+                            <ActionsMenu
+                              actions={[
+                                {
+                                  label: "Ver detalle",
+                                  onClick: () => handleViewInvoiceDetail(job),
+                                },
+                                ...(job.sale.invoiceStatus === "INVOICED"
+                                  ? [
+                                      {
+                                        label: "Descargar PDF",
+                                        onClick: () => handleDownloadPdf(job),
+                                      },
+                                    ]
+                                  : []),
+                                ...(job.status === "FAILED" && canManageSales
+                                  ? [
+                                      {
+                                        label: "Reintentar",
+                                        onClick: () =>
+                                          retryJobMutation.mutate(job.id),
+                                        disabled: retryJobMutation.isPending,
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -690,7 +902,8 @@ export default function InvoicingSettingsPage() {
         ) : (
           <Card>
             <CardContent className="pt-6 text-sm text-muted-foreground">
-              Tu usuario no tiene permiso `sales:read`, por eso no se muestran métricas ni cola de facturación.
+              Tu usuario no tiene permiso `sales:read`, por eso no se muestran
+              métricas ni cola de facturación.
             </CardContent>
           </Card>
         )}

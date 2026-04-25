@@ -97,6 +97,7 @@ jest.mock('@/providers/invoice/provider-resolver', () => ({
 }));
 
 import { SaleService } from '@/services/sale.service';
+import { CloudinaryService } from '@/services/cloudinary.service';
 
 describe('SaleService create/confirm/refund', () => {
   let service: SaleService;
@@ -162,6 +163,39 @@ describe('SaleService create/confirm/refund', () => {
     expect(mockAuditService.logCreate).toHaveBeenCalled();
     expect(getByIdSpy).toHaveBeenCalledWith('biz-1', 'sale-1');
     expect(result).toEqual({ id: 'sale-1' });
+  });
+
+  it('create rechaza cliente/producto de otro negocio y producto inexistente', async () => {
+    mockPrisma.customer.findUnique.mockResolvedValue({ id: 'cust-1', businessId: 'other-biz' });
+
+    await expect(
+      service.create('biz-1', 'user-1', {
+        customerId: 'cust-1',
+        items: [{ productId: 'prod-1', quantity: 1, unitPrice: 100, taxRate: 21 }],
+      })
+    ).rejects.toThrow('Access denied');
+
+    mockPrisma.customer.findUnique.mockResolvedValue({ id: 'cust-1', businessId: 'biz-1' });
+    mockPrisma.product.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.create('biz-1', 'user-1', {
+        customerId: 'cust-1',
+        items: [{ productId: 'prod-1', quantity: 1, unitPrice: 100, taxRate: 21 }],
+      })
+    ).rejects.toThrow('Product prod-1 not found');
+
+    mockPrisma.product.findUnique.mockResolvedValue({
+      id: 'prod-1',
+      businessId: 'other-biz',
+      isActive: true,
+    });
+    await expect(
+      service.create('biz-1', 'user-1', {
+        customerId: 'cust-1',
+        items: [{ productId: 'prod-1', quantity: 1, unitPrice: 100, taxRate: 21 }],
+      })
+    ).rejects.toThrow('Access denied');
   });
 
   it('confirm rechaza pagos insuficientes', async () => {
@@ -241,6 +275,80 @@ describe('SaleService create/confirm/refund', () => {
     );
     expect(getByIdSpy).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ id: 'sale-1', status: 'CONFIRMED' });
+  });
+
+  it('confirm cubre USD, cuenta corriente, ajuste de vuelto y warning de facturacion', async () => {
+    const sale = {
+      id: 'sale-2',
+      status: 'DRAFT',
+      total: n(200),
+      items: [{ productId: 'prod-1', quantity: n(1) }],
+      customerId: 'cust-1',
+    };
+    const getByIdSpy = jest
+      .spyOn(service, 'getById')
+      .mockResolvedValueOnce(sale as any)
+      .mockResolvedValueOnce({ id: 'sale-2', status: 'CONFIRMED' } as any);
+    const enqueueSpy = jest.spyOn(service as any, 'enqueueInvoiceJob').mockResolvedValue({ id: 'job-2' });
+    const processSpy = jest
+      .spyOn(service, 'processPendingInvoiceJobs')
+      .mockRejectedValue(new Error('provider down'));
+
+    mockPrisma.cashRegisterSession.findFirst.mockResolvedValue({ id: 'cr-1', status: 'OPEN' });
+    mockGetAccountTypeByPaymentMethod.mockReturnValue('BANK');
+    mockGetRate.mockResolvedValue({ rate: 1000, source: 'dolarapi' });
+
+    const tx = {
+      sale: {
+        update: (jest.fn() as any).mockResolvedValue({ id: 'sale-2' }),
+      },
+      payment: {
+        create: (jest.fn() as any).mockResolvedValue({ id: 'pay-2' }),
+      },
+      financialAccount: {
+        findFirst: (jest.fn() as any).mockResolvedValue({ id: 'acc-bank', balance: n(1000) }),
+        update: (jest.fn() as any).mockResolvedValue({ id: 'acc-bank' }),
+      },
+      financialMovement: {
+        create: (jest.fn() as any).mockResolvedValue({ id: 'fm-2' }),
+      },
+      customer: {
+        findUnique: (jest.fn() as any).mockResolvedValue({ id: 'cust-1', currentBalance: n(300) }),
+        update: (jest.fn() as any).mockResolvedValue({ id: 'cust-1' }),
+      },
+      accountMovement: {
+        create: (jest.fn() as any).mockResolvedValue({ id: 'am-2' }),
+      },
+      cashMovement: {
+        create: (jest.fn() as any).mockResolvedValue({ id: 'cm-2' }),
+      },
+      exchangeRateSnapshot: {
+        create: (jest.fn() as any).mockResolvedValue({ id: 'fx-2' }),
+      },
+    };
+    mockPrisma.$transaction.mockImplementation(async (cb: any) => cb(tx));
+
+    const result = await service.confirm('biz-1', 'user-1', 'sale-2', {
+      payments: [
+        { method: 'CASH_USD', amount: 200, amountUSD: 1 },
+        { method: 'ACCOUNT', amount: 20 },
+      ],
+      changeGiven: 25,
+      invoiceType: 'A',
+    });
+
+    expect(tx.exchangeRateSnapshot.create).toHaveBeenCalled();
+    expect(tx.accountMovement.create).toHaveBeenCalledTimes(2);
+    expect(tx.customer.update).toHaveBeenCalledWith({
+      where: { id: 'cust-1' },
+      data: { currentBalance: 420 },
+    });
+    expect(tx.cashMovement.create).toHaveBeenCalled();
+    expect(enqueueSpy).toHaveBeenCalledWith('biz-1', 'sale-2', 'A');
+    expect(processSpy).toHaveBeenCalledWith(1);
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(getByIdSpy).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ id: 'sale-2', status: 'CONFIRMED' });
   });
 
   it('refund valida venta confirmada y distribucion de pagos', async () => {
@@ -656,5 +764,111 @@ describe('SaleService create/confirm/refund', () => {
       data: { invoiceStatus: 'INVOICED' },
     });
     expect(out.success).toBe(true);
+  });
+
+  it('generateAndStoreInvoicePdf valida negocio/invoice y guarda URL al subir', async () => {
+    (service as any).invoicePdfService = {
+      generateInvoicePdf: (jest.fn() as any).mockResolvedValue(Buffer.from('pdf-binary')),
+    };
+    mockPrisma.business.findUnique.mockResolvedValue(null);
+
+    await expect(
+      (service as any).generateAndStoreInvoicePdf('biz-1', { invoices: [] }, 'inv-x')
+    ).rejects.toThrow('Business not found');
+
+    mockPrisma.business.findUnique.mockResolvedValue({ name: 'Ferreteria', cuit: null });
+    await expect(
+      (service as any).generateAndStoreInvoicePdf('biz-1', { invoices: [] }, 'inv-x')
+    ).rejects.toThrow('Invoice not found');
+
+    const sale = {
+      id: 'sale-1',
+      createdAt: new Date(),
+      subtotal: n(100),
+      taxAmount: n(21),
+      total: n(121),
+      customer: null,
+      items: [
+        {
+          quantity: n(1),
+          unitPrice: n(100),
+          subtotal: n(121),
+          taxRate: n(21),
+          product: { name: 'Martillo' },
+        },
+      ],
+      invoices: [
+        {
+          id: 'inv-10',
+          voucherType: 'A',
+          pointOfSale: 1,
+          number: 100,
+          relatedInvoiceId: null,
+          adjustmentKind: null,
+          adjustmentReason: null,
+          cae: '123',
+          caeExpiry: new Date(),
+          issuedAt: new Date(),
+        },
+      ],
+    };
+
+    (CloudinaryService.uploadPdfBuffer as any).mockResolvedValue({ secure_url: 'https://cdn/inv-10.pdf' });
+    mockPrisma.invoice.update.mockResolvedValue({ id: 'inv-10' });
+
+    const out = await (service as any).generateAndStoreInvoicePdf('biz-1', sale, 'inv-10');
+    expect(out.pdfUrl).toBe('https://cdn/inv-10.pdf');
+    expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+      where: { id: 'inv-10' },
+      data: { pdfUrl: 'https://cdn/inv-10.pdf' },
+    });
+  });
+
+  it('generateAndStoreInvoicePdf soporta falla de Cloudinary sin romper', async () => {
+    (service as any).invoicePdfService = {
+      generateInvoicePdf: (jest.fn() as any).mockResolvedValue(Buffer.from('pdf-binary')),
+    };
+    mockPrisma.business.findUnique.mockResolvedValue({ name: 'Ferreteria', cuit: null });
+
+    const sale = {
+      id: 'sale-1',
+      createdAt: new Date(),
+      subtotal: n(100),
+      taxAmount: n(21),
+      total: n(121),
+      customer: null,
+      items: [
+        {
+          quantity: n(1),
+          unitPrice: n(100),
+          subtotal: n(121),
+          taxRate: n(21),
+          product: { name: 'Martillo' },
+        },
+      ],
+      invoices: [
+        {
+          id: 'inv-11',
+          voucherType: 'A',
+          pointOfSale: 1,
+          number: 101,
+          relatedInvoiceId: null,
+          adjustmentKind: null,
+          adjustmentReason: null,
+          cae: '123',
+          caeExpiry: new Date(),
+          issuedAt: new Date(),
+        },
+      ],
+    };
+
+    (CloudinaryService.uploadPdfBuffer as any).mockRejectedValue(new Error('upload error'));
+
+    const out = await (service as any).generateAndStoreInvoicePdf('biz-1', sale, 'inv-11');
+    expect(out.pdfUrl).toBeNull();
+    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(mockPrisma.invoice.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'inv-11' } })
+    );
   });
 });

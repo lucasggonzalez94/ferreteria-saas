@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Table,
   TableBody,
@@ -31,8 +32,11 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-
-type InvoiceStatus = "PENDING" | "ISSUED" | "FAILED";
+import {
+  InvoiceStatus,
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUS_STYLES,
+} from "@/lib/invoice-status";
 type VoucherType = "A" | "B" | "C" | "NC_A" | "NC_B" | "NC_C" | "ND_A" | "ND_B" | "ND_C";
 type DatePreset = "all" | "today" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
 
@@ -61,12 +65,6 @@ interface InvoiceListItem {
     } | null;
   };
 }
-
-const STATUS_STYLES: Record<InvoiceStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-700",
-  ISSUED: "bg-emerald-100 text-emerald-700",
-  FAILED: "bg-red-100 text-red-700",
-};
 
 function customerName(invoice: InvoiceListItem): string {
   const customer = invoice.sale.customer;
@@ -143,6 +141,7 @@ function toEndDateIso(dateValue?: string): string | undefined {
 }
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [status, setStatus] = useState<InvoiceStatus | "all">("all");
   const [voucherType, setVoucherType] = useState<VoucherType | "all">("all");
@@ -392,9 +391,9 @@ export default function InvoicesPage() {
                       <TableCell>{customerName(invoice)}</TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[invoice.status]}`}
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${INVOICE_STATUS_STYLES[invoice.status]}`}
                         >
-                          {invoice.status}
+                          {INVOICE_STATUS_LABELS[invoice.status]}
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate" title={invoice.cae || "-"}>
@@ -404,19 +403,19 @@ export default function InvoicesPage() {
                         {new Date(invoice.issuedAt || invoice.createdAt).toLocaleString("es-AR")}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/dashboard/invoices/${invoice.id}`}>Detalle</Link>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={invoice.status !== "ISSUED"}
-                            onClick={() => handleDownloadPdf(invoice)}
-                          >
-                            PDF
-                          </Button>
-                        </div>
+                        <ActionsMenu
+                          actions={[
+                            {
+                              label: "Ver detalle",
+                              onClick: () => router.push(`/dashboard/invoices/${invoice.id}`),
+                            },
+                            {
+                              label: "Descargar PDF",
+                              onClick: () => handleDownloadPdf(invoice),
+                              disabled: invoice.status !== "ISSUED",
+                            },
+                          ]}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

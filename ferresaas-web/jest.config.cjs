@@ -1,22 +1,27 @@
-module.exports = {
-  preset: 'ts-jest',
+const nextJest = require('next/jest');
+
+const createJestConfig = nextJest({
+  dir: './',
+});
+
+const customJestConfig = {
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src', '<rootDir>/lib'],
+  roots: ['<rootDir>/src', '<rootDir>/lib', '<rootDir>/app', '<rootDir>/components'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  transform: {
-    '^.+\.(ts|tsx)$': ['ts-jest', { useBabel: true }],
-  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   collectCoverageFrom: [
-    'src/**/*.ts',
-    'lib/**/*.ts',
-    '!src/test/**/*.ts',
+    'app/**/*.{ts,tsx}',
+    'components/**/*.{ts,tsx}',
+    'src/**/*.{ts,tsx}',
+    'lib/**/*.{ts,tsx}',
+    '!src/test/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!lib/api.ts',
     '!lib/hooks/*.ts',
+    '!**/*.stories.*',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'json', 'html'],
@@ -31,5 +36,7 @@ module.exports = {
   testTimeout: 10000,
   verbose: true,
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
-  testPathIgnorePatterns: ['/node_modules/', '/components/'],
+  testPathIgnorePatterns: ['/node_modules/'],
 };
+
+module.exports = createJestConfig(customJestConfig);
