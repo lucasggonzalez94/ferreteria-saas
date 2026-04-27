@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 
 const mockPush = jest.fn();
 const mockToastSuccess = jest.fn();
+const mockToastError = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -31,7 +32,7 @@ jest.mock('@/components/ui/confirm-dialog', () => ({
 jest.mock('sonner', () => ({
   toast: {
     success: (...args: unknown[]) => mockToastSuccess(...args),
-    error: jest.fn(),
+    error: (...args: unknown[]) => mockToastError(...args),
   },
 }));
 
@@ -160,6 +161,63 @@ describe('dashboard product edit page', () => {
       expect(api.delete).toHaveBeenCalledWith('/products/p-1');
       expect(mockToastSuccess).toHaveBeenCalledWith('Producto eliminado exitosamente');
       expect(mockPush).toHaveBeenCalledWith('/dashboard/products');
+    });
+  });
+
+  it('calculates and applies suggested price', async () => {
+    (api.post as jest.Mock).mockResolvedValue({ data: { suggestedPrice: 189.5 } });
+
+    renderWithQueryClient(<EditProductPage params={{ id: 'p-1' }} />);
+
+    expect(await screen.findByRole('heading', { name: 'Editar Producto', level: 1 })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Costo *'), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText('IVA (%)'), { target: { value: '21' } });
+    fireEvent.change(screen.getByLabelText('Margen (%)'), { target: { value: '30' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Calcular' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/products/calculate-price', {
+        cost: 120,
+        taxRate: 21,
+        marginPercent: 30,
+      });
+      expect(mockToastSuccess).toHaveBeenCalledWith('Precio sugerido: $189.50');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    expect(screen.getByLabelText('Precio de Venta *')).toHaveValue(189.5);
+  });
+
+  it('shows error when suggested price calculation request fails', async () => {
+    (api.post as jest.Mock).mockRejectedValue(new Error('Error al calcular precio'));
+
+    renderWithQueryClient(<EditProductPage params={{ id: 'p-1' }} />);
+
+    expect(await screen.findByRole('heading', { name: 'Editar Producto', level: 1 })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Costo *'), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText('IVA (%)'), { target: { value: '21' } });
+    fireEvent.change(screen.getByLabelText('Margen (%)'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Calcular' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Error al calcular precio');
+    });
+  });
+
+  it('blocks submit when target margin is empty in margin mode', async () => {
+    renderWithQueryClient(<EditProductPage params={{ id: 'p-1' }} />);
+
+    expect(await screen.findByRole('heading', { name: 'Editar Producto', level: 1 })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Margen Objetivo (%)'), { target: { value: '' } });
+
+    fireEvent.submit(screen.getByRole('button', { name: 'Guardar Cambios' }).closest('form') as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Por favor corrige los errores en el formulario');
+      expect(api.put).not.toHaveBeenCalled();
     });
   });
 });

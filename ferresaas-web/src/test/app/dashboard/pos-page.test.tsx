@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 
 const mockPush = jest.fn();
 const mockUsePermissionGuard = jest.fn();
+const mockLoadCart = jest.fn(() => []);
 const mockSaveCart = jest.fn();
 const mockClearCart = jest.fn();
 const mockToastError = jest.fn();
@@ -34,7 +35,7 @@ jest.mock('@/lib/auth-context', () => ({
 
 jest.mock('@/lib/hooks/useCartPersistence', () => ({
   useCartPersistence: () => ({
-    loadCart: () => [],
+    loadCart: (...args: unknown[]) => mockLoadCart(...args),
     saveCart: (...args: unknown[]) => mockSaveCart(...args),
     clearCart: (...args: unknown[]) => mockClearCart(...args),
   }),
@@ -142,6 +143,41 @@ function renderWithQueryClient(ui: React.ReactElement) {
 describe('dashboard pos page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLoadCart.mockReturnValue([]);
+  });
+
+  it('restores persisted cart from session storage hook', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    mockLoadCart.mockReturnValue([
+      {
+        product: {
+          id: 'p-1',
+          name: 'Pinza',
+          price: 100,
+          cost: 70,
+          unit: 'u',
+          stockQuantity: 1,
+          isFractional: false,
+        },
+        quantity: 1,
+        unitPrice: 100,
+        subtotal: 100,
+      },
+    ]);
+
+    renderWithQueryClient(<POSPage />);
+
+    expect(await screen.findByText('Pinza')).toBeInTheDocument();
+    expect(mockToastSuccess).toHaveBeenCalledWith('1 producto(s) recuperado(s) del carrito');
   });
 
   it('redirects to cash register when status is null', async () => {
@@ -208,6 +244,31 @@ describe('dashboard pos page', () => {
     });
   });
 
+  it('shows checkout validations for empty cart and missing payment methods', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<POSPage />);
+
+    await screen.findByRole('button', { name: 'Cobrar' });
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+    expect(mockToastError).toHaveBeenCalledWith('El carrito está vacío');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto mock' }));
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Agrega al menos un método de pago');
+    });
+  });
+
   it('shows stock error when product has no stock', async () => {
     (api.get as jest.Mock).mockImplementation((url: string) => {
       if (url === '/cash-register/status') {
@@ -226,5 +287,114 @@ describe('dashboard pos page', () => {
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('Producto sin stock no tiene stock disponible');
     });
+  });
+
+  it('prevents adding quantity beyond stock and supports keyboard cart clear', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<POSPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar producto mock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto mock' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Solo hay 1 u disponibles de Pinza');
+    });
+
+    fireEvent.keyDown(window, { key: 'Backspace', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith('Carrito limpiado');
+      expect(screen.getByText('El carrito está vacío')).toBeInTheDocument();
+    });
+  });
+
+  it('shows remaining amount error on checkout shortcut when payment is insufficient', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<POSPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar producto mock' }));
+
+    const amountLabel = screen.getByText('Monto ARS');
+    const amountInput = amountLabel.parentElement?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(amountInput, { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar Pago' }));
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Falta $50.00 por pagar');
+    });
+  });
+
+  it('requires entered change when cash payment exceeds total', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<POSPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar producto mock' }));
+
+    const amountLabel = screen.getByText('Monto ARS');
+    const amountInput = amountLabel.parentElement?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(amountInput, { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar Pago' }));
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Ingresa el vuelto entregado');
+    });
+  });
+
+  it('shows cash change difference helper and allows removing payment', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/cash-register/status') {
+        return Promise.resolve({ data: { id: 'session-open' } });
+      }
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<POSPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar producto mock' }));
+
+    const amountLabel = screen.getByText('Monto ARS');
+    const amountInput = amountLabel.parentElement?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(amountInput, { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar Pago' }));
+
+    fireEvent.change(screen.getByPlaceholderText('20.00'), { target: { value: '15' } });
+    expect(screen.getByText('Diferencia: $-5.00')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar pago' }));
+    expect(screen.queryByText('Pagos agregados:')).not.toBeInTheDocument();
   });
 });
