@@ -143,6 +143,32 @@ describe('dashboard invoices page', () => {
 
     expect(screen.getByText('Ana Perez')).toBeInTheDocument();
     expect(screen.getByText('Consumidor Final')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Descargar PDF' })[1]).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('Cuid de venta'), { target: { value: '  sale-1  ' } });
+    const fromInput = screen.getByText('Desde').parentElement?.querySelector('input') as HTMLInputElement;
+    const toInput = screen.getByText('Hasta').parentElement?.querySelector('input') as HTMLInputElement;
+    fireEvent.change(fromInput, { target: { value: '2026-04-01' } });
+    fireEvent.change(toInput, { target: { value: '2026-04-25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenLastCalledWith('/sales/invoices', {
+        params: {
+          status: undefined,
+          voucherType: undefined,
+          saleId: 'sale-1',
+          startDate: new Date('2026-04-01T00:00:00.000').toISOString(),
+          endDate: new Date('2026-04-25T23:59:59.999').toISOString(),
+          page: 1,
+          limit: 100,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Ver detalle' }).length).toBeGreaterThan(0);
+    });
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalle' })[0]);
     expect(mockPush).toHaveBeenCalledWith('/dashboard/invoices/inv-1');
@@ -151,6 +177,93 @@ describe('dashboard invoices page', () => {
 
     await waitFor(() => {
       expect(api.getBlob).toHaveBeenCalledWith('/sales/sale-1/invoices/inv-1/pdf');
+    });
+  });
+
+  it('shows popup warning when browser blocks PDF window', async () => {
+    mockAuthValue = {
+      user: { permissions: ['sales:read'] },
+    };
+
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-10',
+          saleId: 'sale-10',
+          provider: 'mock',
+          voucherType: 'A',
+          status: 'ISSUED',
+          pointOfSale: 1,
+          number: 500,
+          cae: '999',
+          caeExpiry: null,
+          createdAt: '2026-04-25T10:00:00.000Z',
+          issuedAt: '2026-04-25T10:10:00.000Z',
+          pdfUrl: null,
+          sale: {
+            id: 'sale-10',
+            total: 1000,
+            customer: null,
+          },
+        },
+      ],
+    });
+    (api.getBlob as jest.Mock).mockResolvedValue(new Blob(['pdf']));
+
+    const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+    const createObjectURL = jest.fn(() => 'blob:mock');
+    Object.defineProperty(URL, 'createObjectURL', {
+      writable: true,
+      value: createObjectURL,
+    });
+
+    renderWithQueryClient(<InvoicesPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('No se pudo abrir el PDF. Revisá bloqueador de popups.');
+    });
+
+    openSpy.mockRestore();
+  });
+
+  it('shows download error when PDF request fails', async () => {
+    mockAuthValue = {
+      user: { permissions: ['sales:read'] },
+    };
+
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-20',
+          saleId: 'sale-20',
+          provider: 'mock',
+          voucherType: 'A',
+          status: 'ISSUED',
+          pointOfSale: 1,
+          number: 501,
+          cae: null,
+          caeExpiry: null,
+          createdAt: '2026-04-25T10:00:00.000Z',
+          issuedAt: null,
+          pdfUrl: null,
+          sale: {
+            id: 'sale-20',
+            total: 1000,
+            customer: null,
+          },
+        },
+      ],
+    });
+    (api.getBlob as jest.Mock).mockRejectedValue(new Error('boom'));
+
+    renderWithQueryClient(<InvoicesPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('boom');
     });
   });
 });
