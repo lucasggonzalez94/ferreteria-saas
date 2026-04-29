@@ -446,7 +446,7 @@ export default function CustomersPage() {
                   return (
                     <div
                       key={customer.id}
-                      className="group relative rounded-lg border border-transparent p-3 flex items-center gap-4 hover:bg-accent/5 hover:border-[hsl(var(--border)/0.5)] hover:rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.995]"
+                      className="rounded-lg border p-3 flex items-center gap-4 hover:bg-accent/5 transition-colors cursor-pointer"
                       onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
                     >
                       <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
