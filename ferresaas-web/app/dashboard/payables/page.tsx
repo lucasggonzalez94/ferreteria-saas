@@ -24,17 +24,16 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Eye,
   RefreshCw,
 } from "lucide-react";
-import Link from "next/link";
+import { StatCard } from "@/components/ui/stat-card";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -289,11 +288,6 @@ export default function PayablesPage() {
   const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const summary = summaryData || {} as PayablesSummary;
 
-  // Obtener nombre del proveedor filtrado
-  const supplierName = supplierId
-    ? suppliers.find((s) => s.id === supplierId)?.name
-    : null;
-
   const handleClearFilters = () => {
     setStatus("");
     setSupplierId("");
@@ -304,19 +298,6 @@ export default function PayablesPage() {
     setMaxAmount("");
     setPage(1);
     router.push("/dashboard/payables");
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return "bg-green-100 text-green-800";
-      case "PARTIAL":
-        return "bg-yellow-100 text-yellow-800";
-      case "OVERDUE":
-        return "bg-red-100 text-red-800";
-      default:
-        return "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground";
-    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -366,60 +347,19 @@ export default function PayablesPage() {
         />
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Adeudado
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${!summaryData ? "0,00" : (summary.totalPayable || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pendiente Pagar
-              </CardTitle>
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                ${!summaryData ? "0,00" : (summary.totalPending || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Pagado
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                ${!summaryData ? "0,00" : (summary.totalPaid || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vencidas</CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {isLoading ? "0" : summary.overdue || 0}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <StatCard
+            title="Total Adeudado"
+            value={!summaryData ? "0,00" : `$${(summary.totalPayable || 0).toFixed(2)}`}
+            icon={DollarSign}
+            valueClassName={(summary.totalPayable || 0) > 0 ? "text-red-600" : ""}
+          />
+          <StatCard
+            title="Vencidas"
+            value={isLoading ? "..." : summary.overdue || 0}
+            icon={AlertCircle}
+            valueClassName={(summary.overdue || 0) > 0 ? "text-red-600" : ""}
+          />
         </div>
 
         {/* Filters */}
@@ -563,253 +503,281 @@ export default function PayablesPage() {
           </Card>
         ) : payables.length > 0 ? (
           <>
-            <div className="space-y-4">
-              {payables.map((payable: Payable) => {
-                const pendingAmount = payable.amount - payable.paidAmount;
-                const progressPercent =
-                  (payable.paidAmount / payable.amount) * 100;
+            <Card>
+              <CardHeader>
+                <CardTitle>Listado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {payables.map((payable: Payable) => {
+                    const pendingAmount = payable.amount - payable.paidAmount;
+                    const progressPercent =
+                      (payable.paidAmount / payable.amount) * 100;
+                    const purchaseNumber = payable.purchase?.invoiceNumber || payable.purchase?.id?.slice(0, 8) || '-';
 
-                return (
-                  <Card key={payable.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">
-                            {payable.supplier.name}
-                          </CardTitle>
-                          {payable.purchase && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Compra #
-                              {payable.purchase.invoiceNumber ||
-                                payable.purchase.id.slice(0, 8)}
+                    return (
+                      <div
+                        key={payable.id}
+                        className="group relative rounded-lg border border-transparent p-3 flex items-center gap-4 hover:bg-accent/5 hover:border-[hsl(var(--border)/0.5)] hover:rounded-xl transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow flex items-center justify-center">
+                          {getStatusIcon(payable.status)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground truncate text-[15px]">
+                              {payable.supplier.name}
                             </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold">
-                            ${payable.amount.toFixed(2)}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            {getStatusIcon(payable.status)}
                             <span
-                              className={`px-2 py-1 text-xs rounded-full font-semibold ${getStatusColor(payable.status)}`}
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 border ${
+                                payable.status === 'PAID'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : payable.status === 'PARTIAL'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : payable.status === 'OVERDUE'
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : 'bg-gray-50 text-gray-700 border-gray-200'
+                              }`}
                             >
-                              {payable.status}
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                  payable.status === 'PAID'
+                                    ? 'bg-emerald-500'
+                                    : payable.status === 'PARTIAL'
+                                    ? 'bg-amber-500'
+                                    : payable.status === 'OVERDUE'
+                                    ? 'bg-red-500'
+                                    : 'bg-gray-500'
+                                }`}
+                              />
+                              {payable.status === 'PAID' ? 'Pagado' : payable.status === 'PARTIAL' ? 'Parcial' : payable.status === 'OVERDUE' ? 'Vencido' : 'Pendiente'}
                             </span>
                           </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Progress Bar */}
-                        <div>
-                          <div className="flex justify-between text-sm mb-2">
-                            <span className="text-muted-foreground">
-                              Pagado: ${payable.paidAmount.toFixed(2)}
+                          <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <span className="text-foreground/60">Compra:</span>
+                              <span className="text-xs text-foreground/80">
+                                #{purchaseNumber}
+                              </span>
                             </span>
-                            <span className="text-muted-foreground">
-                              Pendiente: ${pendingAmount.toFixed(2)}
+                            {payable.dueDate && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span className="text-xs text-foreground/80">
+                                  Vence: {new Date(payable.dueDate).toLocaleDateString('es-AR')}
+                                </span>
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <span className="text-foreground/60">Pagado:</span>
+                              <span className="text-xs text-foreground/80">
+                                ${payable.paidAmount.toFixed(2)} / ${payable.amount.toFixed(2)}
+                              </span>
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(progressPercent, 100)}%`,
-                              }}
-                            />
+                          {/* Progress Bar */}
+                          <div className="mt-2">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className="bg-green-600 h-1.5 rounded-full transition-all"
+                                style={{
+                                  width: `${Math.min(progressPercent, 100)}%`,
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
 
-                        {/* Due Date */}
-                        {payable.dueDate && (
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">
-                              Vencimiento:{" "}
-                              {new Date(payable.dueDate).toLocaleDateString(
-                                "es-AR",
-                              )}
-                            </span>
+                        <div className="flex items-center gap-5 flex-shrink-0">
+                          <div className="text-right min-w-[100px]">
+                            <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
+                              Pendiente
+                            </p>
+                            <p className="text-base font-bold tabular-nums text-amber-600">
+                              ${pendingAmount.toFixed(2)}
+                            </p>
                           </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/dashboard/suppliers/${payable.supplier.id}`}
-                          >
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Proveedor
-                            </Button>
-                          </Link>
-                          {canUpdatePayables && payable.status !== "PAID" && (
-                            <Dialog
-                              open={
-                                paymentDialogOpen &&
-                                selectedPayableId === payable.id
-                              }
-                              onOpenChange={(open) => {
-                                if (open) {
-                                  setSelectedPayableId(payable.id);
-                                  setPaymentAmount(pendingAmount.toFixed(2));
-                                } else {
-                                  setSelectedPayableId(null);
-                                  setPaymentAmount("");
-                                  setPaymentMethod("TRANSFER");
-                                  setPaymentReference("");
-                                  setCheckNumber("");
-                                  setCheckAccountId("");
+                          <ActionsMenu
+                            actions={[
+                              {
+                                label: 'Ver proveedor',
+                                onClick: () => router.push(`/dashboard/suppliers/${payable.supplier.id}`),
+                              },
+                              ...(canUpdatePayables && payable.status !== 'PAID' ? [
+                                {
+                                  label: 'Registrar pago',
+                                  onClick: () => {
+                                    setSelectedPayableId(payable.id);
+                                    setPaymentAmount(pendingAmount.toFixed(2));
+                                    setPaymentDialogOpen(true);
+                                  },
                                 }
-                                setPaymentDialogOpen(open);
-                              }}
-                            >
-                              <DialogTrigger asChild>
-                                <Button size="sm">
-                                  <DollarSign className="h-4 w-4 mr-2" />
-                                  Registrar Pago
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-900 text-foreground dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Registrar Pago</DialogTitle>
-                                  <DialogDescription>
-                                    {payable.supplier.name} - Pendiente: $
-                                    {pendingAmount.toFixed(2)}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <form
-                                  onSubmit={(e) => {
-                                    e.preventDefault();
-                                    recordPaymentMutation.mutate();
-                                  }}
-                                  className="space-y-4"
-                                >
-                                  <div>
-                                    <Label htmlFor="amount">
-                                      Monto a Pagar *
-                                    </Label>
-                                    <Input
-                                      id="amount"
-                                      type="number"
-                                      step="0.01"
-                                      value={paymentAmount}
-                                      onChange={(e) =>
-                                        setPaymentAmount(e.target.value)
-                                      }
-                                      max={pendingAmount}
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="method">
-                                      Método de Pago *
-                                    </Label>
-                                    <Select
-                                      value={paymentMethod}
-                                      onValueChange={setPaymentMethod}
-                                    >
-                                      <SelectTrigger id="method" className="mt-1">
-                                        <SelectValue placeholder="Selecciona método" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="CASH">Efectivo</SelectItem>
-                                        <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                                        <SelectItem value="CHECK">Cheque</SelectItem>
-                                        <SelectItem value="CARD">Tarjeta</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div>
-                                    <Label htmlFor="reference">
-                                      Referencia
-                                    </Label>
-                                    <Input
-                                      id="reference"
-                                      placeholder="Ej: Número de cheque, referencia de transferencia"
-                                      value={paymentReference}
-                                      onChange={(e) =>
-                                        setPaymentReference(e.target.value)
-                                      }
-                                    />
-                                  </div>
-                                  {paymentMethod === "CHECK" && (
-                                    <>
-                                      <div>
-                                        <Label htmlFor="checkAccountId">
-                                          Cuenta bancaria *
-                                        </Label>
-                                        <Select
-                                          value={checkAccountId}
-                                          onValueChange={setCheckAccountId}
-                                        >
-                                          <SelectTrigger id="checkAccountId" className="mt-1">
-                                            <SelectValue placeholder="Selecciona cuenta bancaria" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {bankAccounts.map((account) => (
-                                              <SelectItem key={account.id} value={account.id}>
-                                                {account.name}
-                                                {account.bankName ? ` - ${account.bankName}` : ""}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      <div>
-                                        <Label htmlFor="checkNumber">
-                                          Numero de cheque *
-                                        </Label>
-                                        <Input
-                                          id="checkNumber"
-                                          value={checkNumber}
-                                          onChange={(e) => setCheckNumber(e.target.value)}
-                                          placeholder="Ej: 00012345"
-                                          maxLength={100}
-                                        />
-                                      </div>
-                                    </>
-                                  )}
-                                  <Button
-                                    type="submit"
-                                    disabled={
-                                      recordPaymentMutation.isPending ||
-                                      (paymentMethod === "CHECK" &&
-                                        (!checkNumber.trim() || !checkAccountId))
-                                    }
-                                    className="w-full"
-                                  >
-                                    {recordPaymentMutation.isPending
-                                      ? "Registrando..."
-                                      : "Registrar Pago"}
-                                  </Button>
-                                </form>
-                              </DialogContent>
-                            </Dialog>
-                          )}
+                              ] : [])
+                            ]}
+                          />
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Dialog - Global */}
+            <Dialog
+              open={paymentDialogOpen && !!selectedPayableId}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSelectedPayableId(null);
+                  setPaymentAmount("");
+                  setPaymentMethod("TRANSFER");
+                  setPaymentReference("");
+                  setCheckNumber("");
+                  setCheckAccountId("");
+                }
+                setPaymentDialogOpen(open);
+              }}
+            >
+              <DialogContent className="sm:max-w-lg bg-white dark:bg-slate-900 text-foreground dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-lg">
+                <DialogHeader>
+                  <DialogTitle>Registrar Pago</DialogTitle>
+                  <DialogDescription>
+                    {selectedPayableId && payables.find(p => p.id === selectedPayableId)?.supplier.name}
+                    {' - Pendiente: $'}
+                    {selectedPayableId && (() => {
+                      const p = payables.find(p => p.id === selectedPayableId);
+                      return p ? (p.amount - p.paidAmount).toFixed(2) : '0.00';
+                    })()}
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    recordPaymentMutation.mutate();
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <Label htmlFor="amount">
+                      Monto a Pagar *
+                    </Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={(e) =>
+                        setPaymentAmount(e.target.value)
+                      }
+                      max={
+                        selectedPayableId
+                          ? (payables.find(p => p.id === selectedPayableId)?.amount || 0) - (payables.find(p => p.id === selectedPayableId)?.paidAmount || 0)
+                          : undefined
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="method">
+                      Método de Pago *
+                    </Label>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={setPaymentMethod}
+                    >
+                      <SelectTrigger id="method" className="mt-1">
+                        <SelectValue placeholder="Selecciona método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CASH">Efectivo</SelectItem>
+                        <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                        <SelectItem value="CHECK">Cheque</SelectItem>
+                        <SelectItem value="CARD">Tarjeta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="reference">
+                      Referencia
+                    </Label>
+                    <Input
+                      id="reference"
+                      placeholder="Ej: Número de cheque, referencia de transferencia"
+                      value={paymentReference}
+                      onChange={(e) =>
+                        setPaymentReference(e.target.value)
+                      }
+                    />
+                  </div>
+                  {paymentMethod === "CHECK" && (
+                    <>
+                      <div>
+                        <Label htmlFor="checkAccountId">
+                          Cuenta bancaria *
+                        </Label>
+                        <Select
+                          value={checkAccountId}
+                          onValueChange={setCheckAccountId}
+                        >
+                          <SelectTrigger id="checkAccountId" className="mt-1">
+                            <SelectValue placeholder="Selecciona cuenta bancaria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bankAccounts.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.name}
+                                {account.bankName ? ` - ${account.bankName}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="checkNumber">
+                          Numero de cheque *
+                        </Label>
+                        <Input
+                          id="checkNumber"
+                          value={checkNumber}
+                          onChange={(e) => setCheckNumber(e.target.value)}
+                          placeholder="Ej: 00012345"
+                          maxLength={100}
+                        />
+                      </div>
+                    </>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={
+                      recordPaymentMutation.isPending ||
+                      (paymentMethod === "CHECK" &&
+                        (!checkNumber.trim() || !checkAccountId))
+                    }
+                    className="w-full"
+                  >
+                    {recordPaymentMutation.isPending
+                      ? "Registrando..."
+                      : "Registrar Pago"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
 
             {/* Pagination */}
-            <Pagination
-              setPage={setPage}
-              currentPage={page}
-              totalPages={meta.totalPages}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              total={meta.total}
-              limit={limit}
-              onLimitChange={setLimit}
-              hasMore={meta.hasMore}
-              onPageChange={setPage}
-              className="mt-6"
-            />
+            <div className="mt-4">
+              <Pagination
+                setPage={setPage}
+                currentPage={page}
+                totalPages={meta.totalPages}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                total={meta.total}
+                limit={limit}
+                onLimitChange={setLimit}
+                hasMore={meta.hasMore}
+                onPageChange={setPage}
+              />
+            </div>
           </>
         ) : (
           <Card>

@@ -326,9 +326,9 @@ export class PayableService {
       },
     });
 
-    const totalPayable = payables.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalOriginal = payables.reduce((sum, p) => sum + Number(p.amount), 0);
     const totalPaid = payables.reduce((sum, p) => sum + Number(p.paidAmount), 0);
-    const totalPending = totalPayable - totalPaid;
+    const totalPending = totalOriginal - totalPaid;
 
     const now = new Date();
     const overdue = payables.filter(
@@ -336,9 +336,9 @@ export class PayableService {
     ).length;
 
     return {
-      totalPayable,
-      totalPaid,
+      totalPayable: totalPending,
       totalPending,
+      totalPaid,
       overdue,
       byStatus: {
         pending: payables.filter((p) => p.status === 'PENDING').length,
