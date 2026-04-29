@@ -25,6 +25,7 @@ import { Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -772,6 +773,9 @@ export default function NewProductPage() {
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Nueva Categoría</DialogTitle>
+            <DialogDescription>
+              Crea una categoría para asignarla al producto que estás cargando.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateCategory} className="space-y-4">
             <div>

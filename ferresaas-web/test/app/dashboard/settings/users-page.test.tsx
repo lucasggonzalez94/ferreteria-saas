@@ -9,6 +9,11 @@ const mockCreateUser = jest.fn();
 const mockListRoles = jest.fn();
 const mockAssignRoles = jest.fn();
 
+let mockUsers: any[] = [];
+let mockLoading = false;
+let mockMeta: any = { total: 0, totalPages: 1, page: 1, hasMore: false };
+let mockRoles: any[] = [];
+
 let mockAuthValue: any;
 
 jest.mock('next/navigation', () => ({
@@ -28,18 +33,9 @@ jest.mock('@/lib/auth-context', () => ({
 
 jest.mock('@/lib/hooks/useUsers', () => ({
   useUsers: () => ({
-    users: [
-      {
-        id: 'u-1',
-        email: 'ana@ferreteria-demo.com',
-        firstName: 'Ana',
-        lastName: 'Perez',
-        isActive: true,
-        roles: [{ id: 'r-1', name: 'Administrador' }],
-      },
-    ],
-    loading: false,
-    meta: { total: 1, totalPages: 1, page: 1, hasMore: false },
+    users: mockUsers,
+    loading: mockLoading,
+    meta: mockMeta,
     listUsers: (...args: unknown[]) => mockListUsers(...args),
     createUser: (...args: unknown[]) => mockCreateUser(...args),
   }),
@@ -47,13 +43,7 @@ jest.mock('@/lib/hooks/useUsers', () => ({
 
 jest.mock('@/lib/hooks/useRoles', () => ({
   useRoles: () => ({
-    roles: [
-      {
-        id: 'r-1',
-        name: 'Administrador',
-        description: 'Control total',
-      },
-    ],
+    roles: mockRoles,
     listRoles: (...args: unknown[]) => mockListRoles(...args),
   }),
 }));
@@ -67,8 +57,40 @@ jest.mock('@/lib/hooks/useUserRoles', () => ({
 import UsersPage from '@/app/dashboard/settings/users/page';
 
 describe('settings users page', () => {
+  beforeAll(() => {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      writable: true,
+      value: jest.fn(),
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockUsers = [
+      {
+        id: 'u-1',
+        email: 'ana@ferreteria-demo.com',
+        firstName: 'Ana',
+        lastName: 'Perez',
+        isActive: true,
+        roles: [{ id: 'r-1', name: 'Administrador' }],
+      },
+    ];
+    mockLoading = false;
+    mockMeta = { total: 1, totalPages: 1, page: 1, hasMore: false };
+    mockRoles = [
+      {
+        id: 'r-1',
+        name: 'Administrador',
+        description: 'Control total',
+      },
+      {
+        id: 'r-2',
+        name: 'Vendedor',
+        description: 'Acceso de ventas',
+      },
+    ];
 
     mockAuthValue = {
       user: {
@@ -150,5 +172,74 @@ describe('settings users page', () => {
         roleIds: undefined,
       });
     });
+  });
+
+  it('renders loading skeleton when users are loading and list is empty', () => {
+    mockUsers = [];
+    mockLoading = true;
+
+    const { container } = render(<UsersPage />);
+
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+  });
+
+  it('shows empty state when there are no users', () => {
+    mockUsers = [];
+    mockMeta = { total: 0, totalPages: 1, page: 1, hasMore: false };
+
+    render(<UsersPage />);
+
+    expect(screen.getByText('No hay usuarios para mostrar')).toBeInTheDocument();
+  });
+
+  it('clears filters and reloads users', async () => {
+    render(<UsersPage />);
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar usuario...'), {
+      target: { value: 'ana' },
+    });
+
+    const statusTrigger = screen.getByLabelText('Estado');
+    fireEvent.click(statusTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Activos' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }));
+
+    await waitFor(() => {
+      expect(mockListUsers).toHaveBeenLastCalledWith();
+      expect((screen.getByPlaceholderText('Buscar usuario...') as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  it('opens roles modal, toggles role and saves', async () => {
+    mockAssignRoles.mockResolvedValue(undefined);
+    mockListUsers.mockResolvedValue(undefined);
+
+    render(<UsersPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+    expect(await screen.findByText('Editar Roles - Ana')).toBeInTheDocument();
+    const vendedorLabel = screen.getByText('Vendedor');
+    const vendedorCheckbox = vendedorLabel.closest('div')?.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    fireEvent.click(vendedorCheckbox);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar Roles' }));
+
+    await waitFor(() => {
+      expect(mockAssignRoles).toHaveBeenCalledWith('u-1', ['r-1', 'r-2']);
+      expect(mockListUsers).toHaveBeenCalled();
+    });
+  });
+
+  it('navigates to user detail and paginates when available', () => {
+    mockMeta = { total: 3, totalPages: 2, page: 1, hasMore: true };
+
+    render(<UsersPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    expect(mockPush).toHaveBeenCalledWith('/dashboard/settings/users/u-1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(mockListUsers).toHaveBeenCalledWith({ page: 2 });
   });
 });

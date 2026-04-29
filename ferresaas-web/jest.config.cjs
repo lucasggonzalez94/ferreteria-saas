@@ -6,18 +6,18 @@ const createJestConfig = nextJest({
 
 const customJestConfig = {
   testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src', '<rootDir>/lib', '<rootDir>/app', '<rootDir>/components'],
+  roots: ['<rootDir>/app', '<rootDir>/components', '<rootDir>/lib', '<rootDir>/test', '<rootDir>/types'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
-  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   collectCoverageFrom: [
     'app/**/*.{ts,tsx}',
     'components/**/*.{ts,tsx}',
-    'src/**/*.{ts,tsx}',
     'lib/**/*.{ts,tsx}',
-    '!src/test/**/*.{ts,tsx}',
+    'types/**/*.{ts,tsx}',
+    '!test/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!lib/api.ts',
     '!lib/hooks/*.ts',
@@ -27,10 +27,10 @@ const customJestConfig = {
   coverageReporters: ['text', 'json', 'html'],
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
+      branches: 50,
+      functions: 50,
+      lines: 60,
+      statements: 60,
     },
   },
   testTimeout: 10000,

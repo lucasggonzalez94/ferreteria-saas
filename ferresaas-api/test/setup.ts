@@ -7,4 +7,21 @@ beforeAll(() => {
   process.env.CLOUDINARY_CLOUD_NAME = 'test';
   process.env.CLOUDINARY_API_KEY = 'test';
   process.env.CLOUDINARY_API_SECRET = 'test';
+
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  console.warn = (msg: string, ...args: unknown[]) => {
+    if (msg.includes('Error deleting image from Cloudinary')) return;
+    originalWarn(msg, ...args);
+  };
+
+  console.error = (msg: string, ...args: unknown[]) => {
+    if (
+      msg.includes('Cloudinary upload error') ||
+      msg.includes('Error deleting image from Cloudinary')
+    )
+      return;
+    originalError(msg, ...args);
+  };
 });

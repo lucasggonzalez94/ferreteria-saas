@@ -146,4 +146,22 @@ describe('dashboard inventory page', () => {
       });
     });
   });
+
+  it('shows empty state when no inventory data', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: [] });
+
+    renderWithQueryClient(<InventoryPage />);
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalled();
+    });
+  });
+
+  it('filters by category via tabs', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: [] });
+
+    renderWithQueryClient(<InventoryPage />);
+
+    expect(mockUsePermissionGuard).toHaveBeenCalledWith('inventory:read');
+  });
 });

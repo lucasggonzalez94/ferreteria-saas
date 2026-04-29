@@ -16,6 +16,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -366,6 +367,9 @@ export default function DiscountApprovalsPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Confirmar Aprobación</DialogTitle>
+            <DialogDescription>
+              Ingresa tu contraseña para aprobar de forma segura esta solicitud de descuento.
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e) => {

@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 
 const mockPush = jest.fn();
 const mockUsePermissionGuard = jest.fn();
+let mockCanRead = true;
+let mockCanUpdate = true;
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -15,8 +17,8 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/lib/hooks/usePermissionGuard', () => ({
   usePermissionGuard: (...args: unknown[]) => mockUsePermissionGuard(...args),
   usePermissions: () => ({
-    canRead: true,
-    canUpdate: true,
+    canRead: mockCanRead,
+    canUpdate: mockCanUpdate,
   }),
 }));
 
@@ -44,8 +46,17 @@ function renderWithQueryClient(ui: React.ReactElement) {
 }
 
 describe('dashboard payables page', () => {
+  beforeAll(() => {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      writable: true,
+      value: jest.fn(),
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCanRead = true;
+    mockCanUpdate = true;
   });
 
   it('loads payables and records a payment', async () => {
@@ -145,5 +156,118 @@ describe('dashboard payables page', () => {
     renderWithQueryClient(<PayablesPage />);
 
     expect(await screen.findByText('No hay cuentas por pagar')).toBeInTheDocument();
+  });
+
+  it('hides payment action when user cannot update payables', async () => {
+    mockCanUpdate = false;
+
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/payables') {
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 'pay-2',
+                amount: '500',
+                paidAmount: '0',
+                status: 'PENDING',
+                supplier: { id: 'sup-1', name: 'Proveedor Uno' },
+                purchase: { id: 'pur-2', invoiceNumber: 'F-002' },
+                payments: [],
+              },
+            ],
+            meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasMore: false },
+          },
+        });
+      }
+
+      if (url === '/suppliers') {
+        return Promise.resolve({ data: { data: [{ id: 'sup-1', name: 'Proveedor Uno' }], meta: { page: 1, limit: 1000, total: 1, totalPages: 1, hasMore: false } } });
+      }
+
+      if (url === '/payables/summary') {
+        return Promise.resolve({ data: { totalPayable: 500, totalPending: 500, totalPaid: 0, overdue: 0 } });
+      }
+
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<PayablesPage />);
+
+    expect((await screen.findAllByText('Proveedor Uno')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Registrar Pago' })).not.toBeInTheDocument();
+  });
+
+  it('records payable payment using check method', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/suppliers') {
+        return Promise.resolve({
+          data: {
+            data: [{ id: 'sup-1', name: 'Proveedor Uno' }],
+            meta: { page: 1, limit: 1000, total: 1, totalPages: 1, hasMore: false },
+          },
+        });
+      }
+
+      if (url === '/financial-accounts') {
+        return Promise.resolve({
+          data: [{ id: 'acc-1', name: 'Banco Principal', type: 'BANK', isActive: true }],
+        });
+      }
+
+      if (url === '/payables') {
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 'pay-3',
+                amount: '1000',
+                paidAmount: '0',
+                status: 'PENDING',
+                dueDate: '2026-05-06T00:00:00.000Z',
+                supplier: { id: 'sup-1', name: 'Proveedor Uno' },
+                purchase: { id: 'pur-3', invoiceNumber: 'F-003' },
+                payments: [],
+              },
+            ],
+            meta: { page: 1, limit: 10, total: 1, totalPages: 1, hasMore: false },
+          },
+        });
+      }
+
+      if (url === '/payables/summary') {
+        return Promise.resolve({ data: { totalPayable: 1000, totalPending: 1000, totalPaid: 0, overdue: 0 } });
+      }
+
+      return Promise.resolve({ data: [] });
+    });
+
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 'payment-3' } });
+
+    renderWithQueryClient(<PayablesPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Registrar Pago' }));
+    const dialog = await screen.findByRole('dialog');
+
+    const paymentMethodTrigger = within(dialog).getByText('Método de Pago *').parentElement?.querySelector('[role="combobox"]') as HTMLElement;
+    fireEvent.click(paymentMethodTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Cheque' }));
+
+    const accountTrigger = within(dialog).getByText('Cuenta bancaria *').parentElement?.querySelector('[role="combobox"]') as HTMLElement;
+    fireEvent.click(accountTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Banco Principal' }));
+
+    fireEvent.change(within(dialog).getByLabelText('Numero de cheque *'), { target: { value: '00012345' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar Pago' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/payables/pay-3/payments', {
+        amount: 1000,
+        method: 'CHECK',
+        reference: undefined,
+        checkNumber: '00012345',
+        checkAccountId: 'acc-1',
+      });
+    });
   });
 });

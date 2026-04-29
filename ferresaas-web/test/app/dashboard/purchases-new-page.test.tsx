@@ -97,6 +97,7 @@ function renderWithQueryClient(ui: React.ReactElement) {
 
 describe('dashboard purchases new page', () => {
   const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+  const sessionStorageSpy = jest.spyOn(Storage.prototype, 'setItem');
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -132,6 +133,7 @@ describe('dashboard purchases new page', () => {
 
   afterAll(() => {
     consoleLogSpy.mockRestore();
+    sessionStorageSpy.mockRestore();
   });
 
   it('redirects to dashboard when user cannot create purchases', async () => {
@@ -211,6 +213,148 @@ describe('dashboard purchases new page', () => {
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText('Número de Cheque *')).toBeInTheDocument();
       expect(screen.getByText('Banco Nación')).toBeInTheDocument();
+    });
+  });
+
+  it('autofills due date from supplier payment terms and allows clearing it', async () => {
+    const { container } = renderWithQueryClient(<NewPurchasePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Nueva Compra', level: 1 })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proveedor Uno' }));
+
+    const dateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
+    await waitFor(() => {
+      expect(dateInput.value).not.toBe('');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }));
+    expect(dateInput.value).toBe('');
+  });
+
+  it('shows loading spinner while suppliers and products are still loading', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+
+      if (url === '/financial-accounts') {
+        return Promise.resolve({
+          data: [{ id: 'cash-1', name: 'Caja Principal', type: 'CASH', isDefault: true, isActive: true, balance: 100 }],
+        });
+      }
+
+      if (url === '/suppliers' || url === '/products') {
+        return new Promise(() => undefined);
+      }
+
+      return Promise.resolve({ data: [] });
+    });
+
+    renderWithQueryClient(<NewPurchasePage />);
+
+    expect(await screen.findByText('Cargando datos...')).toBeInTheDocument();
+  });
+
+  it('prevents submit when transfer account is missing and shows bank account error', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url === '/exchange-rate/config') {
+        return Promise.resolve({ data: { usdEnabled: false } });
+      }
+
+      if (url === '/suppliers') {
+        return Promise.resolve({ data: [{ id: 'sup-1', name: 'Proveedor Uno', paymentTermDays: 15 }] });
+      }
+
+      if (url === '/products') {
+        return Promise.resolve({
+          data: [{ id: 'prod-1', name: 'Taladro', internalSku: 'SKU-1', unit: 'u', cost: 80 }],
+        });
+      }
+
+      if (url === '/financial-accounts') {
+        return Promise.resolve({
+          data: [{ id: 'cash-1', name: 'Caja Principal', type: 'CASH', isDefault: true, isActive: true, balance: 1000 }],
+        });
+      }
+
+      return Promise.resolve({ data: [] });
+    });
+
+    const { container } = renderWithQueryClient(<NewPurchasePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Nueva Compra', level: 1 })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proveedor Uno' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Taladro' }));
+    fireEvent.change(screen.getByLabelText('Cantidad *'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Precio Unit. *'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+
+    fireEvent.change(screen.getByLabelText('Monto Pagado'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Transferencia' }));
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    fireEvent.submit(form);
+
+    expect(mockToastError).toHaveBeenCalledWith('No hay cuenta de BANK configurada');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('requires check account and number before enabling create purchase', async () => {
+    renderWithQueryClient(<NewPurchasePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Nueva Compra', level: 1 })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proveedor Uno' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Taladro' }));
+    fireEvent.change(screen.getByLabelText('Cantidad *'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Precio Unit. *'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+
+    fireEvent.change(screen.getByLabelText('Monto Pagado'), { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cheque' }));
+
+    const createButton = screen.getByRole('button', { name: 'Crear Compra' });
+    expect(createButton).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Banco Nación' }));
+    fireEvent.change(screen.getByLabelText('Número de Cheque *'), { target: { value: '000123' } });
+
+    expect(createButton).not.toBeDisabled();
+  });
+
+  it('adds and removes pending attachment and persists it after successful creation', async () => {
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 'pur-attach-1' } });
+    const { container } = renderWithQueryClient(<NewPurchasePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Nueva Compra', level: 1 })).toBeInTheDocument();
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['invoice'], 'factura-test.pdf', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    expect(await screen.findByText('factura-test.pdf')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '✕' }));
+    expect(screen.queryByText('factura-test.pdf')).not.toBeInTheDocument();
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(await screen.findByText('factura-test.pdf')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Proveedor Uno' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Taladro' }));
+    fireEvent.change(screen.getByLabelText('Cantidad *'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Precio Unit. *'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear Compra' }));
+
+    await waitFor(() => {
+      expect(sessionStorageSpy).toHaveBeenCalledWith(
+        'pendingPurchaseAttachments',
+        expect.stringContaining('factura-test.pdf'),
+      );
+      expect(mockPush).toHaveBeenCalledWith('/dashboard/purchases/pur-attach-1');
     });
   });
 });

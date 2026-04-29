@@ -13,8 +13,8 @@
     "db:seed": "tsx prisma/seeds/basic.seed.ts",
     "db:studio": "prisma studio",
     "db:clean": "npx prisma migrate reset",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "jest --forceExit",
+    "test:coverage": "jest --coverage --forceExit",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },

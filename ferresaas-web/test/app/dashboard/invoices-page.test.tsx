@@ -55,6 +55,13 @@ function renderWithQueryClient(ui: React.ReactElement) {
 }
 
 describe('dashboard invoices page', () => {
+  beforeAll(() => {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      writable: true,
+      value: jest.fn(),
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -228,6 +235,55 @@ describe('dashboard invoices page', () => {
     openSpy.mockRestore();
   });
 
+  it('shows loading state while invoices query is pending', () => {
+    mockAuthValue = {
+      user: { permissions: ['sales:read'] },
+    };
+
+    (api.get as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
+    renderWithQueryClient(<InvoicesPage />);
+
+    expect(screen.getByText('Cargando comprobantes...')).toBeInTheDocument();
+  });
+
+  it('applies status, voucher type and period preset filters', async () => {
+    mockAuthValue = {
+      user: { permissions: ['sales:read'] },
+    };
+
+    (api.get as jest.Mock).mockResolvedValue({ data: [] });
+
+    renderWithQueryClient(<InvoicesPage />);
+
+    await screen.findByText('Listado de comprobantes');
+
+    const statusTrigger = screen.getByText('Estado').parentElement?.querySelector('[role="combobox"]') as HTMLElement;
+    fireEvent.click(statusTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Emitido' }));
+
+    const typeTrigger = screen.getByText('Tipo').parentElement?.querySelector('[role="combobox"]') as HTMLElement;
+    fireEvent.click(typeTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'NC B' }));
+
+    const periodTrigger = screen.getByText('Período').parentElement?.querySelector('[role="combobox"]') as HTMLElement;
+    fireEvent.click(periodTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Mes anterior' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenLastCalledWith('/sales/invoices', {
+        params: expect.objectContaining({
+          status: 'ISSUED',
+          voucherType: 'NC_B',
+          startDate: expect.any(String),
+          endDate: expect.any(String),
+        }),
+      });
+    });
+  });
+
   it('shows download error when PDF request fails', async () => {
     mockAuthValue = {
       user: { permissions: ['sales:read'] },
@@ -264,6 +320,45 @@ describe('dashboard invoices page', () => {
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('boom');
+    });
+  });
+
+  it('shows fallback error when PDF download fails with unknown error type', async () => {
+    mockAuthValue = {
+      user: { permissions: ['sales:read'] },
+    };
+
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'inv-30',
+          saleId: 'sale-30',
+          provider: 'mock',
+          voucherType: 'A',
+          status: 'ISSUED',
+          pointOfSale: 1,
+          number: 502,
+          cae: null,
+          caeExpiry: null,
+          createdAt: '2026-04-25T10:00:00.000Z',
+          issuedAt: null,
+          pdfUrl: null,
+          sale: {
+            id: 'sale-30',
+            total: 1000,
+            customer: null,
+          },
+        },
+      ],
+    });
+    (api.getBlob as jest.Mock).mockRejectedValue('boom-string');
+
+    renderWithQueryClient(<InvoicesPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('No se pudo descargar el PDF');
     });
   });
 });
