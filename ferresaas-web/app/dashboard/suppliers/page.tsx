@@ -3,13 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
-import { Building2, Plus, AlertCircle } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -101,7 +101,7 @@ export default function SuppliersPage() {
     name: "",
   });
 
-  const { data: suppliersData, isLoading, error } = useQuery<SuppliersApiResponse | undefined>({
+  const { data: suppliersData, isLoading } = useQuery<SuppliersApiResponse | undefined>({
     queryKey: ["suppliers", search, page, limit],
     queryFn: async () => {
       const response = await api.get<any>("/suppliers", {
@@ -402,34 +402,94 @@ export default function SuppliersPage() {
 
         {/* Suppliers List */}
         {isLoading ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <LoadingSpinner text="Cargando proveedores..." />
-            </CardContent>
-          </Card>
+          <div className="text-center py-12">
+            <LoadingSpinner text="Cargando proveedores..." />
+          </div>
         ) : suppliers.length > 0 ? (
-          <>
-            <div className="space-y-4">
-              {suppliers.map((supplier: Supplier) => (
-                <Card key={supplier.id} className="app-orbit overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-4 flex-1">
-                        <span className="app-icon-badge h-11 w-11 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
-                          <Building2 className="h-5 w-5" />
-                        </span>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {suppliers.map((supplier: Supplier) => {
+                  const balanceAmount = Number(supplier.currentBalance);
+
+                  return (
+                    <div
+                      key={supplier.id}
+                      className="group relative rounded-lg border border-transparent p-3 flex items-center gap-4 hover:bg-accent/5 hover:border-[hsl(var(--border)/0.5)] hover:rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.995]"
+                      onClick={() => router.push(`/dashboard/suppliers/${supplier.id}`)}
+                    >
+                      <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-foreground truncate text-[15px]">
                             {supplier.name}
-                          </CardTitle>
-                          <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                            {supplier.cuit && <p>CUIT: {supplier.cuit}</p>}
-                            {supplier.email && <p>Email: {supplier.email}</p>}
-                            {supplier.phone && <p>Tel: {supplier.phone}</p>}
-                          </div>
+                          </p>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 ${
+                              supplier.isActive
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-gray-50 text-gray-500 border border-gray-200'
+                            }`}
+                          >
+                            {supplier.isActive ? (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
+                                Activo
+                              </>
+                            ) : (
+                              <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5" />
+                                Inactivo
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
+                          {supplier.cuit && (
+                            <span className="flex items-center gap-1">
+                              <span className="text-foreground/60">CUIT:</span>
+                              <span className="text-xs text-foreground/80">{supplier.cuit}</span>
+                            </span>
+                          )}
+                          {supplier.email && (
+                            <span className="flex items-center gap-1 truncate max-w-[200px]">
+                              <span className="text-foreground/60">Email:</span>
+                              <span className="text-xs truncate text-foreground/80">
+                                {supplier.email}
+                              </span>
+                            </span>
+                          )}
+                          {supplier.phone && (
+                            <span className="flex items-center gap-1">
+                              <span className="text-foreground/60">Tel:</span>
+                              <span className="text-xs text-foreground/80">{supplier.phone}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
+
+                      <div className="flex items-center gap-5 flex-shrink-0">
+                        <div className="text-right min-w-[80px]">
+                          <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
+                            Saldo
+                          </p>
+                          <p
+                            className={`text-base font-bold tabular-nums ${
+                              balanceAmount < 0
+                                ? 'text-red-600'
+                                : balanceAmount > 0
+                                  ? 'text-amber-600'
+                                  : 'text-muted-foreground'
+                            }`}
+                          >
+                            {balanceAmount < 0 ? '-' : ''}${Math.abs(balanceAmount).toFixed(2)}
+                          </p>
+                        </div>
                         <ActionsMenu
                           actions={[
                             {
@@ -458,80 +518,36 @@ export default function SuppliersPage() {
                         />
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Compras</p>
-                        <p className="font-semibold">
-                          {supplier._count?.purchases || 0}
-                        </p>
-                      </div>
-                      {supplier.paymentTermDays !== undefined && supplier.paymentTermDays !== null && (
-                        <div>
-                          <p className="text-muted-foreground">
-                            Plazo Pago
-                          </p>
-                          <p className="font-semibold">
-                            {supplier.paymentTermDays === 0 ? "Contado" : `${supplier.paymentTermDays} días`}
-                          </p>
-                        </div>
-                      )}
-                      {supplier.creditLimit && (
-                        <div>
-                          <p className="text-muted-foreground">
-                            Límite Crédito
-                          </p>
-                          <p className="font-semibold">
-                            ${Number(supplier.creditLimit).toFixed(2)}
-                          </p>
-                        </div>
-                      )}
-                      {supplier.currentBalance > 0 && (
-                        <div>
-                          <p className="text-muted-foreground">Adeudado</p>
-                          <p className="font-semibold text-amber-600">
-                            ${supplier.currentBalance.toFixed(2)}
-                          </p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-muted-foreground">Estado</p>
-                        <p className="font-semibold">
-                          {supplier.isActive ? "Activo" : "Inactivo"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            <Pagination
-              setPage={setPage}
-              currentPage={page}
-              totalPages={meta.totalPages || 0}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              total={meta.total}
-              limit={limit}
-              onLimitChange={setLimit}
-              hasMore={meta.hasMore}
-              onPageChange={setPage}
-              className="mt-6"
-            />
-          </>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="py-12 text-center">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                No hay proveedores registrados
+                {search ? "No se encontraron proveedores" : "No hay proveedores registrados"}
               </p>
             </CardContent>
           </Card>
         )}
+
+        <div className="mt-4">
+          <Pagination
+            setPage={setPage}
+            currentPage={page}
+            totalPages={Math.max(meta.totalPages || 1, 1)}
+            hasMore={meta.hasMore}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            total={meta.total}
+            limit={limit}
+            onLimitChange={setLimit}
+            onPageChange={setPage}
+          />
+        </div>
       </div>
     </div>
   );

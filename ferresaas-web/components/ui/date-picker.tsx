@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { format, parse, isValid } from "date-fns"
-import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -22,6 +21,7 @@ export interface DatePickerProps {
   disabled?: boolean
   isDateDisabled?: (date: Date) => boolean
   className?: string
+  label?: string
 }
 
 export function DatePicker({
@@ -31,6 +31,7 @@ export function DatePicker({
   disabled = false,
   isDateDisabled,
   className,
+  label,
 }: DatePickerProps) {
   const [date, setDate] = React.useState<Date | undefined>()
   const [inputValue, setInputValue] = React.useState("")
@@ -81,8 +82,14 @@ export function DatePicker({
   }
 
   return (
-    <div className={cn("relative w-full", className)}>
-      <Input
+    <div className={cn("w-full", className)}>
+      {label && (
+        <label className="text-sm font-medium block mb-2">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        <Input
         type="text"
         value={inputValue}
         onChange={handleInputChange}
@@ -111,6 +118,7 @@ export function DatePicker({
           />
         </PopoverContent>
       </Popover>
+      </div>
     </div>
   )
 }

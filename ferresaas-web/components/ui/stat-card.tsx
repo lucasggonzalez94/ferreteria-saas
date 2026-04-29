@@ -36,7 +36,10 @@ export function StatCard({
       <CardContent>
         <div className={`text-2xl font-bold ${valueClassName}`}>
           {typeof value === "number"
-            ? value.toLocaleString("es-AR", { minimumFractionDigits: 2 })
+            ? value.toLocaleString("es-AR", {
+                minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+                maximumFractionDigits: 2,
+              })
             : value}
         </div>
         {description && (

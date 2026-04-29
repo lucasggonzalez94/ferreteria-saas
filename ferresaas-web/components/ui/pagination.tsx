@@ -38,11 +38,11 @@ export function Pagination({
   className = "",
 }: PaginationProps) {
   return (
-    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div className={`flex flex-col gap-2 md:flex-row md:items-center md:justify-between ${className}`}>
       <p className="text-sm text-muted-foreground">
         Mostrando {startIndex}-{endIndex} de {total}
       </p>
-      {totalPages > 1 && <div className={`flex justify-center gap-2 ${className}`}>
+      {totalPages > 1 && <div className="flex justify-center gap-2">
         <Button
           variant="outline"
           disabled={currentPage === 1}

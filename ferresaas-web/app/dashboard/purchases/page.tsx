@@ -2,12 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -16,20 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Package, DollarSign, Plus, Eye } from "lucide-react";
+import { ShoppingCart, Package, DollarSign, Plus, Truck } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
-import {
-  getPurchaseStatusLabel,
-  getPurchaseStatusColor,
-} from "@/lib/purchase-status";
+import {getPurchaseStatusLabel} from "@/lib/purchase-status";
 import { StatCard } from "@/components/ui/stat-card";
 import { Pagination } from "@/components/ui/pagination";
 import {
   usePermissionGuard,
   usePermissions,
 } from "@/lib/hooks/usePermissionGuard";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 interface Purchase {
   id: string;
@@ -267,7 +263,6 @@ export default function PurchasesPage() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium">Desde</label>
                 <DatePicker
                   value={startDate}
                   onChange={(value) => {
@@ -275,10 +270,10 @@ export default function PurchasesPage() {
                     setPage(1);
                   }}
                   placeholder="Selecciona fecha inicio"
+                  label="Desde"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Hasta</label>
                 <DatePicker
                   value={endDate}
                   onChange={(value) => {
@@ -286,6 +281,7 @@ export default function PurchasesPage() {
                     setPage(1);
                   }}
                   placeholder="Selecciona fecha fin"
+                  label="Hasta"
                 />
               </div>
               <div className="flex items-end">
@@ -320,77 +316,122 @@ export default function PurchasesPage() {
 
         {/* Purchases List */}
         {isLoading ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <LoadingSpinner text="Cargando compras..." />
-            </CardContent>
-          </Card>
+          <div className="text-center py-12">
+            <LoadingSpinner text="Cargando compras..." />
+          </div>
         ) : purchases.length > 0 ? (
           <>
-            <div className="space-y-4">
-              {purchases.map((purchase: Purchase) => (
-                <Card key={purchase.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">
-                          Compra #
-                          {purchase.invoiceNumber || purchase.id.slice(0, 8)}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Proveedor: {purchase.supplier.name}
-                        </p>
+            <Card>
+              <CardHeader>
+                <CardTitle>Listado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {purchases.map((purchase: Purchase) => {
+                    const purchaseNumber = purchase.invoiceNumber || purchase.id.slice(0, 8);
+                    const totalAmount = Number(purchase.total);
+                    const itemsCount = purchase._count?.items || 0;
+
+                    return (
+                      <div
+                        key={purchase.id}
+                        className="group relative rounded-lg border border-transparent p-3 flex items-center gap-4 hover:bg-accent/5 hover:border-[hsl(var(--border)/0.5)] hover:rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.995]"
+                      >
+                        <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
+                          <ShoppingCart className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground truncate text-[15px]">
+                              Compra #{purchaseNumber}
+                            </p>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 border ${
+                                purchase.status === 'PAID'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : purchase.status === 'PARTIAL'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : purchase.status === 'CONFIRMED'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-gray-50 text-gray-700 border-gray-200'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                  purchase.status === 'PAID'
+                                    ? 'bg-emerald-500'
+                                    : purchase.status === 'PARTIAL'
+                                    ? 'bg-amber-500'
+                                    : purchase.status === 'CONFIRMED'
+                                    ? 'bg-blue-500'
+                                    : 'bg-gray-500'
+                                }`}
+                              />
+                              {getPurchaseStatusLabel(purchase.status)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Truck className="h-3.5 w-3.5" />
+                              <span className="text-xs text-foreground/80">
+                                {purchase.supplier.name}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="text-foreground/60">Fecha:</span>
+                              <span className="text-xs text-foreground/80">
+                                {new Date(purchase.createdAt).toLocaleDateString('es-AR')}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Package className="h-3.5 w-3.5" />
+                              <span className="text-xs text-foreground/80">
+                                {itemsCount} {itemsCount === 1 ? 'producto' : 'productos'}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-5 flex-shrink-0">
+                          <div className="text-right min-w-[80px]">
+                            <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
+                              Total
+                            </p>
+                            <p className="text-base font-bold tabular-nums text-foreground">
+                              ${totalAmount.toFixed(2)}
+                            </p>
+                          </div>
+                          <ActionsMenu
+                            actions={[
+                              {
+                                label: 'Ver detalle',
+                                onClick: () => router.push(`/dashboard/purchases/${purchase.id}`),
+                              },
+                            ]}
+                          />
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold">
-                          ${Number(purchase.total).toFixed(2)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(purchase.createdAt).toLocaleDateString(
-                            "es-AR",
-                          )}
-                        </p>
-                        <span
-                          className={`inline-block mt-2 px-2 py-1 text-xs rounded-full border ${getPurchaseStatusColor(purchase.status)}`}
-                        >
-                          {getPurchaseStatusLabel(purchase.status)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-muted-foreground">
-                        {purchase._count?.items || 0} productos • Subtotal: $
-                        {Number(purchase.subtotal).toFixed(2)} • IVA: $
-                        {Number(purchase.tax).toFixed(2)}
-                      </div>
-                      <Link href={`/dashboard/purchases/${purchase.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver Detalle
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Pagination */}
-            <Pagination
-              setPage={setPage}
-              currentPage={page}
-              totalPages={meta.totalPages}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              total={meta.total}
-              limit={limit}
-              onLimitChange={setLimit}
-              hasMore={meta.hasMore}
-              onPageChange={setPage}
-              className="mt-6"
-            />
+            <div className="mt-4">
+              <Pagination
+                setPage={setPage}
+                currentPage={page}
+                totalPages={meta.totalPages}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                total={meta.total}
+                limit={limit}
+                onLimitChange={setLimit}
+                hasMore={meta.hasMore}
+                onPageChange={setPage}
+              />
+            </div>
           </>
         ) : (
           <Card>
