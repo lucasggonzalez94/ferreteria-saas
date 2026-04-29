@@ -117,15 +117,15 @@ export default function ChecksPage() {
         },
       });
 
-      const raw = (response.data as ChecksResponse) || { data: [] };
-      const rows = (raw.data || []).map((item) => ({
+      const items = (response.data || []) as CheckItem[];
+      const rows = items.map((item) => ({
         ...item,
         amount: Number(item.amount),
       }));
 
       return {
         data: rows,
-        meta: raw.meta,
+        meta: (response as any).meta,
       };
     },
     enabled: canRead,

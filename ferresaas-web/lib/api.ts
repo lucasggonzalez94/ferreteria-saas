@@ -5,6 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
+  meta?: Record<string, unknown>;
   error?: {
     code: string;
     message: string;
@@ -160,20 +161,6 @@ export function clearTokens(): void {
   }
 }
 
-// Callback para manejar logout cuando el token expira
-let onTokenExpiredCallback: (() => void) | null = null;
-
-export function setOnTokenExpired(callback: () => void): void {
-  onTokenExpiredCallback = callback;
-}
-
-function handleTokenExpired(): void {
-  clearTokens();
-  if (onTokenExpiredCallback) {
-    onTokenExpiredCallback();
-  }
-}
-
 // Suscribirse a refresh de token
 function subscribeTokenRefresh(callback: (token: string) => void): void {
   refreshSubscribers.push(callback);
@@ -326,7 +313,8 @@ class ApiClient {
           return this.request<T>(endpoint, options, false);
         } catch (error) {
           isRefreshing = false;
-          handleTokenExpired();
+          clearTokens();
+          // No redirigir automáticamente, dejar que el componente maneje el estado
           throw error;
         }
       } else {
