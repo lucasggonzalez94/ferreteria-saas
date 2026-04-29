@@ -224,7 +224,7 @@ export default function InvoicesPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <Header
           title="Comprobantes"
-          description="Consulta, seguimiento y descarga de invoices"
+          description="Consulta, seguimiento y descarga de comprobantes."
           link="/dashboard"
           linkLabel="Volver al inicio"
         />
@@ -301,7 +301,7 @@ export default function InvoicesPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Venta (ID)</label>
               <Input
-                placeholder="Cuid de venta"
+                placeholder="CUID de venta"
                 value={saleId}
                 onChange={(event) => setSaleId(event.target.value)}
               />

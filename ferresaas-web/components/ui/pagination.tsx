@@ -42,25 +42,27 @@ export function Pagination({
       <p className="text-sm text-muted-foreground">
         Mostrando {startIndex}-{endIndex} de {total}
       </p>
-      {totalPages > 1 && <div className={`flex justify-center gap-2 ${className}`}>
-        <Button
-          variant="outline"
-          disabled={currentPage === 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          Anterior
-        </Button>
-        <span className="flex items-center px-4">
-          Página {currentPage} de {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          disabled={!hasMore && currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          Siguiente
-        </Button>
-      </div>}
+      {total > 0 && totalPages > 0 && (
+        <div className={`flex justify-center gap-2 ${className}`}>
+          <Button
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => onPageChange(currentPage - 1)}
+          >
+            Anterior
+          </Button>
+          <span className="flex items-center px-4">
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={!hasMore && currentPage >= totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+          >
+            Siguiente
+          </Button>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <Label className="text-sm">Filas por pagina</Label>
         <Select

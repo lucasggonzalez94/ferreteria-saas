@@ -15,7 +15,7 @@ router.use(authenticate, multiTenant);
 
 /**
  * GET /inventory
- * Obtener stock actual de todos los productos
+ * Obtener stock actual de todos los productos (con paginación)
  */
 router.get(
   '/',
@@ -24,30 +24,50 @@ router.get(
     try {
       const authReq = req as AuthRequest;
 
-      // Reutilizar el servicio de productos para listar con stock
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const skip = (page - 1) * limit;
+
       const { prisma } = await import('../config/database');
 
-      const products = await prisma.product.findMany({
-        where: {
-          businessId: authReq.businessId!,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          internalSku: true,
-          barcode: true,
-          name: true,
-          unit: true,
-          stockQuantity: true,
-          minStock: true,
-          category: {
-            select: { id: true, name: true },
+      const [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where: {
+            businessId: authReq.businessId!,
+            isActive: true,
           },
-        },
-        orderBy: { name: 'asc' },
-      });
+          select: {
+            id: true,
+            internalSku: true,
+            barcode: true,
+            name: true,
+            unit: true,
+            stockQuantity: true,
+            minStock: true,
+            category: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limit,
+        }),
+        prisma.product.count({
+          where: {
+            businessId: authReq.businessId!,
+            isActive: true,
+          },
+        }),
+      ]);
 
-      sendSuccess(res, products);
+      const meta = {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      };
+
+      sendPaginated(res, products, meta);
     } catch (error) {
       next(error);
     }

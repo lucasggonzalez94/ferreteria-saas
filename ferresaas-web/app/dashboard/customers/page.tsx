@@ -211,12 +211,7 @@ export default function CustomersPage() {
           buttonAction={() => setShowForm(!showForm)}
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Resultados totales (filtro)</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Clientes en la base de datos.</p>
-          </div>
+        <div className="mb-6 grid gap-3 md:grid-cols-2">
           <div className="app-panel-muted rounded-[1.4rem] p-4">
             <p className="text-sm font-semibold text-foreground">Personas</p>
             <p className="mt-3 text-3xl font-semibold text-foreground">
@@ -225,7 +220,7 @@ export default function CustomersPage() {
             <p className="mt-2 text-sm text-muted-foreground">Clientes individuales.</p>
           </div>
           <div className="brand-accent-panel p-4">
-            <p className="text-sm font-semibold text-foreground">Con saldo activo</p>
+            <p className="text-sm font-semibold text-foreground">Con deuda</p>
             <p className="mt-3 text-3xl font-semibold text-foreground">
               {customers.filter((c) => Number(c.currentBalance) > 0).length}
             </p>

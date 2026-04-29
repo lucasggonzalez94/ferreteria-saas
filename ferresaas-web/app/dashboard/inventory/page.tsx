@@ -30,6 +30,7 @@ import {
   rangeForLocalDays,
   formatDate,
 } from "@/lib/timezone";
+import { Pagination } from "@/components/ui/pagination";
 
 interface InventoryProduct {
   id: string;
@@ -39,6 +40,16 @@ interface InventoryProduct {
   stockQuantity: number;
   minStock?: number;
   category?: { name: string };
+}
+
+interface ProductsResponse {
+  data: InventoryProduct[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 interface StockAlert {
@@ -88,6 +99,8 @@ export default function InventoryPage() {
     });
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [productPage, setProductPage] = useState(1);
+  const [productLimit, setProductLimit] = useState(20);
   const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
     () => {
       // Usar utilidades de timezone para obtener fechas locales correctas
@@ -99,20 +112,38 @@ export default function InventoryPage() {
   );
 
   // Obtener productos con stock
-  const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ["inventory", "products"],
+  const { data: productsData, isLoading: productsLoading } = useQuery({
+    queryKey: ["inventory", "products", productPage, productLimit],
     queryFn: async () => {
       try {
         const response = await api.get<
-          InventoryProduct[] | { data: InventoryProduct[] }
-        >("/inventory");
+          InventoryProduct[] | ProductsResponse | { data: InventoryProduct[] }
+        >("/inventory", {
+          params: { page: productPage, limit: productLimit },
+        });
+
+        // Handle different response formats
+        // La respuesta correcta tiene meta en response.meta, no response.data.meta
+        if ((response as ProductsResponse)?.meta) {
+          const pr = response as ProductsResponse;
+          return {
+            data: pr.data,
+            meta: pr.meta,
+          } as ProductsResponse;
+        }
         const productList = Array.isArray(response.data)
           ? response.data
           : (response.data as { data: InventoryProduct[] })?.data || [];
-        return productList as InventoryProduct[];
+        return {
+          data: productList as InventoryProduct[],
+          meta: { page: 1, limit: productLimit, total: productList.length, totalPages: 1 },
+        } as ProductsResponse;
       } catch (error) {
         console.error("Error cargando productos:", error);
-        return [] as InventoryProduct[];
+        return {
+          data: [],
+          meta: { page: 1, limit: productLimit, total: 0, totalPages: 0 },
+        } as ProductsResponse;
       }
     },
     enabled: canViewInventory,
@@ -328,7 +359,7 @@ export default function InventoryPage() {
           <TabsContent value="products">
             {productsLoading ? (
               <LoadingSpinner text="Cargando productos..." />
-            ) : products && products.length > 0 ? (
+            ) : productsData?.data && productsData.data.length > 0 ? (
               <Card>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -344,7 +375,7 @@ export default function InventoryPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product: InventoryProduct) => {
+                        {productsData.data.map((product: InventoryProduct) => {
                           const stockLevel =
                             product.minStock &&
                             product.stockQuantity < product.minStock
@@ -393,6 +424,22 @@ export default function InventoryPage() {
                         })}
                       </TableBody>
                     </Table>
+                  </div>
+                  <div className="mt-4">
+                    <Pagination
+                      setPage={setProductPage}
+                      currentPage={productsData.meta.page}
+                      totalPages={productsData.meta.totalPages}
+                      startIndex={(productsData.meta.page - 1) * productsData.meta.limit + 1}
+                      endIndex={Math.min(
+                        productsData.meta.page * productsData.meta.limit,
+                        productsData.meta.total,
+                      )}
+                      total={productsData.meta.total}
+                      limit={productsData.meta.limit}
+                      onLimitChange={setProductLimit}
+                      onPageChange={setProductPage}
+                    />
                   </div>
                 </CardContent>
               </Card>
