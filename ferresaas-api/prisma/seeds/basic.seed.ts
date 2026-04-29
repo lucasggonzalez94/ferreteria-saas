@@ -606,6 +606,95 @@ async function main() {
 
   console.log(`✅ Created ${financialAccounts.length} financial accounts`);
 
+  // 8. Crear cheques de ejemplo (30 cheques con diferentes estados y fechas)
+  const bankAccount = financialAccounts.find((a) => a.type === 'BANK')!;
+  const today = new Date();
+
+  const checksData = [
+    // Cheques vigentes (ISSUED) - 10 cheques
+    { checkNumber: '00010001', amount: 25000, recipientName: 'Proveedor Aires', dueDate: 15, status: 'ISSUED' },
+    { checkNumber: '00010002', amount: 45000, recipientName: 'Distribuidora Tornillos', dueDate: 20, status: 'ISSUED' },
+    { checkNumber: '00010003', amount: 15000, recipientName: 'Ferretería La Central', dueDate: 10, status: 'ISSUED' },
+    { checkNumber: '00010004', amount: 85000, recipientName: 'Metalúrgica industrial', dueDate: 30, status: 'ISSUED' },
+    { checkNumber: '00010005', amount: 32000, recipientName: 'Pinturas del Sur', dueDate: 25, status: 'ISSUED' },
+    { checkNumber: '00010006', amount: 12500, recipientName: 'Electricidad López', dueDate: 12, status: 'ISSUED' },
+    { checkNumber: '00010007', amount: 67000, recipientName: 'Caños y More', dueDate: 18, status: 'ISSUED' },
+    { checkNumber: '00010008', amount: 22000, recipientName: 'Bulonería Express', dueDate: 8, status: 'ISSUED' },
+    { checkNumber: '00010009', amount: 95000, recipientName: 'Herramientas Total', dueDate: 22, status: 'ISSUED' },
+    { checkNumber: '00010010', amount: 38000, recipientName: 'Surtido Ferretero', dueDate: 14, status: 'ISSUED' },
+    // Cheques cobrados (CLEARED) - 10 cheques
+    { checkNumber: '00010011', amount: 18000, recipientName: 'Plásticos del Norte', dueDate: -30, status: 'CLEARED', clearedAt: -25 },
+    { checkNumber: '00010012', amount: 55000, recipientName: 'Ferretería Martínez', dueDate: -45, status: 'CLEARED', clearedAt: -40 },
+    { checkNumber: '00010013', amount: 28000, recipientName: 'Proveedor de Cables', dueDate: -20, status: 'CLEARED', clearedAt: -18 },
+    { checkNumber: '00010014', amount: 72000, recipientName: 'Industrial Supply', dueDate: -60, status: 'CLEARED', clearedAt: -55 },
+    { checkNumber: '00010015', amount: 41000, recipientName: 'Pinturas Alpha', dueDate: -35, status: 'CLEARED', clearedAt: -32 },
+    { checkNumber: '00010016', amount: 15000, recipientName: 'Materiales SOS', dueDate: -25, status: 'CLEARED', clearedAt: -22 },
+    { checkNumber: '00010017', amount: 89000, recipientName: 'Metalurgica本地', dueDate: -50, status: 'CLEARED', clearedAt: -48 },
+    { checkNumber: '00010018', amount: 33000, recipientName: 'Electricidad 220V', dueDate: -15, status: 'CLEARED', clearedAt: -12 },
+    { checkNumber: '00010019', amount: 76000, recipientName: 'Sierra y Copa', dueDate: -40, status: 'CLEARED', clearedAt: -38 },
+    { checkNumber: '00010020', amount: 20000, recipientName: 'Rodamientos Buenos', dueDate: -10, status: 'CLEARED', clearedAt: -8 },
+    // Cheques vencidos/botados (BOUNCED) - 5 cheques
+    { checkNumber: '00010021', amount: 30000, recipientName: 'ProveedorXYZ', dueDate: -90, status: 'BOUNCED', bouncedAt: -85 },
+    { checkNumber: '00010022', amount: 48000, recipientName: 'Ferretero Mayorista', dueDate: -75, status: 'BOUNCED', bouncedAt: -70 },
+    { checkNumber: '00010023', amount: 22500, recipientName: 'Distruidores varios', dueDate: -60, status: 'BOUNCED', bouncedAt: -55 },
+    { checkNumber: '00010024', amount: 65000, recipientName: 'Articulos de hierro', dueDate: -80, status: 'BOUNCED', bouncedAt: -78 },
+    { checkNumber: '00010025', amount: 17500, recipientName: 'Mayorista Ferretero', dueDate: -70, status: 'BOUNCED', bouncedAt: -65 },
+    // Cheques cancelados (CANCELLED) - 5 cheques
+    { checkNumber: '00010026', amount: 42000, recipientName: 'Pago anulado', dueDate: -20, status: 'CANCELLED', cancelledAt: -15 },
+    { checkNumber: '00010027', amount: 28000, recipientName: 'Proveedor cancelado', dueDate: -35, status: 'CANCELLED', cancelledAt: -30 },
+    { checkNumber: '00010028', amount: 55000, recipientName: 'Pago revertido', dueDate: -45, status: 'CANCELLED', cancelledAt: -40 },
+    { checkNumber: '00010029', amount: 12000, recipientName: 'Cheque anulado', dueDate: -10, status: 'CANCELLED', cancelledAt: -5 },
+    { checkNumber: '00010030', amount: 38000, recipientName: 'Pago cancelado', dueDate: -25, status: 'CANCELLED', cancelledAt: -20 },
+  ];
+
+  const checks = await Promise.all(
+    checksData.map((data) => {
+      const issuedAt = new Date(today);
+      issuedAt.setDate(issuedAt.getDate() + data.dueDate);
+      const dueDate = new Date(issuedAt);
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const createdAt = new Date(today);
+      const baseData: any = {
+        businessId: business.id,
+        accountId: bankAccount.id,
+        checkNumber: data.checkNumber,
+        amount: data.amount,
+        currency: 'ARS',
+        status: data.status,
+        issuedAt,
+        dueDate,
+        recipientName: data.recipientName,
+      };
+
+      if (data.status === 'CLEARED' && data.clearedAt) {
+        const clearedDate = new Date(today);
+        clearedDate.setDate(clearedDate.getDate() + data.clearedAt);
+        baseData.clearedAt = clearedDate;
+      }
+
+      if (data.status === 'BOUNCED' && data.bouncedAt) {
+        const bouncedDate = new Date(today);
+        bouncedDate.setDate(bouncedDate.getDate() + data.bouncedAt);
+        baseData.bouncedAt = bouncedDate;
+      }
+
+      if (data.status === 'CANCELLED' && data.cancelledAt) {
+        const cancelledDate = new Date(today);
+        cancelledDate.setDate(cancelledDate.getDate() + data.cancelledAt);
+        baseData.cancelledAt = cancelledDate;
+      }
+
+      return prisma.checkRegister.upsert({
+        where: { businessId_checkNumber: { businessId: business.id, checkNumber: data.checkNumber } },
+        update: {},
+        create: baseData,
+      });
+    })
+  );
+
+  console.log(`✅ Created ${checks.length} check registers`);
+
   console.log('\n✨ Basic seed completed successfully!');
   console.log('\n📝 Login credentials:');
   console.log('   Email: admin@ferreteria-demo.com');

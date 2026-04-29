@@ -160,6 +160,20 @@ export function clearTokens(): void {
   }
 }
 
+// Callback para manejar logout cuando el token expira
+let onTokenExpiredCallback: (() => void) | null = null;
+
+export function setOnTokenExpired(callback: () => void): void {
+  onTokenExpiredCallback = callback;
+}
+
+function handleTokenExpired(): void {
+  clearTokens();
+  if (onTokenExpiredCallback) {
+    onTokenExpiredCallback();
+  }
+}
+
 // Suscribirse a refresh de token
 function subscribeTokenRefresh(callback: (token: string) => void): void {
   refreshSubscribers.push(callback);
@@ -312,8 +326,7 @@ class ApiClient {
           return this.request<T>(endpoint, options, false);
         } catch (error) {
           isRefreshing = false;
-          clearTokens();
-          // No redirigir automáticamente, dejar que el componente maneje el estado
+          handleTokenExpired();
           throw error;
         }
       } else {
