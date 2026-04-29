@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { RefreshCw, FileText, Plus } from "lucide-react";
+import { RefreshCw, FileText, Plus, CheckCircle, XCircle } from "lucide-react";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 
 interface FinancialAccount {
   id: string;
@@ -305,47 +306,133 @@ export default function ChecksPage() {
         </Card>
       ) : checks.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center space-y-2">
-            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No hay cheques para los filtros seleccionados.</p>
           </CardContent>
         </Card>
       ) : (
         <>
-          <div className="grid gap-4">
-            {checks.map((check) => (
-              <Card key={check.id}>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Cheque #{check.checkNumber}</p>
-                      <p className="font-semibold">{formatMoney(Number(check.amount), check.currency)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Cuenta: {check.account?.name || "-"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Tercero/Librador: {check.recipientName || "-"}
-                      </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {checks.map((check) => (
+                  <div
+                    key={check.id}
+                    className="group relative rounded-lg border border-transparent p-3 flex items-center gap-4 hover:bg-accent/5 hover:border-[hsl(var(--border)/0.5)] hover:rounded-xl transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow flex items-center justify-center">
+                      <FileText className="h-5 w-5" />
                     </div>
-                    <div className="space-y-2 md:text-right">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(check.status)}`}>
-                        {getStatusLabel(check.status)}
-                      </span>
-                      <p className="text-sm text-muted-foreground">
-                        Emision: {new Date(check.issuedAt).toLocaleDateString("es-AR")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Vencimiento: {check.dueDate ? new Date(check.dueDate).toLocaleDateString("es-AR") : "-"}
-                      </p>
-                      <Link href={`/dashboard/checks/${check.id}`}>
-                        <Button variant="outline" size="sm">Ver detalle</Button>
-                      </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-foreground truncate text-[15px]">
+                          Cheque #{check.checkNumber}
+                        </p>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 border ${
+                            check.status === 'ISSUED'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : check.status === 'CLEARED'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : check.status === 'BOUNCED'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : check.status === 'CANCELLED'
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                              check.status === 'ISSUED'
+                                ? 'bg-blue-500'
+                                : check.status === 'CLEARED'
+                                ? 'bg-emerald-500'
+                                : check.status === 'BOUNCED'
+                                ? 'bg-red-500'
+                                : check.status === 'CANCELLED'
+                                ? 'bg-orange-500'
+                                : 'bg-slate-500'
+                            }`}
+                          />
+                          {getStatusLabel(check.status)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <span className="text-foreground/60">Tercero:</span>
+                          <span className="text-xs text-foreground/80">
+                            {check.recipientName || '-'}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-foreground/60">Cuenta:</span>
+                          <span className="text-xs text-foreground/80">
+                            {check.account?.name || '-'}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-foreground/60">Emision:</span>
+                          <span className="text-xs text-foreground/80">
+                            {new Date(check.issuedAt).toLocaleDateString('es-AR')}
+                          </span>
+                        </span>
+                        {check.dueDate && (
+                          <span className="flex items-center gap-1">
+                            <span className="text-foreground/60">Vencimiento:</span>
+                            <span className="text-xs text-foreground/80">
+                              {new Date(check.dueDate).toLocaleDateString('es-AR')}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-5 flex-shrink-0">
+                      <div className="text-right min-w-[100px]">
+                        <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
+                          Importe
+                        </p>
+                        <p className="text-base font-bold tabular-nums">
+                          {formatMoney(Number(check.amount), check.currency)}
+                        </p>
+                      </div>
+                      <ActionsMenu
+                        actions={[
+                          {
+                            label: 'Ver detalle',
+                            onClick: () => window.location.href = `/dashboard/checks/${check.id}`,
+                          },
+                          ...(canManage && check.status === 'ISSUED' ? [
+                            {
+                              label: 'Marcar como cobrado',
+                              onClick: () => console.log('Marcar como cobrado', check.id),
+                            },
+                            {
+                              label: 'Marcar como rebotado',
+                              onClick: () => console.log('Marcar como rebotado', check.id),
+                            },
+                            {
+                              label: 'Anular cheque',
+                              onClick: () => console.log('Anular cheque', check.id),
+                            },
+                          ] : []),
+                          ...(canManage && check.status === 'CLEARED' ? [
+                            {
+                              label: 'Marcar como emitido',
+                              onClick: () => console.log('Marcar como emitido', check.id),
+                            },
+                          ] : []),
+                        ]}
+                      />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
           <Pagination
             setPage={setPage}
             currentPage={page}
