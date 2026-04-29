@@ -4,9 +4,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
 
+type CartItem = {
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    cost: number;
+    unit: string;
+    stockQuantity: number;
+    isFractional: boolean;
+  };
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
 const mockPush = jest.fn();
 const mockUsePermissionGuard = jest.fn();
-const mockLoadCart = jest.fn(() => []);
+const mockLoadCart = jest.fn().mockReturnValue([] as CartItem[]);
 const mockSaveCart = jest.fn();
 const mockClearCart = jest.fn();
 const mockToastError = jest.fn();
@@ -36,9 +51,9 @@ jest.mock('@/lib/auth-context', () => ({
 
 jest.mock('@/lib/hooks/useCartPersistence', () => ({
   useCartPersistence: () => ({
-    loadCart: (...args: unknown[]) => mockLoadCart(...args),
-    saveCart: (...args: unknown[]) => mockSaveCart(...args),
-    clearCart: (...args: unknown[]) => mockClearCart(...args),
+    loadCart: () => mockLoadCart(),
+    saveCart: mockSaveCart,
+    clearCart: mockClearCart,
   }),
 }));
 

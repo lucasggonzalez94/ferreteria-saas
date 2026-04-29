@@ -453,44 +453,20 @@ export default function ProductsPage() {
           </Card>
         )}
 
-        {products.length > 0 && (
-          <div className="mt-4">
-            <Pagination
-              currentPage={meta.page}
-              totalPages={Math.max(meta.totalPages || 1, 1)}
-              hasMore={meta.hasMore}
-              onPageChange={setPage}
-            />
-          </div>
-        )}
-
-        {products.length > 0 && (
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {totals.startIndex}-{totals.endIndex} de {meta.total} productos
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Label className="text-sm">Filas por pagina</Label>
-              <Select
-                value={String(limit)}
-                onValueChange={(value) => {
-                  setLimit(Number(value));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[110px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
+        <div className="mt-4">
+          <Pagination
+            setPage={setPage}
+            currentPage={meta.page}
+            totalPages={Math.max(meta.totalPages || 1, 1)}
+            hasMore={meta.hasMore}
+            startIndex={totals.startIndex}
+            endIndex={totals.endIndex}
+            total={meta.total}
+            limit={limit}
+            onLimitChange={setLimit}
+            onPageChange={setPage}
+          />
+        </div>
       </div>
 
       <ConfirmDialog

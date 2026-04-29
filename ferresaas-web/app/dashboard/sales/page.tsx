@@ -378,37 +378,17 @@ export default function SalesPage() {
         </Card>
 
         <Pagination
+          setPage={setPage}
           currentPage={meta.page}
           totalPages={Math.max(meta.totalPages || 1, 1)}
+          startIndex={totals.startIndex}
+          endIndex={totals.endIndex}
+          total={meta.total}
+          limit={limit}
+          onLimitChange={setLimit}
           hasMore={meta.hasMore}
           onPageChange={setPage}
         />
-
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {totals.startIndex}-{totals.endIndex} de {meta.total} ventas
-          </p>
-
-          <div className="flex items-center gap-2">
-            <Label className="text-sm">Filas por pagina</Label>
-            <Select
-              value={String(limit)}
-              onValueChange={(value) => {
-                setLimit(Number(value));
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[110px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
       </div>
     </div>
   );

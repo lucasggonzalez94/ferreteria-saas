@@ -27,14 +27,37 @@ describe('stat card and pagination', () => {
 
   it('pagination returns null for single page and triggers page changes', () => {
     const onPageChange = jest.fn();
+    const onLimitChange = jest.fn();
+    const setPage = jest.fn();
     const { rerender } = render(
-      <Pagination currentPage={1} totalPages={1} onPageChange={onPageChange} />
+      <Pagination
+        setPage={setPage}
+        currentPage={1}
+        totalPages={1}
+        startIndex={1}
+        endIndex={1}
+        total={1}
+        limit={20}
+        onLimitChange={onLimitChange}
+        onPageChange={onPageChange}
+      />
     );
 
     expect(screen.queryByText(/Pagina/i)).toBeNull();
 
     rerender(
-      <Pagination currentPage={2} totalPages={3} hasMore={true} onPageChange={onPageChange} />
+      <Pagination
+        setPage={setPage}
+        currentPage={2}
+        totalPages={3}
+        startIndex={21}
+        endIndex={40}
+        total={60}
+        limit={20}
+        onLimitChange={onLimitChange}
+        hasMore={true}
+        onPageChange={onPageChange}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));

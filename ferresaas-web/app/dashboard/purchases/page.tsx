@@ -77,6 +77,7 @@ export default function PurchasesPage() {
     });
 
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
@@ -92,12 +93,12 @@ export default function PurchasesPage() {
   const { data: purchasesData, isLoading } = useQuery<
     PurchasesResponse | undefined
   >({
-    queryKey: ["purchases", page, startDate, endDate, supplierId],
+    queryKey: ["purchases", page, limit, startDate, endDate, supplierId],
     queryFn: async () => {
       const response = await api.get<any>("/purchases", {
         params: {
           page,
-          limit: 10,
+          limit,
           ...(supplierId && { supplierId }),
           ...(startDate && { startDate }),
           ...(endDate && { endDate }),
@@ -107,7 +108,7 @@ export default function PurchasesPage() {
         data: response.data || [],
         meta: (response as any).meta || {
           page: 1,
-          limit: 10,
+          limit,
           total: 0,
           totalPages: 0,
           hasMore: false,
@@ -145,11 +146,14 @@ export default function PurchasesPage() {
       : [];
   const meta = purchasesData?.meta || {
     page: 1,
-    limit: 10,
+    limit: limit,
     total: 0,
     totalPages: 0,
     hasMore: false,
   };
+
+  const startIndex = purchases.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const summary = summaryData || {};
 
   // suppliersData contiene { data: [...], meta: {...} }
@@ -375,8 +379,14 @@ export default function PurchasesPage() {
 
             {/* Pagination */}
             <Pagination
+              setPage={setPage}
               currentPage={page}
               totalPages={meta.totalPages}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              total={meta.total}
+              limit={limit}
+              onLimitChange={setLimit}
               hasMore={meta.hasMore}
               onPageChange={setPage}
               className="mt-6"

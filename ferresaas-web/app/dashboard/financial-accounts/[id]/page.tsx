@@ -116,7 +116,7 @@ export default function AccountDetailPage() {
   );
   const [movementType, setMovementType] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit, setLimit] = useState(20);
 
   const canRead = user?.permissions?.includes("financial_accounts:read");
   const canManage =
@@ -136,7 +136,7 @@ export default function AccountDetailPage() {
 
   const { data: movementsData, isLoading: movementsLoading, refetch: refetchMovements } =
     useQuery<MovementsResponse | null>({
-      queryKey: ["financial-accounts", accountId, "movements", startDate, endDate, movementType, currentPage],
+      queryKey: ["financial-accounts", accountId, "movements", startDate, endDate, movementType, currentPage, limit],
       queryFn: async () => {
         const params: Record<string, any> = {
           page: currentPage,
@@ -496,7 +496,7 @@ export default function AccountDetailPage() {
 
           {/* Pagination */}
           {movementsData && movementsData.meta.pages > 1 && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-muted-foreground">
                 Mostrando {((currentPage - 1) * limit) + 1} a{" "}
                 {Math.min(currentPage * limit, movementsData.meta.total)} de{" "}
@@ -519,6 +519,25 @@ export default function AccountDetailPage() {
                 >
                   Siguiente
                 </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Filas por pagina</Label>
+                <Select
+                  value={String(limit)}
+                  onValueChange={(value) => {
+                    setLimit(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

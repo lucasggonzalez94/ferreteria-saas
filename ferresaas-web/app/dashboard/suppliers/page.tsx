@@ -92,6 +92,7 @@ export default function SuppliersPage() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -101,13 +102,13 @@ export default function SuppliersPage() {
   });
 
   const { data: suppliersData, isLoading, error } = useQuery<SuppliersApiResponse | undefined>({
-    queryKey: ["suppliers", search, page],
+    queryKey: ["suppliers", search, page, limit],
     queryFn: async () => {
       const response = await api.get<any>("/suppliers", {
         params: {
           search: search || undefined,
           page,
-          limit: 10,
+          limit,
         },
       });
       return response as SuppliersApiResponse;
@@ -192,7 +193,10 @@ export default function SuppliersPage() {
     currentBalance: Number(supplier.currentBalance) || 0,
   }));
   
-  const meta = suppliersData?.meta || { page: 1, limit: 10, total: 0, totalPages: 0, hasMore: false };
+  const meta = suppliersData?.meta || { page: 1, limit: limit, total: 0, totalPages: 0, hasMore: false };
+  
+  const startIndex = suppliers.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const activeSuppliers = suppliers.filter((supplier) => supplier.isActive).length;
   const suppliersWithDebt = suppliers.filter((supplier) => supplier.currentBalance > 0).length;
 
@@ -505,8 +509,14 @@ export default function SuppliersPage() {
 
             {/* Pagination */}
             <Pagination
+              setPage={setPage}
               currentPage={page}
               totalPages={meta.totalPages || 0}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              total={meta.total}
+              limit={limit}
+              onLimitChange={setLimit}
               hasMore={meta.hasMore}
               onPageChange={setPage}
               className="mt-6"

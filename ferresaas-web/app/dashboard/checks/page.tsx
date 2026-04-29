@@ -96,6 +96,7 @@ export default function ChecksPage() {
   });
 
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [status, setStatus] = useState<string>("all");
   const [accountId, setAccountId] = useState<string>("all");
 
@@ -105,12 +106,12 @@ export default function ChecksPage() {
     refetch: refetchChecks,
     isFetching,
   } = useQuery<ChecksResponse>({
-    queryKey: ["checks", page, status, accountId],
+    queryKey: ["checks", page, limit, status, accountId],
     queryFn: async () => {
       const response = await api.get<ChecksResponse>("/checks", {
         params: {
           page,
-          limit: 10,
+          limit,
           ...(status !== "all" && { status }),
           ...(accountId !== "all" && { accountId }),
         },
@@ -161,11 +162,14 @@ export default function ChecksPage() {
   const checks = checksData?.data || [];
   const meta = checksData?.meta || {
     page: 1,
-    limit: 10,
+    limit: limit,
     total: 0,
     totalPages: 1,
     hasMore: false,
   };
+
+  const startIndex = checks.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const endIndex = Math.min(meta.page * meta.limit, meta.total);
 
   const totalPendingAmount = summary.reduce(
     (acc, item) => acc + Number(item.totalPending || 0),
@@ -343,8 +347,14 @@ export default function ChecksPage() {
             ))}
           </div>
           <Pagination
+            setPage={setPage}
             currentPage={page}
             totalPages={meta.totalPages || 1}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            total={meta.total}
+            limit={limit}
+            onLimitChange={setLimit}
             hasMore={meta.hasMore || false}
             onPageChange={setPage}
             className="mt-4"

@@ -124,6 +124,7 @@ export default function PayablesPage() {
   });
 
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [status, setStatus] = useState<string>("");
   const [supplierId, setSupplierId] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -184,6 +185,7 @@ export default function PayablesPage() {
     queryKey: [
       "payables",
       page,
+      limit,
       status,
       supplierId,
       search,
@@ -196,7 +198,7 @@ export default function PayablesPage() {
       const response = await api.get<PayablesResponse>("/payables", {
         params: {
           page,
-          limit: 10,
+          limit,
           ...(status && { status }),
           ...(supplierId && { supplierId }),
           ...(search && { search }),
@@ -277,11 +279,14 @@ export default function PayablesPage() {
   const payables = payablesData?.data || [];
   const meta = payablesData?.meta || {
     page: 1,
-    limit: 10,
+    limit: limit,
     total: 0,
     totalPages: 1,
     hasMore: false,
   };
+
+  const startIndex = payables.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const endIndex = Math.min(meta.page * meta.limit, meta.total);
   const summary = summaryData || {} as PayablesSummary;
 
   // Obtener nombre del proveedor filtrado
@@ -793,8 +798,14 @@ export default function PayablesPage() {
 
             {/* Pagination */}
             <Pagination
+              setPage={setPage}
               currentPage={page}
               totalPages={meta.totalPages}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              total={meta.total}
+              limit={limit}
+              onLimitChange={setLimit}
               hasMore={meta.hasMore}
               onPageChange={setPage}
               className="mt-6"
