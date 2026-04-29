@@ -63,12 +63,19 @@ interface StockAlert {
   alertMessage: string;
 }
 
-interface StockAlertsResponse {
+interface AlertsResponse {
   items: StockAlert[];
   summary: {
     critical: number;
     warning: number;
     total: number;
+  };
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
   };
 }
 
@@ -80,6 +87,17 @@ interface InventoryMovement {
   createdAt: string;
   user?: { name?: string; username?: string };
   product: { name: string; unit?: string };
+}
+
+interface MovementsResponse {
+  data: InventoryMovement[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
 }
 
 interface AdjustmentData {
@@ -101,6 +119,9 @@ export default function InventoryPage() {
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [productPage, setProductPage] = useState(1);
   const [productLimit, setProductLimit] = useState(20);
+  const [alertPage, setAlertPage] = useState(1);
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementLimit, setMovementLimit] = useState(20);
   const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
     () => {
       // Usar utilidades de timezone para obtener fechas locales correctas
@@ -116,33 +137,29 @@ export default function InventoryPage() {
     queryKey: ["inventory", "products", productPage, productLimit],
     queryFn: async () => {
       try {
-        const response = await api.get<
-          InventoryProduct[] | ProductsResponse | { data: InventoryProduct[] }
-        >("/inventory", {
+        const response = await api.get("/inventory", {
           params: { page: productPage, limit: productLimit },
         });
 
-        // Handle different response formats
-        // La respuesta correcta tiene meta en response.meta, no response.data.meta
-        if ((response as ProductsResponse)?.meta) {
-          const pr = response as ProductsResponse;
-          return {
-            data: pr.data,
-            meta: pr.meta,
-          } as ProductsResponse;
+        const result = response as unknown as {
+          success: boolean;
+          data: InventoryProduct[];
+          meta: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean };
+        };
+
+        if (!result.success) {
+          throw new Error("Error fetching products");
         }
-        const productList = Array.isArray(response.data)
-          ? response.data
-          : (response.data as { data: InventoryProduct[] })?.data || [];
+
         return {
-          data: productList as InventoryProduct[],
-          meta: { page: 1, limit: productLimit, total: productList.length, totalPages: 1 },
+          data: result.data || [],
+          meta: result.meta || { page: 1, limit: productLimit, total: 0, totalPages: 0, hasMore: false },
         } as ProductsResponse;
       } catch (error) {
         console.error("Error cargando productos:", error);
         return {
           data: [],
-          meta: { page: 1, limit: productLimit, total: 0, totalPages: 0 },
+          meta: { page: 1, limit: productLimit, total: 0, totalPages: 0, hasMore: false },
         } as ProductsResponse;
       }
     },
@@ -150,60 +167,79 @@ export default function InventoryPage() {
   });
 
   // Obtener alertas de stock
-  const { data: alerts, isLoading: alertsLoading } = useQuery({
-    queryKey: ["inventory", "alerts"],
+  const { data: alertsData, isLoading: alertsLoading } = useQuery({
+    queryKey: ["inventory", "alerts", alertPage],
     queryFn: async () => {
       try {
-        const response = await api.get<
-          StockAlertsResponse | { data: StockAlertsResponse }
-        >("/inventory-reports/stock-alerts");
-        const responseData = response.data as
-          | StockAlertsResponse
-          | { data: StockAlertsResponse };
-        const alertsData = (responseData as { data: StockAlertsResponse })
-          ?.data ||
-          responseData || { items: [], summary: {} };
-        return alertsData as StockAlertsResponse;
+        const response = await api.get("/inventory-reports/stock-alerts", {
+          params: { page: alertPage, limit: 20 },
+        });
+
+        const result = response as unknown as {
+          success: boolean;
+          data: { items: StockAlert[]; summary: { critical: number; warning: number; total: number } };
+          meta: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean };
+        };
+
+        if (!result.success) {
+          throw new Error("Error fetching alerts");
+        }
+
+        return {
+          items: result.data?.items || [],
+          summary: result.data?.summary || { critical: 0, warning: 0, total: 0 },
+          meta: result.meta || { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
+        } as AlertsResponse;
       } catch (error) {
         console.error("Error cargando alertas:", error);
         return {
           items: [],
           summary: { critical: 0, warning: 0, total: 0 },
-        } as StockAlertsResponse;
+          meta: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
+        } as AlertsResponse;
       }
     },
     enabled: canViewInventory,
   });
 
   // Obtener movimientos recientes
-  const { data: movements, isLoading: movementsLoading } = useQuery({
-    queryKey: ["inventory", "movements", dateFilter],
+  const { data: movementsData, isLoading: movementsLoading } = useQuery({
+    queryKey: ["inventory", "movements", dateFilter, movementPage, movementLimit],
     queryFn: async () => {
       try {
         const params: Record<string, string | number> = {
-          limit: 50,
-          page: 1,
+          limit: movementLimit,
+          page: movementPage,
         };
 
-        // Usar utilidades de timezone para convertir fechas locales a UTC
         if (dateFilter.from && dateFilter.to) {
           const utcRange = rangeForLocalDays(dateFilter.from, dateFilter.to);
           params.startDate = utcRange.startDate;
           params.endDate = utcRange.endDate;
         }
 
-        const response = await api.get<
-          InventoryMovement[] | { data: InventoryMovement[] }
-        >("/inventory/movements", {
-          params,
-        });
-        const movementList = Array.isArray(response.data)
-          ? response.data
-          : (response.data as { data: InventoryMovement[] })?.data || [];
-        return movementList as InventoryMovement[];
+        const response = await api.get("/inventory/movements", { params });
+
+        const result = response as unknown as {
+          success: boolean;
+          data: InventoryMovement[];
+          meta: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean };
+        };
+
+        if (!result.success) {
+          throw new Error("Error fetching movements");
+        }
+
+        return {
+          data: result.data || [],
+          meta: result.meta || { page: 1, limit: movementLimit, total: 0, totalPages: 0, hasMore: false },
+        } as MovementsResponse;
       } catch (error) {
         console.error("Error cargando movimientos:", error);
-        return [] as InventoryMovement[];
+        return {
+          data: [],
+          meta: { page: 1, limit: movementLimit, total: 0, totalPages: 0, hasMore: false },
+        } as MovementsResponse;
       }
     },
     enabled: canViewInventory,
@@ -271,7 +307,7 @@ export default function InventoryPage() {
           <TabsContent value="alerts">
             {alertsLoading ? (
               <LoadingSpinner text="Cargando alertas..." />
-            ) : alerts?.items && alerts.items.length > 0 ? (
+            ) : alertsData?.items && alertsData.items.length > 0 ? (
               <div className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -287,7 +323,7 @@ export default function InventoryPage() {
                           Críticas
                         </p>
                         <p className="text-2xl font-bold text-red-700">
-                          {alerts.summary?.critical || 0}
+                          {alertsData.summary?.critical || 0}
                         </p>
                       </div>
                       <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
@@ -295,7 +331,7 @@ export default function InventoryPage() {
                           Advertencias
                         </p>
                         <p className="text-2xl font-bold text-yellow-700">
-                          {alerts.summary?.warning || 0}
+                          {alertsData.summary?.warning || 0}
                         </p>
                       </div>
                       <div className="brand-accent-panel p-4">
@@ -303,7 +339,7 @@ export default function InventoryPage() {
                           Total
                         </p>
                         <p className="text-2xl font-bold text-foreground">
-                          {alerts.summary?.total || 0}
+                          {alertsData.summary?.total || 0}
                         </p>
                       </div>
                     </div>
@@ -311,7 +347,7 @@ export default function InventoryPage() {
                 </Card>
 
                 <div className="space-y-2">
-                  {alerts.items.map((alert: StockAlert) => (
+                  {alertsData.items.map((alert: StockAlert) => (
                     <div
                       key={alert.id}
                       className={`flex justify-between items-center p-4 rounded-lg border ${getAlertColor(
@@ -343,6 +379,24 @@ export default function InventoryPage() {
                     </div>
                   ))}
                 </div>
+                {alertsData.meta.total > 0 && alertsData.meta.totalPages > 0 && (
+                  <div className="mt-4">
+                    <Pagination
+                      setPage={setAlertPage}
+                      currentPage={alertsData.meta.page}
+                      totalPages={alertsData.meta.totalPages}
+                      startIndex={(alertsData.meta.page - 1) * alertsData.meta.limit + 1}
+                      endIndex={Math.min(
+                        alertsData.meta.page * alertsData.meta.limit,
+                        alertsData.meta.total,
+                      )}
+                      total={alertsData.meta.total}
+                      limit={alertsData.meta.limit}
+                      onLimitChange={() => {}}
+                      onPageChange={setAlertPage}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <Card>
@@ -496,7 +550,7 @@ export default function InventoryPage() {
 
             {movementsLoading ? (
               <LoadingSpinner text="Cargando movimientos..." />
-            ) : movements && movements.length > 0 ? (
+            ) : movementsData?.data && movementsData.data.length > 0 ? (
               <Card>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -512,7 +566,7 @@ export default function InventoryPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {movements.map((movement: InventoryMovement) => (
+                        {movementsData.data.map((movement: InventoryMovement) => (
                           <TableRow key={movement.id}>
                             <TableCell className="text-sm">
                               {formatDate(movement.createdAt, "dd/MM/yyyy")}
@@ -555,6 +609,22 @@ export default function InventoryPage() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                  <div className="mt-4">
+                    <Pagination
+                      setPage={setMovementPage}
+                      currentPage={movementsData.meta.page}
+                      totalPages={movementsData.meta.totalPages}
+                      startIndex={(movementsData.meta.page - 1) * movementsData.meta.limit + 1}
+                      endIndex={Math.min(
+                        movementsData.meta.page * movementsData.meta.limit,
+                        movementsData.meta.total,
+                      )}
+                      total={movementsData.meta.total}
+                      limit={movementsData.meta.limit}
+                      onLimitChange={setMovementLimit}
+                      onPageChange={setMovementPage}
+                    />
                   </div>
                 </CardContent>
               </Card>

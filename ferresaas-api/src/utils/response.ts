@@ -47,6 +47,8 @@ export const sendPaginated = <T>(
     page: number;
     limit: number;
     total: number;
+    totalPages?: number;
+    hasMore?: boolean;
   }
 ): Response => {
   const totalPages = Math.ceil(meta.total / meta.limit);
@@ -55,8 +57,8 @@ export const sendPaginated = <T>(
     data: items,
     meta: {
       ...meta,
-      totalPages,
-      hasMore: meta.page < totalPages,
+      totalPages: meta.totalPages ?? totalPages,
+      hasMore: meta.hasMore ?? (meta.page < totalPages),
     },
   };
   return res.status(200).json(response);

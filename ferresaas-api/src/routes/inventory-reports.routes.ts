@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { InventoryReportsService } from '../services/inventory-reports.service';
 import { PDFGeneratorService } from '../services/pdf-generator.service';
-import { sendSuccess } from '../utils/response';
+import { sendSuccess, sendPaginated } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -95,7 +95,7 @@ router.get(
 
 /**
  * GET /inventory-reports/stock-alerts
- * Reporte de Stock Bajo & Alertas
+ * Reporte de Stock Bajo & Alertas (con paginación)
  */
 router.get(
   '/stock-alerts',
@@ -104,9 +104,33 @@ router.get(
     try {
       const authReq = req as AuthRequest;
 
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const skip = (page - 1) * limit;
+
       const result = await reportsService.getStockAlertsReport(authReq.businessId!);
 
-      sendSuccess(res, result);
+      const allItems = result.items || [];
+      const total = allItems.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginatedItems = allItems.slice(skip, skip + limit);
+
+      const meta = {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+      };
+
+      res.status(200).json({
+        success: true,
+        data: {
+          items: paginatedItems,
+          summary: result.summary,
+        },
+        meta,
+      });
     } catch (error) {
       next(error);
     }
