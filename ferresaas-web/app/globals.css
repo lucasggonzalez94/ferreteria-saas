@@ -200,7 +200,6 @@
 
   .app-panel {
     @apply rounded-[1.75rem] border border-border/70 bg-card/90 text-card-foreground backdrop-blur-xl;
-    box-shadow: 0 28px 80px -42px rgba(12, 41, 69, 0.52);
   }
 
   .app-panel-muted {
