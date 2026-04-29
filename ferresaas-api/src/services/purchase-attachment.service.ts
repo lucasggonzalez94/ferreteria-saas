@@ -25,7 +25,6 @@ export class PurchaseAttachmentService {
 
     const uploadResult = await CloudinaryService.uploadAttachment(file, businessId, purchaseId) as any;
     const fileUrl = uploadResult.secure_url;
-    const publicId = uploadResult.public_id;
 
     const attachment = await prisma.purchaseAttachment.create({
       data: {

@@ -19,7 +19,7 @@ router.use(authenticate, multiTenant);
 
 /**
  * GET /customers
- * Listar clientes
+ * Listar clientes con paginación
  */
 router.get(
   '/',
@@ -27,7 +27,11 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
-      const { q } = req.query;
+      const { q, page = '1', limit = '20', sort = 'name-asc' } = req.query;
+
+      const pageNum = Math.max(1, parseInt(page as string, 10));
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+      const skip = (pageNum - 1) * limitNum;
 
       const where: any = {
         businessId: authReq.businessId!,
@@ -43,12 +47,38 @@ router.get(
         ];
       }
 
-      const customers = await prisma.customer.findMany({
-        where,
-        orderBy: [{ type: 'asc' }, { companyName: 'asc' }, { lastName: 'asc' }],
-      });
+      let orderBy: any = [{ type: 'asc' }, { companyName: 'asc' }, { lastName: 'asc' }];
+      if (sort === 'name-desc') {
+        orderBy = [{ type: 'desc' }, { companyName: 'desc' }, { lastName: 'desc' }];
+      } else if (sort === 'balance-asc') {
+        orderBy = { currentBalance: 'asc' };
+      } else if (sort === 'balance-desc') {
+        orderBy = { currentBalance: 'desc' };
+      } else if (sort === 'created-asc') {
+        orderBy = { createdAt: 'asc' };
+      } else if (sort === 'created-desc') {
+        orderBy = { createdAt: 'desc' };
+      }
 
-      sendSuccess(res, customers);
+      const [customers, total] = await Promise.all([
+        prisma.customer.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limitNum,
+        }),
+        prisma.customer.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / limitNum);
+
+      sendSuccess(res, customers, 200, {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        hasMore: pageNum < totalPages,
+      });
     } catch (error) {
       next(error);
     }

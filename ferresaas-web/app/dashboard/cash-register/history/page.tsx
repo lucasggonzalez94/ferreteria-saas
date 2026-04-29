@@ -3,9 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Eye, Download } from "lucide-react";
+import { Eye } from "lucide-react";
 import Header from "@/components/ui/header";
 import {
   Dialog,

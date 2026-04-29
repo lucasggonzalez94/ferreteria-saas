@@ -90,8 +90,8 @@ export default function DashboardPage() {
     isRefetching,
   } = useApprovalCounts();
 
-  const pendingApprovals =
-    (approvalCounts?.discounts || 0) + (approvalCounts?.prices || 0);
+  // const pendingApprovals =
+  //   (approvalCounts?.discounts || 0) + (approvalCounts?.prices || 0);
   const welcomeName = user?.firstName || user?.email?.split("@")[0] || "equipo";
   const actionCaptions: Record<string, string> = {
     cash: "Apertura, movimientos y cierre de turno.",

@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { Prisma } from '@prisma/client';
-import { differenceInDays, subDays, format, addDays } from 'date-fns';
+import { differenceInDays, subDays, addDays } from 'date-fns';
 import { startOfDayInTimezone, endOfDayInTimezone, DEFAULT_TIMEZONE, formatInTimezone } from '../utils/timezone';
 
 interface SalesSummaryFilters {

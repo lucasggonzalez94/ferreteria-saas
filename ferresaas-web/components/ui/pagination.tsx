@@ -42,7 +42,7 @@ export function Pagination({
       <p className="text-sm text-muted-foreground">
         Mostrando {startIndex}-{endIndex} de {total}
       </p>
-      <div className={`flex justify-center gap-2 ${className}`}>
+      {totalPages > 1 && <div className={`flex justify-center gap-2 ${className}`}>
         <Button
           variant="outline"
           disabled={currentPage === 1}
@@ -60,7 +60,7 @@ export function Pagination({
         >
           Siguiente
         </Button>
-      </div>
+      </div>}
       <div className="flex items-center gap-2">
         <Label className="text-sm">Filas por pagina</Label>
         <Select
