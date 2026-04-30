@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { Prisma } from '@prisma/client';
+import { differenceInDays, subDays } from 'date-fns';
 
 interface ProductReturn {
   product: {
@@ -11,6 +12,7 @@ interface ProductReturn {
   count: number;
   totalQuantity: number;
   totalValue: number;
+  reasons: Record<string, number>;
 }
 
 interface CustomerReturn {
@@ -441,11 +443,14 @@ export class InventoryReportsService {
           count: 0,
           totalQuantity: 0,
           totalValue: 0,
+          reasons: {},
         };
       }
       acc[key].count += 1;
       acc[key].totalQuantity += item.quantity;
       acc[key].totalValue += item.returnValue;
+      const reasonKey = item.reason?.trim() || 'Sin motivo registrado';
+      acc[key].reasons[reasonKey] = (acc[key].reasons[reasonKey] || 0) + 1;
       return acc;
     }, {});
 
@@ -470,15 +475,76 @@ export class InventoryReportsService {
       return acc;
     }, {});
 
+    // Calcular tasa de devolución vs total de ventas
+    const totalSalesCount = await prisma.sale.count({
+      where: {
+        businessId,
+        status: 'CONFIRMED',
+        ...(filters.startDate || filters.endDate
+          ? {
+              confirmedAt: {
+                ...(filters.startDate ? { gte: filters.startDate } : {}),
+                ...(filters.endDate ? { lte: filters.endDate } : {}),
+              },
+            }
+          : {}),
+      },
+    });
+    const returnRate = totalSalesCount > 0 ? (returnDetails.length / totalSalesCount) * 100 : 0;
+
+    let previousTotal = 0;
+    let returnsTrendDelta = 0;
+    let returnsTrendPercentChange = 0;
+
+    if (filters.startDate && filters.endDate) {
+      const daysDiff = differenceInDays(filters.endDate, filters.startDate) + 1;
+      const prevStart = subDays(filters.startDate, daysDiff);
+      const prevEnd = subDays(filters.endDate, daysDiff);
+
+      previousTotal = await prisma.inventoryMovement.count({
+        where: {
+          businessId,
+          type: 'RETURN',
+          createdAt: {
+            gte: prevStart,
+            lte: prevEnd,
+          },
+        },
+      });
+
+      returnsTrendDelta = returnDetails.length - previousTotal;
+      returnsTrendPercentChange = previousTotal > 0
+        ? ((returnDetails.length - previousTotal) / previousTotal) * 100
+        : 0;
+    }
+
+    // Formatear topReturnedProducts
+    const topReturnedProducts = Object.values(byProduct)
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 5)
+      .map((p) => ({
+        productId: p.product.id,
+        productName: p.product.name,
+        totalQuantity: p.totalQuantity,
+        totalValue: p.totalValue,
+        percentage: totalQuantity > 0 ? (p.totalQuantity / totalQuantity) * 100 : 0,
+        reason: Object.entries(p.reasons).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Sin motivo registrado',
+      }));
+
     return {
       items: returnDetails,
       byProduct: Object.values(byProduct).sort((a, b) => b.count - a.count),
       byCustomer: Object.values(byCustomer).sort((a, b) => b.totalValue - a.totalValue),
+      topReturnedProducts,
       summary: {
         total: returnDetails.length,
         totalQuantity,
         totalReturnValue,
         averageReturnValue: parseFloat((totalReturnValue / returnDetails.length || 0).toFixed(2)),
+        returnRate: parseFloat(returnRate.toFixed(2)),
+        previousTotal,
+        returnsTrendDelta,
+        returnsTrendPercentChange: parseFloat(returnsTrendPercentChange.toFixed(2)),
       },
       meta: {
         page,

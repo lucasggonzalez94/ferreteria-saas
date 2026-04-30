@@ -32,26 +32,6 @@ import {
 } from "@/lib/timezone";
 import { Pagination } from "@/components/ui/pagination";
 
-interface InventoryProduct {
-  id: string;
-  internalSku: string;
-  name: string;
-  unit: string;
-  stockQuantity: number;
-  minStock?: number;
-  category?: { name: string };
-}
-
-interface ProductsResponse {
-  data: InventoryProduct[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
 interface StockAlert {
   id: string;
   name: string;
@@ -117,8 +97,6 @@ export default function InventoryPage() {
     });
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
-  const [productPage, setProductPage] = useState(1);
-  const [productLimit, setProductLimit] = useState(20);
   const [alertPage, setAlertPage] = useState(1);
   const [movementPage, setMovementPage] = useState(1);
   const [movementLimit, setMovementLimit] = useState(20);
@@ -131,40 +109,6 @@ export default function InventoryPage() {
       };
     },
   );
-
-  // Obtener productos con stock
-  const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ["inventory", "products", productPage, productLimit],
-    queryFn: async () => {
-      try {
-        const response = await api.get("/inventory", {
-          params: { page: productPage, limit: productLimit },
-        });
-
-        const result = response as unknown as {
-          success: boolean;
-          data: InventoryProduct[];
-          meta: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean };
-        };
-
-        if (!result.success) {
-          throw new Error("Error fetching products");
-        }
-
-        return {
-          data: result.data || [],
-          meta: result.meta || { page: 1, limit: productLimit, total: 0, totalPages: 0, hasMore: false },
-        } as ProductsResponse;
-      } catch (error) {
-        console.error("Error cargando productos:", error);
-        return {
-          data: [],
-          meta: { page: 1, limit: productLimit, total: 0, totalPages: 0, hasMore: false },
-        } as ProductsResponse;
-      }
-    },
-    enabled: canViewInventory,
-  });
 
   // Obtener alertas de stock
   const { data: alertsData, isLoading: alertsLoading } = useQuery({
@@ -299,7 +243,6 @@ export default function InventoryPage() {
         <Tabs defaultValue="alerts" className="w-full">
           <TabsList>
             <TabsTrigger value="alerts">Alertas</TabsTrigger>
-            <TabsTrigger value="products">Productos</TabsTrigger>
             <TabsTrigger value="movements">Movimientos</TabsTrigger>
           </TabsList>
 
@@ -403,105 +346,6 @@ export default function InventoryPage() {
                 <CardContent>
                   <p className="text-center text-muted-foreground">
                     No hay alertas de stock
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Tab: Productos */}
-          <TabsContent value="products">
-            {productsLoading ? (
-              <LoadingSpinner text="Cargando productos..." />
-            ) : productsData?.data && productsData.data.length > 0 ? (
-              <Card>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>SKU</TableHead>
-                          <TableHead>Producto</TableHead>
-                          <TableHead>Categoría</TableHead>
-                          <TableHead className="text-right">Stock</TableHead>
-                          <TableHead className="text-right">Mínimo</TableHead>
-                          <TableHead className="text-center">Estado</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {productsData.data.map((product: InventoryProduct) => {
-                          const stockLevel =
-                            product.minStock &&
-                            product.stockQuantity < product.minStock
-                              ? "low"
-                              : product.stockQuantity === 0
-                                ? "critical"
-                                : "ok";
-
-                          return (
-                            <TableRow key={product.id}>
-                              <TableCell className="font-medium">
-                                {product.internalSku}
-                              </TableCell>
-                              <TableCell>{product.name}</TableCell>
-                              <TableCell>
-                                {product.category?.name || "-"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {Number(product.stockQuantity).toFixed(2)}{" "}
-                                {product.unit}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {product.minStock
-                                  ? Number(product.minStock).toFixed(2)
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {stockLevel === "critical" && (
-                                  <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                                    Sin stock
-                                  </span>
-                                )}
-                                {stockLevel === "low" && (
-                                  <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
-                                    Bajo
-                                  </span>
-                                )}
-                                {stockLevel === "ok" && (
-                                  <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                                    OK
-                                  </span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="mt-4">
-                    <Pagination
-                      setPage={setProductPage}
-                      currentPage={productsData.meta.page}
-                      totalPages={productsData.meta.totalPages}
-                      startIndex={(productsData.meta.page - 1) * productsData.meta.limit + 1}
-                      endIndex={Math.min(
-                        productsData.meta.page * productsData.meta.limit,
-                        productsData.meta.total,
-                      )}
-                      total={productsData.meta.total}
-                      limit={productsData.meta.limit}
-                      onLimitChange={setProductLimit}
-                      onPageChange={setProductPage}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent>
-                  <p className="text-center text-muted-foreground">
-                    No hay productos
                   </p>
                 </CardContent>
               </Card>

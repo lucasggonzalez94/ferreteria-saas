@@ -6,7 +6,7 @@ import { useState } from "react";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Download, FileText, TrendingDown } from "lucide-react";
+import { AlertTriangle, Download, TrendingDown, Package } from "lucide-react";
 import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,6 +44,7 @@ interface ReportStockAlert {
   internalSku: string;
   unit: string;
   stockQuantity: number;
+  minStock?: number | null;
   alertLevel: string;
   alertMessage: string;
 }
@@ -62,9 +63,22 @@ interface RotationProduct {
   internalSku: string;
   name: string;
   currentStock: number;
+  minStock?: number;
   rotationSpeed: number;
   classification: string;
   stockValue: number;
+}
+
+interface CriticalProduct {
+  id: string;
+  internalSku: string;
+  name: string;
+  currentStock: number;
+  minStock: number;
+  rotationSpeed: number;
+  classification: string;
+  stockValue: number;
+  priority: "CRITICAL" | "ALERT";
 }
 
 interface RotationReport {
@@ -83,11 +97,21 @@ interface ReturnItem {
   returnValue: number;
   createdAt: string;
   product: { name: string };
+  reason?: string;
   customer?: {
     firstName?: string;
     lastName?: string;
     companyName?: string;
   };
+}
+
+interface TopReturnedProduct {
+  productId: string;
+  productName: string;
+  totalQuantity: number;
+  totalValue: number;
+  percentage: number;
+  reason?: string;
 }
 
 interface ReturnsReport {
@@ -97,7 +121,12 @@ interface ReturnsReport {
     totalQuantity: number;
     totalReturnValue: number;
     averageReturnValue: number;
+    returnRate?: number;
+    previousTotal?: number;
+    returnsTrendDelta?: number;
+    returnsTrendPercentChange?: number;
   };
+  topReturnedProducts?: TopReturnedProduct[];
 }
 
 interface SalesReportData {
@@ -110,6 +139,9 @@ interface SalesReportData {
     totalSales: number;
     avgTicket: number;
     totalItems: number;
+    costTotal?: number;
+    grossMargin?: number;
+    grossMarginPercent?: number;
   };
   comparison?: {
     period: {
@@ -128,6 +160,9 @@ interface SalesReportData {
     previousItems: number;
     itemsDelta: number;
     itemsPercentChange: number;
+    previousGrossMargin?: number;
+    grossMarginDelta?: number;
+    grossMarginPercentChange?: number;
   };
   timeSeries: Array<{
     date: string;
@@ -139,6 +174,9 @@ interface SalesReportData {
     productName: string;
     totalRevenue: number;
     totalUnits: number;
+    cost?: number;
+    margin?: number;
+    marginPercent?: number;
   }>;
   topCategories: Array<{
     categoryId: string;
@@ -276,6 +314,7 @@ export default function ReportsPage() {
             <TabsTrigger value="movements">Movimientos</TabsTrigger>
             <TabsTrigger value="alerts">Alertas</TabsTrigger>
             <TabsTrigger value="rotation">Rotación</TabsTrigger>
+            <TabsTrigger value="critical">Reposición Prioritaria</TabsTrigger>
             <TabsTrigger value="returns">Devoluciones</TabsTrigger>
           </TabsList>
 
@@ -610,7 +649,7 @@ export default function ReportsPage() {
                             Valor Total
                           </p>
                           <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                            ${rotationReport.summary.totalStockValue.toFixed(2)}
+                            ${Number(rotationReport.summary.totalStockValue).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -636,10 +675,10 @@ export default function ReportsPage() {
                               </TableCell>
                               <TableCell>{product.name}</TableCell>
                               <TableCell className="text-right">
-                                {product.currentStock.toFixed(2)}
+                                {Number(product.currentStock).toFixed(2)}
                               </TableCell>
                               <TableCell className="text-right font-medium">
-                                {product.rotationSpeed.toFixed(2)}x
+                                {Number(product.rotationSpeed).toFixed(2)}x
                               </TableCell>
                               <TableCell>
                                 <span
@@ -659,7 +698,7 @@ export default function ReportsPage() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-right">
-                                ${product.stockValue.toFixed(2)}
+                                ${Number(product.stockValue).toFixed(2)}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -671,6 +710,200 @@ export default function ReportsPage() {
                   <p className="text-center text-muted-foreground py-8">
                     No hay datos de rotación
                   </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reporte: Reposición Prioritaria (Productos Críticos) */}
+          <TabsContent value="critical">
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Reposición Prioritaria</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      exportToPDF(
+                        "/inventory-reports/stock-alerts/pdf",
+                        "reposicion-prioritaria"
+                      )
+                    }
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {alertsLoading || rotationLoading ? (
+                  <LoadingSpinner text="Cargando productos críticos..." />
+                ) : (
+                  <div className="space-y-4">
+                    {/* Calcular productos críticos: bajo stock + rotación rápida */}
+                    {(() => {
+                      const alertItems = alertsReport?.items || [];
+                      const rotationItems = rotationReport?.items || [];
+
+                      const criticalProducts: CriticalProduct[] = [];
+
+                      // Productos con alerta (bajo stock)
+                      alertItems.forEach(alert => {
+                        const rotationItem = rotationItems.find(r => r.internalSku === alert.internalSku);
+                        const minStock = Number(alert.minStock ?? 0);
+                        const currentStock = Number(alert.stockQuantity);
+                        const hasConfiguredMin = minStock > 0;
+                        const isUnderMinStock = hasConfiguredMin && currentStock <= minStock;
+
+                        if (!isUnderMinStock) {
+                          return;
+                        }
+
+                        const isFast = rotationItem?.classification === "FAST";
+
+                        criticalProducts.push({
+                          id: alert.id,
+                          internalSku: alert.internalSku,
+                          name: alert.name,
+                          currentStock,
+                          minStock,
+                          rotationSpeed: rotationItem?.rotationSpeed || 0,
+                          classification: rotationItem?.classification || "UNKNOWN",
+                          stockValue: rotationItem?.stockValue || 0,
+                          priority: isFast ? "CRITICAL" : "ALERT"
+                        });
+                      });
+
+                      const criticalCount = criticalProducts.filter(p => p.priority === "CRITICAL").length;
+                      const alertCount = criticalProducts.filter(p => p.priority === "ALERT").length;
+
+                      if (criticalProducts.length === 0) {
+                        return (
+                          <div className="text-center py-12">
+                            <Package className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                            <p className="text-lg font-medium">No hay productos que requieran reposición urgente</p>
+                            <p className="text-muted-foreground">Todos los productos tienen stock adecuado</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <>
+                          {/* Tarjetas resumen */}
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
+                              <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                                Críticos
+                              </p>
+                              <p className="text-2xl font-bold text-red-700">
+                                {criticalCount}
+                              </p>
+                              <p className="text-xs text-red-500">
+                                Bajo stock + alta rotación
+                              </p>
+                            </div>
+                            <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                              <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                                En Alerta
+                              </p>
+                              <p className="text-2xl font-bold text-yellow-700">
+                                {alertCount}
+                              </p>
+                              <p className="text-xs text-yellow-500">
+                                Solo bajo stock
+                              </p>
+                            </div>
+                            <div className="brand-accent-panel p-3">
+                              <p className="text-sm font-medium brand-accent-subtle">
+                                Total
+                              </p>
+                              <p className="text-2xl font-bold text-foreground">
+                                {criticalProducts.length}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Productos a reponer
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Tabla de productos críticos */}
+                          <div className="overflow-x-auto mt-4">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>SKU</TableHead>
+                                  <TableHead>Producto</TableHead>
+                                  <TableHead className="text-right">Stock</TableHead>
+                                  <TableHead className="text-right">Mínimo</TableHead>
+                                  <TableHead className="text-right">Rotación</TableHead>
+                                  <TableHead>Clasificación</TableHead>
+                                  <TableHead className="text-right">Valor</TableHead>
+                                  <TableHead>Prioridad</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {criticalProducts
+                                  .sort((a, b) => {
+                                    if (a.priority === "CRITICAL" && b.priority !== "CRITICAL") return -1;
+                                    if (b.priority === "CRITICAL" && a.priority !== "CRITICAL") return 1;
+                                    return b.rotationSpeed - a.rotationSpeed;
+                                  })
+                                  .map((product) => (
+                                    <TableRow key={product.id}>
+                                      <TableCell className="font-medium">
+                                        {product.internalSku}
+                                      </TableCell>
+                                      <TableCell>{product.name}</TableCell>
+                                      <TableCell className="text-right font-medium">
+                                        {Number(product.currentStock).toFixed(2)}
+                                      </TableCell>
+                                      <TableCell className="text-right text-muted-foreground">
+                                        {Number(product.minStock).toFixed(2)}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {Number(product.rotationSpeed).toFixed(2)}x
+                                      </TableCell>
+                                      <TableCell>
+                                        <span
+                                          className={`px-2 py-1 text-xs rounded-full ${
+                                            product.classification === "FAST"
+                                              ? "bg-green-100 text-green-700"
+                                              : product.classification === "NORMAL"
+                                              ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
+                                              : "bg-yellow-100 text-yellow-700"
+                                          }`}
+                                        >
+                                          {product.classification === "FAST"
+                                            ? "Rápido"
+                                            : product.classification === "NORMAL"
+                                            ? "Normal"
+                                            : "Lento"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        ${Number(product.stockValue).toFixed(2)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <span
+                                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            product.priority === "CRITICAL"
+                                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                                          }`}
+                                        >
+                                          {product.priority === "CRITICAL" ? "CRÍTICO" : "ALERTA"}
+                                        </span>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -702,42 +935,93 @@ export default function ReportsPage() {
                 {returnsLoading ? (
                   <LoadingSpinner text="Cargando devoluciones..." />
                 ) : returnsReport?.items && returnsReport.items.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {returnsReport.summary && (
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className="brand-accent-panel p-3">
-                          <p className="text-sm font-medium brand-accent-subtle">
-                            Total Devoluciones
-                          </p>
-                          <p className="text-2xl font-bold text-foreground">
-                            {returnsReport.summary.total}
-                          </p>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-4 gap-4">
+                          <div className="brand-accent-panel p-3">
+                            <p className="text-sm font-medium brand-accent-subtle">
+                              Total Devoluciones
+                            </p>
+                            <p className="text-2xl font-bold text-foreground">
+                              {returnsReport.summary.total}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <p className="text-sm text-purple-600 font-medium">
+                              Cantidad
+                            </p>
+                            <p className="text-2xl font-bold text-purple-700">
+                              {Number(returnsReport.summary.totalQuantity).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
+                            <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                              Valor Total
+                            </p>
+                            <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                              ${Number(returnsReport.summary.totalReturnValue).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
+                            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                              Promedio
+                            </p>
+                            <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                              ${Number(returnsReport.summary.averageReturnValue).toFixed(2)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                          <p className="text-sm text-purple-600 font-medium">
-                            Cantidad
-                          </p>
-                          <p className="text-2xl font-bold text-purple-700">
-                            {returnsReport.summary.totalQuantity.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                            Valor Total
-                          </p>
-                          <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                            ${returnsReport.summary.totalReturnValue.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
-                          <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
-                            Promedio
-                          </p>
-                          <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                            ${returnsReport.summary.averageReturnValue.toFixed(2)}
-                          </p>
+                        <div className="text-sm text-muted-foreground">
+                          Tendencia vs período anterior: {returnsReport.summary.returnsTrendDelta && returnsReport.summary.returnsTrendDelta > 0 ? "+" : ""}
+                          {returnsReport.summary.returnsTrendDelta ?? 0} devoluciones ({returnsReport.summary.returnsTrendPercentChange && returnsReport.summary.returnsTrendPercentChange > 0 ? "+" : ""}
+                          {Number(returnsReport.summary.returnsTrendPercentChange ?? 0).toFixed(1)}%)
                         </div>
                       </div>
+                    )}
+
+                    {/* Top 5 Productos más devueltos */}
+                    {returnsReport.topReturnedProducts && returnsReport.topReturnedProducts.length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <TrendingDown className="h-5 w-5 text-orange-600" />
+                            Top 5 Productos Más Devueltos
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {returnsReport.topReturnedProducts.slice(0, 5).map((product, index) => (
+                              <div
+                                key={product.productId}
+                                className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-200 dark:bg-orange-800 text-orange-700 dark:text-orange-300 font-bold text-sm">
+                                    {index + 1}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium">{product.productName}</p>
+                                    {product.reason && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Motivo: {product.reason}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-orange-700 dark:text-orange-300">
+                                    {Number(product.totalQuantity).toFixed(2)} unidades
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    ${Number(product.totalValue).toFixed(2)} ({Number(product.percentage).toFixed(1)}%)
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
 
                     <div className="overflow-x-auto">
@@ -749,6 +1033,7 @@ export default function ReportsPage() {
                             <TableHead className="text-right">Cantidad</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead>Cliente</TableHead>
+                            <TableHead>Motivo</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -759,16 +1044,19 @@ export default function ReportsPage() {
                               </TableCell>
                               <TableCell>{returnItem.product.name}</TableCell>
                               <TableCell className="text-right">
-                                {returnItem.quantity.toFixed(2)}
+                                {Number(returnItem.quantity).toFixed(2)}
                               </TableCell>
                               <TableCell className="text-right font-medium">
-                                ${returnItem.returnValue.toFixed(2)}
+                                ${Number(returnItem.returnValue).toFixed(2)}
                               </TableCell>
                               <TableCell className="text-sm">
                                 {returnItem.customer?.firstName}{" "}
                                 {returnItem.customer?.lastName ||
                                   returnItem.customer?.companyName ||
                                   "Sin cliente"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {returnItem.reason || "Sin motivo registrado"}
                               </TableCell>
                             </TableRow>
                           ))}

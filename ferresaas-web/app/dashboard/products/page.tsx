@@ -401,6 +401,21 @@ export default function ProductsPage() {
                           {product.stockQuantity} {product.unit}
                         </p>
                       </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {product.stockQuantity === 0 ? (
+                          <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                            Sin stock
+                          </span>
+                        ) : product.minStock && product.stockQuantity < product.minStock ? (
+                          <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                            Bajo
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                            OK
+                          </span>
+                        )}
+                      </div>
                       <ActionsMenu
                         actions={[
                           {

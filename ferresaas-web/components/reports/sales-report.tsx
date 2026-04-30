@@ -1,19 +1,39 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDown, ArrowUp, TrendingUp, DollarSign, ShoppingCart, Package } from "lucide-react";
+import { ArrowDown, ArrowUp, TrendingUp, DollarSign, ShoppingCart, Package, Percent } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
+
+const PAYMENT_COLORS = [
+  "#e86a2a", // brand orange
+  "#16a34a", // green
+  "#3b82f6", // blue
+  "#8b5cf6", // purple
+  "#ec4899", // pink
+  "#f59e0b", // amber
+  "#06b6d4", // cyan
+  "#6b7280", // gray
+];
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -28,6 +48,9 @@ interface SalesReportProps {
       totalSales: number;
       avgTicket: number;
       totalItems: number;
+      costTotal?: number;
+      grossMargin?: number;
+      grossMarginPercent?: number;
     };
     comparison?: {
       period: {
@@ -46,6 +69,9 @@ interface SalesReportProps {
       previousItems: number;
       itemsDelta: number;
       itemsPercentChange: number;
+      previousGrossMargin?: number;
+      grossMarginDelta?: number;
+      grossMarginPercentChange?: number;
     };
     timeSeries: Array<{
       date: string;
@@ -57,6 +83,9 @@ interface SalesReportProps {
       productName: string;
       totalRevenue: number;
       totalUnits: number;
+      cost?: number;
+      margin?: number;
+      marginPercent?: number;
     }>;
     topCategories: Array<{
       categoryId: string;
@@ -149,7 +178,7 @@ export function SalesReport({ data }: SalesReportProps) {
   return (
     <div className="space-y-6">
       {/* KPIs principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <KPICard
           title="Ingresos Totales"
           value={metrics.totalRevenue}
@@ -182,6 +211,24 @@ export function SalesReport({ data }: SalesReportProps) {
           percentChange={comparison?.itemsPercentChange}
           format={(v) => v.toFixed(2)}
         />
+        {metrics.grossMargin !== undefined && (
+          <>
+            <KPICard
+              title="Margen Bruto"
+              value={metrics.grossMargin}
+              icon={DollarSign}
+              delta={comparison?.grossMarginDelta}
+              percentChange={comparison?.grossMarginPercentChange}
+              format={(v) => `$${v.toFixed(2)}`}
+            />
+            <KPICard
+              title="% Margen"
+              value={metrics.grossMarginPercent || 0}
+              icon={Percent}
+              format={(v) => `${v.toFixed(1)}%`}
+            />
+          </>
+        )}
       </div>
 
       {/* Gráfico de serie temporal */}
@@ -247,23 +294,44 @@ export function SalesReport({ data }: SalesReportProps) {
           </CardHeader>
           <CardContent>
             {topProducts.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topProducts.slice(0, 10)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis
-                    dataKey="productName"
-                    type="category"
-                    width={120}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    formatter={(value) => `$${Number(value).toFixed(2)}`}
-                    labelFormatter={(label) => `Producto: ${label}`}
-                  />
-                  <Bar dataKey="totalRevenue" fill="#e86a2a" radius={[0, 4, 4, 0]} name="Ingresos" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Producto</TableHead>
+                      <TableHead className="text-right">Ingresos</TableHead>
+                      <TableHead className="text-right">Unidades</TableHead>
+                      <TableHead className="text-right">Costo</TableHead>
+                      <TableHead className="text-right">Margen</TableHead>
+                      <TableHead className="text-right">% Margen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topProducts.slice(0, 10).map((product) => (
+                      <TableRow key={product.productId}>
+                        <TableCell className="font-medium max-w-[150px] truncate" title={product.productName}>
+                          {product.productName}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${product.totalRevenue.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.totalUnits.toFixed(0)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {product.cost !== undefined ? `$${product.cost.toFixed(2)}` : "N/A"}
+                        </TableCell>
+                        <TableCell className={`text-right ${product.margin !== undefined && product.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {product.margin !== undefined ? `$${product.margin.toFixed(2)}` : "N/A"}
+                        </TableCell>
+                        <TableCell className={`text-right ${product.marginPercent !== undefined && product.marginPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {product.marginPercent !== undefined ? `${product.marginPercent.toFixed(1)}%` : "N/A"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 No hay datos de productos
@@ -320,18 +388,87 @@ export function SalesReport({ data }: SalesReportProps) {
             <CardTitle>Distribución por Método de Pago</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(paymentMethods).map(([method, amount]) => (
-                <div key={method} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {PAYMENT_METHOD_LABELS[method] || method}
-                  </p>
-                  <p className="text-xl font-bold brand-accent-text">
-                    ${amount.toFixed(2)}
-                  </p>
+            {Object.keys(paymentMethods).length === 1 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(paymentMethods).map(([method, amount]) => (
+                  <div key={method} className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {PAYMENT_METHOD_LABELS[method] || method}
+                    </p>
+                    <p className="text-xl font-bold brand-accent-text">
+                      ${amount.toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={Object.entries(paymentMethods).map(([method, amount]) => ({
+                          name: PAYMENT_METHOD_LABELS[method] || method,
+                          value: amount,
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                        labelLine={true}
+                      >
+                        {Object.keys(paymentMethods).map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={PAYMENT_COLORS[index % PAYMENT_COLORS.length]} stroke="none" />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => `$${value.toFixed(2)}`}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--popover))', 
+                          border: '1px solid hsl(var(--border))', 
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        itemStyle={{ color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-2 gap-4 content-center">
+                  {Object.entries(paymentMethods).map(([method, amount], index) => {
+                    const total = Object.values(paymentMethods).reduce((a, b) => a + b, 0);
+                    const percentage = ((amount / total) * 100).toFixed(1);
+                    return (
+                      <div
+                        key={method}
+                        className="p-4 rounded-lg border border-gray-200 dark:border-slate-700"
+                        style={{ backgroundColor: `${PAYMENT_COLORS[index % PAYMENT_COLORS.length]}15` }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: PAYMENT_COLORS[index % PAYMENT_COLORS.length] }}
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            {PAYMENT_METHOD_LABELS[method] || method}
+                          </p>
+                        </div>
+                        <p className="text-lg font-bold brand-accent-text">
+                          ${amount.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {percentage}%
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

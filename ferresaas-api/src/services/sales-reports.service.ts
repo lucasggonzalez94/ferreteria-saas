@@ -23,6 +23,9 @@ interface TopProduct {
   productName: string;
   totalRevenue: number;
   totalUnits: number;
+  cost?: number;
+  margin?: number;
+  marginPercent?: number;
 }
 
 interface TopCategory {
@@ -86,6 +89,7 @@ export class SalesReportsService {
             select: {
               id: true,
               name: true,
+              cost: true,
               category: {
                 select: {
                   id: true,
@@ -103,6 +107,14 @@ export class SalesReportsService {
     const totalSales = sales.length;
     const avgTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
     const totalItems = saleItems.reduce((sum, i) => sum + i.quantity.toNumber(), 0);
+
+    // Calcular costo total y margen bruto (FS-146)
+    const costTotal = saleItems.reduce((sum, item) => {
+      const cost = item.product?.cost ? Number(item.product.cost) : 0;
+      return sum + (cost * item.quantity.toNumber());
+    }, 0);
+    const grossMargin = totalRevenue - costTotal;
+    const grossMarginPercent = totalRevenue > 0 ? (grossMargin / totalRevenue) * 100 : 0;
 
     // Serie temporal (agrupada por día, usando timezone del tenant)
     const timeSeries = this.groupByDay(sales, startDate, endDate, timezone);
@@ -140,6 +152,13 @@ export class SalesReportsService {
               product: { categoryId },
             }),
           },
+          include: {
+            product: {
+              select: {
+                cost: true,
+              },
+            },
+          },
         }),
       ]);
 
@@ -147,6 +166,11 @@ export class SalesReportsService {
       const prevSalesCount = prevSales.length;
       const prevAvgTicket = prevSalesCount > 0 ? prevRevenue / prevSalesCount : 0;
       const prevTotalItems = prevSaleItems.reduce((sum, i) => sum + i.quantity.toNumber(), 0);
+      const prevCostTotal = prevSaleItems.reduce((sum, item) => {
+        const cost = item.product?.cost ? Number(item.product.cost) : 0;
+        return sum + (cost * item.quantity.toNumber());
+      }, 0);
+      const prevGrossMargin = prevRevenue - prevCostTotal;
 
       comparison = {
         period: {
@@ -165,6 +189,9 @@ export class SalesReportsService {
         previousItems: prevTotalItems,
         itemsDelta: totalItems - prevTotalItems,
         itemsPercentChange: prevTotalItems > 0 ? ((totalItems - prevTotalItems) / prevTotalItems) * 100 : 0,
+        previousGrossMargin: prevGrossMargin,
+        grossMarginDelta: grossMargin - prevGrossMargin,
+        grossMarginPercentChange: prevGrossMargin > 0 ? ((grossMargin - prevGrossMargin) / prevGrossMargin) * 100 : 0,
       };
     }
 
@@ -178,6 +205,9 @@ export class SalesReportsService {
         totalSales,
         avgTicket: Math.round(avgTicket * 100) / 100,
         totalItems: Math.round(totalItems * 100) / 100,
+        costTotal: Math.round(costTotal * 100) / 100,
+        grossMargin: Math.round(grossMargin * 100) / 100,
+        grossMarginPercent: Math.round(grossMarginPercent * 100) / 100,
       },
       comparison,
       timeSeries,
@@ -230,27 +260,43 @@ export class SalesReportsService {
   private getTopProducts(items: any[], limit: number): TopProduct[] {
     const grouped = items.reduce((acc, item) => {
       const key = item.productId;
+      const productCost = item.product?.cost ? Number(item.product.cost) : 0;
+      const itemCost = productCost * item.quantity.toNumber();
+      const itemMargin = item.subtotal.toNumber() - itemCost;
+
       if (!acc[key]) {
         acc[key] = {
           productId: item.productId,
           productName: item.product.name,
           totalRevenue: 0,
           totalUnits: 0,
+          cost: 0,
+          margin: 0,
         };
       }
       acc[key].totalRevenue += item.subtotal.toNumber();
       acc[key].totalUnits += item.quantity.toNumber();
+      acc[key].cost += itemCost;
+      acc[key].margin += itemMargin;
       return acc;
     }, {} as Record<string, TopProduct>);
 
     return (Object.values(grouped) as TopProduct[])
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, limit)
-      .map((p) => ({
-        ...p,
-        totalRevenue: Math.round(p.totalRevenue * 100) / 100,
-        totalUnits: Math.round(p.totalUnits * 100) / 100,
-      }));
+      .map((p) => {
+        const margin = p.margin || 0;
+        const cost = p.cost || 0;
+        const marginPercent = p.totalRevenue > 0 ? (margin / p.totalRevenue) * 100 : 0;
+        return {
+          ...p,
+          totalRevenue: Math.round(p.totalRevenue * 100) / 100,
+          totalUnits: Math.round(p.totalUnits * 100) / 100,
+          cost: Math.round(cost * 100) / 100,
+          margin: Math.round(margin * 100) / 100,
+          marginPercent: Math.round(marginPercent * 100) / 100,
+        };
+      });
   }
 
   /**
