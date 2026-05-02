@@ -125,6 +125,21 @@ export default function ProductsPage() {
     enabled: canViewProducts,
   });
 
+  const { data: lowStockTotal } = useQuery({
+    queryKey: ["products", "lowStockCount"],
+    queryFn: async () => {
+      const response = await api.get<ProductListItem[]>("/products", {
+        params: {
+          page: 1,
+          limit: 1,
+          lowStock: true,
+        },
+      });
+      return (response as any).meta?.total || 0;
+    },
+    enabled: canViewProducts,
+  });
+
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -177,9 +192,6 @@ export default function ProductsPage() {
     const startIndex = products.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
     const endIndex = products.length === 0 ? 0 : startIndex + products.length - 1;
     const activeProducts = products.filter((p) => p.isActive).length;
-    const lowStockProducts = products.filter(
-      (p) => p.minStock && p.stockQuantity <= p.minStock,
-    ).length;
 
     return {
       totalFiltered: meta.total,
@@ -187,9 +199,9 @@ export default function ProductsPage() {
       startIndex,
       endIndex,
       activeProducts,
-      lowStockProducts,
+      lowStockProducts: lowStockTotal || 0,
     };
-  }, [products, meta.page, meta.limit, meta.total]);
+  }, [products, meta.page, meta.limit, meta.total, lowStockTotal]);
 
   const handleImportComplete = () => {
     queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -245,7 +257,7 @@ export default function ProductsPage() {
               <div>
                 <Label className="text-sm text-muted-foreground">Categoría</Label>
                 <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setPage(1); }}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -262,7 +274,7 @@ export default function ProductsPage() {
               <div>
                 <Label className="text-sm text-muted-foreground">Estado</Label>
                 <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -311,7 +323,7 @@ export default function ProductsPage() {
               <div>
                 <Label className="text-sm text-muted-foreground">Orden</Label>
                 <Select value={sort} onValueChange={(value) => { setSort(value); setPage(1); }}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue placeholder="Nombre A-Z" />
                   </SelectTrigger>
                   <SelectContent>

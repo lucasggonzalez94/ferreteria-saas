@@ -6,7 +6,7 @@ import { useState } from "react";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Download, TrendingDown, Package } from "lucide-react";
+import { Download, TrendingDown, Package } from "lucide-react";
 import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,7 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { SalesReport } from "@/components/reports/sales-report";
+import { StockAlertsList } from "@/components/stock-alerts/stock-alerts-list";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -608,105 +609,11 @@ export default function ReportsPage() {
 
           {/* Reporte 2: Alertas */}
           <TabsContent value="alerts">
-            <Card className="overflow-hidden">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Alertas de Stock</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      exportToPDF(
-                        "/inventory-reports/stock-alerts/pdf",
-                        "alertas-stock"
-                      )
-                    }
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar PDF
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {alertsLoading ? (
-                  <LoadingSpinner text="Cargando alertas..." />
-                ) : alertsReport?.items && alertsReport.items.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
-                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                          Críticas
-                        </p>
-                        <p className="text-2xl font-bold text-red-700">
-                          {alertsReport.summary?.critical || 0}
-                        </p>
-                      </div>
-                      <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                          Advertencias
-                        </p>
-                        <p className="text-2xl font-bold text-yellow-700">
-                          {alertsReport.summary?.warning || 0}
-                        </p>
-                      </div>
-                      <div className="brand-accent-panel p-3">
-                        <p className="text-sm font-medium brand-accent-subtle">
-                          Total
-                        </p>
-                        <p className="text-2xl font-bold text-foreground">
-                          {alertsReport.summary?.total || 0}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {alertsReport.items.map((alert: ReportStockAlert) => (
-                        <div
-                          key={alert.id}
-                          className={`flex justify-between items-center p-4 rounded-lg border ${
-                            alert.alertLevel === "CRITICAL"
-                              ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
-                              : "bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <AlertTriangle
-                              className={`h-5 w-5 ${
-                                alert.alertLevel === "CRITICAL"
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-yellow-600 dark:text-yellow-400"
-                              }`}
-                            />
-                            <div>
-                              <p className="font-medium">{alert.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                SKU: {alert.internalSku}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">
-                              {Number(alert.stockQuantity).toFixed(2)}{" "}
-                              {alert.unit === "u" ? "unidades" : 
-                               alert.unit === "mt" ? "metros" : 
-                               alert.unit === "kg" ? "kilogramos" : 
-                               alert.unit === "lt" ? "litros" : alert.unit}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {alert.alertMessage}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No hay alertas
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <StockAlertsList
+              showExportButton
+              exportPdfEndpoint="/inventory-reports/stock-alerts/pdf"
+              exportPdfFilename="alertas-stock"
+            />
           </TabsContent>
 
           {/* Reporte 3: Rotación */}

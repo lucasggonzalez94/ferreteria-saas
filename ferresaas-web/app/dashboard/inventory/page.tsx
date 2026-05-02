@@ -3,8 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Plus } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
 import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
+import { StockAlertsList } from "@/components/stock-alerts/stock-alerts-list";
 import {
   todayLocal,
   monthsAgoLocal,
@@ -31,33 +32,6 @@ import {
   formatDate,
 } from "@/lib/timezone";
 import { Pagination } from "@/components/ui/pagination";
-
-interface StockAlert {
-  id: string;
-  name: string;
-  internalSku: string;
-  unit: string;
-  stockQuantity: number;
-  minStock?: number;
-  alertLevel: string;
-  alertMessage: string;
-}
-
-interface AlertsResponse {
-  items: StockAlert[];
-  summary: {
-    critical: number;
-    warning: number;
-    total: number;
-  };
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
-}
 
 interface InventoryMovement {
   id: string;
@@ -97,7 +71,6 @@ export default function InventoryPage() {
     });
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
-  const [alertPage, setAlertPage] = useState(1);
   const [movementPage, setMovementPage] = useState(1);
   const [movementLimit, setMovementLimit] = useState(20);
   const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
@@ -109,42 +82,6 @@ export default function InventoryPage() {
       };
     },
   );
-
-  // Obtener alertas de stock
-  const { data: alertsData, isLoading: alertsLoading } = useQuery({
-    queryKey: ["inventory", "alerts", alertPage],
-    queryFn: async () => {
-      try {
-        const response = await api.get("/inventory-reports/stock-alerts", {
-          params: { page: alertPage, limit: 20 },
-        });
-
-        const result = response as unknown as {
-          success: boolean;
-          data: { items: StockAlert[]; summary: { critical: number; warning: number; total: number } };
-          meta: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean };
-        };
-
-        if (!result.success) {
-          throw new Error("Error fetching alerts");
-        }
-
-        return {
-          items: result.data?.items || [],
-          summary: result.data?.summary || { critical: 0, warning: 0, total: 0 },
-          meta: result.meta || { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
-        } as AlertsResponse;
-      } catch (error) {
-        console.error("Error cargando alertas:", error);
-        return {
-          items: [],
-          summary: { critical: 0, warning: 0, total: 0 },
-          meta: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
-        } as AlertsResponse;
-      }
-    },
-    enabled: canViewInventory,
-  });
 
   // Obtener movimientos recientes
   const { data: movementsData, isLoading: movementsLoading } = useQuery({
@@ -200,25 +137,6 @@ export default function InventoryPage() {
     },
   });
 
-  const getAlertColor = (level: string) => {
-    switch (level) {
-      case "CRITICAL":
-        return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800";
-      case "WARNING":
-        return "bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800";
-      default:
-        return "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700";
-    }
-  };
-
-  const getAlertIcon = (level: string) => {
-    return level === "CRITICAL" ? (
-      <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-    ) : (
-      <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-    );
-  };
-
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
@@ -248,108 +166,7 @@ export default function InventoryPage() {
 
           {/* Tab: Alertas */}
           <TabsContent value="alerts">
-            {alertsLoading ? (
-              <LoadingSpinner text="Cargando alertas..." />
-            ) : alertsData?.items && alertsData.items.length > 0 ? (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                      Resumen de Alertas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
-                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                          Críticas
-                        </p>
-                        <p className="text-2xl font-bold text-red-700">
-                          {alertsData.summary?.critical || 0}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                          Advertencias
-                        </p>
-                        <p className="text-2xl font-bold text-yellow-700">
-                          {alertsData.summary?.warning || 0}
-                        </p>
-                      </div>
-                      <div className="brand-accent-panel p-4">
-                        <p className="text-sm font-medium brand-accent-subtle">
-                          Total
-                        </p>
-                        <p className="text-2xl font-bold text-foreground">
-                          {alertsData.summary?.total || 0}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-2">
-                  {alertsData.items.map((alert: StockAlert) => (
-                    <div
-                      key={alert.id}
-                      className={`flex justify-between items-center p-4 rounded-lg border ${getAlertColor(
-                        alert.alertLevel,
-                      )}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {getAlertIcon(alert.alertLevel)}
-                        <div>
-                          <p className="font-medium">{alert.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            SKU: {alert.internalSku}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {Number(alert.stockQuantity).toFixed(2)} {alert.unit}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {alert.alertMessage}
-                        </p>
-                        {alert.minStock && (
-                          <p className="text-xs text-muted-foreground">
-                            Mín: {Number(alert.minStock).toFixed(2)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {alertsData.meta.total > 0 && alertsData.meta.totalPages > 0 && (
-                  <div className="mt-4">
-                    <Pagination
-                      setPage={setAlertPage}
-                      currentPage={alertsData.meta.page}
-                      totalPages={alertsData.meta.totalPages}
-                      startIndex={(alertsData.meta.page - 1) * alertsData.meta.limit + 1}
-                      endIndex={Math.min(
-                        alertsData.meta.page * alertsData.meta.limit,
-                        alertsData.meta.total,
-                      )}
-                      total={alertsData.meta.total}
-                      limit={alertsData.meta.limit}
-                      onLimitChange={() => {}}
-                      onPageChange={setAlertPage}
-                    />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Card>
-                <CardContent>
-                  <p className="text-center text-muted-foreground">
-                    No hay alertas de stock
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            <StockAlertsList />
           </TabsContent>
 
           {/* Tab: Movimientos */}
