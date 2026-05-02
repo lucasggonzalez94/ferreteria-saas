@@ -554,7 +554,7 @@ export default function POSPage() {
         return;
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Backspace') {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Delete') {
         if (cart.length === 0) return;
         event.preventDefault();
         clearSaleDraft();
@@ -630,7 +630,7 @@ export default function POSPage() {
                 </div>
                 <CardTitle>Buscar Producto</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Atajos: <span className="font-bold">F2</span> - Buscar, <span className="font-bold">Ctrl/Cmd + Enter</span> - Cobrar, <span className="font-bold">Ctrl/Cmd + Espacio</span> - Limpiar carrito.
+                  Atajos: <span className="font-bold">F2</span> - Buscar, <span className="font-bold">Ctrl/Cmd + Enter</span> - Cobrar, <span className="font-bold">Ctrl/Cmd + Supr</span> - Limpiar carrito.
                 </p>
               </CardHeader>
               <CardContent>
@@ -1096,7 +1096,7 @@ export default function POSPage() {
                   <Button
                     variant="outline"
                     onClick={clearSaleDraft}
-                    aria-keyshortcuts="Control+Backspace Meta+Backspace"
+                    aria-keyshortcuts="Control+Delete Meta+Delete"
                     className="w-full"
                   >
                     Limpiar Carrito

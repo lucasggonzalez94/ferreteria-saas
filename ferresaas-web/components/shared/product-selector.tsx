@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -50,10 +50,16 @@ export function ProductSelector({
 }: ProductSelectorProps) {
   const [search, setSearch] = useState("");
   const [lastBarcodeDetected, setLastBarcodeDetected] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const { handleInputChange, reset } = useBarcodeDetection();
   const inputBufferRef = useRef<string>("");
   const inputStartTimeRef = useRef<number | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const focus = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products-search", search, filterActive],
@@ -136,6 +142,59 @@ export function ProductSelector({
     };
   }, []);
 
+  // Reset selection when search changes
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [search]);
+
+  // Expose focus function via custom event
+  useEffect(() => {
+    const handleRequestFocus = () => focus();
+    window.addEventListener("product-selector-focus", handleRequestFocus);
+    return () =>
+      window.removeEventListener("product-selector-focus", handleRequestFocus);
+  }, [focus]);
+
+  // Handle keyboard navigation in results
+  useEffect(() => {
+    const handleResultsKeyDown = (event: KeyboardEvent) => {
+      if (!products || products.length === 0) return;
+
+      const target = event.target as HTMLElement;
+      if (target !== inputRef.current) return;
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < products.length - 1 ? prev + 1 : prev
+        );
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+      } else if (event.key === "Enter" && selectedIndex >= 0) {
+        event.preventDefault();
+        const product = products[selectedIndex];
+        if (product) {
+          onSelect(product);
+          setSearch("");
+          reset();
+          setSelectedIndex(-1);
+          // Dispatch event to re-focus after selection
+          setTimeout(() => {
+            window.dispatchEvent(new Event("product-selector-focus"));
+          }, 0);
+        }
+      }
+    };
+
+    const inputEl = inputRef.current;
+    inputEl?.addEventListener("keydown", handleResultsKeyDown);
+
+    return () => {
+      inputEl?.removeEventListener("keydown", handleResultsKeyDown);
+    };
+  }, [products, selectedIndex, onSelect, reset]);
+
   // Procesar automáticamente cuando se detecta un escaneo
   useEffect(() => {
     if (!lastBarcodeDetected || isLoading) return;
@@ -180,6 +239,8 @@ export function ProductSelector({
     onSelect(product);
     setSearch("");
     reset();
+    // Focus de vuelta en el input para seguir buscando
+    setTimeout(() => focus(), 0);
   };
 
   return (
@@ -187,6 +248,7 @@ export function ProductSelector({
       <div className="relative">
         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
+          ref={inputRef}
           placeholder={placeholder}
           value={search}
           onChange={(e) => handleInputChange_Internal(e.target.value)}
@@ -199,12 +261,16 @@ export function ProductSelector({
       {/* Search Results */}
       {products && products.length > 0 && (
         <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-          {products.map((product) => (
+          {products.map((product, index) => (
             <button
               key={product.id}
               type="button"
               onClick={() => handleSelect(product)}
-              className="w-full rounded-[1.25rem] border border-border/70 bg-background/80 p-3 text-left transition-all hover:-translate-y-px hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className={`w-full rounded-[1.25rem] border border-border/70 bg-background/80 p-3 text-left transition-all hover:-translate-y-px hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                selectedIndex === index
+                  ? "border-[hsl(var(--accent))] bg-[hsl(var(--brand-accent-soft))] ring-2 ring-[hsl(var(--accent))]"
+                  : ""
+              }`}
             >
               <div className="flex gap-3 items-center">
                 {showImage && product.imageUrl && (
