@@ -184,6 +184,28 @@ interface SalesReportData {
     totalRevenue: number;
     percentage: number;
   }>;
+  categoryProfitability?: Array<{
+    categoryId: string;
+    categoryName: string;
+    revenue: number;
+    costTotal: number;
+    grossMargin: number;
+    grossMarginPercent: number;
+    comparison?: {
+      previousGrossMargin: number;
+      marginDelta: number;
+      marginPercentChange: number;
+    };
+  }>;
+  lowPerformingProducts?: Array<{
+    productId: string;
+    productName: string;
+    totalRevenue: number;
+    totalUnits: number;
+    cost?: number;
+    margin?: number;
+    marginPercent?: number;
+  }>;
   paymentMethods: Record<string, number>;
 }
 
@@ -311,6 +333,7 @@ export default function ReportsPage() {
         <Tabs defaultValue="sales" className="w-full">
           <TabsList>
             <TabsTrigger value="sales">Ventas</TabsTrigger>
+            <TabsTrigger value="profitability">Rentabilidad por Categoría</TabsTrigger>
             <TabsTrigger value="movements">Movimientos</TabsTrigger>
             <TabsTrigger value="alerts">Alertas</TabsTrigger>
             <TabsTrigger value="rotation">Rotación</TabsTrigger>
@@ -348,6 +371,101 @@ export default function ReportsPage() {
                 ) : (
                   <p className="text-center text-muted-foreground py-8">
                     No hay datos de ventas en el período seleccionado
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="profitability">
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Rentabilidad por Categoría</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => exportToPDF('/sales-reports/summary/pdf', 'rentabilidad-categorias')}
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportar PDF
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {salesLoading ? (
+                  <LoadingSpinner text="Cargando rentabilidad por categoría..." />
+                ) : salesReport?.categoryProfitability && salesReport.categoryProfitability.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Categoría</TableHead>
+                            <TableHead className="text-right">Ingresos</TableHead>
+                            <TableHead className="text-right">Costo</TableHead>
+                            <TableHead className="text-right">Margen</TableHead>
+                            <TableHead className="text-right">% Margen</TableHead>
+                            <TableHead className="text-right">Δ Margen</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {salesReport.categoryProfitability.map((category) => (
+                            <TableRow key={category.categoryId}>
+                              <TableCell className="font-medium">{category.categoryName}</TableCell>
+                              <TableCell className="text-right">${Number(category.revenue).toFixed(2)}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">${Number(category.costTotal).toFixed(2)}</TableCell>
+                              <TableCell className={`text-right font-medium ${category.grossMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ${Number(category.grossMargin).toFixed(2)}
+                              </TableCell>
+                              <TableCell className={`text-right ${category.grossMarginPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {Number(category.grossMarginPercent).toFixed(1)}%
+                              </TableCell>
+                              <TableCell className={`text-right ${Number(category.comparison?.marginDelta || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {Number(category.comparison?.marginDelta || 0) >= 0 ? '+' : ''}${Number(category.comparison?.marginDelta || 0).toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {salesReport.lowPerformingProducts && salesReport.lowPerformingProducts.length > 0 && (
+                      <div>
+                        <h3 className="text-base font-semibold mb-3">Productos de bajo rendimiento</h3>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Producto</TableHead>
+                                <TableHead className="text-right">Ingresos</TableHead>
+                                <TableHead className="text-right">Margen</TableHead>
+                                <TableHead className="text-right">% Margen</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {salesReport.lowPerformingProducts.map((product) => (
+                                <TableRow key={product.productId}>
+                                  <TableCell>{product.productName}</TableCell>
+                                  <TableCell className="text-right">${Number(product.totalRevenue).toFixed(2)}</TableCell>
+                                  <TableCell className={`text-right ${Number(product.margin || 0) >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                                    ${Number(product.margin || 0).toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className={`text-right ${Number(product.marginPercent || 0) >= 0 ? 'text-yellow-700' : 'text-red-600'}`}>
+                                    {Number(product.marginPercent || 0).toFixed(1)}%
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No hay datos de rentabilidad para el período seleccionado
                   </p>
                 )}
               </CardContent>

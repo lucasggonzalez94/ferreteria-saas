@@ -49,9 +49,9 @@ describe('SalesReportsService', () => {
     ];
 
     const mockSaleItems = [
-      { productId: 'p1', product: { name: 'Producto A', category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1000) },
-      { productId: 'p2', product: { name: 'Producto B', category: { id: 'cat2', name: 'Tornillos' } }, quantity: n(5), subtotal: n(500) },
-      { productId: 'p1', product: { name: 'Producto A', category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(1), subtotal: n(500) },
+      { productId: 'p1', product: { name: 'Producto A', cost: 200, category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1000) },
+      { productId: 'p2', product: { name: 'Producto B', cost: 50, category: { id: 'cat2', name: 'Tornillos' } }, quantity: n(5), subtotal: n(500) },
+      { productId: 'p1', product: { name: 'Producto A', cost: 200, category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(1), subtotal: n(500) },
     ];
 
     mockPrisma.sale.findMany.mockResolvedValue(mockSales);
@@ -67,6 +67,10 @@ describe('SalesReportsService', () => {
     expect(result.timeSeries.length).toBeGreaterThan(0);
     expect(result.topProducts.length).toBe(2);
     expect(result.topCategories.length).toBe(2);
+    expect(result.metrics.costTotal).toBe(850);
+    expect(result.metrics.grossMargin).toBe(1450);
+    expect(result.categoryProfitability.length).toBe(2);
+    expect(result.lowPerformingProducts.length).toBeGreaterThanOrEqual(0);
     expect(result.paymentMethods).toEqual({
       CASH_ARS: 1800,
       TRANSFER: 500,
@@ -115,7 +119,7 @@ describe('SalesReportsService', () => {
     ];
 
     const mockSaleItems = [
-      { productId: 'p1', product: { name: 'Producto A', category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1500) },
+      { productId: 'p1', product: { name: 'Producto A', cost: 300, category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1500) },
     ];
 
     mockPrisma.sale.findMany.mockResolvedValue(mockSales);
@@ -181,8 +185,8 @@ describe('SalesReportsService', () => {
     ];
 
     const mockSaleItems = [
-      { productId: 'p1', product: { name: 'Producto X', category: { id: 'cat1', name: 'A' } }, quantity: n(10), subtotal: n(2000) },
-      { productId: 'p1', product: { name: 'Producto X', category: { id: 'cat1', name: 'A' } }, quantity: n(5), subtotal: n(1000) },
+      { productId: 'p1', product: { name: 'Producto X', cost: 100, category: { id: 'cat1', name: 'A' } }, quantity: n(10), subtotal: n(2000) },
+      { productId: 'p1', product: { name: 'Producto X', cost: 100, category: { id: 'cat1', name: 'A' } }, quantity: n(5), subtotal: n(1000) },
     ];
 
     mockPrisma.sale.findMany.mockResolvedValue(mockSales);
@@ -195,6 +199,9 @@ describe('SalesReportsService', () => {
     expect(result.topProducts[0].productName).toBe('Producto X');
     expect(result.topProducts[0].totalRevenue).toBe(3000);
     expect(result.topProducts[0].totalUnits).toBe(15);
+    expect(result.topProducts[0].cost).toBe(1500);
+    expect(result.topProducts[0].margin).toBe(1500);
+    expect(result.topProducts[0].marginPercent).toBe(50);
   });
 
   it('getSummary calcula percentages de categorías correctamente', async () => {
@@ -203,8 +210,8 @@ describe('SalesReportsService', () => {
     ];
 
     const mockSaleItems = [
-      { productId: 'p1', product: { name: 'Prod A', category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1500) },
-      { productId: 'p2', product: { name: 'Prod B', category: { id: 'cat2', name: 'Tornillos' } }, quantity: n(5), subtotal: n(500) },
+      { productId: 'p1', product: { name: 'Prod A', cost: 300, category: { id: 'cat1', name: 'Herramientas' } }, quantity: n(2), subtotal: n(1500) },
+      { productId: 'p2', product: { name: 'Prod B', cost: 20, category: { id: 'cat2', name: 'Tornillos' } }, quantity: n(5), subtotal: n(500) },
     ];
 
     mockPrisma.sale.findMany.mockResolvedValue(mockSales);

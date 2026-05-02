@@ -39,6 +39,28 @@ interface PaymentMethodSummary {
   [method: string]: number;
 }
 
+interface CategoryProfitability {
+  categoryId: string;
+  categoryName: string;
+  revenue: number;
+  costTotal: number;
+  grossMargin: number;
+  grossMarginPercent: number;
+  comparison?: {
+    previousGrossMargin: number;
+    marginDelta: number;
+    marginPercentChange: number;
+  };
+}
+
+interface CategoryFinancialAggregate {
+  categoryId: string;
+  categoryName: string;
+  revenue: number;
+  costTotal: number;
+  grossMargin: number;
+}
+
 export class SalesReportsService {
   /**
    * Obtiene resumen completo de ventas con comparación vs período anterior
@@ -128,6 +150,8 @@ export class SalesReportsService {
     // Distribución por método de pago
     const paymentMethods = this.groupByPaymentMethod(sales);
 
+    let previousSaleItems: any[] = [];
+
     // Comparación con período anterior
     let comparison = null;
     if (compareWithPrevious) {
@@ -193,7 +217,15 @@ export class SalesReportsService {
         grossMarginDelta: grossMargin - prevGrossMargin,
         grossMarginPercentChange: prevGrossMargin > 0 ? ((grossMargin - prevGrossMargin) / prevGrossMargin) * 100 : 0,
       };
+
+      previousSaleItems = prevSaleItems;
     }
+
+    const categoryProfitability = this.getCategoryProfitability(saleItems, previousSaleItems);
+    const lowPerformingProducts = topProducts
+      .filter((product) => (product.marginPercent ?? 0) <= 10)
+      .sort((a, b) => (a.marginPercent ?? 0) - (b.marginPercent ?? 0))
+      .slice(0, 10);
 
     return {
       period: {
@@ -213,6 +245,8 @@ export class SalesReportsService {
       timeSeries,
       topProducts,
       topCategories,
+      categoryProfitability,
+      lowPerformingProducts,
       paymentMethods,
     };
   }
@@ -327,6 +361,61 @@ export class SalesReportsService {
         totalRevenue: Math.round(c.totalRevenue * 100) / 100,
         percentage: totalRevenue > 0 ? Math.round((c.totalRevenue / totalRevenue) * 10000) / 100 : 0,
       }));
+  }
+
+  private getCategoryProfitability(currentItems: any[], previousItems: any[]): CategoryProfitability[] {
+    const currentGrouped = this.groupCategoryFinancials(currentItems);
+    const previousGrouped = this.groupCategoryFinancials(previousItems);
+
+    return Object.values(currentGrouped)
+      .map((current) => {
+        const previous = previousGrouped[current.categoryId];
+        const marginPercentChange = previous && previous.grossMargin > 0
+          ? ((current.grossMargin - previous.grossMargin) / previous.grossMargin) * 100
+          : 0;
+
+        return {
+          categoryId: current.categoryId,
+          categoryName: current.categoryName,
+          revenue: Math.round(current.revenue * 100) / 100,
+          costTotal: Math.round(current.costTotal * 100) / 100,
+          grossMargin: Math.round(current.grossMargin * 100) / 100,
+          grossMarginPercent: current.revenue > 0 ? Math.round(((current.grossMargin / current.revenue) * 100) * 100) / 100 : 0,
+          comparison: {
+            previousGrossMargin: Math.round((previous?.grossMargin || 0) * 100) / 100,
+            marginDelta: Math.round((current.grossMargin - (previous?.grossMargin || 0)) * 100) / 100,
+            marginPercentChange: Math.round(marginPercentChange * 100) / 100,
+          },
+        };
+      })
+      .sort((a, b) => b.grossMargin - a.grossMargin);
+  }
+
+  private groupCategoryFinancials(items: any[]): Record<string, CategoryFinancialAggregate> {
+    return items.reduce((acc, item) => {
+      const categoryId = item.product.category?.id || 'uncategorized';
+      const categoryName = item.product.category?.name || 'Sin categoría';
+      const revenue = item.subtotal.toNumber();
+      const unitCost = item.product?.cost ? Number(item.product.cost) : 0;
+      const costTotal = unitCost * item.quantity.toNumber();
+      const grossMargin = revenue - costTotal;
+
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          categoryId,
+          categoryName,
+          revenue: 0,
+          costTotal: 0,
+          grossMargin: 0,
+        };
+      }
+
+      acc[categoryId].revenue += revenue;
+      acc[categoryId].costTotal += costTotal;
+      acc[categoryId].grossMargin += grossMargin;
+
+      return acc;
+    }, {} as Record<string, CategoryFinancialAggregate>);
   }
 
   /**
