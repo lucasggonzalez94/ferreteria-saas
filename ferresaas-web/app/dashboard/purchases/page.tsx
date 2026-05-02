@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -21,19 +21,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { ActionsMenu } from "@/components/ui/actions-menu";
-import { ShoppingCart, Package, DollarSign, Plus } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import Link from "next/link";
-import Header from "@/components/ui/header";
-import {getPurchaseStatusLabel} from "@/lib/purchase-status";
-import { StatCard } from "@/components/ui/stat-card";
-import { Pagination } from "@/components/ui/pagination";
-import {
-  usePermissionGuard,
-  usePermissions,
-} from "@/lib/hooks/usePermissionGuard";
+} from '@/components/ui/table';
+import { ActionsMenu } from '@/components/ui/actions-menu';
+import { ShoppingCart, Package, DollarSign, Plus } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Link from 'next/link';
+import Header from '@/components/ui/header';
+import { getPurchaseStatusLabel } from '@/lib/purchase-status';
+import { StatCard } from '@/components/ui/stat-card';
+import { Pagination } from '@/components/ui/pagination';
+import { usePermissionGuard, usePermissions } from '@/lib/hooks/usePermissionGuard';
 
 interface Purchase {
   id: string;
@@ -73,19 +70,18 @@ export default function PurchasesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  usePermissionGuard("purchases:read");
-  const { canRead: canViewPurchases, canCreate: canCreatePurchase } =
-    usePermissions({
-      canRead: "purchases:read",
-      canCreate: "purchases:create",
-    });
+  usePermissionGuard('purchases:read');
+  const { canRead: canViewPurchases, canCreate: canCreatePurchase } = usePermissions({
+    canRead: 'purchases:read',
+    canCreate: 'purchases:create',
+  });
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
-  const supplierId = searchParams.get("supplierId");
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
+  const supplierId = searchParams.get('supplierId');
 
   // Sincronizar selectedSupplierId con el query parameter
   useEffect(() => {
@@ -94,12 +90,10 @@ export default function PurchasesPage() {
     }
   }, [supplierId]);
 
-  const { data: purchasesData, isLoading } = useQuery<
-    PurchasesResponse | undefined
-  >({
-    queryKey: ["purchases", page, limit, startDate, endDate, supplierId],
+  const { data: purchasesData, isLoading } = useQuery<PurchasesResponse | undefined>({
+    queryKey: ['purchases', page, limit, startDate, endDate, supplierId],
     queryFn: async () => {
-      const response = await api.get<any>("/purchases", {
+      const response = await api.get<any>('/purchases', {
         params: {
           page,
           limit,
@@ -123,18 +117,18 @@ export default function PurchasesPage() {
   });
 
   const { data: summaryData } = useQuery<any>({
-    queryKey: ["purchases-summary"],
+    queryKey: ['purchases-summary'],
     queryFn: async () => {
-      const response = await api.get<any>("/payables/summary");
+      const response = await api.get<any>('/payables/summary');
       return response.data;
     },
     enabled: canViewPurchases,
   });
 
   const { data: suppliersData } = useQuery<any>({
-    queryKey: ["suppliers-list"],
+    queryKey: ['suppliers-list'],
     queryFn: async () => {
-      const response = await api.get<any>("/suppliers", {
+      const response = await api.get<any>('/suppliers', {
         params: { limit: 1000 },
       });
       // response.data contiene { data: [...], meta: {...} }
@@ -175,20 +169,18 @@ export default function PurchasesPage() {
   const uniqueSuppliers = new Set(purchases.map((p) => p.supplier.id)).size;
 
   // Obtener nombre del proveedor filtrado desde la lista de proveedores
-  const supplierName = supplierId
-    ? suppliers.find((s: any) => s.id === supplierId)?.name
-    : null;
+  const supplierName = supplierId ? suppliers.find((s: any) => s.id === supplierId)?.name : null;
 
   const handleSupplierChange = (newSupplierId: string) => {
     if (newSupplierId) {
       router.push(`/dashboard/purchases?supplierId=${newSupplierId}`);
     } else {
-      router.push("/dashboard/purchases");
+      router.push('/dashboard/purchases');
     }
   };
 
   const handleClearFilter = () => {
-    router.push("/dashboard/purchases");
+    router.push('/dashboard/purchases');
   };
 
   return (
@@ -196,10 +188,8 @@ export default function PurchasesPage() {
       <div className="max-w-7xl mx-auto">
         <Header
           title="Compras"
-          link={
-            supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"
-          }
-          linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"}
+          link={supplierId ? `/dashboard/suppliers/${supplierId}` : '/dashboard'}
+          linkLabel={supplierId ? 'Volver al Proveedor' : 'Volver al Dashboard'}
         />
         {supplierId && supplierName && (
           <div className="brand-accent-panel flex items-center gap-2 px-4 py-2">
@@ -219,24 +209,22 @@ export default function PurchasesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Total Compras"
-            value={isLoading ? "..." : meta.total || 0}
+            value={isLoading ? '...' : meta.total || 0}
             icon={ShoppingCart}
           />
           <StatCard
             title="Proveedores"
-            value={isLoading ? "..." : uniqueSuppliers}
+            value={isLoading ? '...' : uniqueSuppliers}
             icon={Package}
           />
           <StatCard
             title="Monto Total"
-            value={isLoading ? "0,00" : `$${totalAmount.toFixed(2)}`}
+            value={isLoading ? '0,00' : `$${totalAmount.toFixed(2)}`}
             icon={DollarSign}
           />
           <StatCard
             title="Pendiente Pagar"
-            value={
-              isLoading ? "0,00" : `$${(summary.totalPending || 0).toFixed(2)}`
-            }
+            value={isLoading ? '0,00' : `$${(summary.totalPending || 0).toFixed(2)}`}
             icon={DollarSign}
             valueClassName="text-amber-600"
           />
@@ -296,10 +284,10 @@ export default function PurchasesPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                    setSelectedSupplierId("");
-                    router.push("/dashboard/purchases");
+                    setStartDate('');
+                    setEndDate('');
+                    setSelectedSupplierId('');
+                    router.push('/dashboard/purchases');
                     setPage(1);
                   }}
                 >
@@ -322,7 +310,7 @@ export default function PurchasesPage() {
           </div>
         )}
 
-{/* Purchases List */}
+        {/* Purchases List */}
         {isLoading ? (
           <div className="text-center py-12">
             <LoadingSpinner text="Cargando compras..." />
@@ -331,9 +319,7 @@ export default function PurchasesPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                No hay compras registradas
-              </p>
+              <p className="text-muted-foreground">No hay compras registradas</p>
             </CardContent>
           </Card>
         ) : (
@@ -364,12 +350,17 @@ export default function PurchasesPage() {
                         </TableCell>
                         <TableCell>{purchase.supplier.name}</TableCell>
                         <TableCell>
-                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            purchase.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
-                            purchase.status === 'PARTIAL' ? 'bg-amber-100 text-amber-800' :
-                            purchase.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                              purchase.status === 'PAID'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : purchase.status === 'PARTIAL'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : purchase.status === 'CONFIRMED'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
                             {getPurchaseStatusLabel(purchase.status)}
                           </span>
                         </TableCell>
@@ -398,7 +389,7 @@ export default function PurchasesPage() {
           </Card>
         )}
 
-<Pagination
+        <Pagination
           setPage={setPage}
           currentPage={page}
           totalPages={meta.totalPages}
@@ -409,6 +400,7 @@ export default function PurchasesPage() {
           onLimitChange={setLimit}
           hasMore={meta.hasMore}
           onPageChange={setPage}
+          className="mt-4"
         />
       </div>
     </div>
