@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Wallet,
   Building2,
@@ -94,6 +95,49 @@ const movementTypeLabels = {
   TRANSFER_IN: "Transferencia Recibida",
   TRANSFER_OUT: "Transferencia Enviada",
 };
+
+const sourceTypeLabels: Record<string, string> = {
+  CASH: "Efectivo",
+  CASH_ARS: "Efectivo ARS",
+  CASH_USD: "Efectivo USD",
+  BANK: "Cuenta Bancaria",
+  WALLET: "Billetera Virtual",
+  CREDIT_CARD: "Tarjeta de Crédito",
+  SALES: "Venta",
+  SALE: "Venta",
+  SALE_REFUND: "Nota de Crédito",
+  PURCHASE: "Compra",
+  SUPPLIER_PAYMENT: "Pago a Proveedor",
+  ADJUSTMENT: "Ajuste",
+  CHECK: "Cheque",
+  CHECK_CLEARED: "Cheque Cobrado",
+  CASH_REGISTER_MOVEMENT: "Movimiento de Caja",
+  CASH_REGISTER_OPEN_ADJUSTMENT: "Apertura de Caja",
+  CASH_REGISTER_DIFFERENCE: "Diferencia de Caja",
+  MANUAL: "Manual",
+};
+
+function formatSourceTypeAndId(sourceType?: string, sourceId?: string): string {
+  if (!sourceType && !sourceId) return "-";
+  
+  if (sourceType === "SALE" && sourceId) {
+    return `Venta #${sourceId.slice(0, 6)}`;
+  }
+  if (sourceType === "SALE_REFUND" && sourceId) {
+    return `NC #${sourceId.slice(0, 6)}`;
+  }
+  if (sourceType === "SUPPLIER_PAYMENT" && sourceId) {
+    return `Pago #${sourceId.slice(0, 6)}`;
+  }
+  if (sourceType === "CHECK" && sourceId) {
+    return `Cheque #${sourceId.slice(0, 6)}`;
+  }
+  if (sourceType === "CHECK_CLEARED" && sourceId) {
+    return `Cheque Cobrado #${sourceId.slice(0, 6)}`;
+  }
+  
+  return sourceTypeLabels[sourceType || ""] || sourceType || "-";
+}
 
 const movementTypeColors = {
   INCOME: "text-green-600",
@@ -220,6 +264,9 @@ export default function AccountDetailPage() {
 
   const Icon = accountTypeIcons[account.type as keyof typeof accountTypeIcons] || Wallet;
   const movements = movementsData?.items || [];
+  const meta = movementsData?.meta || { total: 0, page: 1, limit: 20, pages: 1 };
+  const totalPages = (meta as any).pages || (meta as any).totalPages || 1;
+  const hasMore = (meta as any).hasMore ?? (meta.page < totalPages);
 
   return (
     <div className="app-page">
@@ -421,12 +468,12 @@ export default function AccountDetailPage() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="p-0">
-                <div className="divide-y">
+              <CardContent>
+                <div className="space-y-3">
                   {movements.map((movement: Movement) => (
                     <div
                       key={movement.id}
-                      className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                      className="rounded-lg border p-4 flex items-center justify-between gap-4"
                     >
                       <div className="flex items-center gap-4 flex-1">
                         <div className="p-2 bg-muted rounded-lg">
@@ -450,17 +497,22 @@ export default function AccountDetailPage() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium">
-                            {
-                              movementTypeLabels[
-                                movement.type as keyof typeof movementTypeLabels
-                              ]
-                            }
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {movement.description}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+<p className="font-medium">
+                              {
+                                movementTypeLabels[
+                                  movement.type as keyof typeof movementTypeLabels
+                                ]
+                              }
+                            </p>
+                            {movement.description && !movement.description.match(/^Venta #|^NC #|^Pago #/) && (
+                              <p className="text-sm text-muted-foreground">
+                                {movement.description}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              Origen: {formatSourceTypeAndId(movement.sourceType, movement.sourceId)}
+                            </p>
+                           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             {format(new Date(movement.createdAt), "dd MMM yyyy HH:mm", {
                               locale: es,
@@ -494,51 +546,21 @@ export default function AccountDetailPage() {
             </Card>
           )}
 
-          {/* Pagination */}
-          {movementsData && movementsData.meta.pages > 1 && (
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * limit) + 1} a{" "}
-                {Math.min(currentPage * limit, movementsData.meta.total)} de{" "}
-                {movementsData.meta.total} movimientos
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(movementsData.meta.pages, p + 1))}
-                  disabled={currentPage === movementsData.meta.pages}
-                >
-                  Siguiente
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">Filas por pagina</Label>
-                <Select
-                  value={String(limit)}
-                  onValueChange={(value) => {
-                    setLimit(Number(value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[110px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+{/* Pagination */}
+          {movementsData && totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination
+                setPage={() => {}}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                startIndex={(currentPage - 1) * limit + 1}
+                endIndex={Math.min(currentPage * limit, meta.total)}
+                total={meta.total}
+                limit={limit}
+                hasMore={hasMore}
+                onPageChange={(page) => setCurrentPage(page)}
+                onLimitChange={(newLimit) => { setLimit(newLimit); setCurrentPage(1); }}
+              />
             </div>
           )}
         </div>
