@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Select,
   SelectContent,
@@ -27,7 +37,7 @@ import {
 
 interface SaleListItem {
   id: string;
-  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+  status: "DRAFT" | "CONFIRMED" | "CANCELLED" | "PENDING";
   invoiceStatus: string;
   total: number;
   createdAt: string;
@@ -113,6 +123,7 @@ function formatDateRangeLabel(startDate: string, endDate: string): string {
 
 export default function SalesPage() {
   usePermissionGuard("sales:read");
+  const router = useRouter();
 
   const [status, setStatus] = useState<string>("ALL");
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatusFilter>("ALL");
@@ -350,29 +361,58 @@ export default function SalesPage() {
             ) : sales.length === 0 ? (
               <p className="text-sm text-muted-foreground">No hay ventas para los filtros seleccionados.</p>
             ) : (
-              <div className="space-y-3">
-                {sales.map((sale) => (
-                  <div key={sale.id} className="rounded-lg border p-4 flex items-center justify-between gap-4">
-                    <div className="space-y-1 min-w-0">
-                      <p className="font-medium">Venta #{sale.id.slice(0, 8)}</p>
-                      <p className="text-sm text-muted-foreground">{getCustomerLabel(sale)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(sale.createdAt).toLocaleString("es-AR")} - {getStatusLabel(sale.status)} - {getInvoiceStatusLabel(sale.invoiceStatus)}
-                      </p>
-                    </div>
-
-                    <div className="text-right space-y-1">
-                      <p className="font-semibold">{formatCurrency(Number(sale.total))}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Items: {sale._count?.items || 0} | Pagos: {sale._count?.payments || 0} | Devoluciones: {sale._count?.refunds || 0}
-                      </p>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/dashboard/sales/${sale.id}`}>Ver detalle</Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Venta</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Comprobante</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sales.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell>
+                        <span className="font-medium">#{sale.id.slice(0, 8)}</span>
+                      </TableCell>
+                      <TableCell>{getCustomerLabel(sale)}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                          sale.status === "CONFIRMED" ? "bg-green-100 text-green-800" :
+                          sale.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
+                          sale.status === "CANCELLED" || sale.status === "DRAFT" ? "bg-red-100 text-red-800" :
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {getStatusLabel(sale.status)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs">{getInvoiceStatusLabel(sale.invoiceStatus)}</span>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(sale.createdAt).toLocaleString("es-AR")}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(Number(sale.total))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ActionsMenu
+                          actions={[
+                            {
+                              label: "Ver detalle",
+                              onClick: () => router.push(`/dashboard/sales/${sale.id}`),
+                            },
+                          ]}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

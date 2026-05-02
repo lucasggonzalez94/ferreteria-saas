@@ -14,7 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShoppingCart, Package, DollarSign, Plus, Truck } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ActionsMenu } from "@/components/ui/actions-menu";
+import { ShoppingCart, Package, DollarSign, Plus } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
@@ -25,7 +34,6 @@ import {
   usePermissionGuard,
   usePermissions,
 } from "@/lib/hooks/usePermissionGuard";
-import { ActionsMenu } from "@/components/ui/actions-menu";
 
 interface Purchase {
   id: string;
@@ -314,126 +322,12 @@ export default function PurchasesPage() {
           </div>
         )}
 
-        {/* Purchases List */}
+{/* Purchases List */}
         {isLoading ? (
           <div className="text-center py-12">
             <LoadingSpinner text="Cargando compras..." />
           </div>
-        ) : purchases.length > 0 ? (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Listado</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {purchases.map((purchase: Purchase) => {
-                    const purchaseNumber = purchase.invoiceNumber || purchase.id.slice(0, 8);
-                    const totalAmount = Number(purchase.total);
-                    const itemsCount = purchase._count?.items || 0;
-
-                    return (
-                      <div
-                        key={purchase.id}
-                        className="rounded-lg border p-3 flex items-center gap-4 hover:bg-accent/5 transition-colors cursor-pointer"
-                      >
-                        <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
-                          <ShoppingCart className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground truncate text-[15px]">
-                              Compra #{purchaseNumber}
-                            </p>
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 border ${
-                                purchase.status === 'PAID'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : purchase.status === 'PARTIAL'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : purchase.status === 'CONFIRMED'
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : 'bg-gray-50 text-gray-700 border-gray-200'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                                  purchase.status === 'PAID'
-                                    ? 'bg-emerald-500'
-                                    : purchase.status === 'PARTIAL'
-                                    ? 'bg-amber-500'
-                                    : purchase.status === 'CONFIRMED'
-                                    ? 'bg-blue-500'
-                                    : 'bg-gray-500'
-                                }`}
-                              />
-                              {getPurchaseStatusLabel(purchase.status)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Truck className="h-3.5 w-3.5" />
-                              <span className="text-xs text-foreground/80">
-                                {purchase.supplier.name}
-                              </span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="text-foreground/60">Fecha:</span>
-                              <span className="text-xs text-foreground/80">
-                                {new Date(purchase.createdAt).toLocaleDateString('es-AR')}
-                              </span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Package className="h-3.5 w-3.5" />
-                              <span className="text-xs text-foreground/80">
-                                {itemsCount} {itemsCount === 1 ? 'producto' : 'productos'}
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-5 flex-shrink-0">
-                          <div className="text-right min-w-[80px]">
-                            <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
-                              Total
-                            </p>
-                            <p className="text-base font-bold tabular-nums text-foreground">
-                              ${totalAmount.toFixed(2)}
-                            </p>
-                          </div>
-                          <ActionsMenu
-                            actions={[
-                              {
-                                label: 'Ver detalle',
-                                onClick: () => router.push(`/dashboard/purchases/${purchase.id}`),
-                              },
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pagination */}
-            <div className="mt-4">
-              <Pagination
-                setPage={setPage}
-                currentPage={page}
-                totalPages={meta.totalPages}
-                startIndex={startIndex}
-                endIndex={endIndex}
-                total={meta.total}
-                limit={limit}
-                onLimitChange={setLimit}
-                hasMore={meta.hasMore}
-                onPageChange={setPage}
-              />
-            </div>
-          </>
-        ) : (
+        ) : purchases.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -442,7 +336,80 @@ export default function PurchasesPage() {
               </p>
             </CardContent>
           </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Compra</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {purchases.map((purchase: Purchase) => {
+                    const purchaseNumber = purchase.invoiceNumber || purchase.id.slice(0, 8);
+                    const totalAmount = Number(purchase.total);
+                    return (
+                      <TableRow key={purchase.id}>
+                        <TableCell>
+                          <span className="font-medium">#{purchaseNumber}</span>
+                        </TableCell>
+                        <TableCell>{purchase.supplier.name}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                            purchase.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                            purchase.status === 'PARTIAL' ? 'bg-amber-100 text-amber-800' :
+                            purchase.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {getPurchaseStatusLabel(purchase.status)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(purchase.createdAt).toLocaleDateString('es-AR')}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${totalAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <ActionsMenu
+                            actions={[
+                              {
+                                label: 'Ver detalle',
+                                onClick: () => router.push(`/dashboard/purchases/${purchase.id}`),
+                              },
+                            ]}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
+
+<Pagination
+          setPage={setPage}
+          currentPage={page}
+          totalPages={meta.totalPages}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          total={meta.total}
+          limit={limit}
+          onLimitChange={setLimit}
+          hasMore={meta.hasMore}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
