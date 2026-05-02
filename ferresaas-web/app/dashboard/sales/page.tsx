@@ -394,8 +394,8 @@ export default function SalesPage() {
                         <span className="text-xs">{getInvoiceStatusLabel(sale.invoiceStatus)}</span>
                       </TableCell>
                       <TableCell>
-                        {new Date(sale.createdAt).toLocaleString("es-AR")}
-                      </TableCell>
+                          {new Date(sale.createdAt).toLocaleString("es-AR", { hour12: false })}
+                        </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(Number(sale.total))}
                       </TableCell>

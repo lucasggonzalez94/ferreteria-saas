@@ -149,7 +149,7 @@ export default function SaleDetailPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <Header
           title={`Venta #${data.id.slice(0, 8)}`}
-          description={`Estado: ${data.status} - ${new Date(data.createdAt).toLocaleString("es-AR")}`}
+          description={`Estado: ${data.status} - ${new Date(data.createdAt).toLocaleString("es-AR", { hour12: false })}`}
           link="/dashboard/sales"
           linkLabel="Volver a ventas"
           actions={
@@ -251,7 +251,7 @@ export default function SaleDetailPage() {
                       <p className="text-sm font-semibold">${Number(refund.total).toFixed(2)}</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(refund.createdAt).toLocaleString("es-AR")} - {refund.reason || "Sin motivo"}
+                      {new Date(refund.createdAt).toLocaleString("es-AR", { hour12: false })} - {refund.reason || "Sin motivo"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Metodos: {refund.payments.map((payment) => `${payment.method} $${Number(payment.amount).toFixed(2)}`).join(" | ")}

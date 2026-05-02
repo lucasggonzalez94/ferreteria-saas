@@ -353,6 +353,7 @@ export default function FinancialAccountsSummaryPage() {
                           <p className="text-xs text-muted-foreground">
                             {new Date(movement.createdAt).toLocaleTimeString(
                               "es-AR",
+                              { hour: '2-digit', minute: '2-digit', hour12: false },
                             )}
                           </p>
                         </div>

@@ -424,7 +424,7 @@ export default function InvoicesPage() {
                           {invoice.cae || "-"}
                         </TableCell>
                         <TableCell>
-                          {new Date(invoice.issuedAt || invoice.createdAt).toLocaleString("es-AR")}
+                          {new Date(invoice.issuedAt || invoice.createdAt).toLocaleString("es-AR", { hour12: false })}
                         </TableCell>
                         <TableCell className="text-right">
                           <ActionsMenu

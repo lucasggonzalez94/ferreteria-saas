@@ -25,9 +25,9 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
     const isYesterday = date.toDateString() === yesterday.toDateString();
 
     if (isToday) {
-      return `Publicado hoy a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+      return `Publicado hoy a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
     } else if (isYesterday) {
-      return `Publicado ayer a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+      return `Publicado ayer a las ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
     } else {
       return `Publicado el ${date.toLocaleDateString('es-AR')}`;
     }
