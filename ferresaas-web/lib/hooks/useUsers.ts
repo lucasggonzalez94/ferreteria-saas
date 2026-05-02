@@ -24,15 +24,17 @@ export interface UserListItem {
   roles: Array<{ id: string; name: string }>;
 }
 
-interface UsersListResponse {
+interface UsersListMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+interface LegacyUsersListResponse {
   items: UserListItem[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
+  meta: UsersListMeta;
 }
 
 export function useUsers() {
@@ -41,7 +43,7 @@ export function useUsers() {
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     totalPages: 0,
     hasMore: false,
@@ -54,19 +56,34 @@ export function useUsers() {
     try {
       const params = new URLSearchParams({
         page: String(options?.page || 1),
-        limit: String(options?.limit || 10),
+        limit: String(options?.limit || 20),
         ...(options?.q && { q: options.q }),
         ...(options?.status && { status: options.status }),
         ...(options?.roleId && { roleId: options.roleId }),
       });
 
-      const response = await api.get<UsersListResponse>(
+      const response = await api.get<UserListItem[] | LegacyUsersListResponse>(
         `/users?${params.toString()}`
       );
 
       if (response.success && response.data) {
-        setUsers(response.data.items);
-        setMeta(response.data.meta);
+        const usersData = Array.isArray(response.data)
+          ? response.data
+          : response.data.items;
+        const usersMeta = Array.isArray(response.data)
+          ? (response.meta as unknown as UsersListMeta | undefined)
+          : response.data.meta;
+
+        setUsers(usersData);
+        setMeta(
+          usersMeta || {
+            page: options?.page || 1,
+            limit: options?.limit || 20,
+            total: usersData.length,
+            totalPages: 1,
+            hasMore: false,
+          }
+        );
       }
     } catch (err: any) {
       setError(err.message);

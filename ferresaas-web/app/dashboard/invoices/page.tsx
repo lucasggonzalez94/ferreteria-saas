@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Header from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
   CardContent,
@@ -81,6 +82,17 @@ function formatDateInput(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+interface InvoicesResponse {
+  data: InvoiceListItem[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 function getDatePresetRange(preset: DatePreset): { startDate: string; endDate: string } {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -149,11 +161,13 @@ export default function InvoicesPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const canReadSales = user?.permissions?.includes("sales:read");
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["invoices", status, voucherType, saleId, startDate, endDate],
+  const { data: invoicesData, isLoading, refetch } = useQuery<InvoicesResponse | undefined>({
+    queryKey: ["invoices", status, voucherType, saleId, startDate, endDate, page, limit],
     queryFn: async () => {
       const response = await api.get<InvoiceListItem[]>("/sales/invoices", {
         params: {
@@ -162,25 +176,34 @@ export default function InvoicesPage() {
           saleId: saleId.trim() || undefined,
           startDate: toStartDateIso(startDate),
           endDate: toEndDateIso(endDate),
-          page: 1,
-          limit: 100,
+          page,
+          limit,
         },
       });
 
-      return response.data || [];
+      return {
+        data: response.data || [],
+        meta: (response as any).meta || {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+          hasMore: false,
+        },
+      } as InvoicesResponse;
     },
     enabled: Boolean(canReadSales),
   });
 
   const totals = useMemo(() => {
-    const invoices = data || [];
+    const invoices = invoicesData?.data || [];
     return {
-      total: invoices.length,
+      total: invoicesData?.meta.total || invoices.length,
       issued: invoices.filter((invoice) => invoice.status === "ISSUED").length,
       failed: invoices.filter((invoice) => invoice.status === "FAILED").length,
       pending: invoices.filter((invoice) => invoice.status === "PENDING").length,
     };
-  }, [data]);
+  }, [invoicesData]);
 
   const handleDownloadPdf = async (invoice: InvoiceListItem) => {
     try {
@@ -364,63 +387,83 @@ export default function InvoicesPage() {
           <CardContent>
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Cargando comprobantes...</p>
-            ) : (data?.length || 0) === 0 ? (
+            ) : (invoicesData?.data?.length || 0) === 0 ? (
               <p className="text-sm text-muted-foreground">No hay comprobantes para los filtros seleccionados.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Comprobante</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>CAE</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>
-                        <div className="font-medium">{invoice.voucherType}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {invoice.pointOfSale || 0}-{invoice.number || 0}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Venta {invoice.saleId}</div>
-                      </TableCell>
-                      <TableCell>{customerName(invoice)}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${INVOICE_STATUS_STYLES[invoice.status]}`}
-                        >
-                          {INVOICE_STATUS_LABELS[invoice.status]}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate" title={invoice.cae || "-"}>
-                        {invoice.cae || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(invoice.issuedAt || invoice.createdAt).toLocaleString("es-AR")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <ActionsMenu
-                          actions={[
-                            {
-                              label: "Ver detalle",
-                              onClick: () => router.push(`/dashboard/invoices/${invoice.id}`),
-                            },
-                            {
-                              label: "Descargar PDF",
-                              onClick: () => handleDownloadPdf(invoice),
-                              disabled: invoice.status !== "ISSUED",
-                            },
-                          ]}
-                        />
-                      </TableCell>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Comprobante</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>CAE</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {invoicesData?.data?.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell>
+                          <div className="font-medium">{invoice.voucherType}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {invoice.pointOfSale || 0}-{invoice.number || 0}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Venta {invoice.saleId}</div>
+                        </TableCell>
+                        <TableCell>{customerName(invoice)}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${INVOICE_STATUS_STYLES[invoice.status]}`}
+                          >
+                            {INVOICE_STATUS_LABELS[invoice.status]}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate" title={invoice.cae || "-"}>
+                          {invoice.cae || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(invoice.issuedAt || invoice.createdAt).toLocaleString("es-AR")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <ActionsMenu
+                            actions={[
+                              {
+                                label: "Ver detalle",
+                                onClick: () => router.push(`/dashboard/invoices/${invoice.id}`),
+                              },
+                              {
+                                label: "Descargar PDF",
+                                onClick: () => handleDownloadPdf(invoice),
+                                disabled: invoice.status !== "ISSUED",
+                              },
+                            ]}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {invoicesData?.meta && invoicesData.meta.totalPages > 0 && (
+                  <div className="mt-4">
+                    <Pagination
+                      setPage={setPage}
+                      currentPage={invoicesData.meta.page}
+                      totalPages={invoicesData.meta.totalPages}
+                      startIndex={(invoicesData.meta.page - 1) * invoicesData.meta.limit + 1}
+                      endIndex={Math.min(
+                        invoicesData.meta.page * invoicesData.meta.limit,
+                        invoicesData.meta.total,
+                      )}
+                      total={invoicesData.meta.total}
+                      limit={invoicesData.meta.limit}
+                      onPageChange={setPage}
+                      onLimitChange={setLimit}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

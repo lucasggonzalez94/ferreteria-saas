@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
-import { sendSuccess } from '../utils/response';
+import { sendSuccess, sendPaginated } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -39,7 +39,7 @@ router.get(
         roleId: query.roleId,
       });
 
-      sendSuccess(res, result);
+      sendPaginated(res, result.items, result.meta);
     } catch (error) {
       next(error);
     }

@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, Search, Mail, User as UserIcon, Edit2 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -52,6 +53,13 @@ export default function UsersPage() {
 
   const canCreateUsers = user?.permissions?.includes("users:create");
   const canManageUsers = user?.permissions?.includes("users:manage");
+
+  const getListOptions = (overrides?: { page?: number; limit?: number }) => ({
+    page: overrides?.page ?? meta.page,
+    limit: overrides?.limit ?? meta.limit,
+    q: searchQuery || undefined,
+    status: statusFilter !== "all" ? (statusFilter as "active" | "inactive") : undefined,
+  });
 
   useEffect(() => {
     if (!user?.permissions?.includes("users:read")) {
@@ -358,7 +366,7 @@ export default function UsersPage() {
                   </thead>
                   <tbody>
                     {users.map((u) => (
-                      <tr key={u.id} className="border-b hover:bg-slate-50">
+                      <tr key={u.id} className="border-b data-[state=selected]:bg-muted hover:bg-muted/50 transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -428,28 +436,19 @@ export default function UsersPage() {
 
             {/* Paginación */}
             {meta.totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Página {meta.page} de {meta.totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={meta.page === 1}
-                    onClick={() => listUsers({ page: meta.page - 1 })}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!meta.hasMore}
-                    onClick={() => listUsers({ page: meta.page + 1 })}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
+              <div className="mt-4">
+                <Pagination
+                  setPage={() => {}}
+                  currentPage={meta.page}
+                  totalPages={meta.totalPages}
+                  startIndex={(meta.page - 1) * meta.limit + 1}
+                  endIndex={Math.min(meta.page * meta.limit, meta.total)}
+                  total={meta.total}
+                  limit={meta.limit}
+                  hasMore={meta.hasMore}
+                  onPageChange={(page) => listUsers(getListOptions({ page }))}
+                  onLimitChange={(limit) => listUsers(getListOptions({ page: 1, limit }))}
+                />
               </div>
             )}
           </CardContent>
