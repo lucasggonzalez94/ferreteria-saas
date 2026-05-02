@@ -77,6 +77,8 @@ export default function CashRegisterPage() {
   >(null);
   const [suggestedAmount, setSuggestedAmount] = useState<number>(0);
   const [suggestedAmountUSD, setSuggestedAmountUSD] = useState<number>(0);
+  const [hasOpenedit, setHasOpenedit] = useState(false);
+  const [hasOpeneditUSD, setHasOpeneditUSD] = useState(false);
 
   const {
     data: session,
@@ -113,20 +115,23 @@ export default function CashRegisterPage() {
 
   const usdEnabled = exchangeConfig?.usdEnabled ?? false;
 
-  // Prellenar los inputs con los montos sugeridos
+  // Prellenar los inputs con los montos sugeridos (solo la primera vez)
   useEffect(() => {
-    if (suggestedOpening?.suggestedAmount !== undefined && !openingAmount) {
-      setOpeningAmount(suggestedOpening.suggestedAmount.toString());
-      setSuggestedAmount(suggestedOpening.suggestedAmount);
+    if (!session && suggestedOpening) {
+      if (!hasOpenedit && suggestedOpening.suggestedAmount !== undefined && !openingAmount) {
+        setOpeningAmount(suggestedOpening.suggestedAmount.toString());
+        setSuggestedAmount(suggestedOpening.suggestedAmount);
+      }
+      if (usdEnabled &&
+        !hasOpeneditUSD &&
+        suggestedOpening.suggestedAmountUSD !== undefined &&
+        !openingAmountUSD
+      ) {
+        setOpeningAmountUSD(suggestedOpening.suggestedAmountUSD.toString());
+        setSuggestedAmountUSD(suggestedOpening.suggestedAmountUSD);
+      }
     }
-    if (usdEnabled &&
-      suggestedOpening?.suggestedAmountUSD !== undefined &&
-      !openingAmountUSD
-    ) {
-      setOpeningAmountUSD(suggestedOpening.suggestedAmountUSD.toString());
-      setSuggestedAmountUSD(suggestedOpening.suggestedAmountUSD);
-    }
-  }, [suggestedOpening, openingAmount, openingAmountUSD, usdEnabled]);
+  }, [suggestedOpening, usdEnabled, session]);
 
   const {
     data: summary,
@@ -398,11 +403,15 @@ export default function CashRegisterPage() {
                     step="0.01"
                     value={openingAmount}
                     onFocus={() => {
+                      setHasOpenedit(true);
                       if (openingAmount === "0") {
                         setOpeningAmount("");
                       }
                     }}
-                    onChange={(e) => setOpeningAmount(e.target.value)}
+                    onChange={(e) => {
+                      setHasOpenedit(true);
+                      setOpeningAmount(e.target.value);
+                    }}
                     placeholder="0,00"
                     className="text-lg"
                   />
@@ -423,11 +432,15 @@ export default function CashRegisterPage() {
                     step="0.01"
                     value={openingAmountUSD}
                     onFocus={() => {
+                      setHasOpeneditUSD(true);
                       if (openingAmountUSD === "0") {
                         setOpeningAmountUSD("");
                       }
                     }}
-                    onChange={(e) => setOpeningAmountUSD(e.target.value)}
+                    onChange={(e) => {
+                      setHasOpeneditUSD(true);
+                      setOpeningAmountUSD(e.target.value);
+                    }}
                     placeholder="0,00"
                     className="text-lg"
                   />
@@ -815,48 +828,129 @@ export default function CashRegisterPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">
-                      Balance en cuenta:
-                    </span>
-                    <span className="text-sm font-bold">
-                      ${suggestedAmount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium">Monto a abrir:</span>
-                    <span className="text-sm font-bold">
-                      ${pendingOpenAmount?.toFixed(2) || 0}
-                    </span>
-                  </div>
-                  <div className="border-t border-yellow-300 pt-2 mt-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Diferencia:</span>
-                      <span
-                        className={`text-sm font-bold ${
-                          (pendingOpenAmount || 0) - suggestedAmount > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {(pendingOpenAmount || 0) - suggestedAmount > 0
-                          ? "+"
-                          : ""}
-                        $
-                        {((pendingOpenAmount || 0) - suggestedAmount).toFixed(
-                          2,
-                        )}
-                      </span>
+                <div className="space-y-3">
+                  {/* ARS */}
+                  <div>
+                    <p className="text-sm font-medium mb-1">ARS</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Balance en cuenta:
+                        </span>
+                        <span className="text-sm font-bold">
+                          ${suggestedAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Monto a abrir:
+                        </span>
+                        <span className="text-sm font-bold">
+                          ${(pendingOpenAmount || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-yellow-300 pt-1 mt-1">
+                        <span className="text-sm font-medium">Diferencia:</span>
+                        <span
+                          className={`text-sm font-bold ${
+                            (pendingOpenAmount || 0) - suggestedAmount > 0
+                              ? "text-green-600"
+                              : (pendingOpenAmount || 0) - suggestedAmount < 0
+                                ? "text-red-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {(pendingOpenAmount || 0) - suggestedAmount > 0
+                            ? "+"
+                            : ""}
+                          $
+                          {((pendingOpenAmount || 0) - suggestedAmount).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* USD */}
+                  {usdEnabled && (
+                    <div className="border-t border-yellow-300 pt-3 mt-3">
+                      <p className="text-sm font-medium mb-1">USD</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Balance en cuenta:
+                          </span>
+                          <span className="text-sm font-bold">
+                            ${suggestedAmountUSD.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">
+                            Monto a abrir:
+                          </span>
+                          <span className="text-sm font-bold">
+                            ${((pendingOpenAmountUSD ?? 0) || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-yellow-300 pt-1 mt-1">
+                          <span className="text-sm font-medium">Diferencia:</span>
+                          <span
+                            className={`text-sm font-bold ${
+                              ((pendingOpenAmountUSD ?? 0) || 0) - suggestedAmountUSD >
+                              0
+                                ? "text-green-600"
+                                : ((pendingOpenAmountUSD ?? 0) || 0) -
+                                    suggestedAmountUSD <
+                                  0
+                                  ? "text-red-600"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {((pendingOpenAmountUSD ?? 0) || 0) - suggestedAmountUSD >
+                            0
+                              ? "+"
+                              : ""}
+                            $
+                            {(
+                              ((pendingOpenAmountUSD ?? 0) || 0) - suggestedAmountUSD
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <p className="text-sm text-muted-foreground">
-                {(pendingOpenAmount || 0) - suggestedAmount > 0
-                  ? "⚠️ Se registrará un INGRESO de efectivo en la cuenta financiera."
-                  : "⚠️ Se registrará un RETIRO de efectivo en la cuenta financiera."}
+                {(() => {
+                  const diffARS = (pendingOpenAmount || 0) - suggestedAmount;
+                  const diffUSD =
+                    ((pendingOpenAmountUSD ?? 0) || 0) - suggestedAmountUSD;
+                  const hasARS = Math.abs(diffARS) > 0.01;
+                  const hasUSD = Math.abs(diffUSD) > 0.01;
+
+                  if (!hasARS && !hasUSD) {
+                    return "✓ Los montos coinciden con el balance.";
+                  }
+
+                  const parts: string[] = [];
+                  if (hasARS) {
+                    parts.push(
+                      diffARS > 0
+                        ? `ARS: ingreso de $${Math.abs(diffARS).toFixed(2)}`
+                        : `ARS: retiro de $${Math.abs(diffARS).toFixed(2)}`,
+                    );
+                  }
+                  if (hasUSD) {
+                    parts.push(
+                      diffUSD > 0
+                        ? `USD: ingreso de $${Math.abs(diffUSD).toFixed(2)}`
+                        : `USD: retiro de $${Math.abs(diffUSD).toFixed(2)}`,
+                    );
+                  }
+
+                  return `⚠️ Se registrará: ${parts.join(", ")} en la cuenta financiera.`;
+                })()}
               </p>
 
               <div className="flex gap-2">
