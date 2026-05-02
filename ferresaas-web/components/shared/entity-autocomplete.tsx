@@ -50,13 +50,24 @@ export function EntityAutocomplete<T extends { id: string }>({
   const [showDropdown, setShowDropdown] = useState(false);
   const [entities, setEntities] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar search solo cuando cambia el valor externo y el usuario no está escribiendo
+  useEffect(() => {
+    if (!isUserTyping && value) {
+      setSearch(displayFn(value));
+    } else if (!isUserTyping && !value && search) {
+      setSearch("");
+    }
+  }, [value, isUserTyping, displayFn]);
 
   // Fetch entities cuando cambia el search
   useEffect(() => {
-    if (search.length >= minSearchLength && !value) {
+    const currentSearch = search.trim();
+    if (currentSearch.length >= minSearchLength) {
       setIsLoading(true);
-      fetchFn(search)
+      fetchFn(currentSearch)
         .then((results) => {
           setEntities(results);
           setShowDropdown(true);
@@ -70,9 +81,8 @@ export function EntityAutocomplete<T extends { id: string }>({
         });
     } else {
       setEntities([]);
-      setShowDropdown(false);
     }
-  }, [search, value, fetchFn, minSearchLength]);
+  }, [search, fetchFn, minSearchLength]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -88,7 +98,7 @@ export function EntityAutocomplete<T extends { id: string }>({
 
   const handleSelect = (entity: T) => {
     onChange(entity);
-    setSearch("");
+    setSearch(displayFn(entity));
     setShowDropdown(false);
   };
 
@@ -97,21 +107,27 @@ export function EntityAutocomplete<T extends { id: string }>({
     setSearch("");
   };
 
-  const displayValue = value ? displayFn(value) : search;
+  const displayValue = search;
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <Input
         value={displayValue}
         onChange={(e) => {
-          if (!value) {
-            setSearch(e.target.value);
+          setIsUserTyping(true);
+          const newValue = e.target.value;
+          setSearch(newValue);
+          if (newValue.length >= minSearchLength) {
+            setShowDropdown(true);
           }
         }}
         onFocus={() => {
-          if (!value && search.length >= minSearchLength) {
+          if (search.trim().length >= minSearchLength) {
             setShowDropdown(true);
           }
+        }}
+        onBlur={() => {
+          setTimeout(() => setIsUserTyping(false), 200);
         }}
         placeholder={placeholder}
         disabled={disabled}

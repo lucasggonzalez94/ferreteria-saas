@@ -192,7 +192,7 @@ export default function PurchasesPage() {
           linkLabel={supplierId ? 'Volver al Proveedor' : 'Volver al Dashboard'}
         />
         {supplierId && supplierName && (
-          <div className="brand-accent-panel flex items-center gap-2 px-4 py-2">
+          <div className="brand-accent-panel flex items-center gap-2 px-4 py-2 mb-6">
             <span className="text-sm brand-accent-subtle">
               Filtrado por: <strong>{supplierName}</strong>
             </span>

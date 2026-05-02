@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -22,8 +23,6 @@ import { parseNumericInput } from "@/lib/numeric-input";
 import {
   DollarSign,
   AlertCircle,
-  CheckCircle,
-  Clock,
   RefreshCw,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
@@ -38,6 +37,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/pagination";
+import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
 import {
   Table,
   TableBody,
@@ -98,17 +98,6 @@ interface FinancialAccount {
   isActive: boolean;
 }
 
-interface SuppliersListResponse {
-  data: Supplier[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
-}
-
 interface PayablesSummary {
   totalPayable: number;
   totalPending: number;
@@ -133,7 +122,7 @@ export default function PayablesPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [status, setStatus] = useState<string>("");
-  const [supplierId, setSupplierId] = useState<string>("");
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [search, setSearch] = useState("");
   const [dueDateFrom, setDueDateFrom] = useState("");
   const [dueDateTo, setDueDateTo] = useState("");
@@ -151,24 +140,35 @@ export default function PayablesPage() {
 
   const urlSupplierId = searchParams.get("supplierId");
 
-  useEffect(() => {
-    if (urlSupplierId) {
-      setSupplierId(urlSupplierId);
-    }
-  }, [urlSupplierId]);
-
-  const { data: suppliersData } = useQuery<SuppliersListResponse>({
-    queryKey: ["suppliers-list"],
+  // Cargar supplier desde URL
+  const { data: supplierFromUrl } = useQuery<{ supplier: Supplier } | undefined>({
+    queryKey: ["supplier", urlSupplierId],
     queryFn: async () => {
-      const response = await api.get<SuppliersListResponse>("/suppliers", {
-        params: { limit: 1000 },
-      });
-      return response.data as SuppliersListResponse;
+      const response = await api.get<{ supplier: Supplier }>(`/suppliers/${urlSupplierId}`);
+      return response.data as { supplier: Supplier } | undefined;
     },
-    enabled: canViewPayables,
+    enabled: !!urlSupplierId,
   });
 
-  const suppliers: Supplier[] = suppliersData?.data || [];
+  useEffect(() => {
+    if (supplierFromUrl?.supplier) {
+      setSelectedSupplier(supplierFromUrl.supplier);
+    }
+  }, [supplierFromUrl]);
+  
+  // Helper para buscar proveedores
+  const fetchSuppliers = useCallback(async (searchTerm: string): Promise<Supplier[]> => {
+    try {
+      const response = await api.get<any>("/suppliers", {
+        params: { search: searchTerm, limit: 100 },
+      });
+      // La respuesta tiene: { success: true, data: [...], meta: {...} }
+      // response.data es el array de proveedores
+      return response.data || [];
+    } catch (error) {
+      return [];
+    }
+  }, []);
 
   const { data: financialAccounts } = useQuery<FinancialAccount[]>({
     queryKey: ["financial-accounts"],
@@ -194,7 +194,7 @@ export default function PayablesPage() {
       page,
       limit,
       status,
-      supplierId,
+      selectedSupplier?.id,
       search,
       dueDateFrom,
       dueDateTo,
@@ -207,7 +207,7 @@ export default function PayablesPage() {
           page,
           limit,
           ...(status && { status }),
-          ...(supplierId && { supplierId }),
+          ...(selectedSupplier?.id && { supplierId: selectedSupplier.id }),
           ...(search && { search }),
           ...(dueDateFrom && { dueDateFrom }),
           ...(dueDateTo && { dueDateTo }),
@@ -295,7 +295,7 @@ export default function PayablesPage() {
 
   const handleClearFilters = () => {
     setStatus("");
-    setSupplierId("");
+    setSelectedSupplier(null);
     setSearch("");
     setDueDateFrom("");
     setDueDateTo("");
@@ -303,17 +303,6 @@ export default function PayablesPage() {
     setMaxAmount("");
     setPage(1);
     router.push("/dashboard/payables");
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return <CheckCircle className="h-4 w-4" />;
-      case "OVERDUE":
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
   };
 
   const getSelectedPayable = () => {
@@ -327,9 +316,9 @@ export default function PayablesPage() {
         <Header
           title="Cuentas por Pagar"
           link={
-            supplierId ? `/dashboard/suppliers/${supplierId}` : "/dashboard"
+            selectedSupplier?.id ? `/dashboard/suppliers/${selectedSupplier.id}` : "/dashboard"
           }
-          linkLabel={supplierId ? "Volver al Proveedor" : "Volver al Dashboard"}
+          linkLabel={selectedSupplier?.id ? "Volver al Proveedor" : "Volver al Dashboard"}
           actions={
             <div className="flex items-center gap-2">
               <Tooltip content="Refrescar datos">
@@ -403,32 +392,31 @@ export default function PayablesPage() {
 
               <div>
                 <Label htmlFor="supplier">Proveedor</Label>
-                <Select
-                  value={supplierId}
-                  onValueChange={(value) => {
-                    setSupplierId(value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger id="supplier" className="mt-1">
-                    <SelectValue placeholder="Todos los proveedores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Todos los proveedores</SelectItem>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <EntityAutocomplete
+                    value={selectedSupplier}
+                    onChange={(supplier) => {
+                      setSelectedSupplier(supplier);
+                      setPage(1);
+                      // Limpiar el query param de la URL
+                      if (supplier) {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.delete("supplierId");
+                        router.push(`/dashboard/payables?${params.toString()}`, { scroll: false });
+                      }
+                    }}
+                    fetchFn={fetchSuppliers}
+                    displayFn={(s) => s.name}
+                    placeholder="Buscar proveedor..."
+                  />
+                </div>
               </div>
 
               <div>
-                <Label htmlFor="search">Buscar Proveedor</Label>
+                <Label htmlFor="search">Buscar en cuentas</Label>
                 <Input
                   id="search"
-                  placeholder="Nombre del proveedor..."
+                  placeholder="N° factura, referencia..."
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
