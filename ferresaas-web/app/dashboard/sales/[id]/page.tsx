@@ -83,6 +83,21 @@ function customerLabel(customer: SaleDetail["customer"]): string {
   return fullName || "Cliente";
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH_ARS: "Efectivo ARS",
+  CASH_USD: "Efectivo USD",
+  CARD: "Tarjeta",
+  CREDIT_CARD: "Tarjeta de Crédito",
+  DEBIT_CARD: "Tarjeta de Débito",
+  TRANSFER: "Transferencia",
+  QR: "QR",
+  ACCOUNT: "Cuenta Corriente",
+};
+
+function paymentMethodLabel(method: string): string {
+  return PAYMENT_METHOD_LABELS[method] || method;
+}
+
 export default function SaleDetailPage() {
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -227,7 +242,7 @@ export default function SaleDetailPage() {
             <div className="space-y-2">
               {data.payments.map((payment) => (
                 <div key={payment.id} className="flex items-center justify-between border rounded-md p-3">
-                  <p className="text-sm">{payment.method}</p>
+                  <p className="text-sm">{paymentMethodLabel(payment.method)}</p>
                   <p className="font-medium">${Number(payment.amount).toFixed(2)}</p>
                 </div>
               ))}
@@ -254,7 +269,7 @@ export default function SaleDetailPage() {
                       {new Date(refund.createdAt).toLocaleString("es-AR", { hour12: false })} - {refund.reason || "Sin motivo"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Metodos: {refund.payments.map((payment) => `${payment.method} $${Number(payment.amount).toFixed(2)}`).join(" | ")}
+                      Metodos: {refund.payments.map((payment) => `${paymentMethodLabel(payment.method)} $${Number(payment.amount).toFixed(2)}`).join(" | ")}
                     </p>
                   </div>
                 ))}
