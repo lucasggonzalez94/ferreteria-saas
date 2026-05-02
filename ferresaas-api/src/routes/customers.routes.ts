@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
-import { sendSuccess, AppError } from '../utils/response';
+import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -70,14 +70,10 @@ router.get(
         prisma.customer.count({ where }),
       ]);
 
-      const totalPages = Math.ceil(total / limitNum);
-
-      sendSuccess(res, customers, 200, {
+      sendPaginated(res, customers, {
         page: pageNum,
         limit: limitNum,
         total,
-        totalPages,
-        hasMore: pageNum < totalPages,
       });
     } catch (error) {
       next(error);

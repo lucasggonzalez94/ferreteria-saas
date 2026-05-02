@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
-import { sendSuccess, AppError } from '../utils/response';
+import { sendSuccess, sendPaginated, AppError } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -518,30 +518,44 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authReq = req as AuthRequest;
-      const { limit = '10' } = req.query;
+      const { limit = '20', page = '1' } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const skip = (pageNum - 1) * limitNum;
 
-      const sessions = await prisma.cashRegisterSession.findMany({
-        where: {
-          businessId: authReq.businessId!,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+      const [sessions, total] = await Promise.all([
+        prisma.cashRegisterSession.findMany({
+          where: {
+            businessId: authReq.businessId!,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+            _count: {
+              select: { sales: true, movements: true },
             },
           },
-          _count: {
-            select: { sales: true, movements: true },
-          },
-        },
-        orderBy: { openedAt: 'desc' },
-        take: parseInt(limit as string),
-      });
+          orderBy: { openedAt: 'desc' },
+          take: limitNum,
+          skip,
+        }),
+        prisma.cashRegisterSession.count({
+          where: { businessId: authReq.businessId! },
+        }),
+      ]);
 
-      sendSuccess(res, sessions);
+      sendPaginated(res, sessions, {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      });
     } catch (error) {
       next(error);
     }

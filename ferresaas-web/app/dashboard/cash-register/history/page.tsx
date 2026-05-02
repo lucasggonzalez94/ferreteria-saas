@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Eye } from "lucide-react";
 import Header from "@/components/ui/header";
@@ -15,19 +16,72 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface CashRegisterSession {
+  id: string;
+  status: string;
+  openedAt: string;
+  closedAt?: string;
+  openingAmount: number;
+  closingAmount?: number;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  _count: {
+    sales: number;
+    movements: number;
+  };
+}
+
+interface SessionsResponse {
+  data: CashRegisterSession[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
 
 export default function CashRegisterHistoryPage() {
-  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [selectedSession, setSelectedSession] = useState<CashRegisterSession | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
-  const { data: sessions, isLoading } = useQuery({
-    queryKey: ["cash-register", "history"],
+  const { data: sessionsData, isLoading } = useQuery<SessionsResponse>({
+    queryKey: ["cash-register", "history", page, limit],
     queryFn: async () => {
-      const response = await api.get<any>("/cash-register/history?limit=50");
-      return response.data;
+      const response = await api.get<SessionsResponse>("/cash-register/history", {
+        params: { page, limit },
+      });
+      return response.data as SessionsResponse;
     },
   });
+
+  const sessions = sessionsData?.data || [];
+  const meta = sessionsData?.meta || {
+    page: 1,
+    limit: limit,
+    total: 0,
+    totalPages: 1,
+    hasMore: false,
+  };
+
+  const startIndex = sessions.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
+  const endIndex = Math.min(meta.page * meta.limit, meta.total);
 
   const { data: sessionSummary } = useQuery({
     queryKey: ["cash-register", selectedSession?.id, "summary"],
@@ -58,7 +112,7 @@ export default function CashRegisterHistoryPage() {
     }).format(new Date(date));
   };
 
-  if (isLoading) {
+  if (isLoading && !sessionsData) {
     return (
       <div className="p-8">
         <div className="max-w-6xl mx-auto text-center">
@@ -73,254 +127,155 @@ export default function CashRegisterHistoryPage() {
       <div className="max-w-6xl mx-auto">
         <Header title="Historial de Caja" />
 
-        <div className="space-y-4">
-          {sessions && sessions.length > 0 ? (
-            sessions.map((session: any) => (
-              <Card key={session.id}>
-                <CardContent>
-                  <div className="grid grid-cols-5 gap-4 items-center">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Cajero</p>
-                      <p className="font-semibold">
+        {sessions.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">No hay sesiones de caja</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cajero</TableHead>
+                    <TableHead>Abierta</TableHead>
+                    <TableHead>Monto Inicial</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sessions.map((session: CashRegisterSession) => (
+                    <TableRow key={session.id}>
+                      <TableCell className="font-medium">
                         {session.user.firstName} {session.user.lastName}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-muted-foreground">Abierta</p>
-                      <p className="font-semibold">
-                        {formatDate(session.openedAt)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Monto Inicial
-                      </p>
-                      <p className="font-semibold">
-                        {formatCurrency(Number(session.openingAmount))}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-muted-foreground">Estado</p>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      </TableCell>
+                      <TableCell>{formatDate(session.openedAt)}</TableCell>
+                      <TableCell>{formatCurrency(Number(session.openingAmount))}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
                           session.status === "OPEN"
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {session.status === "OPEN" ? "Abierta" : "Cerrada"}
-                      </span>
-                    </div>
+                        }`}>
+                          {session.status === "OPEN" ? "Abierta" : "Cerrada"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Dialog open={showDetails && selectedSession?.id === session.id} onOpenChange={setShowDetails}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedSession(session)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Detalles
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Detalles de Sesión de Caja</DialogTitle>
+                              <DialogDescription>
+                                {formatDate(session.openedAt)}
+                              </DialogDescription>
+                            </DialogHeader>
 
-                    <div className="flex gap-2 justify-end">
-                      <Dialog open={showDetails && selectedSession?.id === session.id} onOpenChange={setShowDetails}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedSession(session)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Detalles
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Detalles de Sesión de Caja</DialogTitle>
-                            <DialogDescription>
-                              {formatDate(session.openedAt)}
-                            </DialogDescription>
-                          </DialogHeader>
-
-                          {sessionSummary && (
-                            <div className="space-y-6">
-                              {/* Información General */}
-                              <div>
-                                <h3 className="font-semibold mb-3">
-                                  Información General
-                                </h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground">
-                                      Monto Inicial
-                                    </p>
-                                    <p className="font-semibold">
-                                      {formatCurrency(
-                                        sessionSummary.openingAmount
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">
-                                      Monto Final
-                                    </p>
-                                    <p className="font-semibold">
-                                      {sessionSummary.closingAmount !== null
-                                        ? formatCurrency(
-                                            sessionSummary.closingAmount
-                                          )
-                                        : "N/A"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">
-                                      Monto Esperado
-                                    </p>
-                                    <p className="font-semibold">
-                                      {formatCurrency(
-                                        sessionSummary.expectedAmount
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground">
-                                      Diferencia
-                                    </p>
-                                    <p
-                                      className={`font-semibold ${
-                                        sessionSummary.difference === 0
-                                          ? "text-green-600"
-                                        : sessionSummary.difference > 0
-                                          ? "brand-accent-text"
-                                          : "text-red-600"
-                                      }`}
-                                    >
-                                      {sessionSummary.difference !== null
-                                        ? formatCurrency(
-                                            sessionSummary.difference
-                                          )
-                                        : "N/A"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Resumen de Ventas */}
-                              <div>
-                                <h3 className="font-semibold mb-3">
-                                  Resumen de Ventas
-                                </h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div className="border rounded p-3">
-                                    <p className="text-muted-foreground">
-                                      Total de Ventas
-                                    </p>
-                                    <p className="text-lg font-bold">
-                                      {sessionSummary.totalSales}
-                                    </p>
-                                  </div>
-                                  <div className="border rounded p-3">
-                                    <p className="text-muted-foreground">
-                                      Movimientos Manuales
-                                    </p>
-                                    <p className="text-lg font-bold">
-                                      {sessionSummary.totalMovements}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Desglose por Medio de Pago */}
-                              {Object.keys(sessionSummary.paymentsByMethod)
-                                .length > 0 && (
+                            {sessionSummary && (
+                              <div className="space-y-6">
                                 <div>
                                   <h3 className="font-semibold mb-3">
-                                    Desglose por Medio de Pago
+                                    Información General
                                   </h3>
-                                  <div className="space-y-2 text-sm">
-                                    {Object.entries(
-                                      sessionSummary.paymentsByMethod
-                                    ).map(([method, amount]) => (
-                                      <div
-                                        key={method}
-                                        className="flex justify-between border-b pb-2"
-                                      >
-                                        <span>
-                                          {method === "CASH_ARS"
-                                            ? "Efectivo ARS"
-                                            : method === "CASH_USD"
-                                            ? "Efectivo USD"
-                                            : method === "CARD"
-                                            ? "Tarjeta"
-                                            : method === "TRANSFER"
-                                            ? "Transferencia"
-                                            : method === "QR"
-                                            ? "QR"
-                                            : method}
-                                        </span>
-                                        <span className="font-semibold">
-                                          {formatCurrency(amount as number)}
-                                        </span>
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Monto Inicial
+                                      </p>
+                                      <p className="font-semibold">
+                                        {formatCurrency(Number(session.openingAmount))}
+                                      </p>
+                                    </div>
+                                    {session.closingAmount && (
+                                      <div>
+                                        <p className="text-muted-foreground">
+                                          Monto Final
+                                        </p>
+                                        <p className="font-semibold">
+                                          {formatCurrency(Number(session.closingAmount))}
+                                        </p>
                                       </div>
-                                    ))}
+                                    )}
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Ventas
+                                      </p>
+                                      <p className="font-semibold">
+                                        {session._count.sales}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Movimientos
+                                      </p>
+                                      <p className="font-semibold">
+                                        {session._count.movements}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              )}
 
-                              {/* Movimientos Manuales */}
-                              {sessionSummary.movements &&
-                                sessionSummary.movements.length > 0 && (
+                                {sessionSummary.summary && (
                                   <div>
                                     <h3 className="font-semibold mb-3">
-                                      Movimientos Manuales
+                                      Resumen por Método de Pago
                                     </h3>
-                                    <div className="space-y-2 text-sm">
-                                      {sessionSummary.movements.map(
-                                        (movement: any) => (
-                                          <div
-                                            key={movement.id}
-                                            className="flex justify-between items-center border-b pb-2"
-                                          >
-                                            <div>
-                                              <p className="font-semibold">
-                                                {movement.reason}
-                                              </p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {formatDate(
-                                                  movement.createdAt
-                                                )}
-                                              </p>
-                                            </div>
-                                            <span
-                                              className={`font-semibold ${
-                                                movement.type === "INCOME"
-                                                  ? "text-green-600"
-                                                  : "text-red-600"
-                                              }`}
-                                            >
-                                              {movement.type === "INCOME"
-                                                ? "+"
-                                                : "-"}
-                                              {formatCurrency(movement.amount)}
-                                            </span>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                      {Object.entries(sessionSummary.summary).map(
+                                        ([method, data]: [string, any]) => (
+                                          <div key={method}>
+                                            <p className="text-muted-foreground">
+                                              {method}
+                                            </p>
+                                            <p className="font-semibold">
+                                              {formatCurrency(Number(data.total || 0))}
+                                            </p>
                                           </div>
                                         )
                                       )}
                                     </div>
                                   </div>
                                 )}
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-muted-foreground">
-                  No hay sesiones de caja registradas
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        <Pagination
+          setPage={setPage}
+          currentPage={page}
+          totalPages={meta.totalPages}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          total={meta.total}
+          limit={limit}
+          onLimitChange={setLimit}
+          hasMore={meta.hasMore}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
