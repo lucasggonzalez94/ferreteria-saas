@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createContext } from 'react';
 
 import { api } from '@/lib/api';
 
@@ -33,8 +34,7 @@ jest.mock('@/components/ui/date-picker', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => {
-  const React = require('react');
-  const Ctx = React.createContext({
+  const Ctx = createContext({
     onValueChange: (_value: string) => {},
   });
 

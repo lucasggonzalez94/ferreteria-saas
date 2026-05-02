@@ -134,15 +134,12 @@ router.put(
         ...(paymentTermDays !== undefined ? { paymentTermDays: paymentTermDays ?? 0 } : {}),
       };
 
-      const existing = await prisma.supplier.findUnique({ where: { id } });
-      if (!existing) {
-        throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+const existing = await prisma.supplier.findFirst({ where: { id, businessId: authReq.businessId! } });
+    if (!existing) {
+      throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
+    }
 
-      const updated = await prisma.supplier.update({
+    const updated = await prisma.supplier.update({
         where: { id },
         data: updateData,
       });
@@ -175,19 +172,16 @@ router.delete(
       const authReq = req as AuthRequest;
       const { id } = req.params;
 
-      const existing = await prisma.supplier.findUnique({
-        where: { id },
-        include: { _count: { select: { purchases: true } } },
-      });
+const existing = await prisma.supplier.findFirst({
+      where: { id, businessId: authReq.businessId! },
+      include: { _count: { select: { purchases: true } } },
+    });
 
-      if (!existing) {
-        throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+    if (!existing) {
+      throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
+    }
 
-      if (existing._count.purchases > 0) {
+    if (existing._count.purchases > 0) {
         throw new AppError(400, 'SUPPLIER_HAS_PURCHASES', 'Cannot delete supplier with purchases');
       }
 

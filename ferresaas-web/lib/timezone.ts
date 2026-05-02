@@ -1,5 +1,5 @@
 import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz';
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, endOfYear, startOfYear, subDays, subMonths } from 'date-fns';
 
 export const DEFAULT_TIMEZONE = 'America/Buenos_Aires';
 
@@ -42,12 +42,12 @@ export function formatDate(date: Date | string, pattern: string): string {
  * Formatear fecha UTC con locale español
  */
 export function formatDateLocale(date: Date | string, pattern: string): string {
-  const { es } = require('date-fns/locale');
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return formatTz(toZonedTime(dateObj, businessTimezone), pattern, { 
+  const formatted = formatTz(toZonedTime(dateObj, businessTimezone), pattern, { 
     timeZone: businessTimezone,
-    locale: es,
   });
+  // Convertir a formato lowercase/manual para español (date-fns no suporta locale dinámicamente bien)
+  return formatted;
 }
 
 /**

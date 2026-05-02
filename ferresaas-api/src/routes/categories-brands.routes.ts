@@ -100,12 +100,9 @@ router.put(
       const data = updateCategorySchema.parse(req.body);
 
       // Verificar que existe y pertenece al negocio
-      const existing = await prisma.category.findUnique({ where: { id } });
+      const existing = await prisma.category.findFirst({ where: { id, businessId: authReq.businessId! } });
       if (!existing) {
         throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
       }
 
       const updated = await prisma.category.update({
@@ -142,19 +139,16 @@ router.delete(
       const { id } = req.params;
 
       // Verificar que existe y pertenece al negocio
-      const existing = await prisma.category.findUnique({
-        where: { id },
-        include: { _count: { select: { products: true } } },
-      });
+const existing = await prisma.category.findFirst({
+      where: { id, businessId: authReq.businessId! },
+      include: { _count: { select: { products: true } } },
+    });
 
-      if (!existing) {
-        throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+    if (!existing) {
+      throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category not found');
+    }
 
-      // No permitir eliminar si tiene productos
+    // No permitir eliminar si tiene productos
       if (existing._count.products > 0) {
         throw new AppError(400, 'CATEGORY_HAS_PRODUCTS', 'Cannot delete category with products');
       }
@@ -253,17 +247,14 @@ router.put(
     try {
       const authReq = req as AuthRequest;
       const { id } = req.params;
-      const data = updateBrandSchema.parse(req.body);
+const data = updateBrandSchema.parse(req.body);
 
-      const existing = await prisma.brand.findUnique({ where: { id } });
-      if (!existing) {
-        throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+    const existing = await prisma.brand.findFirst({ where: { id, businessId: authReq.businessId! } });
+    if (!existing) {
+      throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
+    }
 
-      const updated = await prisma.brand.update({
+    const updated = await prisma.brand.update({
         where: { id },
         data,
       });
@@ -296,19 +287,16 @@ router.delete(
       const authReq = req as AuthRequest;
       const { id } = req.params;
 
-      const existing = await prisma.brand.findUnique({
-        where: { id },
-        include: { _count: { select: { products: true } } },
-      });
+const existing = await prisma.brand.findFirst({
+      where: { id, businessId: authReq.businessId! },
+      include: { _count: { select: { products: true } } },
+    });
 
-      if (!existing) {
-        throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+    if (!existing) {
+      throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
+    }
 
-      if (existing._count.products > 0) {
+    if (existing._count.products > 0) {
         throw new AppError(400, 'BRAND_HAS_PRODUCTS', 'Cannot delete brand with products');
       }
 

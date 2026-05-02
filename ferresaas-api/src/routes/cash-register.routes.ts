@@ -574,8 +574,8 @@ router.get(
       const authReq = req as AuthRequest;
       const { sessionId } = req.params;
 
-      const session = await prisma.cashRegisterSession.findUnique({
-        where: { id: sessionId },
+      const session = await prisma.cashRegisterSession.findFirst({
+        where: { id: sessionId, businessId: authReq.businessId! },
         include: {
           sales: {
             where: { status: 'CONFIRMED' },
@@ -587,10 +587,6 @@ router.get(
 
       if (!session) {
         throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
-      }
-
-      if (session.businessId !== authReq.businessId!) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
       }
 
       // Agrupar pagos por método
@@ -668,8 +664,8 @@ router.get(
       }
 
       // Obtener sesión con usuario
-      const session = await prisma.cashRegisterSession.findUnique({
-        where: { id: sessionId },
+      const session = await prisma.cashRegisterSession.findFirst({
+        where: { id: sessionId, businessId: authReq.businessId! },
         include: {
           user: {
             select: {
@@ -683,10 +679,6 @@ router.get(
 
       if (!session) {
         throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
-      }
-
-      if (session.businessId !== authReq.businessId!) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
       }
 
       // Obtener datos del negocio
@@ -742,19 +734,15 @@ router.get(
       const authReq = req as AuthRequest;
       const { sessionId } = req.params;
 
-      const session = await prisma.cashRegisterSession.findUnique({
-        where: { id: sessionId },
-      });
+const session = await prisma.cashRegisterSession.findFirst({
+    where: { id: sessionId, businessId: authReq.businessId! },
+  });
 
-      if (!session) {
-        throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
-      }
+  if (!session) {
+    throw new AppError(404, 'SESSION_NOT_FOUND', 'Cash register session not found');
+  }
 
-      if (session.businessId !== authReq.businessId!) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
-
-      const auditLogs = await prisma.auditLog.findMany({
+  const auditLogs = await prisma.auditLog.findMany({
         where: {
           businessId: authReq.businessId!,
           OR: [

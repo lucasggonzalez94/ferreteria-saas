@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { sendSuccess, sendPaginated, AppError } from '../utils/response';
+import { findTenantResourceOrThrow } from '../utils/tenant';
+import { Customer } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -148,17 +150,12 @@ router.get(
       const authReq = req as AuthRequest;
       const { id } = req.params;
 
-      const customer = await prisma.customer.findUnique({
-        where: { id },
+      const customer = await findTenantResourceOrThrow<Customer>(prisma, {
+        model: 'customer',
+        id,
+        businessId: authReq.businessId!,
+        notFoundCode: 'CUSTOMER_NOT_FOUND',
       });
-
-      if (!customer) {
-        throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer not found');
-      }
-
-      if (customer.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
 
       sendSuccess(res, customer);
     } catch (error) {
@@ -181,13 +178,12 @@ router.put(
       const data = updateCustomerSchema.parse(req.body);
       const { currentBalance, ...updateData } = data;
 
-      const existing = await prisma.customer.findUnique({ where: { id } });
-      if (!existing) {
-        throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer not found');
-      }
-      if (existing.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+      const existing = await findTenantResourceOrThrow<Customer>(prisma, {
+        model: 'customer',
+        id,
+        businessId: authReq.businessId!,
+        notFoundCode: 'CUSTOMER_NOT_FOUND',
+      });
 
       // Si se proporciona un nuevo saldo, crear movimiento de ajuste
       if (currentBalance !== undefined && currentBalance !== existing.currentBalance.toNumber()) {
@@ -290,15 +286,12 @@ router.post(
       const { id } = req.params;
       const data = createPaymentSchema.parse(req.body);
 
-      const customer = await prisma.customer.findUnique({ where: { id } });
-      if (!customer) {
-        throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer not found');
-      }
-      if (customer.businessId !== authReq.businessId) {
-        throw new AppError(403, 'FORBIDDEN', 'Access denied');
-      }
+const customer = await prisma.customer.findFirst({ where: { id, businessId: authReq.businessId! } });
+    if (!customer) {
+      throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer not found');
+    }
 
-      // Crear movimiento y actualizar balance en transacción
+    // Crear movimiento y actualizar balance en transacción
       const newBalance = customer.currentBalance.toNumber() - data.amount;
 
       const [movement] = await prisma.$transaction([

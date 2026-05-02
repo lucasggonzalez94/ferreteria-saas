@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -27,13 +26,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { api } from "@/lib/api";
+import { formatCurrency } from "@/lib/formatters";
+import { getDatePresetRange, formatDateRangeLabel } from "@/lib/date-filters";
+import type { DatePreset } from "@/lib/date-filters";
+import { localDateToUTC, localDateToUTCEndOfDay } from "@/lib/timezone";
 import { usePermissionGuard } from "@/lib/hooks/usePermissionGuard";
-import {
-  getDateRangePreset,
-  localDateToUTC,
-  localDateToUTCEndOfDay,
-  todayLocal,
-} from "@/lib/timezone";
 
 interface SaleListItem {
   id: string;
@@ -65,7 +62,6 @@ interface SalesResponse {
   };
 }
 
-type DatePreset = "all" | "today" | "last_7_days" | "this_month" | "custom";
 type InvoiceStatusFilter = "ALL" | "PENDING_INVOICE" | "INVOICED" | "FAILED";
 
 function getCustomerLabel(sale: SaleListItem): string {
@@ -85,40 +81,6 @@ function getInvoiceStatusLabel(status: string): string {
   if (status === "INVOICED") return "Facturada";
   if (status === "FAILED") return "Factura fallida";
   return "Pendiente de factura";
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 2,
-  }).format(value || 0);
-}
-
-function getDatePresetRange(preset: DatePreset): { startDate: string; endDate: string } {
-  if (preset === "today") {
-    const today = todayLocal();
-    return { startDate: today, endDate: today };
-  }
-
-  if (preset === "last_7_days") {
-    const range = getDateRangePreset("7d");
-    return { startDate: range.start, endDate: range.end };
-  }
-
-  if (preset === "this_month") {
-    const range = getDateRangePreset("thisMonth");
-    return { startDate: range.start, endDate: range.end };
-  }
-
-  return { startDate: "", endDate: "" };
-}
-
-function formatDateRangeLabel(startDate: string, endDate: string): string {
-  if (!startDate && !endDate) return "todo el historico";
-  if (startDate && endDate) return `${startDate} al ${endDate}`;
-  if (startDate) return `desde ${startDate}`;
-  return `hasta ${endDate}`;
 }
 
 export default function SalesPage() {

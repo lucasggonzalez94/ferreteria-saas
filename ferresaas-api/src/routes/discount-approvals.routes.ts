@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
-import { AppError, sendSuccess } from '../utils/response';
+import { AppError, sendSuccess, sendPaginated } from '../utils/response';
 import { authenticate } from '../middleware/auth';
 import { multiTenant } from '../middleware/multi-tenant';
 import { requirePermissions } from '../middleware/rbac';
@@ -147,14 +147,10 @@ router.get(
         },
       });
 
-      sendSuccess(res, {
-        data: approvals,
-        pagination: {
-          page: pageNum,
-          pageSize,
-          total,
-          pages: Math.ceil(total / pageSize),
-        },
+      sendPaginated(res, approvals, {
+        page: pageNum,
+        limit: pageSize,
+        total,
       });
     } catch (error) {
       next(error);

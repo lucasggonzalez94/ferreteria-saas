@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { formatMoney } from "@/lib/formatters";
+import { CHECK_STATUS_CONFIG, StatusBadge } from "@/components/ui/status-badge";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,15 +87,6 @@ function getStatusClass(status: string): string {
   if (status === "BOUNCED") return "bg-red-100 text-red-800";
   if (status === "CANCELLED") return "bg-slate-200 text-slate-700";
   return "border border-slate-300 text-slate-700";
-}
-
-function formatMoney(value: number, currency: string): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: currency || "ARS",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 export default function ChecksPage() {
