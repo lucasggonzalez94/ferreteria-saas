@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { FileText, CheckCircle, Clock, XCircle } from "lucide-react";
 import Header from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
@@ -14,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/stat-card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Table,
@@ -158,7 +161,7 @@ export default function InvoicesPage() {
   const [status, setStatus] = useState<InvoiceStatus | "all">("all");
   const [voucherType, setVoucherType] = useState<VoucherType | "all">("all");
   const [saleId, setSaleId] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("last_30_days");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
@@ -253,30 +256,30 @@ export default function InvoicesPage() {
         />
 
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total</CardDescription>
-              <CardTitle>{totals.total}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Emitidos</CardDescription>
-              <CardTitle>{totals.issued}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Pendientes</CardDescription>
-              <CardTitle>{totals.pending}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Fallidos</CardDescription>
-              <CardTitle>{totals.failed}</CardTitle>
-            </CardHeader>
-          </Card>
+          <StatCard
+            title="Total de comprobantes"
+            value={totals.total}
+            icon={FileText}
+            description="Según filtros aplicados"
+          />
+          <StatCard
+            title="Emitidos"
+            value={totals.issued}
+            icon={CheckCircle}
+            description="Con CAE válido"
+          />
+          <StatCard
+            title="Pendientes"
+            value={totals.pending}
+            icon={Clock}
+            description="Esperando autorización AFIP"
+          />
+          <StatCard
+            title="Fallidos"
+            value={totals.failed}
+            icon={XCircle}
+            description="Rechazados o sin conexión"
+          />
         </div>
 
         <Card>
@@ -337,7 +340,6 @@ export default function InvoicesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todo el historial</SelectItem>
                   <SelectItem value="today">Hoy</SelectItem>
                   <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
                   <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
@@ -350,25 +352,25 @@ export default function InvoicesPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Desde</label>
-              <Input
-                type="date"
+              <DatePicker
                 value={startDate}
-                onChange={(event) => {
+                onChange={(date) => {
                   setDatePreset("custom");
-                  setStartDate(event.target.value);
+                  setStartDate(date);
                 }}
+                placeholder="DD/MM/YYYY"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Hasta</label>
-              <Input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(event) => {
+                onChange={(date) => {
                   setDatePreset("custom");
-                  setEndDate(event.target.value);
+                  setEndDate(date);
                 }}
+                placeholder="DD/MM/YYYY"
               />
             </div>
 

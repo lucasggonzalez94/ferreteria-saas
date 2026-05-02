@@ -150,6 +150,16 @@ export default function SuppliersPage() {
     },
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const response = await api.patch(`/suppliers/${id}/status`, { isActive });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId) {
@@ -436,17 +446,7 @@ export default function SuppliersPage() {
                                 : 'bg-gray-50 text-gray-500 border border-gray-200'
                             }`}
                           >
-                            {supplier.isActive ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
-                                Activo
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5" />
-                                Inactivo
-                              </>
-                            )}
+                            {supplier.isActive ? "Activo" : "Inactivo"}
                           </span>
                         </div>
                         <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">
@@ -501,6 +501,15 @@ export default function SuppliersPage() {
                                   {
                                     label: "Editar",
                                     onClick: () => handleEdit(supplier),
+                                  },
+                                  {
+                                    label: supplier.isActive ? "Inactivar" : "Activar",
+                                    onClick: () =>
+                                      toggleStatusMutation.mutate({
+                                        id: supplier.id,
+                                        isActive: !supplier.isActive,
+                                      }),
+                                    disabled: toggleStatusMutation.isPending,
                                   },
                                 ]
                               : []),

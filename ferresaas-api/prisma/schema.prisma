@@ -418,6 +418,7 @@ model InventoryMovement {
   
   @@index([businessId])
   @@index([productId])
+  @@index([userId])
   @@index([type])
   @@index([createdAt])
   @@map("inventory_movements")

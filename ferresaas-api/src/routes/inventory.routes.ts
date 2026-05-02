@@ -118,6 +118,8 @@ router.get(
 
       const result = await inventoryService.listMovements(authReq.businessId!, {
         productId: filters.productId,
+        productSearch: filters.productSearch,
+        userId: filters.userId,
         type: filters.type,
         startDate: filters.startDate ? new Date(filters.startDate) : undefined,
         endDate: filters.endDate ? new Date(filters.endDate) : undefined,

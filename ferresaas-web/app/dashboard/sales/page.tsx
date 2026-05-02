@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -59,10 +59,13 @@ interface SalesResponse {
     total: number;
     totalPages: number;
     hasMore: boolean;
+    confirmedCount: number;
+    confirmedTotal: number;
   };
 }
 
 type InvoiceStatusFilter = "ALL" | "PENDING_INVOICE" | "INVOICED" | "FAILED";
+const DEFAULT_DATE_PRESET: DatePreset = "last_30_days";
 
 function getCustomerLabel(sale: SaleListItem): string {
   if (!sale.customer) return "Consumidor final";
@@ -89,9 +92,9 @@ export default function SalesPage() {
 
   const [status, setStatus] = useState<string>("ALL");
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatusFilter>("ALL");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_DATE_PRESET);
+  const [startDate, setStartDate] = useState(() => getDatePresetRange(DEFAULT_DATE_PRESET).startDate);
+  const [endDate, setEndDate] = useState(() => getDatePresetRange(DEFAULT_DATE_PRESET).endDate);
   const [limit, setLimit] = useState(20);
   const [page, setPage] = useState(1);
 
@@ -130,10 +133,17 @@ export default function SalesPage() {
   });
 
   const sales = useMemo(() => data?.data || [], [data?.data]);
-  const meta = data?.meta || { page: 1, limit, total: 0, totalPages: 1, hasMore: false };
+  const meta = data?.meta || { 
+    page: 1, 
+    limit, 
+    total: 0, 
+    totalPages: 1, 
+    hasMore: false,
+    confirmedCount: 0,
+    confirmedTotal: 0 
+  };
 
   const totals = useMemo(() => {
-    const confirmed = sales.filter((sale) => sale.status === "CONFIRMED");
     const startIndex = sales.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
     const endIndex = sales.length === 0 ? 0 : startIndex + sales.length - 1;
 
@@ -142,10 +152,10 @@ export default function SalesPage() {
       pageCount: sales.length,
       startIndex,
       endIndex,
-      confirmed: confirmed.length,
-      amount: confirmed.reduce((sum, sale) => sum + Number(sale.total || 0), 0),
+      confirmed: meta.confirmedCount,
+      amount: meta.confirmedTotal,
     };
-  }, [sales, meta.page, meta.limit, meta.total]);
+  }, [sales, meta.page, meta.limit, meta.total, meta.confirmedCount, meta.confirmedTotal]);
 
   const periodLabel = useMemo(() => formatDateRangeLabel(startDate, endDate), [startDate, endDate]);
 
@@ -165,9 +175,10 @@ export default function SalesPage() {
   const handleClearFilters = () => {
     setStatus("ALL");
     setInvoiceStatus("ALL");
-    setDatePreset("all");
-    setStartDate("");
-    setEndDate("");
+    setDatePreset(DEFAULT_DATE_PRESET);
+    const range = getDatePresetRange(DEFAULT_DATE_PRESET);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
     setLimit(20);
     setPage(1);
   };
@@ -192,18 +203,18 @@ export default function SalesPage() {
           </Card>
           <Card>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Confirmadas (pagina actual)</p>
+              <p className="text-sm text-muted-foreground">Confirmadas (filtro)</p>
               <p className="text-2xl font-semibold">{totals.confirmed}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Mostrando {totals.pageCount} registros
+                {totals.pageCount > 0 ? `Mostrando ${totals.pageCount} en esta pagina` : 'Sin resultados'}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Total confirmado (pagina actual)</p>
+              <p className="text-sm text-muted-foreground">Total confirmado (filtro)</p>
               <p className="text-2xl font-semibold">{formatCurrency(totals.amount)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Solo estado CONFIRMED</p>
+              <p className="text-xs text-muted-foreground mt-1">Solo ventas CONFIRMED</p>
             </CardContent>
           </Card>
         </div>
@@ -266,10 +277,9 @@ export default function SalesPage() {
                     <SelectValue placeholder="Periodo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Historico completo</SelectItem>
                     <SelectItem value="today">Hoy</SelectItem>
                     <SelectItem value="last_7_days">Ultimos 7 dias</SelectItem>
-                    <SelectItem value="this_month">Este mes</SelectItem>
+                    <SelectItem value="last_30_days">Ultimos 30 dias</SelectItem>
                     <SelectItem value="custom">Personalizado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -277,27 +287,27 @@ export default function SalesPage() {
 
               <div className="space-y-2">
                 <Label>Desde</Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={startDate}
-                  onChange={(event) => {
+                  onChange={(value) => {
                     setDatePreset("custom");
-                    setStartDate(event.target.value);
+                    setStartDate(value);
                     setPage(1);
                   }}
+                  placeholder="dd/mm/aaaa"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Hasta</Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={endDate}
-                  onChange={(event) => {
+                  onChange={(value) => {
                     setDatePreset("custom");
-                    setEndDate(event.target.value);
+                    setEndDate(value);
                     setPage(1);
                   }}
+                  placeholder="dd/mm/aaaa"
                 />
               </div>
             </div>
@@ -306,9 +316,6 @@ export default function SalesPage() {
               <Button type="button" variant="outline" onClick={handleClearFilters}>
                 Limpiar filtros
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Rango activo: {periodLabel}
-              </p>
             </div>
           </CardContent>
         </Card>

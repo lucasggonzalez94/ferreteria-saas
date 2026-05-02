@@ -26,6 +26,8 @@ export type ProcessReturnInput = z.infer<typeof processReturnSchema>;
 // Filtros de movimientos
 export const movementFiltersSchema = z.object({
   productId: z.string().cuid().optional(),
+  productSearch: z.string().optional(),
+  userId: z.string().cuid().optional(),
   type: z.string().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),

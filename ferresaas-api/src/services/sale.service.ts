@@ -1918,7 +1918,7 @@ export class SaleService {
       }
     }
 
-    const [sales, total] = await Promise.all([
+    const [sales, total, confirmedAggregates] = await Promise.all([
       prisma.sale.findMany({
         where,
         skip,
@@ -1940,6 +1940,14 @@ export class SaleService {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.sale.count({ where }),
+      prisma.sale.aggregate({
+        where: {
+          ...where,
+          status: 'CONFIRMED',
+        },
+        _count: { id: true },
+        _sum: { total: true },
+      }),
     ]);
 
     return {
@@ -1950,6 +1958,8 @@ export class SaleService {
         total,
         totalPages: Math.ceil(total / limit),
         hasMore: page * limit < total,
+        confirmedCount: confirmedAggregates._count.id,
+        confirmedTotal: confirmedAggregates._sum.total?.toNumber() || 0,
       },
     };
   }

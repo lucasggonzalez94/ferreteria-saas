@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -228,160 +236,162 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {showForm && (
-          <Card className="app-orbit mb-6 overflow-hidden">
-            <CardHeader>
-              <CardTitle>Nuevo Cliente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label>Tipo</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, type: value as 'PERSON' | 'COMPANY' })
-                      }
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Selecciona tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PERSON">Persona</SelectItem>
-                        <SelectItem value="COMPANY">Empresa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nuevo Cliente</DialogTitle>
+              <DialogDescription>
+                Completa los datos del nuevo cliente. Los campos marcados con * son obligatorios.
+              </DialogDescription>
+            </DialogHeader>
 
-                  {formData.type === 'PERSON' ? (
-                    <>
-                      <div>
-                        <Label htmlFor="firstName">Nombre *</Label>
-                        <Input
-                          id="firstName"
-                          value={formData.firstName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              firstName: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Apellido *</Label>
-                        <Input
-                          id="lastName"
-                          value={formData.lastName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              lastName: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="col-span-2">
-                      <Label htmlFor="companyName">Razón Social *</Label>
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label>Tipo</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, type: value as 'PERSON' | 'COMPANY' })
+                    }
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecciona tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PERSON">Persona</SelectItem>
+                      <SelectItem value="COMPANY">Empresa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.type === 'PERSON' ? (
+                  <>
+                    <div>
+                      <Label htmlFor="firstName">Nombre *</Label>
                       <Input
-                        id="companyName"
-                        value={formData.companyName}
+                        id="firstName"
+                        value={formData.firstName}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            companyName: e.target.value,
+                            firstName: e.target.value,
                           })
                         }
                         required
                       />
                     </div>
-                  )}
+                    <div>
+                      <Label htmlFor="lastName">Apellido *</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            lastName: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="col-span-2">
+                    <Label htmlFor="companyName">Razón Social *</Label>
+                    <Input
+                      id="companyName"
+                      value={formData.companyName}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          companyName: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                )}
 
-                  <div>
-                    <Label htmlFor="cuit">CUIT/CUIL</Label>
-                    <Input
-                      id="cuit"
-                      value={formData.cuit}
-                      onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="taxCondition">Condición IVA</Label>
-                    <Select
-                      value={formData.taxCondition}
-                      onValueChange={(value) => setFormData({ ...formData, taxCondition: value })}
-                    >
-                      <SelectTrigger id="taxCondition" className="mt-1">
-                        <SelectValue placeholder="Selecciona condición IVA" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CONSUMIDOR_FINAL">Consumidor Final</SelectItem>
-                        <SelectItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</SelectItem>
-                        <SelectItem value="MONOTRIBUTO">Monotributo</SelectItem>
-                        <SelectItem value="EXENTO">Exento</SelectItem>
-                        <SelectItem value="NO_CATEGORIZADO">No Categorizado</SelectItem>
-                        <SelectItem value="IVA_NO_ALCANZADO">IVA No Alcanzado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="address">Dirección</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="initialBalance">Saldo Inicial</Label>
-                    <Input
-                      id="initialBalance"
-                      type="number"
-                      step="0.01"
-                      value={formData.initialBalance}
-                      onChange={(e) => setFormData({ ...formData, initialBalance: e.target.value })}
-                      placeholder="0.00"
-                    />
-                    <p className="mt-2 text-xs brand-accent-subtle">
-                      Úsalo para migrar saldos previos sin perder contexto contable.
-                    </p>
-                  </div>
+                <div>
+                  <Label htmlFor="cuit">CUIT/CUIL</Label>
+                  <Input
+                    id="cuit"
+                    value={formData.cuit}
+                    onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
+                  />
                 </div>
+                <div>
+                  <Label htmlFor="taxCondition">Condición IVA</Label>
+                  <Select
+                    value={formData.taxCondition}
+                    onValueChange={(value) => setFormData({ ...formData, taxCondition: value })}
+                  >
+                    <SelectTrigger id="taxCondition" className="mt-1">
+                      <SelectValue placeholder="Selecciona condición IVA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CONSUMIDOR_FINAL">Consumidor Final</SelectItem>
+                      <SelectItem value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</SelectItem>
+                      <SelectItem value="MONOTRIBUTO">Monotributo</SelectItem>
+                      <SelectItem value="EXENTO">Exento</SelectItem>
+                      <SelectItem value="NO_CATEGORIZADO">No Categorizado</SelectItem>
+                      <SelectItem value="IVA_NO_ALCANZADO">IVA No Alcanzado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="address">Dirección</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="initialBalance">Saldo Inicial</Label>
+                  <Input
+                    id="initialBalance"
+                    type="number"
+                    step="0.01"
+                    value={formData.initialBalance}
+                    onChange={(e) => setFormData({ ...formData, initialBalance: e.target.value })}
+                    placeholder="0.00"
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Úsalo para migrar saldos previos sin perder contexto contable.
+                  </p>
+                </div>
+              </div>
 
-                <div className="flex gap-4">
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? 'Creando...' : 'Crear Cliente'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Creando...' : 'Crear Cliente'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <Card className="mb-6 overflow-hidden">
           <CardContent>
@@ -395,7 +405,9 @@ export default function CustomersPage() {
                 placeholder="Buscar por nombre, CUIT, email..."
               />
               <div className="relative">
-                <Label className="text-sm text-muted-foreground absolute -top-6 left-0">Orden</Label>
+                <Label className="text-sm text-muted-foreground absolute -top-6 left-0">
+                  Orden
+                </Label>
                 <Select
                   value={sort}
                   onValueChange={(value) => {
@@ -464,17 +476,7 @@ export default function CustomersPage() {
                                 : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             }`}
                           >
-                            {customer.type === 'COMPANY' ? (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5" />
-                                Empresa
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
-                                Persona
-                              </>
-                            )}
+                            {customer.type === 'COMPANY' ? 'Empresa' : 'Persona'}
                           </span>
                         </div>
                         <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-muted-foreground">

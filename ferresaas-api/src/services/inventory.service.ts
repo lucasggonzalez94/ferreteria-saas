@@ -93,6 +93,8 @@ export class InventoryService {
     businessId: string,
     filters: {
       productId?: string;
+      productSearch?: string;
+      userId?: string;
       type?: string;
       startDate?: Date;
       endDate?: Date;
@@ -110,6 +112,16 @@ export class InventoryService {
 
     if (filters.productId) {
       where.productId = filters.productId;
+    }
+
+    if (filters.productSearch) {
+      where.product = {
+        name: { contains: filters.productSearch, mode: 'insensitive' },
+      };
+    }
+
+    if (filters.userId) {
+      where.userId = filters.userId;
     }
 
     if (filters.type) {

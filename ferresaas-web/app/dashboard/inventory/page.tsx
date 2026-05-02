@@ -26,12 +26,24 @@ import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import { StockAlertsList } from "@/components/stock-alerts/stock-alerts-list";
 import {
-  todayLocal,
-  monthsAgoLocal,
   rangeForLocalDays,
   formatDate,
 } from "@/lib/timezone";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  DATE_PRESETS,
+  getDatePresetRange,
+  DatePreset,
+} from "@/lib/date-filters";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface InventoryMovement {
   id: string;
@@ -39,8 +51,8 @@ interface InventoryMovement {
   quantity: number;
   reason?: string;
   createdAt: string;
-  user?: { name?: string; username?: string };
-  product: { name: string; unit?: string };
+  user?: { id?: string; name?: string; username?: string; firstName?: string; lastName?: string };
+  product: { id: string; name: string; internalSku: string; unit?: string };
 }
 
 interface MovementsResponse {
@@ -60,6 +72,15 @@ interface AdjustmentData {
   reason: string;
 }
 
+const MOVEMENT_TYPES = [
+  { value: "SALE", label: "Venta" },
+  { value: "PURCHASE_RECEIPT", label: "Compra" },
+  { value: "RETURN", label: "Devolución" },
+  { value: "STOCK_ADJUSTMENT", label: "Ajuste" },
+  { value: "INITIAL_STOCK", label: "Stock Inicial" },
+  { value: "TRANSFER", label: "Transferencia" },
+];
+
 export default function InventoryPage() {
   const queryClient = useQueryClient();
 
@@ -73,19 +94,35 @@ export default function InventoryPage() {
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [movementPage, setMovementPage] = useState(1);
   const [movementLimit, setMovementLimit] = useState(20);
-  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(
-    () => {
-      // Usar utilidades de timezone para obtener fechas locales correctas
-      return {
-        from: monthsAgoLocal(1),
-        to: todayLocal(),
-      };
+  const [datePreset, setDatePreset] = useState<DatePreset>("last_30_days");
+  const [dateFilter, setDateFilter] = useState<{ from: string; to: string }>(() => {
+    const range = getDatePresetRange("last_30_days");
+    return {
+      from: range.startDate,
+      to: range.endDate,
+    };
+  });
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [userFilter, setUserFilter] = useState<string>("");
+  const [productSearch, setProductSearch] = useState<string>("");
+
+  // Obtener usuarios para el filtro
+  const { data: usersData = [] } = useQuery<any[]>({
+    queryKey: ["users", "all"],
+    queryFn: async () => {
+      try {
+        const response = await api.get<any>("/users");
+        return response.data?.data || response.data || [];
+      } catch {
+        return [];
+      }
     },
-  );
+    enabled: canViewInventory,
+  });
 
   // Obtener movimientos recientes
   const { data: movementsData, isLoading: movementsLoading } = useQuery({
-    queryKey: ["inventory", "movements", dateFilter, movementPage, movementLimit],
+    queryKey: ["inventory", "movements", dateFilter, movementPage, movementLimit, typeFilter, userFilter, productSearch],
     queryFn: async () => {
       try {
         const params: Record<string, string | number> = {
@@ -97,6 +134,18 @@ export default function InventoryPage() {
           const utcRange = rangeForLocalDays(dateFilter.from, dateFilter.to);
           params.startDate = utcRange.startDate;
           params.endDate = utcRange.endDate;
+        }
+
+        if (typeFilter) {
+          params.type = typeFilter;
+        }
+
+        if (userFilter) {
+          params.userId = userFilter;
+        }
+
+        if (productSearch) {
+          params.productSearch = productSearch;
         }
 
         const response = await api.get("/inventory/movements", { params });
@@ -137,6 +186,29 @@ export default function InventoryPage() {
     },
   });
 
+  const handleDatePresetChange = (value: string) => {
+    const preset = value as DatePreset;
+    setDatePreset(preset);
+    if (preset === "custom") {
+      setMovementPage(1);
+      return;
+    }
+
+    const range = getDatePresetRange(preset);
+    setDateFilter({ from: range.startDate, to: range.endDate });
+    setMovementPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setDatePreset("last_30_days");
+    const range = getDatePresetRange("last_30_days");
+    setDateFilter({ from: range.startDate, to: range.endDate });
+    setTypeFilter("");
+    setUserFilter("");
+    setProductSearch("");
+    setMovementPage(1);
+  };
+
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
@@ -172,16 +244,82 @@ export default function InventoryPage() {
           {/* Tab: Movimientos */}
           <TabsContent value="movements">
             <div className="mb-4 flex flex-wrap gap-4 items-end">
+              <div>
+                <Label className="text-xs">Periodo</Label>
+                <Select value={datePreset} onValueChange={handleDatePresetChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Periodo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_PRESETS.map((preset) => (
+                      <SelectItem key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Tipo
+                </p>
+                <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setMovementPage(1); }}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {MOVEMENT_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Usuario
+                </p>
+                <Select value={userFilter} onValueChange={(value) => { setUserFilter(value); setMovementPage(1); }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {usersData?.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName}` 
+                          : user.username || user.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Producto
+                </p>
+                <Input
+                  placeholder="Buscar producto..."
+                  value={productSearch}
+                  onChange={(e) => { setProductSearch(e.target.value); setMovementPage(1); }}
+                  className="w-[180px]"
+                />
+              </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">
                   Desde
                 </p>
                 <DatePicker
                   value={dateFilter.from}
-                  onChange={(date) =>
-                    setDateFilter((prev) => ({ ...prev, from: date }))
-                  }
-                  className="w-[180px]"
+                  onChange={(date) => {
+                    setDateFilter((prev) => ({ ...prev, from: date }));
+                    setDatePreset("custom");
+                    setMovementPage(1);
+                  }}
+                  className="w-[140px]"
                 />
               </div>
               <div className="space-y-1">
@@ -190,17 +328,19 @@ export default function InventoryPage() {
                 </p>
                 <DatePicker
                   value={dateFilter.to}
-                  onChange={(date) =>
-                    setDateFilter((prev) => ({ ...prev, to: date }))
-                  }
-                  className="w-[180px]"
+                  onChange={(date) => {
+                    setDateFilter((prev) => ({ ...prev, to: date }));
+                    setDatePreset("custom");
+                    setMovementPage(1);
+                  }}
+                  className="w-[140px]"
                 />
               </div>
-              {(dateFilter.from || dateFilter.to) && (
+              {(dateFilter.from || dateFilter.to || typeFilter || userFilter || productSearch) && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateFilter({ from: "", to: "" })}
+                  onClick={handleClearFilters}
                   className="h-10 gap-2"
                 >
                   <X className="h-4 w-4" />
@@ -233,9 +373,9 @@ export default function InventoryPage() {
                               {formatDate(movement.createdAt, "dd/MM/yyyy")}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
-                              {movement.user?.name ||
-                                movement.user?.username ||
-                                "Sistema"}
+                              {movement.user?.firstName && movement.user?.lastName
+                                ? `${movement.user.firstName} ${movement.user.lastName}`
+                                : movement.user?.username || "Sistema"}
                             </TableCell>
                             <TableCell>
                               <span
@@ -246,7 +386,11 @@ export default function InventoryPage() {
                                       ? "bg-green-100 text-green-700"
                                       : movement.type === "RETURN"
                                         ? "border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-foreground"
-                                        : "bg-gray-100 text-gray-700"
+                                        : movement.type === "INITIAL_STOCK"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : movement.type === "TRANSFER"
+                                            ? "bg-purple-100 text-purple-700"
+                                            : "bg-gray-100 text-gray-700"
                                 }`}
                               >
                                 {movement.type === "SALE"
@@ -255,10 +399,16 @@ export default function InventoryPage() {
                                     ? "Compra"
                                     : movement.type === "RETURN"
                                       ? "Devolución"
-                                      : "Ajuste"}
+                                      : movement.type === "INITIAL_STOCK"
+                                        ? "Stock Inicial"
+                                        : movement.type === "TRANSFER"
+                                          ? "Transferencia"
+                                          : "Ajuste"}
                               </span>
                             </TableCell>
-                            <TableCell>{movement.product.name}</TableCell>
+                            <TableCell>
+                              {movement.product.internalSku} - {movement.product.name}
+                            </TableCell>
                             <TableCell className="text-right font-medium">
                               {movement.quantity > 0 ? "+" : ""}
                               {Number(movement.quantity).toFixed(2)}

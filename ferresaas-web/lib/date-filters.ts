@@ -27,11 +27,6 @@ export const DATE_PRESETS: DatePresetOption[] = [
   { value: 'yesterday', label: 'Ayer' },
   { value: 'last_7_days', label: 'Últimos 7 días' },
   { value: 'last_30_days', label: 'Últimos 30 días' },
-  { value: 'this_month', label: 'Este mes' },
-  { value: 'last_month', label: 'Mes pasado' },
-  { value: 'this_year', label: 'Este año' },
-  { value: 'last_year', label: 'Año pasado' },
-  { value: 'all', label: 'Todo' },
   { value: 'custom', label: 'Personalizado' },
 ];
 

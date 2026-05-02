@@ -161,6 +161,52 @@ const existing = await prisma.supplier.findFirst({ where: { id, businessId: auth
 );
 
 /**
+ * PATCH /suppliers/:id/status
+ * Activar o inactivar proveedor
+ */
+router.patch(
+  '/suppliers/:id/status',
+  requirePermissions('purchases:update'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        throw new AppError(400, 'INVALID_BODY', 'isActive must be a boolean');
+      }
+
+      const existing = await prisma.supplier.findFirst({
+        where: { id, businessId: authReq.businessId! },
+      });
+
+      if (!existing) {
+        throw new AppError(404, 'SUPPLIER_NOT_FOUND', 'Supplier not found');
+      }
+
+      const updated = await prisma.supplier.update({
+        where: { id },
+        data: { isActive },
+      });
+
+      await AuditService.logUpdate(
+        authReq.businessId!,
+        authReq.user!.id,
+        'suppliers',
+        id,
+        existing,
+        updated
+      );
+
+      sendSuccess(res, updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * DELETE /suppliers/:id
  * Eliminar proveedor
  */

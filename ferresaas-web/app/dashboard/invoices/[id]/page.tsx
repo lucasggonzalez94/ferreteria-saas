@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -17,6 +16,11 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
+import {
+  InvoiceStatus,
+  INVOICE_STATUS_LABELS,
+  INVOICE_STATUS_STYLES,
+} from "@/lib/invoice-status";
 
 interface InvoiceDetail {
   id: string;
@@ -138,7 +142,12 @@ export default function InvoiceDetailPage() {
             <CardTitle>Resumen</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3 text-sm">
-            <p><strong>Estado:</strong> {data.status}</p>
+            <p>
+              <strong>Estado:</strong>{" "}
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${INVOICE_STATUS_STYLES[data.status as InvoiceStatus]}`}>
+                {INVOICE_STATUS_LABELS[data.status as InvoiceStatus]}
+              </span>
+            </p>
             <p><strong>CAE:</strong> {data.cae || "-"}</p>
             <p><strong>Vto CAE:</strong> {data.caeExpiry ? new Date(data.caeExpiry).toLocaleDateString("es-AR") : "-"}</p>
             <p><strong>Venta:</strong> {data.saleId}</p>
@@ -188,9 +197,6 @@ export default function InvoiceDetailPage() {
         <div className="flex gap-2">
           <Button onClick={handleDownloadPdf} disabled={data.status !== "ISSUED"}>
             Descargar PDF
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard/invoices">Volver al listado</Link>
           </Button>
         </div>
       </div>

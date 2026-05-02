@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
-  Building2,
   ArrowLeft,
   ShoppingCart,
   DollarSign,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import { StatCard } from "@/components/ui/stat-card";
 
 interface SupplierDetail {
   supplier: {
@@ -112,66 +112,37 @@ export default function SupplierDetailPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Compras
-              </CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalPurchases}</div>
-              <p className="text-xs text-muted-foreground">
-                ${stats.totalAmount.toFixed(2)}
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Total Compras"
+            value={stats.totalPurchases}
+            icon={ShoppingCart}
+            description={`$${stats.totalAmount.toFixed(2)}`}
+          />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Adeudado
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${stats.totalPayable.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pagado: ${stats.totalPaid.toFixed(2)}
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Total Adeudado"
+            value={`$${stats.totalPayable.toFixed(2)}`}
+            icon={DollarSign}
+            description={`Pagado: $${stats.totalPaid.toFixed(2)}`}
+          />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendiente</CardTitle>
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                ${stats.pendingPayment.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Por pagar</p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Pendiente"
+            value={`$${stats.pendingPayment.toFixed(2)}`}
+            icon={AlertCircle}
+            description="Por pagar"
+            valueClassName="text-amber-600"
+          />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Última Compra
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm font-bold">
-                {stats.lastPurchaseDate
-                  ? new Date(stats.lastPurchaseDate).toLocaleDateString("es-AR")
-                  : "Sin compras"}
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Última Compra"
+            value={
+              stats.lastPurchaseDate
+                ? new Date(stats.lastPurchaseDate).toLocaleDateString("es-AR")
+                : "Sin compras"
+            }
+            icon={Calendar}
+          />
         </div>
 
         {/* Supplier Details */}
