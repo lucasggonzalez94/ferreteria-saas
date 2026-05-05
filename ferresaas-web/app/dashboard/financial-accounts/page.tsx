@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,9 +95,22 @@ export default function FinancialAccountsPage() {
     }) => {
       await api.put(`/financial-accounts/${id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      
+      if (variables.data.isDefault === true) {
+        const previousAccounts = queryClient.getQueryData<FinancialAccount[]>(["financial-accounts"]);
+        const changedAccount = previousAccounts?.find(a => a.id === variables.id);
+        if (changedAccount) {
+          const sameTypeFavorite = previousAccounts?.find(
+            a => a.type === changedAccount.type && a.isDefault && a.id !== variables.id
+          );
+          if (sameTypeFavorite) {
+            toast.info(`${sameTypeFavorite.name} ya no es favorita (solo una por tipo)`);
+          }
+        }
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo actualizar la cuenta");
@@ -159,6 +171,9 @@ export default function FinancialAccountsPage() {
   }
 
   const activeAccounts = accounts?.filter((acc) => acc.isActive) || [];
+  const sortedAccounts = [...activeAccounts].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
   const totalBalance = summary?.totalBalance || 0;
   const favoriteAccounts = activeAccounts.filter((account) => account.isDefault).length;
 
@@ -224,6 +239,7 @@ export default function FinancialAccountsPage() {
             value={`$${totalBalance.toLocaleString("es-AR", {
               minimumFractionDigits: 2,
             })}`}
+            icon={BarChart3}
           />
 
           {summary?.byType &&
@@ -291,14 +307,14 @@ export default function FinancialAccountsPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeAccounts.map((account) => {
+              {sortedAccounts.map((account) => {
                 const Icon =
                   accountTypeIcons[
                     account.type as keyof typeof accountTypeIcons
                   ] || Wallet;
 
                 return (
-                  <Card key={account.id} className="app-orbit h-full flex flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)]">
+                  <Card key={account.id} className="app-orbith-full flex flex-col transition-all hover:-translate-y-0.5 hover:border-[hsl(var(--accent)/0.35)] min-h-[280px]">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -321,8 +337,8 @@ export default function FinancialAccountsPage() {
                             <Tooltip
                               content={
                                 account.isDefault
-                                  ? "Quitar de favoritos"
-                                  : "Agregar a favoritos"
+                                  ? "Quitar de favoritas"
+                                  : "Marcar como favorita (solo una por tipo)"
                               }
                             >
                               <button
