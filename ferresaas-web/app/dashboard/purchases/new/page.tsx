@@ -56,7 +56,7 @@ interface PurchaseItem {
 
 export default function NewPurchasePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 
   const canCreatePurchase = user?.permissions?.includes("purchases:create");
@@ -107,12 +107,16 @@ export default function NewPurchasePage() {
   const usdEnabled = exchangeConfig?.usdEnabled ?? false;
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!canCreatePurchase) {
       router.push("/dashboard");
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-  }, [canCreatePurchase, router, queryClient]);
+  }, [canCreatePurchase, router, queryClient, isAuthLoading]);
 
   const { data: suppliers, isLoading: isLoadingSuppliers, error: suppliersError, refetch: refetchSuppliers } = useQuery<any[]>({
     queryKey: ["suppliers"],
@@ -368,7 +372,7 @@ if (!selectedProduct || !quantity || !unitCost) {
   const totals = calculateTotals();
   // selectedProduct ahora es el objeto completo del autocomplete
 
-  if (isLoadingSuppliers || isLoadingProducts) {
+  if (isAuthLoading || isLoadingSuppliers || isLoadingProducts) {
     return (
       <div className="p-8">
         <div className="max-w-7xl mx-auto">

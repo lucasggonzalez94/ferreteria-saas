@@ -68,7 +68,7 @@ interface PendingAttachment {
 export default function PurchaseDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   const canViewPurchases = user?.permissions?.includes("purchases:read");
   const canUploadAttachments = user?.permissions?.includes("purchases:create");
@@ -80,15 +80,19 @@ export default function PurchaseDetailPage() {
       const response = await api.get<PurchaseDetail>(`/purchases/${params.id}`);
       return response.data;
     },
-    enabled: canViewPurchases && !!params.id,
+    enabled: !isAuthLoading && canViewPurchases && !!params.id,
   });
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!canViewPurchases) {
       router.push("/dashboard");
       return;
     }
-  }, [canViewPurchases, router]);
+  }, [canViewPurchases, router, isAuthLoading]);
 
   useEffect(() => {
     if (purchase && canUploadAttachments) {
@@ -103,7 +107,7 @@ export default function PurchaseDetailPage() {
     }
   }, [purchase, canUploadAttachments]);
 
-  if (isLoading) {
+  if (isAuthLoading || isLoading) {
     return (
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
