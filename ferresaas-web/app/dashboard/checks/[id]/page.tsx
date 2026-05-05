@@ -53,11 +53,11 @@ function statusLabel(status: string): string {
 }
 
 function statusClass(status: string): string {
-  if (status === "ISSUED") return "border border-slate-300 text-slate-700";
+  if (status === "ISSUED") return "bg-blue-100 text-blue-800";
   if (status === "CLEARED") return "bg-emerald-100 text-emerald-800";
   if (status === "BOUNCED") return "bg-red-100 text-red-800";
   if (status === "CANCELLED") return "bg-slate-200 text-slate-700";
-  return "border border-slate-300 text-slate-700";
+  return "bg-blue-100 text-blue-800";
 }
 
 export default function CheckDetailPage() {

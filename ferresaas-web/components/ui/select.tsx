@@ -3,24 +3,23 @@
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
+import { Label } from "@/components/ui/label"
 
 import { cn } from "@/lib/utils"
 
 const Select = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
-    value?: string;
-    onValueChange?: (value: string) => void;
+    value?: string
+    onValueChange?: (value: string) => void
   }
 >(({ value, onValueChange, ...props }, ref: any) => {
-  // Convert "__empty__" back to "" for the parent component
   const handleValueChange = (newValue: string) => {
-    const actualValue = newValue === "__empty__" ? "" : newValue;
-    onValueChange?.(actualValue);
-  };
+    const actualValue = newValue === "__empty__" ? "" : newValue
+    onValueChange?.(actualValue)
+  }
 
-  // Convert "" to "__empty__" for Radix UI
-  const safeValue = value === "" ? "__empty__" : value;
+  const safeValue = value === "" ? "__empty__" : value
 
   return (
     <SelectPrimitive.Root
@@ -28,32 +27,65 @@ const Select = React.forwardRef<
       onValueChange={handleValueChange}
       {...props}
     />
-  );
-});
+  )
+})
 Select.displayName = "Select"
 
 const SelectGroup = SelectPrimitive.Group
 
 const SelectValue = SelectPrimitive.Value
 
+interface SelectTriggerProps
+  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> {
+  label?: string
+  htmlFor?: string
+}
+
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-      className,
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-))
+  SelectTriggerProps
+>(({ className, children, label, htmlFor, id, ...props }, ref) => {
+  const triggerId = id || htmlFor
+
+  if (label) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={triggerId}>{label}</Label>
+        <SelectPrimitive.Trigger
+          ref={ref}
+          id={triggerId}
+          className={cn(
+            "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+            className,
+          )}
+          {...props}
+        >
+          {children}
+          <SelectPrimitive.Icon asChild>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </SelectPrimitive.Icon>
+        </SelectPrimitive.Trigger>
+      </div>
+    )
+  }
+
+  return (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+        className,
+      )}
+      id={id}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  )
+})
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
 const SelectScrollUpButton = React.forwardRef<
@@ -93,10 +125,9 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        `relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-2xl border border-input/80 bg-popover/95 text-popover-foreground shadow-[0_24px_60px_-34px_rgba(12,41,69,0.55)] backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ${
-        position === "popper" &&
-        "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1"
-      }`,
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-2xl border border-input/80 bg-popover/95 text-popover-foreground shadow-[0_24px_60px_-34px_rgba(12,41,69,0.55)] backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 " +
+        (position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1"),
         className,
       )}
       position={position}
@@ -104,10 +135,11 @@ const SelectContent = React.forwardRef<
     >
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
-        className={cn(`p-1 ${
-          position === "popper" &&
-          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
-        }`)}
+        className={cn(
+          "p-1 " +
+            (position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"),
+        )}
       >
         {children}
       </SelectPrimitive.Viewport>
@@ -121,9 +153,8 @@ const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, value, ...props }, ref) => {
-  // Ensure value is never an empty string for Radix UI
-  const safeValue = value === "" ? "__empty__" : value;
-  
+  const safeValue = value === "" ? "__empty__" : value
+
   return (
     <SelectPrimitive.Item
       ref={ref}
@@ -142,7 +173,7 @@ const SelectItem = React.forwardRef<
 
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
-  );
+  )
 })
 SelectItem.displayName = SelectPrimitive.Item.displayName
 

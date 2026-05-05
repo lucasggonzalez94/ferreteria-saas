@@ -429,6 +429,31 @@ router.delete(
 );
 
 /**
+ * POST /products/:id/suggest-price
+ * Generar sugerencia de precio para un producto (manual)
+ */
+router.post(
+  '/:id/suggest-price',
+  requirePermissions('products:update'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthRequest;
+      const { id } = req.params;
+
+      const result = await productService.generatePriceSuggestion(
+        authReq.businessId!,
+        authReq.user!.id,
+        id
+      );
+
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * POST /products/calculate-price
  * Calcular precio sugerido
  */

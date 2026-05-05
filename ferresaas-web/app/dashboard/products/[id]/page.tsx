@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Printer, Upload, X } from "lucide-react";
+import { ArrowLeft, Trash2, Printer, Upload, X, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -185,6 +185,20 @@ export default function EditProductPage({
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo eliminar la imagen");
+    },
+  });
+
+  const generateSuggestionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post<any>(`/products/${params.id}/suggest-price`);
+      return response.data;
+    },
+    onSuccess: (suggestion) => {
+      queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      toast.success(`Sugerencia creada: $${Number(suggestion.suggestedPrice).toFixed(2)}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "No se pudo generar la sugerencia");
     },
   });
 
@@ -807,6 +821,27 @@ export default function EditProductPage({
                         Precio congelado (no permitir cambios automáticos)
                       </Label>
                     </div>
+
+                    {(formData.pricingMode === "margin" || formData.pricingMode === "markup") && !formData.priceLocked && (
+                      <div className="col-span-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => generateSuggestionMutation.mutate()}
+                          disabled={generateSuggestionMutation.isPending}
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          {generateSuggestionMutation.isPending
+                            ? "Generando..."
+                            : "Generar Sugerencia de Precio"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Genera una sugerencia basada en el costo actual y el margen/markup objetivo
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

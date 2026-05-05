@@ -10,6 +10,7 @@ import Header from "@/components/ui/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -127,7 +128,7 @@ export default function NewCheckPage() {
             <div>
               <Label htmlFor="accountId">Cuenta bancaria *</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger id="accountId" className="mt-1">
+                <SelectTrigger id="accountId">
                   <SelectValue placeholder="Selecciona cuenta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +169,7 @@ export default function NewCheckPage() {
             <div>
               <Label htmlFor="currency">Moneda *</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger id="currency" className="mt-1">
+                <SelectTrigger id="currency">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -180,12 +181,10 @@ export default function NewCheckPage() {
 
             <div>
               <Label htmlFor="dueDate">Vencimiento *</Label>
-              <Input
-                id="dueDate"
-                type="date"
+              <DatePicker
                 value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
-                required
+                onChange={setDueDate}
+                placeholder="DD/MM/YYYY"
               />
             </div>
 

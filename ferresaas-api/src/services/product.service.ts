@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
+import { PricingService } from './pricing.service';
 import { Prisma } from '@prisma/client';
 import bwipjs from 'bwip-js';
 import PDFDocument from 'pdfkit';
@@ -476,6 +477,49 @@ export class ProductService {
     // Auditoría
     await AuditService.logUpdate(businessId, userId, 'products', productId, current, updated);
 
+    // Detectar cambio de pricingMode de fixed/null a margin/markup y generar sugerencia automática
+    const oldPricingMode = current.pricingMode;
+    const newPricingMode = data.pricingMode;
+    const wasPriceLocked = current.priceLocked;
+    const willBePriceLocked = data.priceLocked ?? wasPriceLocked;
+
+    const pricingModeChangedToAutomatic = 
+      (!oldPricingMode || oldPricingMode === 'fixed' || oldPricingMode === 'suggest') &&
+      newPricingMode === 'margin';
+
+    const priceLockedChangedToUnlock = 
+      wasPriceLocked && 
+      !willBePriceLocked &&
+      (newPricingMode === 'margin' || newPricingMode === 'markup');
+
+    if ((pricingModeChangedToAutomatic || priceLockedChangedToUnlock) && newCost !== oldPrice) {
+      console.log('🔔 [ProductService] Detectado cambio de pricingMode, generando sugerencia automática:', {
+        productId,
+        oldPricingMode,
+        newPricingMode,
+        wasPriceLocked,
+        willBePriceLocked,
+        currentCost: newCost,
+        currentPrice: oldPrice,
+      });
+
+      try {
+        await PricingService.processCostChange({
+          businessId,
+          productId,
+          purchaseId: "", // No hay compra asociada
+          purchaseCost: newCost,
+          purchaseQuantity: Number(current.stockQuantity),
+          requestedBy: userId,
+          oldCost: oldCost,
+          newCost: newCost,
+        });
+      } catch (error) {
+        console.error('❌ [ProductService] Error al generar sugerencia automática:', error);
+        // No lanzamientos el error - la actualización del producto fue exitosa
+      }
+    }
+
     return updated;
   }
 
@@ -878,5 +922,68 @@ export class ProductService {
       buffer: pdfBuffer,
       filename: `${product.internalSku}-${safeName}-etiqueta.pdf`,
     };
+  }
+
+  /**
+   * Generar sugerencia de precio para un producto manualmente
+   */
+  async generatePriceSuggestion(
+    businessId: string,
+    userId: string,
+    productId: string
+  ) {
+    const product = await this.getById(businessId, productId);
+
+    if (!product.pricingMode || !['margin', 'markup'].includes(product.pricingMode)) {
+      throw new AppError(
+        400,
+        'INVALID_PRICING_MODE',
+        'El producto debe tener pricingMode configurado como margin o markup'
+      );
+    }
+
+    if (product.priceLocked) {
+      throw new AppError(
+        400,
+        'PRICE_LOCKED',
+        'El precio está congelado. Desactívalo para generar sugencias.'
+      );
+    }
+
+    const hasTargetMargin = product.targetMargin && Number(product.targetMargin) > 0;
+    const hasTargetMarkup = product.targetMarkup && Number(product.targetMarkup) > 0;
+
+    const currentCost = Number(product.cost);
+    const currentPrice = Number(product.price);
+
+    const suggestedPrice = PricingService.calculateSuggestedPrice(
+      currentCost,
+      product.pricingMode,
+      hasTargetMargin ? Number(product.targetMargin) : undefined,
+      hasTargetMarkup ? Number(product.targetMarkup) : undefined,
+      product.roundingStep || 10
+    );
+
+    if (Math.abs(suggestedPrice - currentPrice) < 0.01) {
+      throw new AppError(
+        400,
+        'NO_PRICE_CHANGE',
+        'El precio sugerido es igual al precio actual. No se necesita sugerencia.'
+      );
+    }
+
+    const suggestion = await PricingService.createPriceSuggestion({
+      businessId,
+      productId,
+      oldCost: currentCost,
+      newCost: currentCost,
+      oldPrice: currentPrice,
+      suggestedPrice,
+      pricingMode: product.pricingMode,
+      reason: `Generación manual de sugerencia (costo actual: $${currentCost.toFixed(2)})`,
+      requestedBy: userId,
+    });
+
+    return suggestion;
   }
 }

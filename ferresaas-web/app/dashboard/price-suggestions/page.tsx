@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, XCircle, TrendingUp, TrendingDown, RefreshCw, ArrowLeft } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface PriceSuggestion {
@@ -52,7 +52,6 @@ interface PriceSuggestion {
 }
 
 export default function PriceSuggestionsPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] =
@@ -61,7 +60,6 @@ export default function PriceSuggestionsPage() {
 
   usePermissionGuard("pricing:view_suggestions");
   const {
-    canApprove,
     canView,
   } = usePermissions({
     canApprove: "pricing:approve",

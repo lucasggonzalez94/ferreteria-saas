@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Check, X, Clock, ArrowLeft, RefreshCw } from "lucide-react";
-import Link from "next/link";
+import { Check, X, Clock, RefreshCw } from "lucide-react";
 import Header from "@/components/ui/header";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -56,7 +55,6 @@ interface DiscountApproval {
 }
 
 export default function DiscountApprovalsPage() {
-  const router = useRouter();
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -65,10 +63,6 @@ export default function DiscountApprovalsPage() {
   const queryClient = useQueryClient();
 
   usePermissionGuard("sales:approve_discount");
-  const { canManage: canApproveDiscounts } = usePermissions({
-    canManage: "sales:approve_discount",
-  });
-
   // Obtener aprobaciones pendientes
   const { data: approvalsData, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["discount-approvals", "PENDING"],
@@ -192,16 +186,11 @@ export default function DiscountApprovalsPage() {
           description="Gestiona solicitudes pendientes con foco en urgencia, margen y descuentos por debajo del costo."
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="mb-6 grid gap-3 md:grid-cols-2">
           <div className="app-panel-muted rounded-[1.4rem] p-4">
             <p className="text-sm font-semibold text-foreground">Pendientes</p>
             <p className="mt-3 text-3xl font-semibold text-foreground">{approvals.length}</p>
             <p className="mt-2 text-sm text-muted-foreground">Solicitudes esperando decisión del aprobador.</p>
-          </div>
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Con password requerido</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{approvals.length}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Todas las aprobaciones requieren validación explícita.</p>
           </div>
           <div className="brand-accent-panel p-4">
             <p className="text-sm font-semibold text-foreground">Bajo costo</p>
