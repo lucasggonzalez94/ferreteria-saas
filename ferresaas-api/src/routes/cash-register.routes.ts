@@ -56,6 +56,8 @@ router.get(
         },
       });
 
+      const hasUSDAccount = !!cashAccountUSD;
+
       const suggestedAmountARS = cashAccountARS?.balance.toNumber() || 0;
       const suggestedAmountUSD = cashAccountUSD?.balance.toNumber() || 0;
 
@@ -66,6 +68,7 @@ router.get(
         accountNameARS: cashAccountARS?.name || null,
         accountIdUSD: cashAccountUSD?.id || null,
         accountNameUSD: cashAccountUSD?.name || null,
+        hasUSDAccount,
       });
     } catch (error) {
       next(error);
@@ -122,11 +125,20 @@ router.post(
         },
       });
 
+      // Validar que existe cuenta USD si se intenta abrir con monto en USD
+      const openingAmountUSD = data.openingAmountUSD || 0;
+      if (openingAmountUSD > 0 && !cashAccountUSD) {
+        throw new AppError(
+          400,
+          'USD_ACCOUNT_REQUIRED',
+          'No hay cuenta Efectivo USD configurada. Creá una cuenta en Dollars first.'
+        );
+      }
+
       // Calcular diferencias
       const currentBalanceARS = cashAccountARS?.balance.toNumber() || 0;
       const differenceARS = data.openingAmount - currentBalanceARS;
 
-      const openingAmountUSD = data.openingAmountUSD || 0;
       const currentBalanceUSD = cashAccountUSD?.balance.toNumber() || 0;
       const differenceUSD = openingAmountUSD - currentBalanceUSD;
 
@@ -469,7 +481,36 @@ router.post(
         },
       });
 
-      sendSuccess(res, closedSession);
+      // Obtener cuentas no-CASH para resumen
+      const otherAccounts = await prisma.financialAccount.findMany({
+        where: {
+          businessId: authReq.businessId!,
+          isActive: true,
+          type: { not: 'CASH' },
+          id: { not: cashAccountARS?.id },
+        },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          currency: true,
+          balance: true,
+        },
+        orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      });
+
+      const response = {
+        ...closedSession,
+        otherAccounts: otherAccounts.map(acc => ({
+          id: acc.id,
+          name: acc.name,
+          type: acc.type,
+          currency: acc.currency,
+          balance: acc.balance.toNumber(),
+        })),
+      };
+
+      sendSuccess(res, response);
     } catch (error) {
       next(error);
     }

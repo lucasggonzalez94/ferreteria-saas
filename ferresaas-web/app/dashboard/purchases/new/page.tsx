@@ -32,6 +32,7 @@ import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AttachmentManager } from "@/components/purchases/attachment-manager";
 import type { Attachment } from "@/components/purchases/attachment-manager";
+import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
 
 interface Supplier {
   id: string;
@@ -64,7 +65,7 @@ export default function NewPurchasePage() {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<PurchaseItem[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [taxRate, setTaxRate] = useState("21");
@@ -278,20 +279,20 @@ export default function NewPurchasePage() {
   };
 
   const handleAddItem = () => {
-    if (!selectedProductId || !quantity || !unitCost) {
+if (!selectedProduct || !quantity || !unitCost) {
       toast.error("Completa todos los campos del producto");
       return;
     }
 
     const newItem: PurchaseItem = {
-      productId: selectedProductId,
-      quantity: parseNumericInput(quantity),
-      unitCost: parseNumericInput(unitCost),
-      taxRate: parseNumericInput(taxRate),
+      productId: selectedProduct.id,
+      quantity: Number(quantity),
+      unitCost: Number(unitCost),
+      taxRate: Number(taxRate),
     };
 
     setItems([...items, newItem]);
-    setSelectedProductId("");
+    setSelectedProduct(null);
     setQuantity("");
     setUnitCost("");
     setTaxRate("21");
@@ -365,7 +366,7 @@ export default function NewPurchasePage() {
   };
 
   const totals = calculateTotals();
-  const selectedProduct = products?.find((p) => p.id === selectedProductId);
+  // selectedProduct ahora es el objeto completo del autocomplete
 
   if (isLoadingSuppliers || isLoadingProducts) {
     return (
@@ -534,7 +535,7 @@ export default function NewPurchasePage() {
           </Card>
 
           {/* Add Items */}
-          <Card>
+          <Card className="relative z-20">
             <CardHeader>
               <CardTitle>Agregar Productos</CardTitle>
             </CardHeader>
@@ -557,9 +558,9 @@ export default function NewPurchasePage() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                <div>
+                <div className="relative z-30">
                   <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="product">Producto *</Label>
+                    <Label>Producto *</Label>
                     <Button
                       type="button"
                       variant="ghost"
@@ -571,29 +572,25 @@ export default function NewPurchasePage() {
                       Nuevo
                     </Button>
                   </div>
-                  <Select
-                    value={selectedProductId}
-                    onValueChange={(value: string) => setSelectedProductId(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products && products.length > 0 ? (
-                        products.map((product: any) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                          <PackagePlus className="h-4 w-4 mx-auto mb-2" />
-                          <p>No hay productos registrados</p>
-                          <p className="text-xs mt-1">Usa el boton &quot;Nuevo&quot; para crear uno</p>
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <EntityAutocomplete<Product>
+                    value={selectedProduct}
+                    onChange={setSelectedProduct}
+                    fetchFn={async (search) => {
+                      const response = await api.get<Product[]>('/products', {
+                        params: { q: search || undefined, limit: 20 },
+                      });
+                      return response.data || [];
+                    }}
+                    displayFn={(product) => product.name}
+                    placeholder="Buscar producto..."
+                    minSearchLength={0}
+                    renderItem={(product) => (
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">SKU: {product.internalSku || 'Sin SKU'} • Unidad: {product.unit || 'N/A'}</p>
+                      </div>
+                    )}
+                  />
                 </div>
 
                 <div>
@@ -976,8 +973,15 @@ export default function NewPurchasePage() {
         <QuickCreateProductModal
           open={showCreateProductModal}
           onOpenChange={setShowCreateProductModal}
-          onSuccess={(productId) => {
-            setSelectedProductId(productId);
+          onSuccess={async (productId) => {
+            // Cargar el producto creado y seleccionarlo
+            const response = await api.get<Product[]>('/products', {
+              params: { ids: productId },
+            });
+            const createdProduct = response.data?.[0];
+            if (createdProduct) {
+              setSelectedProduct(createdProduct);
+            }
           }}
         />
       </div>

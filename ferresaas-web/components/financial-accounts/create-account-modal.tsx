@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -21,19 +21,27 @@ import { parseNumericInput } from "@/lib/numeric-input";
 interface CreateAccountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialCurrency?: string;
 }
 
-export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalProps) {
+export function CreateAccountModal({ open, onOpenChange, initialCurrency }: CreateAccountModalProps) {
   const queryClient = useQueryClient();
   const [type, setType] = useState("CASH");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [currency, setCurrency] = useState("ARS");
+  const [currency, setCurrency] = useState(initialCurrency || "ARS");
   const [initialBalance, setInitialBalance] = useState("");
   const [isDefault, setIsDefault] = useState(false);
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [walletProvider, setWalletProvider] = useState("");
+
+  // Actualizar currency cuando cambia initialCurrency o se abre el modal
+  useEffect(() => {
+    if (open && initialCurrency) {
+      setCurrency(initialCurrency);
+    }
+  }, [open, initialCurrency]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -53,6 +61,7 @@ export function CreateAccountModal({ open, onOpenChange }: CreateAccountModalPro
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-register", "suggested-opening"] });
       toast.success("Cuenta creada exitosamente");
       resetForm();
       onOpenChange(false);

@@ -18,6 +18,9 @@ import {
   FileText,
   AlertCircle,
   RefreshCw,
+  Building2,
+  Smartphone,
+  CreditCard,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +72,7 @@ export default function CashRegisterPage() {
   const [showMovementDialog, setShowMovementDialog] = useState(false);
   const [showDifferenceConfirmation, setShowDifferenceConfirmation] =
     useState(false);
+  const [otherAccountsOnClose, setOtherAccountsOnClose] = useState<any[]>([]);
   const [pendingOpenAmount, setPendingOpenAmount] = useState<number | null>(
     null,
   );
@@ -236,8 +240,14 @@ export default function CashRegisterPage() {
       });
       return response.data;
     },
-    onSuccess: () => {
-      toast.success("Caja cerrada exitosamente");
+onSuccess: (data: any) => {
+      if (data.otherAccounts && data.otherAccounts.length > 0) {
+        setOtherAccountsOnClose(data.otherAccounts);
+        toast.success("Caja cerrada. Verificá el resumen de otras cuentas.");
+      } else {
+        toast.success("Caja cerrada exitosamente");
+      }
+      
       setClosingAmount("");
       setClosingAmountUSD("");
       setDestinationAccountId("");
@@ -426,34 +436,53 @@ export default function CashRegisterPage() {
                 {usdEnabled && (
                 <div>
                   <Label htmlFor="openingAmountUSD">Monto Inicial (USD)</Label>
-                  <Input
-                    id="openingAmountUSD"
-                    type="number"
-                    step="0.01"
-                    value={openingAmountUSD}
-                    onFocus={() => {
-                      setHasOpeneditUSD(true);
-                      if (openingAmountUSD === "0") {
-                        setOpeningAmountUSD("");
-                      }
-                    }}
-                    onChange={(e) => {
-                      setHasOpeneditUSD(true);
-                      setOpeningAmountUSD(e.target.value);
-                    }}
-                    placeholder="0,00"
-                    className="text-lg"
-                  />
-                  {suggestedOpening &&
-                    suggestedOpening.suggestedAmountUSD > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        💵 Balance actual: $
-                        {suggestedOpening.suggestedAmountUSD.toFixed(2)} USD
+                  {!suggestedOpening?.hasUSDAccount ? (
+                    <div className="mt-2 space-y-2">
+                      <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          ⚠️ No hay cuenta Efectivo USD configurada. 
+                          <button
+                            type="button"
+                            onClick={() => router.push("/dashboard/financial-accounts?create=USD")}
+                            className="underline font-medium ml-1 hover:text-yellow-900 dark:hover:text-yellow-100"
+                          >
+                            Crear cuenta USD →
+                          </button>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Input
+                        id="openingAmountUSD"
+                        type="number"
+                        step="0.01"
+                        value={openingAmountUSD}
+                        onFocus={() => {
+                          setHasOpeneditUSD(true);
+                          if (openingAmountUSD === "0") {
+                            setOpeningAmountUSD("");
+                          }
+                        }}
+                        onChange={(e) => {
+                          setHasOpeneditUSD(true);
+                          setOpeningAmountUSD(e.target.value);
+                        }}
+                        placeholder="0,00"
+                        className="text-lg"
+                      />
+                      {suggestedOpening &&
+                        suggestedOpening.suggestedAmountUSD > 0 && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            💵 Balance actual: $
+                            {suggestedOpening.suggestedAmountUSD.toFixed(2)} USD
+                          </p>
+                        )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Opcional - Solo si maneja efectivo en dólares
                       </p>
-                    )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Opcional - Solo si maneja efectivo en dólares
-                  </p>
+                    </>
+                  )}
                 </div>
                 )}
 
@@ -522,65 +551,74 @@ export default function CashRegisterPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      {Object.entries(summary.paymentsByMethod).map(
-                        ([method, amount]) => (
-                          <div key={method} className="border rounded-lg p-4">
-                            <p className="text-sm text-muted-foreground">
-                              {method === "CASH_ARS"
-                                ? "Efectivo ARS"
-                                : method === "CASH_USD"
-                                  ? "Efectivo USD"
-                                  : method === "CARD"
-                                    ? "Tarjeta"
-                                    : method === "TRANSFER"
-                                      ? "Transferencia"
-                                      : method === "QR"
-                                        ? "QR"
-                                        : method}
-                            </p>
-                            <p className="text-xl font-bold">
-                              ${(amount as number).toFixed(2)}
-                            </p>
+                  {Object.keys(summary.paymentsByMethod || {}).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="mb-2">No hay ventas registradas</p>
+                      <p className="text-sm">
+                        Las ventas realizadas aparecerán aquí desglosadas por medio de pago
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {Object.entries(summary.paymentsByMethod).map(
+                          ([method, amount]) => (
+                            <div key={method} className="border rounded-lg p-4">
+                              <p className="text-sm text-muted-foreground">
+                                {method === "CASH_ARS"
+                                  ? "Efectivo ARS"
+                                  : method === "CASH_USD"
+                                    ? "Efectivo USD"
+                                    : method === "CARD"
+                                      ? "Tarjeta"
+                                      : method === "TRANSFER"
+                                        ? "Transferencia"
+                                        : method === "QR"
+                                          ? "QR"
+                                          : method}
+                              </p>
+                              <p className="text-xl font-bold">
+                                ${(amount as number).toFixed(2)}
+                              </p>
+                            </div>
+                          ),
+                        )}
+                      </div>
+
+                      {summary.movements && summary.movements.length > 0 && (
+                        <div className="pt-4 border-t">
+                          <p className="font-semibold mb-2">
+                            Movimientos Manuales:
+                          </p>
+                          <div className="space-y-2">
+                            {summary.movements.map((movement: any) => (
+                              <div
+                                key={movement.id}
+                                className="flex justify-between text-sm p-2 bg-muted rounded"
+                              >
+                                <span>
+                                  {movement.type === "INCOME"
+                                    ? "Ingreso"
+                                    : "Egreso"}{" "}
+                                  - {movement.reason}
+                                </span>
+                                <span
+                                  className={
+                                    movement.type === "INCOME"
+                                      ? "text-green-600 font-semibold"
+                                      : "text-red-600 font-semibold"
+                                  }
+                                >
+                                  {movement.type === "INCOME" ? "+" : "-"}$
+                                  {Number(movement.amount).toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ),
+                        </div>
                       )}
                     </div>
-
-                    {summary.movements && summary.movements.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <p className="font-semibold mb-2">
-                          Movimientos Manuales:
-                        </p>
-                        <div className="space-y-2">
-                          {summary.movements.map((movement: any) => (
-                            <div
-                              key={movement.id}
-                              className="flex justify-between text-sm p-2 bg-muted rounded"
-                            >
-                              <span>
-                                {movement.type === "INCOME"
-                                  ? "Ingreso"
-                                  : "Egreso"}{" "}
-                                - {movement.reason}
-                              </span>
-                              <span
-                                className={
-                                  movement.type === "INCOME"
-                                    ? "text-green-600 font-semibold"
-                                    : "text-red-600 font-semibold"
-                                }
-                              >
-                                {movement.type === "INCOME" ? "+" : "-"}$
-                                {Number(movement.amount).toFixed(2)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -765,22 +803,52 @@ export default function CashRegisterPage() {
                   </div>
 
                   {usdEnabled && summary && summary.expectedAmountUSD > 0 && (
-                    <div>
-                      <Label htmlFor="closingAmountUSD">
-                        Monto Final (USD)
-                      </Label>
-                      <Input
-                        id="closingAmountUSD"
-                        type="number"
-                        step="0.01"
-                        value={closingAmountUSD}
-                        onChange={(e) => setClosingAmountUSD(e.target.value)}
-                        placeholder="0,00"
-                        className="text-lg"
-                      />
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Ingrese el monto total contado en dólares
+<div>
+                    <Label htmlFor="closingAmountUSD">
+                      Monto Final (USD)
+                    </Label>
+                    <Input
+                      id="closingAmountUSD"
+                      type="number"
+                      step="0.01"
+                      value={closingAmountUSD}
+                      onChange={(e) => setClosingAmountUSD(e.target.value)}
+                      placeholder="0,00"
+                      className="text-lg"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Ingrese el monto total contado en dólares
+                    </p>
+                  </div>
+                  )}
+
+                  {otherAccountsOnClose.length > 0 && (
+                    <div className="border-t pt-4 mt-4">
+                      <p className="font-semibold mb-3 flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Otras cuentas
                       </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {otherAccountsOnClose.map((acc) => {
+                          const Icon = acc.type === 'BANK' ? Building2 : 
+                                       acc.type === 'WALLET' ? Smartphone : 
+                                       CreditCard;
+                          return (
+                            <div 
+                              key={acc.id} 
+                              className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{acc.name}</span>
+                              </div>
+                              <span className="font-semibold">
+                                ${acc.balance.toLocaleString("es-AR", { minimumFractionDigits: 2 })} {acc.currency}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -28,7 +28,7 @@ import { CreateAccountModal } from "@/components/financial-accounts/create-accou
 import { TransferModal } from "@/components/financial-accounts/transfer-modal";
 import { MovementModal } from "@/components/financial-accounts/movement-modal";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface FinancialAccount {
@@ -62,6 +62,7 @@ const accountTypeLabels = {
 
 export default function FinancialAccountsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -141,6 +142,14 @@ export default function FinancialAccountsPage() {
       deleteDialog.close();
     }
   };
+
+  // Abrir modal de creación si viene ?create=USD
+  useEffect(() => {
+    const createParam = searchParams?.get("create");
+    if (createParam === "USD" && canCreate) {
+      setShowCreateModal(true);
+    }
+  }, [searchParams, canCreate]);
 
   // Fetch accounts
   const { data: accounts, isLoading, refetch: refetchAccounts, isFetching: isFetchingAccounts } = useQuery<FinancialAccount[]>({
@@ -468,6 +477,7 @@ export default function FinancialAccountsPage() {
         <CreateAccountModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
+          initialCurrency={searchParams?.get("create") === "USD" ? "USD" : undefined}
         />
         <TransferModal
           open={showTransferModal}

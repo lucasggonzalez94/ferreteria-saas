@@ -51,7 +51,10 @@ export function EntityAutocomplete<T extends { id: string }>({
   const [entities, setEntities] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUserTyping, setIsUserTyping] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Sincronizar search solo cuando cambia el valor externo y el usuario no está escribiendo
   useEffect(() => {
@@ -70,7 +73,10 @@ export function EntityAutocomplete<T extends { id: string }>({
       fetchFn(currentSearch)
         .then((results) => {
           setEntities(results);
-          setShowDropdown(true);
+          if (isFocused) {
+            setShowDropdown(true);
+            setHighlightedIndex(results.length > 0 ? 0 : -1);
+          }
         })
         .catch((error) => {
           console.error("Error fetching entities:", error);
@@ -81,8 +87,9 @@ export function EntityAutocomplete<T extends { id: string }>({
         });
     } else {
       setEntities([]);
+      setHighlightedIndex(-1);
     }
-  }, [search, fetchFn, minSearchLength]);
+  }, [search, fetchFn, minSearchLength, isFocused]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -96,15 +103,28 @@ export function EntityAutocomplete<T extends { id: string }>({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!showDropdown || highlightedIndex < 0 || !listRef.current) return;
+
+    const activeItem = listRef.current.querySelector<HTMLElement>(`[data-index="${highlightedIndex}"]`);
+    if (activeItem) {
+      activeItem.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex, showDropdown]);
+
   const handleSelect = (entity: T) => {
     onChange(entity);
     setSearch(displayFn(entity));
+    setIsUserTyping(false);
+    setIsFocused(false);
+    setHighlightedIndex(-1);
     setShowDropdown(false);
   };
 
   const handleClear = () => {
     onChange(null);
     setSearch("");
+    setHighlightedIndex(-1);
   };
 
   const displayValue = search;
@@ -117,16 +137,53 @@ export function EntityAutocomplete<T extends { id: string }>({
           setIsUserTyping(true);
           const newValue = e.target.value;
           setSearch(newValue);
-          if (newValue.length >= minSearchLength) {
+          if (isFocused && newValue.length >= minSearchLength) {
             setShowDropdown(true);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (!showDropdown || entities.length === 0) {
+            if (e.key === "Escape") {
+              setShowDropdown(false);
+            }
+            return;
+          }
+
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlightedIndex((prev) => (prev + 1) % entities.length);
+            return;
+          }
+
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlightedIndex((prev) => (prev <= 0 ? entities.length - 1 : prev - 1));
+            return;
+          }
+
+          if (e.key === "Enter") {
+            if (highlightedIndex >= 0 && highlightedIndex < entities.length) {
+              e.preventDefault();
+              handleSelect(entities[highlightedIndex]);
+            }
+            return;
+          }
+
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setShowDropdown(false);
+            setHighlightedIndex(-1);
           }
         }}
         onFocus={() => {
+          setIsFocused(true);
           if (search.trim().length >= minSearchLength) {
             setShowDropdown(true);
+            setHighlightedIndex(entities.length > 0 ? 0 : -1);
           }
         }}
         onBlur={() => {
+          setIsFocused(false);
           setTimeout(() => setIsUserTyping(false), 200);
         }}
         placeholder={placeholder}
@@ -145,18 +202,29 @@ export function EntityAutocomplete<T extends { id: string }>({
         </button>
       )}
 
-      {showDropdown && entities.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
+      {showDropdown && (isLoading || entities.length > 0) && (
+        <div
+          ref={listRef}
+          className="absolute top-full left-0 right-0 z-[120] mt-2 max-h-60 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl"
+        >
           {isLoading ? (
             <div className="p-3 text-sm text-muted-foreground text-center">
               Buscando...
             </div>
           ) : (
-            entities.map((entity) => (
+            entities.map((entity, index) => (
               <button
                 key={entity.id}
-                onClick={() => handleSelect(entity)}
-                className="w-full rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-[hsl(var(--brand-accent-soft))]"
+                data-index={index}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(entity);
+                }}
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-[hsl(var(--brand-accent-soft))] ${
+                  entities[highlightedIndex]?.id === entity.id
+                    ? 'bg-[hsl(var(--brand-accent-soft))]'
+                    : ''
+                }`}
                 type="button"
               >
                 {renderItem ? renderItem(entity) : displayFn(entity)}
@@ -167,7 +235,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       )}
 
       {showDropdown && !isLoading && entities.length === 0 && search.length >= minSearchLength && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-[1.25rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
+        <div className="absolute top-full left-0 right-0 z-[120] mt-2 rounded-[1.25rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
           <p className="text-sm text-muted-foreground text-center">
             No se encontraron resultados
           </p>

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getDatePresetRange, DATE_PRESETS } from '@/lib/date-filters';
+import type { DatePreset } from '@/lib/date-filters';
+import { localDateToUTC, localDateToUTCEndOfDay } from '@/lib/timezone';
 import {
   Table,
   TableBody,
@@ -66,6 +70,8 @@ interface PurchasesResponse {
   };
 }
 
+const DEFAULT_DATE_PRESET: DatePreset = 'last_30_days';
+
 export default function PurchasesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,8 +84,9 @@ export default function PurchasesPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>(DEFAULT_DATE_PRESET);
+  const [startDate, setStartDate] = useState(() => getDatePresetRange(DEFAULT_DATE_PRESET).startDate);
+  const [endDate, setEndDate] = useState(() => getDatePresetRange(DEFAULT_DATE_PRESET).endDate);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const supplierId = searchParams.get('supplierId');
 
@@ -98,8 +105,8 @@ export default function PurchasesPage() {
           page,
           limit,
           ...(supplierId && { supplierId }),
-          ...(startDate && { startDate }),
-          ...(endDate && { endDate }),
+          ...(startDate && { startDate: localDateToUTC(startDate) }),
+          ...(endDate && { endDate: localDateToUTCEndOfDay(endDate) }),
         },
       });
       return {
@@ -179,6 +186,14 @@ export default function PurchasesPage() {
     }
   };
 
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    const range = getDatePresetRange(preset);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setPage(1);
+  };
+
   const handleClearFilter = () => {
     router.push('/dashboard/purchases');
   };
@@ -236,16 +251,16 @@ export default function PurchasesPage() {
             <CardTitle className="text-base">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium">Proveedor</label>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <Label>Proveedor</Label>
                 <Select
                   value={selectedSupplierId}
                   onValueChange={(value) => {
                     handleSupplierChange(value);
                   }}
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todos los proveedores" />
                   </SelectTrigger>
                   <SelectContent>
@@ -258,34 +273,57 @@ export default function PurchasesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+
+              <div className="space-y-2">
+                <Label>Periodo</Label>
+                <Select
+                  value={datePreset}
+                  onValueChange={(value) => handleDatePresetChange(value as DatePreset)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Periodo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DATE_PRESETS.map((preset) => (
+                      <SelectItem key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Desde</Label>
                 <DatePicker
                   value={startDate}
                   onChange={(value) => {
                     setStartDate(value);
+                    setDatePreset('custom');
                     setPage(1);
                   }}
-                  placeholder="Selecciona fecha inicio"
-                  label="Desde"
+                  placeholder="Fecha inicio"
                 />
               </div>
-              <div>
+
+              <div className="space-y-2">
+                <Label>Hasta</Label>
                 <DatePicker
                   value={endDate}
                   onChange={(value) => {
                     setEndDate(value);
+                    setDatePreset('custom');
                     setPage(1);
                   }}
-                  placeholder="Selecciona fecha fin"
-                  label="Hasta"
+                  placeholder="Fecha fin"
                 />
               </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setStartDate('');
-                    setEndDate('');
+                    handleDatePresetChange(DEFAULT_DATE_PRESET);
                     setSelectedSupplierId('');
                     router.push('/dashboard/purchases');
                     setPage(1);
