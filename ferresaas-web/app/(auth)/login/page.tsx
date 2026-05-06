@@ -7,7 +7,6 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -140,9 +139,9 @@ function LoginPageContent() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Correo</Label>
                 <Input
                   id="email"
+                  label="Correo"
                   type="email"
                   placeholder="admin@ferreteria-demo.com"
                   value={email}
@@ -153,7 +152,7 @@ function LoginPageContent() {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="password">Contraseña</Label>
+                  <p className="text-sm font-medium leading-none">Contraseña</p>
                   <Link
                     href="/forgot-password"
                     className="text-xs font-semibold text-[hsl(var(--accent))] transition-colors hover:text-foreground hover:underline"
@@ -163,6 +162,7 @@ function LoginPageContent() {
                 </div>
                 <Input
                   id="password"
+                  aria-label="Contraseña"
                   type="password"
                   placeholder="••••••••"
                   value={password}

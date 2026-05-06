@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -162,7 +161,7 @@ export default function AdjustmentModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Producto */}
           <div className="space-y-2">
-            <Label htmlFor="product">Producto</Label>
+            <p className="text-sm font-medium leading-none">Producto</p>
             {productsLoading ? (
               <LoadingSpinner text="Cargando productos..." />
             ) : (
@@ -223,11 +222,9 @@ export default function AdjustmentModal({
 
           {/* Cantidad */}
           <div className="space-y-2">
-            <Label htmlFor="quantity">
-              Cantidad (positivo: entrada, negativo: salida)
-            </Label>
             <Input
               id="quantity"
+              label="Cantidad (positivo: entrada, negativo: salida)"
               type="number"
               step="0.01"
               placeholder="Ej: 10 o -5"
@@ -238,9 +235,9 @@ export default function AdjustmentModal({
 
           {/* Motivo */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Motivo del Ajuste</Label>
             <Textarea
               id="reason"
+              label="Motivo del Ajuste"
               placeholder="Describe el motivo del ajuste (ej: Inventario físico, Daño, Pérdida, etc.)"
               value={reason}
               onChange={(e) => setReason(e.target.value)}

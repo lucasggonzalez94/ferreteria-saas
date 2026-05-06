@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormModal } from "@/components/ui/form-modal";
 import {
@@ -153,9 +152,8 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
     >
       <div className="space-y-4">
         <div>
-          <Label htmlFor="fromAccount">Cuenta Origen *</Label>
           <Select value={fromAccountId || undefined} onValueChange={setFromAccountId}>
-            <SelectTrigger>
+            <SelectTrigger label="Cuenta Origen *">
               <SelectValue placeholder="Selecciona cuenta origen" />
             </SelectTrigger>
             <SelectContent>
@@ -178,9 +176,8 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
         </div>
 
         <div>
-          <Label htmlFor="toAccount">Cuenta Destino *</Label>
           <Select value={toAccountId || undefined} onValueChange={setToAccountId}>
-            <SelectTrigger>
+            <SelectTrigger label="Cuenta Destino *">
               <SelectValue placeholder="Selecciona cuenta destino" />
             </SelectTrigger>
             <SelectContent>
@@ -196,9 +193,9 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
         </div>
 
         <div>
-          <Label htmlFor="amount">Monto ({fromAccount?.currency || 'ARS'}) *</Label>
           <Input
             id="amount"
+            label={`Monto (${fromAccount?.currency || "ARS"}) *`}
             type="number"
             step="0.01"
             value={amount}
@@ -241,9 +238,9 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
         )}
 
         <div>
-          <Label htmlFor="description">Descripción</Label>
           <Input
             id="description"
+            label="Descripción"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Ej: Transferencia para caja"
@@ -251,9 +248,9 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
         </div>
 
         <div>
-          <Label htmlFor="notes">Notas</Label>
           <Textarea
             id="notes"
+            label="Notas"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notas adicionales (opcional)"

@@ -7,8 +7,6 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -34,7 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface FinancialAccount {
@@ -393,8 +391,8 @@ export default function AccountDetailPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <Label htmlFor="startDate">Fecha Desde</Label>
                   <DatePicker
+                    label="Fecha Desde"
                     value={startDate}
                     onChange={(value) => {
                       setStartDate(value);
@@ -404,8 +402,8 @@ export default function AccountDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endDate">Fecha Hasta</Label>
                   <DatePicker
+                    label="Fecha Hasta"
                     value={endDate}
                     onChange={(value) => {
                       setEndDate(value);
@@ -415,7 +413,6 @@ export default function AccountDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="movementType">Tipo de Movimiento</Label>
                   <Select
                     value={movementType}
                     onValueChange={(value) => {
@@ -423,7 +420,7 @@ export default function AccountDetailPage() {
                       setCurrentPage(1);
                     }}
                   >
-                    <SelectTrigger id="movementType">
+                    <SelectTrigger label="Tipo de Movimiento">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

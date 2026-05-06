@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -136,7 +135,7 @@ export default function ReturnModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Venta */}
           <div className="space-y-2">
-            <Label htmlFor="sale">Venta a Devolver</Label>
+            <p className="text-sm font-medium leading-none">Venta a Devolver</p>
             {salesLoading ? (
               <LoadingSpinner text="Cargando ventas..." />
             ) : !sales || sales.length === 0 ? (
@@ -150,7 +149,7 @@ export default function ReturnModal({
               </div>
             ) : (
               <Select value={saleId} onValueChange={setSaleId}>
-                <SelectTrigger id="sale">
+                <SelectTrigger label="Venta a Devolver" id="sale">
                   <SelectValue placeholder="Selecciona una venta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -170,7 +169,7 @@ export default function ReturnModal({
           {selectedSale && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Productos en la Venta</Label>
+                <p className="text-sm font-medium leading-none">Productos en la Venta</p>
                 <span className="text-xs text-muted-foreground">
                   {returnItems.length} de {selectedSale.items?.length || 0} seleccionados
                 </span>
@@ -288,9 +287,9 @@ export default function ReturnModal({
 
           {/* Motivo */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Motivo de la Devolución (opcional)</Label>
             <Textarea
               id="reason"
+              label="Motivo de la Devolución (opcional)"
               placeholder="Describe el motivo de la devolución"
               value={reason}
               onChange={(e) => setReason(e.target.value)}

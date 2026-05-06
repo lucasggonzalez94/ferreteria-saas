@@ -13,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -530,7 +529,7 @@ export default function InvoicingSettingsPage() {
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Punto de venta</Label>
+              <p className="text-sm font-medium leading-none">Punto de venta</p>
               <Input
                 value={pointOfSale}
                 onChange={(event) => setPointOfSale(event.target.value)}
@@ -562,9 +561,9 @@ export default function InvoicingSettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="arca-cuit">CUIT para facturar</Label>
                 <Input
                   id="arca-cuit"
+                  label="CUIT para facturar"
                   value={arcaCuit}
                   onChange={(event) => setArcaCuit(event.target.value)}
                   placeholder="20123456789"
@@ -573,7 +572,7 @@ export default function InvoicingSettingsPage() {
 
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div className="space-y-0.5">
-                  <Label htmlFor="arca-enabled">Credenciales habilitadas</Label>
+                  <p className="text-sm font-medium leading-none">Credenciales habilitadas</p>
                   <p className="text-xs text-muted-foreground">
                     Si se desactiva, no se usarán para emitir con ARCA Direct.
                   </p>
@@ -586,9 +585,9 @@ export default function InvoicingSettingsPage() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="arca-cert">Certificado PEM (opcional)</Label>
                 <Textarea
                   id="arca-cert"
+                  label="Certificado PEM (opcional)"
                   value={arcaCertificatePem}
                   onChange={(event) =>
                     setArcaCertificatePem(event.target.value)
@@ -599,9 +598,9 @@ export default function InvoicingSettingsPage() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="arca-key">Clave privada PEM (opcional)</Label>
                 <Textarea
                   id="arca-key"
+                  label="Clave privada PEM (opcional)"
                   value={arcaPrivateKeyPem}
                   onChange={(event) => setArcaPrivateKeyPem(event.target.value)}
                   placeholder="-----BEGIN PRIVATE KEY----- ..."

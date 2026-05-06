@@ -17,7 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
@@ -138,29 +137,27 @@ export default function RolesPage() {
               </DialogHeader>
               <form onSubmit={handleCreateRole} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Nombre del Rol</Label>
                   <Input
                     id="name"
+                    label="Nombre del Rol"
                     placeholder="Ej: Gerente de Ventas"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                     disabled={isCreating}
-                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Descripción (opcional)</Label>
                   <Input
                     id="description"
+                    label="Descripción (opcional)"
                     placeholder="Ej: Gestiona ventas y clientes"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
                     disabled={isCreating}
-                    className="mt-1"
                   />
                 </div>
                 <div className="flex gap-2 pt-4">

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "./label";
 import {
   Select,
   SelectContent,
@@ -62,7 +61,7 @@ export function Pagination({
         </Button>
       </div>}
       <div className="flex items-center gap-2">
-        <Label className="text-sm">Filas por pagina</Label>
+        <p className="text-sm font-medium">Filas por pagina</p>
         <Select
           value={String(limit)}
           onValueChange={(value) => {
@@ -70,7 +69,7 @@ export function Pagination({
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[110px]">
+          <SelectTrigger className="w-[110px]" label="Filas por pagina">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormModal } from "@/components/ui/form-modal";
 import {
@@ -116,9 +115,8 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
     >
       <div className="space-y-4">
           <div>
-            <Label htmlFor="account">Cuenta *</Label>
             <Select value={accountId || undefined} onValueChange={setAccountId}>
-              <SelectTrigger>
+              <SelectTrigger label="Cuenta *">
                 <SelectValue placeholder="Selecciona una cuenta" />
               </SelectTrigger>
               <SelectContent>
@@ -137,35 +135,35 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
           </div>
 
           <div>
-            <Label>Tipo de Movimiento *</Label>
+            <p className="text-sm font-medium leading-none">Tipo de Movimiento *</p>
             <RadioGroup value={type} onValueChange={(value) => setType(value as "INCOME" | "EXPENSE")}>
               <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="INCOME" id="income" />
-                <Label htmlFor="income" className="flex items-center gap-2 cursor-pointer flex-1">
+                <label htmlFor="income" className="flex items-center gap-2 cursor-pointer flex-1">
                   <TrendingUp className="h-4 w-4 text-green-600" />
                   <div>
                     <p className="font-medium">Ingreso</p>
                     <p className="text-xs text-muted-foreground">Agregar dinero a la cuenta</p>
                   </div>
-                </Label>
+                </label>
               </div>
               <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-accent">
                 <RadioGroupItem value="EXPENSE" id="expense" />
-                <Label htmlFor="expense" className="flex items-center gap-2 cursor-pointer flex-1">
+                <label htmlFor="expense" className="flex items-center gap-2 cursor-pointer flex-1">
                   <TrendingDown className="h-4 w-4 text-red-600" />
                   <div>
                     <p className="font-medium">Egreso</p>
                     <p className="text-xs text-muted-foreground">Retirar dinero de la cuenta</p>
                   </div>
-                </Label>
+                </label>
               </div>
             </RadioGroup>
           </div>
 
           <div>
-            <Label htmlFor="amount">Monto *</Label>
             <Input
               id="amount"
+              label="Monto *"
               type="number"
               step="0.01"
               value={amount}
@@ -176,9 +174,9 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
           </div>
 
           <div>
-            <Label htmlFor="description">Descripción *</Label>
             <Input
               id="description"
+              label="Descripción *"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ej: Ajuste de balance, Corrección de error"
@@ -187,9 +185,9 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
           </div>
 
           <div>
-            <Label htmlFor="notes">Notas</Label>
             <Textarea
               id="notes"
+              label="Notas"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Notas adicionales (opcional)"

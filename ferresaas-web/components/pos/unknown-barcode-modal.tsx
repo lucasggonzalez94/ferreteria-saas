@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -309,9 +308,9 @@ export function UnknownBarcodeModal({
               <div className="grid grid-cols-2 gap-3">
                 {/* Nombre */}
                 <div className="col-span-2">
-                  <Label htmlFor="ub-name">Nombre *</Label>
                   <Input
                     id="ub-name"
+                    label="Nombre *"
                     value={form.name}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
@@ -323,9 +322,9 @@ export function UnknownBarcodeModal({
 
                 {/* Costo */}
                 <div>
-                  <Label htmlFor="ub-cost">Costo *</Label>
                   <Input
                     id="ub-cost"
+                    label="Costo *"
                     type="number"
                     step="0.01"
                     min="0"
@@ -339,9 +338,9 @@ export function UnknownBarcodeModal({
 
                 {/* Precio de venta */}
                 <div>
-                  <Label htmlFor="ub-price">Precio de venta *</Label>
                   <Input
                     id="ub-price"
+                    label="Precio de venta *"
                     type="number"
                     step="0.01"
                     min="0"
@@ -355,14 +354,13 @@ export function UnknownBarcodeModal({
 
                 {/* Categoría */}
                 <div>
-                  <Label htmlFor="ub-category">Categoría</Label>
                   <Select
                     value={form.categoryId}
                     onValueChange={(v) =>
                       setForm((f) => ({ ...f, categoryId: v }))
                     }
                   >
-                    <SelectTrigger id="ub-category">
+                    <SelectTrigger label="Categoría">
                       <SelectValue placeholder="Sin categoría" />
                     </SelectTrigger>
                     <SelectContent>
@@ -378,14 +376,13 @@ export function UnknownBarcodeModal({
 
                 {/* Unidad */}
                 <div>
-                  <Label htmlFor="ub-unit">Unidad *</Label>
                   <Select
                     value={form.unit}
                     onValueChange={(v) =>
                       setForm((f) => ({ ...f, unit: v as typeof form.unit }))
                     }
                   >
-                    <SelectTrigger id="ub-unit">
+                    <SelectTrigger label="Unidad *">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -399,9 +396,9 @@ export function UnknownBarcodeModal({
 
                 {/* IVA */}
                 <div>
-                  <Label htmlFor="ub-tax">IVA (%)</Label>
                   <Input
                     id="ub-tax"
+                    label="IVA (%)"
                     type="number"
                     step="0.01"
                     min="0"
@@ -415,9 +412,9 @@ export function UnknownBarcodeModal({
 
                 {/* Stock inicial */}
                 <div>
-                  <Label htmlFor="ub-stock">Stock inicial</Label>
                   <Input
                     id="ub-stock"
+                    label="Stock inicial"
                     type="number"
                     step={form.unit === "u" ? "1" : "0.01"}
                     min="0"

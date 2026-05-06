@@ -18,7 +18,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
@@ -273,9 +272,9 @@ export default function SuppliersPage() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Nombre *</Label>
                     <Input
                       id="name"
+                      label="Nombre *"
                       value={formData.name}
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
@@ -284,9 +283,9 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="cuit">CUIT</Label>
                     <Input
                       id="cuit"
+                      label="CUIT"
                       value={formData.cuit || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, cuit: e.target.value })
@@ -294,9 +293,9 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
+                      label="Email"
                       type="email"
                       value={formData.email || ""}
                       onChange={(e) =>
@@ -305,9 +304,9 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="phone">Teléfono</Label>
                     <Input
                       id="phone"
+                      label="Teléfono"
                       value={formData.phone || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
@@ -315,9 +314,9 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="address">Dirección</Label>
                     <Input
                       id="address"
+                      label="Dirección"
                       maxLength={500}
                       value={formData.address || ""}
                       onChange={(e) =>
@@ -326,7 +325,6 @@ export default function SuppliersPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="paymentTermDays">Plazo de Pago</Label>
                     <Select
                       value={String(formData.paymentTermDays ?? "")}
                       onValueChange={(value) =>
@@ -336,7 +334,7 @@ export default function SuppliersPage() {
                         })
                       }
                     >
-                      <SelectTrigger id="paymentTermDays">
+                      <SelectTrigger label="Plazo de Pago">
                         <SelectValue placeholder="Selecciona un plazo" />
                       </SelectTrigger>
                       <SelectContent>
@@ -350,9 +348,9 @@ export default function SuppliersPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="creditLimit">Límite de Crédito</Label>
                     <Input
                       id="creditLimit"
+                      label="Límite de Crédito"
                       type="number"
                       value={formData.creditLimit || ""}
                       onChange={(e) =>

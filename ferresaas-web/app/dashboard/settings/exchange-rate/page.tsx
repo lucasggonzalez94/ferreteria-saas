@@ -8,11 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, RefreshCw, DollarSign, AlertCircle } from "lucide-react";
-import Link from "next/link";
+import { RefreshCw, AlertCircle } from "lucide-react";
 import Header from "@/components/ui/header";
 import {
   Select,
@@ -188,7 +186,7 @@ export default function ExchangeRateConfigPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="usd-enabled">Permitir cobros y pagos en dólares</Label>
+                  <p className="text-sm font-medium leading-none">Permitir cobros y pagos en dólares</p>
                   <p className="text-sm text-muted-foreground">
                     Al desactivar, se ocultarán las opciones de USD en POS, compras y pagos
                   </p>
@@ -263,9 +261,8 @@ export default function ExchangeRateConfigPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="dollar-type">Cotización</Label>
                     <Select value={dollarType} onValueChange={setDollarType} disabled={ratesLoading || ratesError}>
-                      <SelectTrigger id="dollar-type">
+                      <SelectTrigger label="Cotización">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -311,9 +308,9 @@ export default function ExchangeRateConfigPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="margin">Margen (%)</Label>
                     <Input
                       id="margin"
+                      label="Margen (%)"
                       type="number"
                       step="0.01"
                       value={marginPercent}
@@ -351,7 +348,7 @@ export default function ExchangeRateConfigPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="auto-update">Actualizar automáticamente</Label>
+                    <p className="text-sm font-medium leading-none">Actualizar automáticamente</p>
                     <Switch
                       id="auto-update"
                       checked={autoUpdate}
@@ -361,9 +358,9 @@ export default function ExchangeRateConfigPage() {
 
                   {autoUpdate && (
                     <div className="space-y-2">
-                      <Label htmlFor="interval">Intervalo (minutos)</Label>
                       <Input
                         id="interval"
+                        label="Intervalo (minutos)"
                         type="number"
                         min="5"
                         max="1440"
@@ -388,7 +385,7 @@ export default function ExchangeRateConfigPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="use-manual">Usar cotización manual</Label>
+                    <p className="text-sm font-medium leading-none">Usar cotización manual</p>
                     <Switch
                       id="use-manual"
                       checked={useManualRate}
@@ -398,9 +395,9 @@ export default function ExchangeRateConfigPage() {
 
                   {useManualRate && (
                     <div className="space-y-2">
-                      <Label htmlFor="manual-rate">Valor (ARS por USD)</Label>
                       <Input
                         id="manual-rate"
+                        label="Valor (ARS por USD)"
                         type="number"
                         step="0.01"
                         value={manualRate}

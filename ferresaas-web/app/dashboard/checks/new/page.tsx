@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -126,9 +125,8 @@ export default function NewCheckPage() {
             }}
           >
             <div>
-              <Label htmlFor="accountId">Cuenta bancaria *</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger id="accountId">
+                <SelectTrigger label="Cuenta bancaria *">
                   <SelectValue placeholder="Selecciona cuenta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -143,10 +141,10 @@ export default function NewCheckPage() {
             </div>
 
             <div>
-              <Label htmlFor="checkNumber">Numero de cheque *</Label>
               <Input
                 id="checkNumber"
                 value={checkNumber}
+                label="Numero de cheque *"
                 onChange={(event) => setCheckNumber(event.target.value)}
                 placeholder="Ej: 00012345"
                 maxLength={100}
@@ -155,10 +153,10 @@ export default function NewCheckPage() {
             </div>
 
             <div>
-              <Label htmlFor="amount">Monto *</Label>
               <Input
                 id="amount"
                 value={amount}
+                label="Monto *"
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="0.00"
                 inputMode="decimal"
@@ -167,9 +165,8 @@ export default function NewCheckPage() {
             </div>
 
             <div>
-              <Label htmlFor="currency">Moneda *</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger id="currency">
+                <SelectTrigger label="Moneda *">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -180,18 +177,18 @@ export default function NewCheckPage() {
             </div>
 
             <div>
-              <Label htmlFor="dueDate">Vencimiento *</Label>
               <DatePicker
                 value={dueDate}
+                label="Vencimiento *"
                 onChange={setDueDate}
                 placeholder="DD/MM/YYYY"
               />
             </div>
 
             <div>
-              <Label htmlFor="recipientName">Librador / Tercero *</Label>
               <Input
                 id="recipientName"
+                label="Librador / Tercero *"
                 value={recipientName}
                 onChange={(event) => setRecipientName(event.target.value)}
                 placeholder="Nombre del librador o tercero"
@@ -201,9 +198,9 @@ export default function NewCheckPage() {
             </div>
 
             <div className="md:col-span-2">
-              <Label htmlFor="notes">Observaciones</Label>
               <Textarea
                 id="notes"
+                label="Observaciones"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 placeholder="Notas operativas del cheque"

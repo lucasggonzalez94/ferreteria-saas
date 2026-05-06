@@ -23,7 +23,6 @@ import {
   CreditCard,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Select,
@@ -406,9 +405,9 @@ onSuccess: (data: any) => {
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="openingAmount">Monto Inicial (ARS) *</Label>
                   <Input
                     id="openingAmount"
+                    label="Monto Inicial (ARS) *"
                     type="number"
                     step="0.01"
                     value={openingAmount}
@@ -435,7 +434,6 @@ onSuccess: (data: any) => {
 
                 {usdEnabled && (
                 <div>
-                  <Label htmlFor="openingAmountUSD">Monto Inicial (USD)</Label>
                   {!suggestedOpening?.hasUSDAccount ? (
                     <div className="mt-2 space-y-2">
                       <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
@@ -455,6 +453,7 @@ onSuccess: (data: any) => {
                     <>
                       <Input
                         id="openingAmountUSD"
+                        label="Monto Inicial (USD)"
                         type="number"
                         step="0.01"
                         value={openingAmountUSD}
@@ -648,12 +647,11 @@ onSuccess: (data: any) => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="movementType">Tipo</Label>
                         <Select
                           value={movementType}
                           onValueChange={(value: any) => setMovementType(value)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger label="Tipo">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -664,9 +662,9 @@ onSuccess: (data: any) => {
                       </div>
 
                       <div>
-                        <Label htmlFor="movementAmount">Monto</Label>
                         <Input
                           id="movementAmount"
+                          label="Monto"
                           type="number"
                           step="0.01"
                           value={movementAmount}
@@ -676,9 +674,9 @@ onSuccess: (data: any) => {
                       </div>
 
                       <div>
-                        <Label htmlFor="movementReason">Motivo</Label>
                         <Input
                           id="movementReason"
+                          label="Motivo"
                           type="text"
                           value={movementReason}
                           onChange={(e) => setMovementReason(e.target.value)}
@@ -787,9 +785,9 @@ onSuccess: (data: any) => {
                   )}
 
                   <div>
-                    <Label htmlFor="closingAmount">Monto Final (ARS) *</Label>
                     <Input
                       id="closingAmount"
+                      label="Monto Final (ARS) *"
                       type="number"
                       step="0.01"
                       value={closingAmount}
@@ -804,11 +802,9 @@ onSuccess: (data: any) => {
 
                   {usdEnabled && summary && summary.expectedAmountUSD > 0 && (
 <div>
-                    <Label htmlFor="closingAmountUSD">
-                      Monto Final (USD)
-                    </Label>
                     <Input
                       id="closingAmountUSD"
+                      label="Monto Final (USD)"
                       type="number"
                       step="0.01"
                       value={closingAmountUSD}

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormModal } from "@/components/ui/form-modal";
 import {
@@ -105,9 +104,8 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
     >
       <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
-            <Label htmlFor="type">Tipo de Cuenta *</Label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger>
+              <SelectTrigger label="Tipo de Cuenta *">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -120,9 +118,9 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
           </div>
 
           <div>
-            <Label htmlFor="name">Nombre *</Label>
             <Input
               id="name"
+              label="Nombre *"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Caja Principal, Banco Nación, MercadoPago"
@@ -131,9 +129,9 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
           </div>
 
           <div>
-            <Label htmlFor="description">Descripción</Label>
             <Textarea
               id="description"
+              label="Descripción"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descripción opcional de la cuenta"
@@ -143,9 +141,8 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="currency">Moneda</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
+                <SelectTrigger label="Moneda">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -156,9 +153,9 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
             </div>
 
             <div>
-              <Label htmlFor="initialBalance">Balance Inicial</Label>
               <Input
                 id="initialBalance"
+                label="Balance Inicial"
                 type="number"
                 step="0.01"
                 value={initialBalance}
@@ -174,27 +171,27 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
               checked={isDefault}
               onCheckedChange={(checked) => setIsDefault(checked as boolean)}
             />
-            <Label htmlFor="isDefault" className="cursor-pointer">
+            <label htmlFor="isDefault" className="cursor-pointer text-sm font-medium leading-none">
               Marcar como cuenta por defecto para este tipo
-            </Label>
+            </label>
           </div>
 
           {type === "BANK" && (
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-medium">Información Bancaria</h3>
               <div>
-                <Label htmlFor="bankName">Nombre del Banco</Label>
                 <Input
                   id="bankName"
+                  label="Nombre del Banco"
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
                   placeholder="Ej: Banco Nación, Banco Galicia"
                 />
               </div>
               <div>
-                <Label htmlFor="accountNumber">Número de Cuenta</Label>
                 <Input
                   id="accountNumber"
+                  label="Número de Cuenta"
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="Ej: 1234567890"
@@ -207,9 +204,8 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-medium">Información de Billetera Virtual</h3>
               <div>
-                <Label htmlFor="walletProvider">Proveedor</Label>
                 <Select value={walletProvider || undefined} onValueChange={setWalletProvider}>
-                  <SelectTrigger>
+                  <SelectTrigger label="Proveedor">
                     <SelectValue placeholder="Selecciona un proveedor" />
                   </SelectTrigger>
                   <SelectContent>

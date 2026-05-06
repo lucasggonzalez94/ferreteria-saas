@@ -9,11 +9,10 @@ import type { ExchangeRateConfig } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ArrowLeft, Plus, Trash2, PackagePlus, AlertCircle } from "lucide-react";
+import { Plus, Trash2, PackagePlus, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { QuickCreateProductModal } from "@/components/quick-create-product-modal";
 import { toast } from "sonner";
@@ -30,7 +29,6 @@ import { useExchangeRateWithFallback } from "@/lib/hooks/useExchangeRateWithFall
 import { ManualExchangeRateModal } from "@/components/exchange-rate/manual-exchange-rate-modal";
 import { StaleRateBanner } from "@/components/exchange-rate/stale-rate-banner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AttachmentManager } from "@/components/purchases/attachment-manager";
 import type { Attachment } from "@/components/purchases/attachment-manager";
 import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
 
@@ -432,9 +430,8 @@ if (!selectedProduct || !quantity || !unitCost) {
                   </Button>
                 </div>
               )}
-              <Label htmlFor="supplier">Selecciona un proveedor *</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger>
+                <SelectTrigger label="Selecciona un proveedor *">
                   <SelectValue placeholder="Selecciona un proveedor" />
                 </SelectTrigger>
                 <SelectContent>
@@ -463,12 +460,11 @@ if (!selectedProduct || !quantity || !unitCost) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="currency">Moneda *</Label>
                 <Select
                   value={currency}
                   onValueChange={(value) => setCurrency(value as "ARS" | "USD")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Moneda *">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -496,9 +492,9 @@ if (!selectedProduct || !quantity || !unitCost) {
               </div>
 
               <div>
-                <Label htmlFor="invoiceNumber">Número de Factura</Label>
                 <Input
                   id="invoiceNumber"
+                  label="Número de Factura"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                   placeholder="Ej: FAC-001"
@@ -506,7 +502,7 @@ if (!selectedProduct || !quantity || !unitCost) {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="dueDate">Fecha de Vencimiento (opcional)</Label>
+                  <p className="text-sm font-medium leading-none">Fecha de Vencimiento (opcional)</p>
                   {dueDate && (
                       <button
                         type="button"
@@ -518,6 +514,7 @@ if (!selectedProduct || !quantity || !unitCost) {
                   )}
                 </div>
                 <DatePicker
+                  label="Fecha de Vencimiento (opcional)"
                   value={dueDate}
                   onChange={(value) => setDueDate(value)}
                   placeholder="Selecciona fecha de vencimiento"
@@ -527,9 +524,9 @@ if (!selectedProduct || !quantity || !unitCost) {
                 </p>
               </div>
               <div>
-                <Label htmlFor="notes">Notas</Label>
                 <Textarea
                   id="notes"
+                  label="Notas"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Notas adicionales sobre la compra"
@@ -564,7 +561,7 @@ if (!selectedProduct || !quantity || !unitCost) {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div className="relative z-30">
                   <div className="flex items-center justify-between mb-1">
-                    <Label>Producto *</Label>
+                    <p className="text-sm font-medium leading-none">Producto *</p>
                     <Button
                       type="button"
                       variant="ghost"
@@ -598,9 +595,9 @@ if (!selectedProduct || !quantity || !unitCost) {
                 </div>
 
                 <div>
-                  <Label htmlFor="quantity">Cantidad *</Label>
                   <Input
                     id="quantity"
+                    label="Cantidad *"
                     type="number"
                     step="0.01"
                     value={quantity}
@@ -610,9 +607,9 @@ if (!selectedProduct || !quantity || !unitCost) {
                 </div>
 
                 <div>
-                  <Label htmlFor="unitCost">Precio Unit. *</Label>
                   <Input
                     id="unitCost"
+                    label="Precio Unit. *"
                     type="number"
                     step="0.01"
                     value={unitCost}
@@ -622,9 +619,9 @@ if (!selectedProduct || !quantity || !unitCost) {
                 </div>
 
                 <div>
-                  <Label htmlFor="taxRate">IVA %</Label>
                   <Input
                     id="taxRate"
+                    label="IVA %"
                     type="number"
                     step="0.01"
                     value={taxRate}
@@ -836,9 +833,9 @@ if (!selectedProduct || !quantity || !unitCost) {
 
               <div className="border-t pt-4 space-y-4">
                 <div>
-                  <Label htmlFor="amountPaid">Monto Pagado</Label>
                   <Input
                     id="amountPaid"
+                    label="Monto Pagado"
                     type="number"
                     step="0.01"
                     value={amountPaid}
@@ -858,7 +855,6 @@ if (!selectedProduct || !quantity || !unitCost) {
                 {amountPaid && parseNumericInput(amountPaid) > 0 && (
                   <>
                     <div>
-                      <Label htmlFor="paymentMethod">Método de Pago</Label>
                       <Select
                         value={paymentMethod}
                         onValueChange={(value: string) => {
@@ -870,7 +866,7 @@ if (!selectedProduct || !quantity || !unitCost) {
                           }
                         }}
                       >
-                        <SelectTrigger id="paymentMethod" className="mt-1">
+                        <SelectTrigger label="Método de Pago" className="mt-1">
                           <SelectValue placeholder="Selecciona método" />
                         </SelectTrigger>
                         <SelectContent>
@@ -887,12 +883,11 @@ if (!selectedProduct || !quantity || !unitCost) {
                     {paymentMethod === "CHECK" && (
                       <>
                         <div>
-                          <Label htmlFor="checkAccountId">Cuenta Bancaria *</Label>
                           <Select
                             value={checkAccountId}
                             onValueChange={setCheckAccountId}
                           >
-                            <SelectTrigger id="checkAccountId" className="mt-1">
+                            <SelectTrigger label="Cuenta Bancaria *" className="mt-1">
                               <SelectValue placeholder="Selecciona cuenta bancaria" />
                             </SelectTrigger>
                             <SelectContent>
@@ -918,9 +913,9 @@ if (!selectedProduct || !quantity || !unitCost) {
                         </div>
 
                         <div>
-                          <Label htmlFor="checkNumber">Número de Cheque *</Label>
                           <Input
                             id="checkNumber"
+                            label="Número de Cheque *"
                             value={checkNumber}
                             onChange={(e) => setCheckNumber(e.target.value)}
                             placeholder="Ej: 001234"

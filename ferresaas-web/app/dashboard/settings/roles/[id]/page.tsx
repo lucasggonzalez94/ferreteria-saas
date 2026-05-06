@@ -6,7 +6,6 @@ import { useRoles } from "@/lib/hooks/useRoles";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -180,27 +179,25 @@ export default function RoleDetailPage() {
             {editing ? (
               <form onSubmit={handleSave} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Nombre del Rol</Label>
                   <Input
                     id="name"
+                    label="Nombre del Rol"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                     disabled={isSaving}
-                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Descripción</Label>
                   <Input
                     id="description"
+                    label="Descripción"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
                     disabled={isSaving}
-                    className="mt-1"
                   />
                 </div>
                 <div className="flex gap-2 pt-4">
@@ -227,7 +224,7 @@ export default function RoleDetailPage() {
             ) : (
               <>
                 <div>
-                  <Label className="text-muted-foreground">Nombre</Label>
+                  <p className="text-sm font-medium text-muted-foreground">Nombre</p>
                   <div className="flex items-center gap-2 mt-1">
                     <p className="font-medium">{role.name}</p>
                     {role.isSystem && (
@@ -236,18 +233,18 @@ export default function RoleDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Descripción</Label>
+                  <p className="text-sm font-medium text-muted-foreground">Descripción</p>
                   <p className="font-medium mt-1">
                     {role.description || "Sin descripción"}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4">
                   <div>
-                    <Label className="text-muted-foreground">Permisos</Label>
+                    <p className="text-sm font-medium text-muted-foreground">Permisos</p>
                     <p className="font-medium mt-1">{role.permissionCount}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Usuarios</Label>
+                    <p className="text-sm font-medium text-muted-foreground">Usuarios</p>
                     <p className="font-medium mt-1">{role.userCount}</p>
                   </div>
                 </div>

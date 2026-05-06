@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useRouter } from "next/navigation";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Header from "@/components/ui/header";
 import {
@@ -316,11 +314,9 @@ export default function PriceSuggestionsPage() {
                 </p>
               )}
               <div>
-                <Label htmlFor="rejectionReason">
-                  Motivo del rechazo (opcional)
-                </Label>
                 <Input
                   id="rejectionReason"
+                  label="Motivo del rechazo (opcional)"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Ej: Precio no competitivo en el mercado"

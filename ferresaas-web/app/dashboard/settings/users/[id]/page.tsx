@@ -8,7 +8,6 @@ import { useRoles } from "@/lib/hooks/useRoles";
 import { UserRole } from "@/types/rbac";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -222,36 +221,34 @@ export default function UserDetailPage() {
             {editing ? (
               <form onSubmit={handleSaveInfo} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    label="Email"
                     value={user.email}
                     disabled
-                    className="mt-1 bg-slate-100"
+                    className="bg-slate-100"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="firstName">Nombre</Label>
                   <Input
                     id="firstName"
+                    label="Nombre"
                     value={formData.firstName}
                     onChange={(e) =>
                       setFormData({ ...formData, firstName: e.target.value })
                     }
                     disabled={isSaving}
-                    className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Apellido</Label>
                   <Input
                     id="lastName"
+                    label="Apellido"
                     value={formData.lastName}
                     onChange={(e) =>
                       setFormData({ ...formData, lastName: e.target.value })
                     }
                     disabled={isSaving}
-                    className="mt-1"
                   />
                 </div>
                 <div className="flex gap-2 pt-4">
@@ -278,27 +275,27 @@ export default function UserDetailPage() {
             ) : (
               <>
                 <div>
-                  <Label className="text-muted-foreground">Email</Label>
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <p className="font-medium">{user.email}</p>
                   </div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Nombre</Label>
+                  <p className="text-sm font-medium text-muted-foreground">Nombre</p>
                   <p className="font-medium mt-1">
                     {user.firstName || "-"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Apellido</Label>
+                  <p className="text-sm font-medium text-muted-foreground">Apellido</p>
                   <p className="font-medium mt-1">
                     {user.lastName || "-"}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4">
                   <div>
-                    <Label className="text-muted-foreground">Estado</Label>
+                    <p className="text-sm font-medium text-muted-foreground">Estado</p>
                     <p className="font-medium mt-1">
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium ${
@@ -312,7 +309,7 @@ export default function UserDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Roles</Label>
+                    <p className="text-sm font-medium text-muted-foreground">Roles</p>
                     <p className="font-medium mt-1">{user.roleCount || 0}</p>
                   </div>
                 </div>

@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -253,14 +252,13 @@ export default function PurchasesPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="space-y-2">
-                <Label>Proveedor</Label>
                 <Select
                   value={selectedSupplierId}
                   onValueChange={(value) => {
                     handleSupplierChange(value);
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Proveedor">
                     <SelectValue placeholder="Todos los proveedores" />
                   </SelectTrigger>
                   <SelectContent>
@@ -275,12 +273,11 @@ export default function PurchasesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Periodo</Label>
                 <Select
                   value={datePreset}
                   onValueChange={(value) => handleDatePresetChange(value as DatePreset)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Periodo">
                     <SelectValue placeholder="Periodo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -294,8 +291,8 @@ export default function PurchasesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Desde</Label>
                 <DatePicker
+                  label="Desde"
                   value={startDate}
                   onChange={(value) => {
                     setStartDate(value);
@@ -307,8 +304,8 @@ export default function PurchasesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Hasta</Label>
                 <DatePicker
+                  label="Hasta"
                   value={endDate}
                   onChange={(value) => {
                     setEndDate(value);

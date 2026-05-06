@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -228,7 +227,7 @@ export function RefundModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Items de la venta</Label>
+            <p className="text-sm font-medium leading-none">Items de la venta</p>
             <div className="space-y-2 rounded-md border p-3">
               {sale.items.map((item) => {
                 const selected = items.find((row) => row.saleItemId === item.id);
@@ -264,7 +263,7 @@ export function RefundModal({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Metodos de reintegro</Label>
+              <p className="text-sm font-medium leading-none">Metodos de reintegro</p>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -373,9 +372,9 @@ export function RefundModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="refund-reason">Motivo</Label>
             <Input
               id="refund-reason"
+              label="Motivo"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder="Ej: Producto defectuoso"
@@ -383,9 +382,9 @@ export function RefundModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="refund-notes">Notas (opcional)</Label>
             <Textarea
               id="refund-notes"
+              label="Notas (opcional)"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={2}

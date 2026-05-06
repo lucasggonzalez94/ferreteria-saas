@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import { FormModal } from "@/components/ui/form-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -174,9 +173,9 @@ export function QuickCreateProductModal({
     >
       <div className="space-y-4 max-h-[60vh] overflow-y-auto">
         <div>
-          <Label htmlFor="name">Nombre *</Label>
           <Input
             id="name"
+            label="Nombre *"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Ej: Tornillo 1/4"
@@ -192,9 +191,9 @@ export function QuickCreateProductModal({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="barcode">Código de Barras</Label>
             <Input
               id="barcode"
+              label="Código de Barras"
               value={formData.barcode}
               onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
               placeholder="7798123456789"
@@ -202,14 +201,13 @@ export function QuickCreateProductModal({
           </div>
 
           <div>
-            <Label htmlFor="categoryId">Categoría</Label>
             <Select
               value={formData.categoryId}
               onValueChange={(value) =>
                 setFormData({ ...formData, categoryId: value })
               }
             >
-              <SelectTrigger id="categoryId" className="mt-1">
+              <SelectTrigger label="Categoría" className="mt-1">
                 <SelectValue placeholder="Sin categoría" />
               </SelectTrigger>
               <SelectContent>
@@ -225,26 +223,24 @@ export function QuickCreateProductModal({
         </div>
 
         <div>
-          <Label htmlFor="description">Descripción</Label>
           <Textarea
             id="description"
+            label="Descripción"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="Descripción del producto"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="unit">Unidad *</Label>
             <Select
               value={formData.unit}
               onValueChange={(value) =>
                 setFormData({ ...formData, unit: value })
               }
             >
-              <SelectTrigger id="unit" className="mt-1">
+              <SelectTrigger label="Unidad *" className="mt-1">
                 <SelectValue placeholder="Selecciona unidad" />
               </SelectTrigger>
               <SelectContent>
@@ -257,9 +253,9 @@ export function QuickCreateProductModal({
           </div>
 
           <div>
-            <Label htmlFor="minStock">Stock Mínimo</Label>
             <Input
               id="minStock"
+              label="Stock Mínimo"
               type="number"
               step="0.01"
               value={formData.minStock}
@@ -271,9 +267,9 @@ export function QuickCreateProductModal({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="cost">Costo *</Label>
             <Input
               id="cost"
+              label="Costo *"
               type="number"
               step="0.01"
               value={formData.cost}
@@ -284,9 +280,9 @@ export function QuickCreateProductModal({
           </div>
 
           <div>
-            <Label htmlFor="price">Precio de Venta *</Label>
             <Input
               id="price"
+              label="Precio de Venta *"
               type="number"
               step="0.01"
               value={formData.price}
@@ -299,9 +295,9 @@ export function QuickCreateProductModal({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="taxRate">IVA (%)</Label>
             <Input
               id="taxRate"
+              label="IVA (%)"
               type="number"
               step="0.01"
               value={formData.taxRate}
@@ -311,9 +307,9 @@ export function QuickCreateProductModal({
           </div>
 
           <div>
-            <Label htmlFor="marginPercent">Margen (%)</Label>
             <Input
               id="marginPercent"
+              label="Margen (%)"
               type="number"
               step="0.01"
               value={formData.marginPercent}
@@ -326,7 +322,7 @@ export function QuickCreateProductModal({
         <div>
           <div className="flex items-end gap-2">
             <div className="flex-1">
-              <Label>Precio Sugerido</Label>
+              <p className="text-sm font-medium leading-none">Precio Sugerido</p>
               <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
                 {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Calcular primero"}
               </div>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Clock } from "lucide-react";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -82,9 +81,9 @@ export function ManualExchangeRateModal({
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <Label htmlFor="use-last" className="cursor-pointer font-medium">
+                  <label htmlFor="use-last" className="cursor-pointer font-medium text-sm">
                     Usar última cotización conocida
-                  </Label>
+                  </label>
                   <div className="mt-2 p-3 bg-muted rounded-lg space-y-1">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tipo:</span>
@@ -115,9 +114,9 @@ export function ManualExchangeRateModal({
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <Label htmlFor="use-manual" className="cursor-pointer font-medium">
+                  <label htmlFor="use-manual" className="cursor-pointer font-medium text-sm">
                     Ingresar cotización manualmente
-                  </Label>
+                  </label>
                   {selectedOption === "manual" && (
                     <div className="mt-2 space-y-2">
                       <Input
@@ -148,9 +147,9 @@ export function ManualExchangeRateModal({
               </Alert>
 
               <div className="space-y-2">
-                <Label htmlFor="manual-rate-only">Cotización (ARS por USD)</Label>
                 <Input
                   id="manual-rate-only"
+                  label="Cotización (ARS por USD)"
                   type="number"
                   step="0.01"
                   placeholder="Ej: 1050.00"

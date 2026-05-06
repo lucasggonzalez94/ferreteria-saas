@@ -35,7 +35,6 @@ import {
   getDatePresetRange,
   DatePreset,
 } from "@/lib/date-filters";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -245,9 +244,8 @@ export default function InventoryPage() {
           <TabsContent value="movements">
             <div className="mb-4 flex flex-wrap gap-4 items-end">
               <div>
-                <Label className="text-xs">Periodo</Label>
                 <Select value={datePreset} onValueChange={handleDatePresetChange}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger label="Periodo" className="w-[180px]">
                     <SelectValue placeholder="Periodo" />
                   </SelectTrigger>
                   <SelectContent>

@@ -34,7 +34,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Pagination } from "@/components/ui/pagination";
 import { EntityAutocomplete } from "@/components/shared/entity-autocomplete";
@@ -369,7 +368,6 @@ export default function PayablesPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="status">Estado</Label>
                 <Select
                   value={status}
                   onValueChange={(value) => {
@@ -377,7 +375,7 @@ export default function PayablesPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger id="status" className="mt-1">
+                  <SelectTrigger label="Estado" className="mt-1">
                     <SelectValue placeholder="Todos los estados" />
                   </SelectTrigger>
                   <SelectContent>
@@ -391,8 +389,8 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="supplier">Proveedor</Label>
-                <div className="mt-1">
+                <p className="text-sm font-medium leading-none">Proveedor</p>
+                <div className="mt-2">
                   <EntityAutocomplete
                     value={selectedSupplier}
                     onChange={(supplier) => {
@@ -413,9 +411,9 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="search">Buscar en cuentas</Label>
                 <Input
                   id="search"
+                  label="Buscar en cuentas"
                   placeholder="N° factura, referencia..."
                   value={search}
                   onChange={(e) => {
@@ -426,8 +424,8 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="dueDateFrom">Vencimiento Desde</Label>
                 <DatePicker
+                  label="Vencimiento Desde"
                   value={dueDateFrom}
                   onChange={(value) => {
                     setDueDateFrom(value);
@@ -438,8 +436,8 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="dueDateTo">Vencimiento Hasta</Label>
                 <DatePicker
+                  label="Vencimiento Hasta"
                   value={dueDateTo}
                   onChange={(value) => {
                     setDueDateTo(value);
@@ -450,9 +448,9 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="minAmount">Monto Mínimo</Label>
                 <Input
                   id="minAmount"
+                  label="Monto Mínimo"
                   type="number"
                   placeholder="0.00"
                   step="0.01"
@@ -465,9 +463,9 @@ export default function PayablesPage() {
               </div>
 
               <div>
-                <Label htmlFor="maxAmount">Monto Máximo</Label>
                 <Input
                   id="maxAmount"
+                  label="Monto Máximo"
                   type="number"
                   placeholder="0.00"
                   step="0.01"
@@ -635,11 +633,9 @@ export default function PayablesPage() {
               className="space-y-4"
             >
               <div>
-                <Label htmlFor="amount">
-                  Monto a Pagar *
-                </Label>
                 <Input
                   id="amount"
+                  label="Monto a Pagar *"
                   type="number"
                   step="0.01"
                   value={paymentAmount}
@@ -655,14 +651,11 @@ export default function PayablesPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="method">
-                  Método de Pago *
-                </Label>
                 <Select
                   value={paymentMethod}
                   onValueChange={setPaymentMethod}
                 >
-                  <SelectTrigger id="method" className="mt-1">
+                  <SelectTrigger label="Método de Pago *" className="mt-1">
                     <SelectValue placeholder="Selecciona método" />
                   </SelectTrigger>
                   <SelectContent>
@@ -674,11 +667,9 @@ export default function PayablesPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="reference">
-                  Referencia
-                </Label>
                 <Input
                   id="reference"
+                  label="Referencia"
                   placeholder="Ej: Número de cheque, referencia de transferencia"
                   value={paymentReference}
                   onChange={(e) =>
@@ -689,14 +680,11 @@ export default function PayablesPage() {
               {paymentMethod === "CHECK" && (
                 <>
                   <div>
-                    <Label htmlFor="checkAccountId">
-                      Cuenta bancaria *
-                    </Label>
                     <Select
                       value={checkAccountId}
                       onValueChange={setCheckAccountId}
                     >
-                      <SelectTrigger id="checkAccountId" className="mt-1">
+                      <SelectTrigger label="Cuenta bancaria *" className="mt-1">
                         <SelectValue placeholder="Selecciona cuenta bancaria" />
                       </SelectTrigger>
                       <SelectContent>
@@ -710,11 +698,9 @@ export default function PayablesPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="checkNumber">
-                      Numero de cheque *
-                    </Label>
                     <Input
                       id="checkNumber"
+                      label="Numero de cheque *"
                       value={checkNumber}
                       onChange={(e) => setCheckNumber(e.target.value)}
                       placeholder="Ej: 00012345"

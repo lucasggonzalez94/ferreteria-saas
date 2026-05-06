@@ -16,7 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -255,7 +254,6 @@ export default function BusinessSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="logo">Logo del Negocio</Label>
                 <div className="flex items-center gap-4">
                   <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50">
                     {logoPreview ? (
@@ -274,6 +272,7 @@ export default function BusinessSettingsPage() {
                   <div className="grid w-full max-w-sm items-center gap-1.5">
                     <Input
                       id="logo"
+                      label="Logo del Negocio"
                       type="file"
                       accept="image/*"
                       onChange={handleLogoChange}
@@ -288,9 +287,9 @@ export default function BusinessSettingsPage() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nombre de Fantasía</Label>
                   <Input
                     id="name"
+                    label="Nombre de Fantasía"
                     value={formData.name}
                     onChange={(event) =>
                       setFormData((currentFormData) => ({
@@ -303,9 +302,9 @@ export default function BusinessSettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cuit">CUIT</Label>
                   <Input
                     id="cuit"
+                    label="CUIT"
                     value={formData.cuit}
                     onChange={(event) =>
                       setFormData((currentFormData) => ({
@@ -319,10 +318,10 @@ export default function BusinessSettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Dirección Comercial</Label>
+<div className="space-y-2">
                 <Input
                   id="address"
+                  label="Dirección Comercial"
                   value={formData.address}
                   onChange={(event) =>
                     setFormData((currentFormData) => ({
@@ -336,9 +335,9 @@ export default function BusinessSettingsPage() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
                   <Input
                     id="phone"
+                    label="Teléfono"
                     value={formData.phone}
                     onChange={(event) =>
                       setFormData((currentFormData) => ({
@@ -350,9 +349,40 @@ export default function BusinessSettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email de Contacto</Label>
                   <Input
                     id="email"
+                    label="Email de Contacto"
+                    value={formData.email}
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        email: event.target.value,
+                      }))
+                    }
+                    disabled={!canUpdateSettings || isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Input
+                    id="phone"
+                    label="Teléfono"
+                    value={formData.phone}
+                    onChange={(event) =>
+                      setFormData((currentFormData) => ({
+                        ...currentFormData,
+                        phone: event.target.value,
+                      }))
+                    }
+                    disabled={!canUpdateSettings || isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    id="email"
+                    label="Email de Contacto"
                     type="email"
                     value={formData.email}
                     onChange={(event) =>
@@ -454,13 +484,12 @@ function TimezoneSection({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="timezone">Zona Horaria</Label>
           <Select
             value={selectedTimezone}
             onValueChange={setSelectedTimezone}
             disabled={!canUpdateBusiness}
           >
-            <SelectTrigger className="w-full md:w-96">
+            <SelectTrigger label="Zona Horaria" className="w-full md:w-96">
               <SelectValue placeholder="Selecciona una zona horaria" />
             </SelectTrigger>
             <SelectContent>

@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -255,9 +254,8 @@ export default function ProductsPage() {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
               <div>
-                <Label className="text-sm text-muted-foreground">Categoría</Label>
                 <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setPage(1); }}>
-                  <SelectTrigger>
+                  <SelectTrigger label="Categoría">
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,9 +270,8 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <Label className="text-sm text-muted-foreground">Estado</Label>
                 <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
-                  <SelectTrigger>
+                  <SelectTrigger label="Estado">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -293,14 +290,14 @@ export default function ProductsPage() {
                   onChange={(e) => { setLowStockOnly(e.target.checked); setPage(1); }}
                   className="h-4 w-4"
                 />
-                <Label htmlFor="lowStock" className="text-sm text-muted-foreground">
+                <label htmlFor="lowStock" className="text-sm text-muted-foreground">
                   Sólo bajo stock
-                </Label>
+                </label>
               </div>
 
               <div>
-                <Label className="text-sm text-muted-foreground">Precio mín</Label>
                 <Input
+                  label="Precio mín"
                   type="number"
                   min="0"
                   step="0.01"
@@ -310,8 +307,8 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <Label className="text-sm text-muted-foreground">Precio máx</Label>
                 <Input
+                  label="Precio máx"
                   type="number"
                   min="0"
                   step="0.01"
@@ -321,9 +318,8 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <Label className="text-sm text-muted-foreground">Orden</Label>
                 <Select value={sort} onValueChange={(value) => { setSort(value); setPage(1); }}>
-                  <SelectTrigger>
+                  <SelectTrigger label="Orden">
                     <SelectValue placeholder="Nombre A-Z" />
                   </SelectTrigger>
                   <SelectContent>

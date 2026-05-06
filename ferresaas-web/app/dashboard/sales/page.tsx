@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -226,7 +225,6 @@ export default function SalesPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
-                <Label>Estado de venta</Label>
                 <Select
                   value={status}
                   onValueChange={(value) => {
@@ -234,7 +232,7 @@ export default function SalesPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Estado de venta">
                     <SelectValue placeholder="Estado" />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,7 +245,6 @@ export default function SalesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Estado de factura</Label>
                 <Select
                   value={invoiceStatus}
                   onValueChange={(value) => {
@@ -255,7 +252,7 @@ export default function SalesPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Estado de factura">
                     <SelectValue placeholder="Factura" />
                   </SelectTrigger>
                   <SelectContent>
@@ -268,12 +265,11 @@ export default function SalesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Periodo</Label>
                 <Select
                   value={datePreset}
                   onValueChange={(value) => handleDatePresetChange(value as DatePreset)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger label="Periodo">
                     <SelectValue placeholder="Periodo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -286,8 +282,8 @@ export default function SalesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Desde</Label>
                 <DatePicker
+                  label="Desde"
                   value={startDate}
                   onChange={(value) => {
                     setDatePreset("custom");
@@ -299,8 +295,8 @@ export default function SalesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Hasta</Label>
                 <DatePicker
+                  label="Hasta"
                   value={endDate}
                   onChange={(value) => {
                     setDatePreset("custom");

@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -148,14 +147,13 @@ export default function EditCustomerPage({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label>Tipo</Label>
                   <Select
                     value={formData.type}
                     onValueChange={(value) =>
                       setFormData({ ...formData, type: value as "PERSON" | "COMPANY" })
                     }
                   >
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger label="Tipo">
                       <SelectValue placeholder="Selecciona tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -168,9 +166,9 @@ export default function EditCustomerPage({
                 {formData.type === "PERSON" ? (
                   <>
                     <div>
-                      <Label htmlFor="firstName">Nombre *</Label>
                       <Input
                         id="firstName"
+                        label="Nombre *"
                         value={formData.firstName}
                         onChange={(e) =>
                           setFormData({
@@ -182,9 +180,9 @@ export default function EditCustomerPage({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="lastName">Apellido *</Label>
                       <Input
                         id="lastName"
+                        label="Apellido *"
                         value={formData.lastName}
                         onChange={(e) =>
                           setFormData({
@@ -198,9 +196,9 @@ export default function EditCustomerPage({
                   </>
                 ) : (
                   <div className="col-span-2">
-                    <Label htmlFor="companyName">Razón Social *</Label>
                     <Input
                       id="companyName"
+                      label="Razón Social *"
                       value={formData.companyName}
                       onChange={(e) =>
                         setFormData({
@@ -214,9 +212,9 @@ export default function EditCustomerPage({
                 )}
 
                 <div>
-                  <Label htmlFor="cuit">CUIT/CUIL</Label>
                   <Input
                     id="cuit"
+                    label="CUIT/CUIL"
                     value={formData.cuit}
                     onChange={(e) =>
                       setFormData({ ...formData, cuit: e.target.value })
@@ -224,14 +222,13 @@ export default function EditCustomerPage({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="taxCondition">Condición IVA</Label>
                   <Select
                     value={formData.taxCondition}
                     onValueChange={(value) =>
                       setFormData({ ...formData, taxCondition: value })
                     }
                   >
-                    <SelectTrigger id="taxCondition" className="mt-1">
+                    <SelectTrigger label="Condición IVA">
                       <SelectValue placeholder="Selecciona condición IVA" />
                     </SelectTrigger>
                     <SelectContent>
@@ -245,9 +242,9 @@ export default function EditCustomerPage({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="phone">Teléfono</Label>
                   <Input
                     id="phone"
+                    label="Teléfono"
                     value={formData.phone}
                     onChange={(e) =>
                       setFormData({ ...formData, phone: e.target.value })
@@ -255,9 +252,9 @@ export default function EditCustomerPage({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    label="Email"
                     type="email"
                     value={formData.email}
                     onChange={(e) =>
@@ -266,9 +263,9 @@ export default function EditCustomerPage({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="address">Dirección</Label>
                   <Input
                     id="address"
+                    label="Dirección"
                     value={formData.address}
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
@@ -276,9 +273,9 @@ export default function EditCustomerPage({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="currentBalance">Saldo Actual</Label>
                   <Input
                     id="currentBalance"
+                    label="Saldo Actual"
                     type="number"
                     step="0.01"
                     value={formData.currentBalance}

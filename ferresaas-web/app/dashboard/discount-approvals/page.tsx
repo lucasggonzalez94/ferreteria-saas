@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useRouter } from "next/navigation";
-import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
+import { usePermissionGuard } from "@/lib/hooks/usePermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 
 interface DiscountApproval {
   id: string;
@@ -368,14 +366,13 @@ export default function DiscountApprovalsPage() {
             className="space-y-4"
           >
             <div>
-              <Label htmlFor="approverPassword">Contraseña</Label>
               <Input
                 id="approverPassword"
+                label="Contraseña"
                 type="password"
                 value={approverPassword}
                 onChange={(e) => setApproverPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña para aprobar"
-                className="mt-1"
                 autoFocus
               />
             </div>

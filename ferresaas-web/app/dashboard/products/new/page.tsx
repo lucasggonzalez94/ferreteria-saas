@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -388,9 +388,9 @@ export default function NewProductPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="name">Nombre *</Label>
                   <Input
                     id="name"
+                    label="Nombre *"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
@@ -400,9 +400,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="barcode">Código de Barras</Label>
                   <Input
                     id="barcode"
+                    label="Código de Barras"
                     value={formData.barcode}
                     onChange={(e) =>
                       setFormData({ ...formData, barcode: e.target.value })
@@ -411,7 +411,6 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="categoryId">Categoría</Label>
                   <div className="flex gap-2 items-center">
                     <div className="flex-1">
                       <Select
@@ -420,7 +419,7 @@ export default function NewProductPage() {
                           setFormData({ ...formData, categoryId: value })
                         }
                       >
-                        <SelectTrigger id="categoryId">
+                        <SelectTrigger label="Categoría">
                           <SelectValue placeholder="Sin categoría" />
                         </SelectTrigger>
                         <SelectContent>
@@ -446,26 +445,25 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label htmlFor="description">Descripción</Label>
-                  <textarea
+                  <Textarea
                     id="description"
+                    label="Descripción"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={3}
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="unit">Unidad *</Label>
                   <Select
                     value={formData.unit}
                     onValueChange={(value) =>
                       setFormData({ ...formData, unit: value })
                     }
                   >
-                    <SelectTrigger id="unit" className="mt-1">
+                    <SelectTrigger label="Unidad *">
                       <SelectValue placeholder="Selecciona unidad" />
                     </SelectTrigger>
                     <SelectContent>
@@ -478,9 +476,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="minStock">Stock Mínimo</Label>
                   <Input
                     id="minStock"
+                    label="Stock Mínimo"
                     type="number"
                     step="0.01"
                     value={formData.minStock}
@@ -491,9 +489,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="initialStock">Stock Inicial</Label>
                   <Input
                     id="initialStock"
+                    label="Stock Inicial"
                     type="number"
                     step={formData.unit === "u" ? "1" : "0.01"}
                     min="0"
@@ -509,9 +507,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="cost">Costo *</Label>
                   <Input
                     id="cost"
+                    label="Costo *"
                     type="number"
                     step="0.01"
                     value={formData.cost}
@@ -523,9 +521,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="price">Precio de Venta *</Label>
                   <Input
                     id="price"
+                    label="Precio de Venta *"
                     type="number"
                     step="0.01"
                     value={formData.price}
@@ -537,9 +535,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="taxRate">IVA (%)</Label>
                   <Input
                     id="taxRate"
+                    label="IVA (%)"
                     type="number"
                     step="0.01"
                     value={formData.taxRate}
@@ -550,9 +548,9 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label htmlFor="marginPercent">Margen (%)</Label>
                   <Input
                     id="marginPercent"
+                    label="Margen (%)"
                     type="number"
                     step="0.01"
                     value={formData.marginPercent}
@@ -570,7 +568,7 @@ export default function NewProductPage() {
                 <div className="col-span-2">
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <Label>Precio Sugerido</Label>
+                      <p className="text-sm font-medium leading-none">Precio Sugerido</p>
                       <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
                         {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Calcular primero"}
                       </div>
@@ -601,7 +599,6 @@ export default function NewProductPage() {
                   <h3 className="text-sm font-semibold mb-3 mt-4">Configuración de Pricing Automático</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="pricingMode">Modo de Pricing</Label>
                       <Select
                         value={formData.pricingMode}
                         onValueChange={(value: any) => {
@@ -609,7 +606,7 @@ export default function NewProductPage() {
                           handlePricingModeChange({ target: { value } } as any);
                         }}
                       >
-                        <SelectTrigger id="pricingMode" className="mt-1">
+                        <SelectTrigger label="Modo de Pricing">
                           <SelectValue placeholder="Selecciona modo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -625,11 +622,9 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="targetMargin">
-                        {formData.pricingMode === "markup" ? "Markup Objetivo (%)" : "Margen Objetivo (%)"}
-                      </Label>
                       <Input
                         id="targetMargin"
+                        label={formData.pricingMode === "markup" ? "Markup Objetivo (%)" : "Margen Objetivo (%)"}
                         type="number"
                         step="0.01"
                         value={formData.targetMargin}
@@ -654,14 +649,13 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="roundingStep">Redondeo de Precio</Label>
                       <Select
                         value={formData.roundingStep}
                         onValueChange={(value) =>
                           setFormData({ ...formData, roundingStep: value })
                         }
                       >
-                        <SelectTrigger id="roundingStep" className="mt-1">
+                        <SelectTrigger label="Redondeo de Precio">
                           <SelectValue placeholder="Selecciona redondeo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -674,14 +668,13 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="costMethod">Método de Costo</Label>
                       <Select
                         value={formData.costMethod}
                         onValueChange={(value) =>
                           setFormData({ ...formData, costMethod: value })
                         }
                       >
-                        <SelectTrigger id="costMethod" className="mt-1">
+                        <SelectTrigger label="Método de Costo">
                           <SelectValue placeholder="Selecciona método" />
                         </SelectTrigger>
                         <SelectContent>
@@ -699,15 +692,15 @@ export default function NewProductPage() {
                           setFormData({ ...formData, priceLocked: Boolean(checked) })
                         }
                       />
-                      <Label htmlFor="priceLocked" className="text-sm">
+                      <label htmlFor="priceLocked" className="text-sm">
                         Precio congelado (no permitir cambios automáticos)
-                      </Label>
+                      </label>
                     </div>
                   </div>
                 </div>
 
                 <div className="col-span-2">
-                  <Label>Imagen del Producto</Label>
+                  <p className="text-sm font-medium leading-none">Imagen del Producto</p>
                   {imagePreview ? (
                     <div className="w-full max-w-xs flex justify-start gap-2 items-start">
                       <Image
@@ -779,9 +772,9 @@ export default function NewProductPage() {
           </DialogHeader>
           <form onSubmit={handleCreateCategory} className="space-y-4">
             <div>
-              <Label htmlFor="category-name">Nombre *</Label>
               <Input
                 id="category-name"
+                label="Nombre *"
                 value={categoryForm.name}
                 onChange={(e) =>
                   setCategoryForm((prev) => ({ ...prev, name: e.target.value }))
@@ -791,15 +784,15 @@ export default function NewProductPage() {
               />
             </div>
             <div>
-              <Label htmlFor="category-description">Descripción</Label>
-              <textarea
+              <Textarea
                 id="category-description"
+                label="Descripción"
                 value={categoryForm.description}
                 onChange={(e) =>
                   setCategoryForm((prev) => ({ ...prev, description: e.target.value }))
                 }
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 placeholder="Opcional"
+                rows={3}
               />
             </div>
 

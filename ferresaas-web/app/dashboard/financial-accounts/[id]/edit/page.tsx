@@ -7,7 +7,6 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Wallet,
@@ -180,9 +179,9 @@ export default function EditAccountPage() {
           <div className="space-y-4">
             {/* Nombre */}
             <div className="space-y-2">
-              <Label htmlFor="name">Nombre de la Cuenta *</Label>
               <Input
                 id="name"
+                label="Nombre de la Cuenta *"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -193,9 +192,9 @@ export default function EditAccountPage() {
 
             {/* Descripción */}
             <div className="space-y-2">
-              <Label htmlFor="description">Descripción</Label>
               <Input
                 id="description"
+                label="Descripción"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
@@ -208,9 +207,9 @@ export default function EditAccountPage() {
             {account.type === "BANK" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="bankName">Nombre del Banco</Label>
                   <Input
                     id="bankName"
+                    label="Nombre del Banco"
                     value={formData.bankName}
                     onChange={(e) =>
                       setFormData({ ...formData, bankName: e.target.value })
@@ -220,9 +219,9 @@ export default function EditAccountPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Número de Cuenta</Label>
                   <Input
                     id="accountNumber"
+                    label="Número de Cuenta"
                     value={formData.accountNumber}
                     onChange={(e) =>
                       setFormData({
@@ -238,9 +237,9 @@ export default function EditAccountPage() {
 
             {account.type === "WALLET" && (
               <div className="space-y-2">
-                <Label htmlFor="walletProvider">Proveedor de Billetera</Label>
                 <Input
                   id="walletProvider"
+                  label="Proveedor de Billetera"
                   value={formData.walletProvider}
                   onChange={(e) =>
                     setFormData({
@@ -255,7 +254,7 @@ export default function EditAccountPage() {
 
             {/* Estado */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"
                   checked={formData.isActive}
@@ -265,12 +264,12 @@ export default function EditAccountPage() {
                   className="rounded border-gray-300"
                 />
                 Cuenta Activa
-              </Label>
+              </label>
             </div>
 
             {/* Predeterminada */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"
                   checked={formData.isDefault}
@@ -280,7 +279,7 @@ export default function EditAccountPage() {
                   className="rounded border-gray-300"
                 />
                 Establecer como Predeterminada
-              </Label>
+              </label>
               <p className="text-xs text-muted-foreground">
                 Solo una cuenta por tipo puede ser predeterminada
               </p>

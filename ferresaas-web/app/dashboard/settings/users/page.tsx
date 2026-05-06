@@ -7,7 +7,6 @@ import { useRoles } from "@/lib/hooks/useRoles";
 import { useUserRoles } from "@/lib/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -182,11 +181,11 @@ export default function UsersPage() {
             <form onSubmit={handleSearch} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
-                  <Label htmlFor="search">Búsqueda (email o nombre)</Label>
-                  <div className="relative mt-1">
+                  <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="search"
+                      label="Búsqueda (email o nombre)"
                       placeholder="Buscar usuario..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -195,14 +194,13 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="status">Estado</Label>
                   <Select
                     value={statusFilter}
                     onValueChange={(value) =>
                       setStatusFilter(value as "all" | "active" | "inactive")
                     }
                   >
-                    <SelectTrigger id="status" className="mt-1">
+                    <SelectTrigger label="Estado">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -252,9 +250,9 @@ export default function UsersPage() {
                 </DialogHeader>
                 <form onSubmit={handleCreateUser} className="space-y-4">
                   <div>
-                    <Label htmlFor="email">Email *</Label>
                     <Input
                       id="email"
+                      label="Email *"
                       type="email"
                       placeholder="usuario@example.com"
                       value={formData.email}
@@ -262,37 +260,34 @@ export default function UsersPage() {
                         setFormData({ ...formData, email: e.target.value })
                       }
                       disabled={isSubmitting}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="firstName">Nombre</Label>
                     <Input
                       id="firstName"
+                      label="Nombre"
                       placeholder="Juan"
                       value={formData.firstName}
                       onChange={(e) =>
                         setFormData({ ...formData, firstName: e.target.value })
                       }
                       disabled={isSubmitting}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Apellido</Label>
                     <Input
                       id="lastName"
+                      label="Apellido"
                       placeholder="Pérez"
                       value={formData.lastName}
                       onChange={(e) =>
                         setFormData({ ...formData, lastName: e.target.value })
                       }
                       disabled={isSubmitting}
-                      className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label>Roles Iniciales</Label>
+                    <p className="text-sm font-medium leading-none">Roles Iniciales</p>
                     <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
                       {roles.map((role) => (
                         <div key={role.id} className="flex items-center gap-2">
