@@ -32,6 +32,8 @@ import {
   RefreshCw,
   ArrowUpRight,
   FileText,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 import { useApprovalCounts } from "@/lib/hooks/useApprovalCounts";
 import { useConnectionStatus } from "@/lib/hooks/useConnectionStatus";
@@ -56,8 +58,10 @@ export default function DashboardPage() {
       href: string;
       icon: JSX.Element;
       allowed: boolean;
+      hidden?: boolean;
     }>
   >([]);
+  const [showHiddenActions, setShowHiddenActions] = useState(false);
   const [isEditingQuickActions, setIsEditingQuickActions] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const businessLogo = business?.logoUrl || null;
@@ -207,10 +211,11 @@ export default function DashboardPage() {
 
   const persistQuickActions = (actions: typeof quickActions) => {
     setQuickActions(actions);
-    localStorage.setItem(
-      "dashboardQuickActions",
-      JSON.stringify(actions.map((a) => a.id)),
-    );
+    const prefs = {
+      order: actions.map((a) => a.id),
+      hidden: actions.filter((a) => a.hidden).map((a) => a.id),
+    };
+    localStorage.setItem("dashboardQuickActionsPrefs", JSON.stringify(prefs));
   };
 
   const handleDragStart = (id: string) => {
@@ -252,6 +257,14 @@ export default function DashboardPage() {
       next.splice(targetIndex, 0, moved);
       return next;
     });
+  };
+
+  const toggleQuickActionVisibility = (id: string) => {
+    setQuickActions((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, hidden: !item.hidden } : item,
+      ),
+    );
   };
 
   useEffect(() => {
@@ -363,19 +376,55 @@ export default function DashboardPage() {
       },
     ];
 
-    const storedOrderRaw = localStorage.getItem("dashboardQuickActions");
-    if (storedOrderRaw) {
+    const storedPrefsRaw = localStorage.getItem("dashboardQuickActionsPrefs");
+    const legacyOrderRaw = localStorage.getItem("dashboardQuickActions");
+
+    type QuickActionItem = {
+      id: string;
+      label: string;
+      href: string;
+      icon: JSX.Element;
+      allowed: boolean;
+      hidden?: boolean;
+    };
+
+    if (storedPrefsRaw) {
       try {
-        const parsed: string[] = JSON.parse(storedOrderRaw);
-        const byId = Object.fromEntries(baseActions.map((a) => [a.id, a]));
-        const restored = parsed
+        const prefs: { order: string[]; hidden: string[] } = JSON.parse(storedPrefsRaw);
+        const byId: Record<string, QuickActionItem> = Object.fromEntries(
+          baseActions.map((a) => [a.id, { ...a, hidden: prefs.hidden.includes(a.id) }]),
+        );
+        const restored = prefs.order
           .map((id) => byId[id])
-          .filter((item): item is (typeof baseActions)[number] =>
+          .filter((item): item is QuickActionItem =>
             Boolean(item && item.allowed),
           );
-        const missing = baseActions.filter(
-          (item) => item.allowed && !parsed.includes(item.id),
+        const missing = baseActions
+          .filter((item) => item.allowed && !prefs.order.includes(item.id))
+          .map((item) => ({ ...item, hidden: prefs.hidden.includes(item.id) }));
+        const allItems: QuickActionItem[] = [...restored, ...missing].map((item) => ({
+          ...item,
+          hidden: prefs.hidden.includes(item.id),
+        }));
+        setQuickActions(allItems);
+        return;
+      } catch (error) {
+        console.error("Error parsing dashboardQuickActionsPrefs", error);
+      }
+    } else if (legacyOrderRaw) {
+      try {
+        const parsed: string[] = JSON.parse(legacyOrderRaw);
+        const byId: Record<string, QuickActionItem> = Object.fromEntries(
+          baseActions.map((a) => [a.id, { ...a, hidden: false }]),
         );
+        const restored = parsed
+          .map((id) => byId[id])
+          .filter((item): item is QuickActionItem =>
+            Boolean(item && item.allowed),
+          );
+        const missing = baseActions
+          .filter((item) => item.allowed && !parsed.includes(item.id))
+          .map((item) => ({ ...item, hidden: false }));
         setQuickActions([...restored, ...missing]);
         return;
       } catch (error) {
@@ -383,7 +432,7 @@ export default function DashboardPage() {
       }
     }
 
-    setQuickActions(baseActions.filter((item) => item.allowed));
+    setQuickActions(baseActions.filter((item) => item.allowed).map(item => ({ ...item, hidden: false })));
   }, [
     canAccessCashRegister,
     canAccessPOS,
@@ -605,96 +654,227 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {quickActions.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {quickActions.map((action) => {
-                  const showBadge =
-                    (action.id === "discounts" &&
-                      approvalCounts &&
-                      approvalCounts.discounts > 0) ||
-                    (action.id === "prices" &&
-                      approvalCounts &&
-                      approvalCounts.prices > 0);
+              <div>
+                {(() => {
+                  const visibleActions = quickActions.filter((a) => !a.hidden);
+                  const hiddenActions = quickActions.filter((a) => a.hidden);
 
-                  const badgeCount =
-                    action.id === "discounts"
-                      ? approvalCounts?.discounts || 0
-                      : action.id === "prices"
-                        ? approvalCounts?.prices || 0
-                        : 0;
-
-                  return (
-                    <div
-                      key={action.id}
-                      draggable={isEditingQuickActions}
-                      onDragStart={() => handleDragStart(action.id)}
-                      onDragOver={(e) => handleDragOver(e, action.id)}
-                      onDragEnd={handleDragEnd}
-                      className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
-                    >
-                      {isEditingQuickActions && (
-                        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              moveQuickAction(action.id, "up");
-                            }}
-                            aria-label={`Mover ${action.label} hacia arriba`}
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              moveQuickAction(action.id, "down");
-                            }}
-                            aria-label={`Mover ${action.label} hacia abajo`}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </button>
-                          <GripVertical
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                        </div>
-                      )}
-                      {showBadge && !isEditingQuickActions && (
-                        <NotificationBadge count={badgeCount} />
-                      )}
-                      <Link
-                        href={action.href}
-                        onClick={(e) =>
-                          isEditingQuickActions && e.preventDefault()
-                        }
-                      >
+                  if (visibleActions.length === 0 && hiddenActions.length > 0 && !isEditingQuickActions) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Lock className="h-5 w-5 mb-2 text-muted-foreground" />
+                        <p className="text-muted-foreground mb-4">No tienes accesos visibles.</p>
                         <Button
                           variant="outline"
-                          className={`h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] ${isEditingQuickActions ? "cursor-grab border-dashed active:cursor-grabbing" : ""}`}
+                          size="sm"
+                          onClick={() => {
+                            setQuickActions((prev) =>
+                              prev.map((a) => ({ ...a, hidden: false })),
+                            );
+                          }}
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="app-icon-badge h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
-                              {action.icon}
-                            </span>
-                            <span className="text-sm font-semibold text-foreground">
-                              {action.label}
-                            </span>
-                          </div>
-                          <span className="mt-1 text-xs leading-5 text-muted-foreground">
-                            {actionCaptions[action.id] ||
-                              "Acceso directo al módulo."}
-                          </span>
-                          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                            Abrir
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          </span>
+                          Mostrar todos los accesos
                         </Button>
-                      </Link>
-                    </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {visibleActions.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {visibleActions.map((action) => {
+                            const showBadge =
+                              (action.id === "discounts" &&
+                                approvalCounts &&
+                                approvalCounts.discounts > 0) ||
+                              (action.id === "prices" &&
+                                approvalCounts &&
+                                approvalCounts.prices > 0);
+
+                            const badgeCount =
+                              action.id === "discounts"
+                                ? approvalCounts?.discounts || 0
+                                : action.id === "prices"
+                                  ? approvalCounts?.prices || 0
+                                  : 0;
+
+                            return (
+                              <div
+                                key={action.id}
+                                draggable={isEditingQuickActions}
+                                onDragStart={() => handleDragStart(action.id)}
+                                onDragOver={(e) => handleDragOver(e, action.id)}
+                                onDragEnd={handleDragEnd}
+                                className={`relative ${isEditingQuickActions ? "cursor-grab" : "cursor-pointer"}`}
+                              >
+                                {isEditingQuickActions && (
+                                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        moveQuickAction(action.id, "up");
+                                      }}
+                                      aria-label={`Mover ${action.label} hacia arriba`}
+                                    >
+                                      <ChevronUp className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        moveQuickAction(action.id, "down");
+                                      }}
+                                      aria-label={`Mover ${action.label} hacia abajo`}
+                                    >
+                                      <ChevronDown className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleQuickActionVisibility(action.id);
+                                      }}
+                                      aria-label={`Ocultar ${action.label}`}
+                                      title="Ocultar"
+                                    >
+                                      <EyeOff className="h-3 w-3" />
+                                    </button>
+                                    <GripVertical
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
+                                    />
+                                  </div>
+                                )}
+                                {showBadge && !isEditingQuickActions && (
+                                  <NotificationBadge count={badgeCount} />
+                                )}
+                                <Link
+                                  href={action.href}
+                                  onClick={(e) =>
+                                    isEditingQuickActions && e.preventDefault()
+                                  }
+                                >
+                                  <Button
+                                    variant="outline"
+                                    className={`h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] ${isEditingQuickActions ? "cursor-grab border-dashed active:cursor-grabbing" : ""}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="app-icon-badge h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                                        {action.icon}
+                                      </span>
+                                      <span className="text-sm font-semibold text-foreground">
+                                        {action.label}
+                                      </span>
+                                    </div>
+                                    <span className="mt-1 text-xs leading-5 text-muted-foreground">
+                                      {actionCaptions[action.id] ||
+                                        "Acceso directo al módulo."}
+                                    </span>
+                                    <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                      Abrir
+                                      <ArrowUpRight className="h-3.5 w-3.5" />
+                                    </span>
+                                  </Button>
+                                </Link>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {isEditingQuickActions && hiddenActions.length > 0 && (
+                        <div className="mt-6">
+                          <div className="flex items-center gap-2 mb-3">
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setShowHiddenActions((prev) => !prev)}
+                            >
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform ${showHiddenActions ? "rotate-180" : ""}`}
+                              />
+                              Ocultos ({hiddenActions.length})
+                            </button>
+                          </div>
+                          {showHiddenActions && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {hiddenActions.map((action) => (
+                                <div
+                                  key={action.id}
+                                  className="relative opacity-60"
+                                >
+                                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        toggleQuickActionVisibility(action.id);
+                                      }}
+                                      aria-label={`Mostrar ${action.label}`}
+                                      title="Mostrar"
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        moveQuickAction(action.id, "up");
+                                      }}
+                                      aria-label={`Mover ${action.label} hacia arriba`}
+                                    >
+                                      <ChevronUp className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        moveQuickAction(action.id, "down");
+                                      }}
+                                      aria-label={`Mover ${action.label} hacia abajo`}
+                                    >
+                                      <ChevronDown className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    className="h-auto min-h-[142px] w-full flex-col items-start rounded-[1.45rem] border-border/70 bg-background/70 p-5 text-left opacity-60"
+                                    disabled
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="app-icon-badge h-12 w-12 rounded-2xl border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
+                                        {action.icon}
+                                      </span>
+                                      <span className="text-sm font-semibold text-foreground">
+                                        {action.label}
+                                      </span>
+                                    </div>
+                                    <span className="mt-1 text-xs leading-5 text-muted-foreground">
+                                      {actionCaptions[action.id] ||
+                                        "Acceso directo al módulo."}
+                                    </span>
+                                    <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                      Oculto
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    </span>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   );
-                })}
+                })()}
               </div>
             ) : (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
