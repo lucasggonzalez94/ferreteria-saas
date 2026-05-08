@@ -18,10 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import Link from "next/link";
 import Header from "@/components/ui/header";
-import { Upload, X } from "lucide-react";
+import { CircleHelp, Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +84,23 @@ export default function NewProductPage() {
     targetMarkup?: string;
     marginPercent?: string;
   }>({});
+
+  const renderFieldLabel = (fieldId: string, label: string, tooltip?: string) => (
+    <div className="mb-2 flex items-center gap-1.5">
+      <Label htmlFor={fieldId}>{label}</Label>
+      {tooltip && (
+        <Tooltip content={tooltip} placement="top">
+          <button
+            type="button"
+            aria-label={`Informacion sobre ${label}`}
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <CircleHelp className="h-3.5 w-3.5" />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
 
   const resetCategoryForm = () => {
     setCategoryForm({ name: "", description: "" });
@@ -386,8 +405,12 @@ export default function NewProductPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="col-span-1 md:col-span-2">
+                  <h3 className="text-sm font-semibold">Datos básicos</h3>
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
                   <Input
                     id="name"
                     label="Nombre *"
@@ -400,18 +423,7 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <Input
-                    id="barcode"
-                    label="Código de Barras"
-                    value={formData.barcode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, barcode: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-end">
                     <div className="flex-1">
                       <Select
                         value={formData.categoryId}
@@ -444,7 +456,18 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="col-span-2">
+                <div>
+                  <Input
+                    id="barcode"
+                    label="Código de barras"
+                    value={formData.barcode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, barcode: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
                   <Textarea
                     id="description"
                     label="Descripción"
@@ -475,23 +498,14 @@ export default function NewProductPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <Input
-                    id="minStock"
-                    label="Stock Mínimo"
-                    type="number"
-                    step="0.01"
-                    value={formData.minStock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, minStock: e.target.value })
-                    }
-                  />
+                <div className="col-span-1 md:col-span-2 pt-2">
+                  <h3 className="text-sm font-semibold">Inventario</h3>
                 </div>
 
                 <div>
                   <Input
                     id="initialStock"
-                    label="Stock Inicial"
+                    label="Stock inicial"
                     type="number"
                     step={formData.unit === "u" ? "1" : "0.01"}
                     min="0"
@@ -502,14 +516,35 @@ export default function NewProductPage() {
                     placeholder="0"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Cantidad de unidades existentes al crear el producto
+                    Cantidad disponible al momento de crear el producto.
                   </p>
                 </div>
 
                 <div>
                   <Input
+                    id="minStock"
+                    label="Stock mínimo"
+                    type="number"
+                    step="0.01"
+                    value={formData.minStock}
+                    onChange={(e) =>
+                      setFormData({ ...formData, minStock: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="col-span-1 md:col-span-2 pt-2">
+                  <h3 className="text-sm font-semibold">Precio rápido</h3>
+                </div>
+
+                <div>
+                  {renderFieldLabel(
+                    "cost",
+                    "Costo *",
+                    "Lo que te cuesta comprar o producir una unidad del producto."
+                  )}
+                  <Input
                     id="cost"
-                    label="Costo *"
                     type="number"
                     step="0.01"
                     value={formData.cost}
@@ -521,9 +556,13 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
+                  {renderFieldLabel(
+                    "price",
+                    "Precio de venta *",
+                    "Lo que pagará tu cliente por cada unidad."
+                  )}
                   <Input
                     id="price"
-                    label="Precio de Venta *"
                     type="number"
                     step="0.01"
                     value={formData.price}
@@ -547,10 +586,14 @@ export default function NewProductPage() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div>
+                  {renderFieldLabel(
+                    "marginPercent",
+                    "Margen (%)",
+                    "Ganancia sobre el precio de venta. Ejemplo: costo 10.000 y venta 16.000 da margen 37,5%."
+                  )}
                   <Input
                     id="marginPercent"
-                    label="Margen (%)"
                     type="number"
                     step="0.01"
                     value={formData.marginPercent}
@@ -565,144 +608,179 @@ export default function NewProductPage() {
                   )}
                 </div>
 
-                <div className="col-span-2">
-                  <div className="flex items-end gap-2">
+                <div className="col-span-1 md:col-span-2">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-end">
                     <div className="flex-1">
-                      <p className="text-sm font-medium leading-none">Precio Sugerido</p>
-                      <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
-                        {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Calcular primero"}
+                      <p className="text-sm font-medium leading-none">Precio sugerido</p>
+                      <div className="mt-2 flex h-11 w-full rounded-xl border border-input/80 bg-muted px-3.5 py-2.5 text-sm items-center">
+                        {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Completa costo, IVA y margen"}
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={calculatePrice}
-                      variant="outline"
-                      disabled={!formData.cost || !formData.taxRate || !formData.marginPercent}
-                    >
-                      Calcular
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={applySuggestedPrice}
-                      variant="secondary"
-                      disabled={suggestedPrice === null}
-                    >
-                      Aplicar
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={calculatePrice}
+                        variant="outline"
+                        disabled={!formData.cost || !formData.taxRate || !formData.marginPercent}
+                      >
+                        Calcular
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={applySuggestedPrice}
+                        variant="secondary"
+                        disabled={suggestedPrice === null}
+                      >
+                        Aplicar
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Fórmula: Precio = Costo × (1 + Margen%) × (1 + IVA%)
+                    Fórmula: Precio = Costo × (1 + Margen%) × (1 + IVA%).
                   </p>
                 </div>
 
-                <div className="col-span-2">
-                  <h3 className="text-sm font-semibold mb-3 mt-4">Configuración de Pricing Automático</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Select
-                        value={formData.pricingMode}
-                        onValueChange={(value: any) => {
-                          setFormData({ ...formData, pricingMode: value });
-                          handlePricingModeChange({ target: { value } } as any);
-                        }}
-                      >
-                        <SelectTrigger label="Modo de Pricing">
-                          <SelectValue placeholder="Selecciona modo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Precio Fijo</SelectItem>
-                          <SelectItem value="margin">Mantener Margen</SelectItem>
-                          <SelectItem value="markup">Mantener Markup</SelectItem>
-                          <SelectItem value="suggest">Solo Sugerir</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Define cómo se recalcula el precio al cambiar el costo
-                      </p>
-                    </div>
+                <div className="col-span-1 md:col-span-2 pt-2">
+                  <details className="rounded-xl border border-input/60 bg-muted/30 p-4">
+                    <summary className="cursor-pointer text-sm font-semibold select-none">
+                      Opciones avanzadas de precios
+                    </summary>
+                    <p className="text-xs text-muted-foreground mt-2 mb-4">
+                      Ajusta cómo se recalcula el precio cuando cambia el costo.
+                    </p>
 
-                    <div>
-                      <Input
-                        id="targetMargin"
-                        label={formData.pricingMode === "markup" ? "Markup Objetivo (%)" : "Margen Objetivo (%)"}
-                        type="number"
-                        step="0.01"
-                        value={formData.targetMargin}
-                        onChange={formData.pricingMode === "markup" ? handleTargetMarkupChange : handleTargetMarginChange}
-                        placeholder={formData.pricingMode === "markup" ? "Ej: 60" : "Ej: 37.5"}
-                        className={validationErrors.targetMargin || validationErrors.targetMarkup ? "border-red-500" : ""}
-                        disabled={formData.pricingMode === "fixed"}
-                      />
-                      {(validationErrors.targetMargin || validationErrors.targetMarkup) && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors.targetMargin || validationErrors.targetMarkup}
-                        </p>
-                      )}
-                      {formData.targetMargin && !validationErrors.targetMargin && !validationErrors.targetMarkup && (
-                        <p className="brand-accent-panel mt-2 p-2 text-xs brand-accent-subtle">
-                          {formData.pricingMode === "markup" 
-                            ? `📊 Equivalente: Margen ${calculateEquivalentMargin(parseFloat(formData.targetMargin)).toFixed(2)}%`
-                            : `📊 Equivalente: Markup ${calculateEquivalentMarkup(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        {renderFieldLabel(
+                          "pricingMode",
+                          "Modo de precios",
+                          "Define cómo se comporta el precio automático: fijo, por margen, por markup o solo sugerencia."
+                        )}
+                        <Select
+                          value={formData.pricingMode}
+                          onValueChange={(value: any) => {
+                            setFormData({ ...formData, pricingMode: value });
+                            handlePricingModeChange({ target: { value } } as any);
+                          }}
+                        >
+                          <SelectTrigger id="pricingMode">
+                            <SelectValue placeholder="Selecciona modo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fixed">Precio fijo</SelectItem>
+                            <SelectItem value="margin">Mantener margen</SelectItem>
+                            <SelectItem value="markup">Mantener recargo (Markup)</SelectItem>
+                            <SelectItem value="suggest">Solo sugerir precio</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(
+                          "targetMargin",
+                          formData.pricingMode === "markup" ? "Markup objetivo (%)" : "Margen objetivo (%)",
+                          formData.pricingMode === "markup"
+                            ? "Recargo sobre costo que quieres mantener. Ejemplo: costo 10.000 con 60% da 16.000."
+                            : "Ganancia sobre venta que quieres mantener automáticamente."
+                        )}
+                        <Input
+                          id="targetMargin"
+                          type="number"
+                          step="0.01"
+                          value={formData.targetMargin}
+                          onChange={formData.pricingMode === "markup" ? handleTargetMarkupChange : handleTargetMarginChange}
+                          placeholder={formData.pricingMode === "markup" ? "Ej: 60" : "Ej: 37.5"}
+                          className={validationErrors.targetMargin || validationErrors.targetMarkup ? "border-red-500" : ""}
+                          disabled={formData.pricingMode === "fixed"}
+                        />
+                        {(validationErrors.targetMargin || validationErrors.targetMarkup) && (
+                          <p className="text-sm text-red-500 mt-1">
+                            {validationErrors.targetMargin || validationErrors.targetMarkup}
+                          </p>
+                        )}
+                        {formData.targetMargin && !validationErrors.targetMargin && !validationErrors.targetMarkup && (
+                          <p className="brand-accent-panel mt-2 p-2 text-xs brand-accent-subtle">
+                            {formData.pricingMode === "markup"
+                              ? `Equivalente: Margen ${calculateEquivalentMargin(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                              : `Equivalente: Markup ${calculateEquivalentMarkup(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        {renderFieldLabel(
+                          "roundingStep",
+                          "Redondeo de precio",
+                          "Redondea el precio final para vender con cifras más simples."
+                        )}
+                        <Select
+                          value={formData.roundingStep}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, roundingStep: value })
                           }
-                        </p>
-                      )}
-                    </div>
+                        >
+                          <SelectTrigger id="roundingStep">
+                            <SelectValue placeholder="Selecciona redondeo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Sin redondeo</SelectItem>
+                            <SelectItem value="10">Múltiplo de 10</SelectItem>
+                            <SelectItem value="50">Múltiplo de 50</SelectItem>
+                            <SelectItem value="100">Múltiplo de 100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div>
-                      <Select
-                        value={formData.roundingStep}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, roundingStep: value })
-                        }
-                      >
-                        <SelectTrigger label="Redondeo de Precio">
-                          <SelectValue placeholder="Selecciona redondeo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Sin redondeo</SelectItem>
-                          <SelectItem value="10">Múltiplo de 10</SelectItem>
-                          <SelectItem value="50">Múltiplo de 50</SelectItem>
-                          <SelectItem value="100">Múltiplo de 100</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      <div>
+                        {renderFieldLabel(
+                          "costMethod",
+                          "Método de costo",
+                          "Promedio ponderado usa el historial. Último costo usa la compra más reciente."
+                        )}
+                        <Select
+                          value={formData.costMethod}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, costMethod: value })
+                          }
+                        >
+                          <SelectTrigger id="costMethod">
+                            <SelectValue placeholder="Selecciona método" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="avg_weighted">Costo promedio ponderado</SelectItem>
+                            <SelectItem value="last_cost">Último costo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div>
-                      <Select
-                        value={formData.costMethod}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, costMethod: value })
-                        }
-                      >
-                        <SelectTrigger label="Método de Costo">
-                          <SelectValue placeholder="Selecciona método" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="avg_weighted">Costo Promedio Ponderado</SelectItem>
-                          <SelectItem value="last_cost">Último Costo</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="col-span-1 md:col-span-2 flex items-start gap-2">
+                        <div className="mt-[3px]">
+                          <Checkbox
+                            id="priceLocked"
+                            checked={formData.priceLocked}
+                            onCheckedChange={(checked) =>
+                              setFormData({ ...formData, priceLocked: Boolean(checked) })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="priceLocked" className="text-sm">
+                            Mantener precio fijo
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            Si se activa, el sistema no ajusta el precio automáticamente.
+                          </p>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="col-span-2 flex items-center gap-2">
-                      <Checkbox
-                        id="priceLocked"
-                        checked={formData.priceLocked}
-                        onCheckedChange={(checked) =>
-                          setFormData({ ...formData, priceLocked: Boolean(checked) })
-                        }
-                      />
-                      <label htmlFor="priceLocked" className="text-sm">
-                        Precio congelado (no permitir cambios automáticos)
-                      </label>
-                    </div>
-                  </div>
+                  </details>
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-2">
                   <p className="text-sm font-medium leading-none">Imagen del Producto</p>
                   {imagePreview ? (
-                    <div className="w-full max-w-xs flex justify-start gap-2 items-start">
+                    <div className="w-full max-w-xs flex justify-start gap-2 items-start mt-4">
                       <Image
                         src={imagePreview}
                         alt="Preview"
@@ -724,7 +802,7 @@ export default function NewProductPage() {
                   ) : (
                     <button
                       type="button"
-                      className="w-full border-2 border-dashed border-input rounded-md p-6 text-center cursor-pointer hover:bg-muted transition-colors"
+                      className="w-full border-2 border-dashed border-input rounded-md p-6 mt-2 text-center cursor-pointer hover:bg-muted transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Seleccionar imagen del producto"
                     >
