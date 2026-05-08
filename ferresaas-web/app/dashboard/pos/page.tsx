@@ -29,6 +29,7 @@ import { ManualExchangeRateModal } from '@/components/exchange-rate/manual-excha
 import { StaleRateBanner } from '@/components/exchange-rate/stale-rate-banner';
 import { useCartPersistence } from '@/lib/hooks/useCartPersistence';
 import { UnknownBarcodeModal } from '@/components/pos/unknown-barcode-modal';
+import { getErrorMessage } from '@/lib/error-message';
 
 interface CartItem {
   product: Product;
@@ -201,8 +202,8 @@ export default function POSPage() {
       queryClient.invalidateQueries({ queryKey: ['cash-register'] });
       queryClient.invalidateQueries({ queryKey: ['financial-accounts'] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al registrar venta');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Error al registrar venta'));
     },
   });
 
@@ -359,8 +360,8 @@ export default function POSPage() {
       setDiscountReason('');
       setApproverPassword('');
       toast.success('Solicitud de aprobación enviada');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al solicitar aprobación');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Error al solicitar aprobación'));
     } finally {
       setDiscountApprovalLoading(false);
     }

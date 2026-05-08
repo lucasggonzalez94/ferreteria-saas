@@ -27,6 +27,17 @@ import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGua
 import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 import { CatalogImportDialog } from "@/components/products/catalog-import-dialog";
 import { Upload } from "lucide-react";
+import {
+  getDefaultPaginationMeta,
+} from "@/lib/pagination";
+import { getErrorMessage } from "@/lib/error-message";
+import {
+  deleteProduct,
+  getLowStockCount,
+  updateProductStatus,
+} from "@/lib/services/products";
+import { useProductsList } from "@/lib/hooks/useProductsList";
+import { ListStatsRow } from "@/components/dashboard/list-stats-row";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:3001";
 
@@ -46,17 +57,6 @@ interface ProductListItem {
     id: string;
     name: string;
   } | null;
-}
-
-interface ProductsResponse {
-  data: ProductListItem[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
 }
 
 export default function ProductsPage() {
@@ -82,60 +82,22 @@ export default function ProductsPage() {
     canCreate: "products:create",
   });
 
-  const { data, isLoading } = useQuery<ProductsResponse>({
-    queryKey: [
-      "products",
-      page,
-      limit,
-      search,
-      categoryId,
-      status,
-      lowStockOnly,
-      priceMin,
-      priceMax,
-      sort,
-    ],
-    queryFn: async () => {
-      const response = await api.get<ProductListItem[]>("/products", {
-        params: {
-          page,
-          limit,
-          q: search || undefined,
-          categoryId: categoryId || undefined,
-          active:
-            status === "active" ? true : status === "inactive" ? false : undefined,
-          lowStock: lowStockOnly || undefined,
-          priceMin: priceMin || undefined,
-          priceMax: priceMax || undefined,
-          sort: sort || undefined,
-        },
-      });
-      return {
-        data: response.data || [],
-        meta: (response as any).meta || {
-          page: 1,
-          limit,
-          total: 0,
-          totalPages: 1,
-          hasMore: false,
-        },
-      };
-    },
+  const { data, isLoading } = useProductsList<ProductListItem>({
+    page,
+    limit,
+    search,
+    categoryId,
+    status,
+    lowStockOnly,
+    priceMin,
+    priceMax,
+    sort,
     enabled: canViewProducts,
   });
 
   const { data: lowStockTotal } = useQuery({
     queryKey: ["products", "lowStockCount"],
-    queryFn: async () => {
-      const response = await api.get<ProductListItem[]>("/products", {
-        params: {
-          page: 1,
-          limit: 1,
-          lowStock: true,
-        },
-      });
-      return (response as any).meta?.total || 0;
-    },
+    queryFn: getLowStockCount,
     enabled: canViewProducts,
   });
 
@@ -159,33 +121,31 @@ export default function ProductsPage() {
   };
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/products/${id}`);
-    },
+    mutationFn: deleteProduct,
     onSuccess: () => {
       toast.success("Producto eliminado");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "No se pudo eliminar el producto");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo eliminar el producto"));
     },
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      await api.put(`/products/${id}`, { isActive });
+      await updateProductStatus(id, isActive);
     },
     onSuccess: () => {
       toast.success("Estado actualizado");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "No se pudo actualizar el estado");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo actualizar el estado"));
     },
   });
 
   const products = useMemo(() => data?.data || [], [data?.data]);
-  const meta = data?.meta || { page: 1, limit: limit, total: 0, totalPages: 1, hasMore: false };
+  const meta = data?.meta || getDefaultPaginationMeta(1, limit);
 
   const totals = useMemo(() => {
     const startIndex = products.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
@@ -232,18 +192,21 @@ export default function ProductsPage() {
           }
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-2">
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Resultados totales (filtro)</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Productos en la base de datos.</p>
-          </div>
-          <div className="brand-accent-panel p-4">
-            <p className="text-sm font-semibold text-foreground">Bajo stock</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{totals.lowStockProducts}</p>
-            <p className="mt-2 text-sm brand-accent-subtle">Productos que conviene revisar o reponer primero.</p>
-          </div>
-        </div>
+        <ListStatsRow
+          items={[
+            {
+              title: "Resultados totales (filtro)",
+              value: meta.total,
+              description: "Productos en la base de datos.",
+            },
+            {
+              title: "Bajo stock",
+              value: totals.lowStockProducts,
+              description: "Productos que conviene revisar o reponer primero.",
+              accent: true,
+            },
+          ]}
+        />
 
         <Card className="mb-6 overflow-hidden">
           <CardContent>

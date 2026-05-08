@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +31,13 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { Pagination } from '@/components/ui/pagination';
 import { usePermissionGuard, usePermissions } from '@/lib/hooks/usePermissionGuard';
 import { useConfirmDialog } from '@/lib/hooks/useConfirmDialog';
+import {
+  getDefaultPaginationMeta,
+} from '@/lib/pagination';
+import { getErrorMessage } from '@/lib/error-message';
+import { createCustomer, deleteCustomer } from '@/lib/services/customers';
+import { useCustomersList } from '@/lib/hooks/useCustomersList';
+import { ListStatsRow } from '@/components/dashboard/list-stats-row';
 
 interface CustomerListItem {
   id: string;
@@ -46,17 +52,6 @@ interface CustomerListItem {
   taxCondition?: string;
   currentBalance: number;
   createdAt: string;
-}
-
-interface CustomersResponse {
-  data: CustomerListItem[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
 }
 
 export default function CustomersPage() {
@@ -88,36 +83,16 @@ export default function CustomersPage() {
 
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<CustomersResponse>({
-    queryKey: ['customers', page, limit, search, sort],
-    queryFn: async () => {
-      const response = await api.get<CustomerListItem[]>('/customers', {
-        params: {
-          page,
-          limit,
-          q: search || undefined,
-          sort: sort || undefined,
-        },
-      });
-      return {
-        data: response.data || [],
-        meta: (response as any).meta || {
-          page: 1,
-          limit,
-          total: 0,
-          totalPages: 1,
-          hasMore: false,
-        },
-      };
-    },
+  const { data, isLoading } = useCustomersList<CustomerListItem>({
+    page,
+    limit,
+    search,
+    sort,
     enabled: canViewCustomers,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await api.post('/customers', data);
-      return response.data;
-    },
+    mutationFn: createCustomer,
     onSuccess: () => {
       toast.success('Cliente creado exitosamente');
       setShowForm(false);
@@ -135,21 +110,19 @@ export default function CustomersPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al crear cliente');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Error al crear cliente'));
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (customerId: string) => {
-      await api.delete(`/customers/${customerId}`);
-    },
+    mutationFn: deleteCustomer,
     onSuccess: () => {
       toast.success('Cliente eliminado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar cliente');
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Error al eliminar cliente'));
     },
   });
 
@@ -198,7 +171,7 @@ export default function CustomersPage() {
   };
 
   const customers = data?.data || [];
-  const meta = data?.meta || { page: 1, limit: limit, total: 0, totalPages: 1, hasMore: false };
+  const meta = data?.meta || getDefaultPaginationMeta(1, limit);
 
   const totals = {
     totalFiltered: meta.total,
@@ -218,22 +191,21 @@ export default function CustomersPage() {
           buttonAction={() => setShowForm(!showForm)}
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-2">
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Personas</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">
-              {customers.filter((c) => c.type === 'PERSON').length}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">Clientes individuales.</p>
-          </div>
-          <div className="brand-accent-panel p-4">
-            <p className="text-sm font-semibold text-foreground">Con deuda</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">
-              {customers.filter((c) => Number(c.currentBalance) > 0).length}
-            </p>
-            <p className="mt-2 text-sm brand-accent-subtle">Cuentas corrientes con deuda.</p>
-          </div>
-        </div>
+        <ListStatsRow
+          items={[
+            {
+              title: 'Personas',
+              value: customers.filter((c) => c.type === 'PERSON').length,
+              description: 'Clientes individuales.',
+            },
+            {
+              title: 'Con deuda',
+              value: customers.filter((c) => Number(c.currentBalance) > 0).length,
+              description: 'Cuentas corrientes con deuda.',
+              accent: true,
+            },
+          ]}
+        />
 
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogContent className="sm:max-w-lg">

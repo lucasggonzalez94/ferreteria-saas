@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +21,7 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { ActionsMenu } from "@/components/ui/actions-menu";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -29,6 +29,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  getDefaultPaginationMeta,
+} from "@/lib/pagination";
+import { getErrorMessage } from "@/lib/error-message";
+import {
+  createSupplier,
+  deleteSupplier,
+  updateSupplier,
+  updateSupplierStatus,
+} from "@/lib/services/suppliers";
+import { useSuppliersList } from "@/lib/hooks/useSuppliersList";
+import { ListStatsRow } from "@/components/dashboard/list-stats-row";
 
 interface Supplier {
   id: string;
@@ -44,18 +56,6 @@ interface Supplier {
   createdAt: string;
   _count?: {
     purchases: number;
-  };
-}
-
-interface SuppliersApiResponse {
-  success: boolean;
-  data: Supplier[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages?: number;
-    hasMore: boolean;
   };
 }
 
@@ -100,62 +100,57 @@ export default function SuppliersPage() {
     name: "",
   });
 
-  const { data: suppliersData, isLoading } = useQuery<SuppliersApiResponse | undefined>({
-    queryKey: ["suppliers", search, page, limit],
-    queryFn: async () => {
-      const response = await api.get<any>("/suppliers", {
-        params: {
-          search: search || undefined,
-          page,
-          limit,
-        },
-      });
-      return response as SuppliersApiResponse;
-    },
+  const { data: suppliersData, isLoading } = useSuppliersList<Supplier>({
+    page,
+    limit,
+    search,
     enabled: canViewSuppliers,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: SupplierFormData) => {
-      const response = await api.post("/suppliers", data);
-      return response.data;
-    },
+    mutationFn: async (data: SupplierFormData) => createSupplier(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       setIsOpen(false);
       setFormData({ name: "" });
     },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo crear el proveedor"));
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: SupplierFormData) => {
-      const response = await api.put(`/suppliers/${editingId}`, data);
-      return response.data;
-    },
+    mutationFn: async (data: SupplierFormData) => updateSupplier(editingId as string, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       setIsOpen(false);
       setEditingId(null);
       setFormData({ name: "" });
     },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo actualizar el proveedor"));
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/suppliers/${id}`);
-    },
+    mutationFn: deleteSupplier,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo eliminar el proveedor"));
     },
   });
 
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      const response = await api.patch(`/suppliers/${id}/status`, { isActive });
-      return response.data;
+      return updateSupplierStatus(id, isActive);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "No se pudo actualizar el estado"));
     },
   });
 
@@ -196,13 +191,13 @@ export default function SuppliersPage() {
   };
 
   // suppliersData contiene { success, data: [...], meta: {...} }
-  const suppliers: Supplier[] = (suppliersData?.data || []).map((supplier: any) => ({
+  const suppliers: Supplier[] = (suppliersData?.data || []).map((supplier) => ({
     ...supplier,
     creditLimit: supplier.creditLimit ? Number(supplier.creditLimit) : undefined,
     currentBalance: Number(supplier.currentBalance) || 0,
   }));
   
-  const meta = suppliersData?.meta || { page: 1, limit: limit, total: 0, totalPages: 0, hasMore: false };
+  const meta = suppliersData?.meta || getDefaultPaginationMeta(1, limit);
   
   const startIndex = suppliers.length === 0 ? 0 : (meta.page - 1) * meta.limit + 1;
   const endIndex = Math.min(meta.page * meta.limit, meta.total);
@@ -217,23 +212,27 @@ export default function SuppliersPage() {
           description="Relación comercial, condiciones de pago y deuda activa en una sola vista operativa."
         />
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Resultados</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{meta.total || suppliers.length}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Proveedores encontrados con el filtro actual.</p>
-          </div>
-          <div className="app-panel-muted rounded-[1.4rem] p-4">
-            <p className="text-sm font-semibold text-foreground">Activos</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{activeSuppliers}</p>
-            <p className="mt-2 text-sm text-muted-foreground">Contactos listos para operar o comprar.</p>
-          </div>
-          <div className="brand-accent-panel p-4">
-            <p className="text-sm font-semibold text-foreground">Con deuda pendiente</p>
-            <p className="mt-3 text-3xl font-semibold text-foreground">{suppliersWithDebt}</p>
-            <p className="mt-2 text-sm brand-accent-subtle">Proveedores con saldo adeudado en este momento.</p>
-          </div>
-        </div>
+        <ListStatsRow
+          columnsClassName="md:grid-cols-3"
+          items={[
+            {
+              title: "Resultados",
+              value: meta.total || suppliers.length,
+              description: "Proveedores encontrados con el filtro actual.",
+            },
+            {
+              title: "Activos",
+              value: activeSuppliers,
+              description: "Contactos listos para operar o comprar.",
+            },
+            {
+              title: "Con deuda pendiente",
+              value: suppliersWithDebt,
+              description: "Proveedores con saldo adeudado en este momento.",
+              accent: true,
+            },
+          ]}
+        />
 
         <div className="flex gap-4 mb-6">
           <SearchBar

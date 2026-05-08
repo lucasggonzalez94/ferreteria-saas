@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import Header from "@/components/ui/header";
 import { Tooltip } from "@/components/ui/tooltip";
+import { getErrorMessage } from "@/lib/error-message";
 
 export default function CashRegisterPage() {
   const router = useRouter();
@@ -197,8 +198,8 @@ export default function CashRegisterPage() {
         router.push("/dashboard/pos");
       }, 1000);
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Error al abrir caja");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Error al abrir caja"));
       setShowDifferenceConfirmation(false);
       setPendingOpenAmount(null);
       setPendingOpenAmountUSD(null);
@@ -225,8 +226,8 @@ export default function CashRegisterPage() {
       setShowMovementDialog(false);
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Error al registrar movimiento");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Error al registrar movimiento"));
     },
   });
 
@@ -253,8 +254,8 @@ onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["cash-register"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || "Error al cerrar caja");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Error al cerrar caja"));
     },
   });
 
