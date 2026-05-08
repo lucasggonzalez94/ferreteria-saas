@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { Check, ChevronDown, ChevronUp } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, CircleHelp } from "lucide-react"
 import { Label } from "@/components/ui/label"
+import { Tooltip } from "@/components/ui/tooltip"
 
 import { cn } from "@/lib/utils"
 
@@ -39,18 +40,32 @@ interface SelectTriggerProps
   extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> {
   label?: string
   htmlFor?: string
+  labelTooltip?: React.ReactNode
 }
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, children, label, htmlFor, id, ...props }, ref) => {
+>(({ className, children, label, htmlFor, id, labelTooltip, ...props }, ref) => {
   const triggerId = id || htmlFor
 
   if (label) {
     return (
       <div className="space-y-2">
-        <Label htmlFor={triggerId}>{label}</Label>
+        <div className="flex h-5 items-center gap-1.5">
+          <Label htmlFor={triggerId}>{label}</Label>
+          {labelTooltip && (
+            <Tooltip content={labelTooltip} placement="top">
+              <button
+                type="button"
+                aria-label={`Informacion sobre ${label}`}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CircleHelp className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          )}
+        </div>
         <SelectPrimitive.Trigger
           ref={ref}
           id={triggerId}

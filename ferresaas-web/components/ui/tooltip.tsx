@@ -51,7 +51,7 @@ export function Tooltip({
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 rounded-xl border border-white/10 bg-[hsl(var(--surface-strong))] px-3 py-2 text-center text-[11px] leading-4 font-medium tracking-[0.01em] text-white opacity-0 shadow-[0_18px_34px_-18px_rgba(3,12,20,0.75)] transition duration-150 ease-out ${maxWidthClassName} ${visible ? "opacity-100" : ""} ${positionClasses}`}
+        className={`pointer-events-none absolute left-1/2 z-50 w-max min-w-[180px] -translate-x-1/2 rounded-xl border border-white/10 bg-[hsl(var(--surface-strong))] px-3 py-2 text-left text-[11px] leading-4 font-medium tracking-[0.01em] text-white whitespace-normal break-words opacity-0 shadow-[0_18px_34px_-18px_rgba(3,12,20,0.75)] transition duration-150 ease-out ${maxWidthClassName} ${visible ? "opacity-100" : ""} ${positionClasses}`}
       >
         {content}
       </span>

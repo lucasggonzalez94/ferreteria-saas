@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { Label } from "@/components/ui/label"
+import { Tooltip } from "@/components/ui/tooltip"
+import { CircleHelp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -28,10 +30,11 @@ export function FormField({ label, htmlFor, className, children }: FormFieldProp
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   htmlFor?: string
+  labelTooltip?: React.ReactNode
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, onWheel, onWheelCapture, label, htmlFor, id, ...props }, ref) => {
+  ({ className, type, onWheel, onWheelCapture, label, htmlFor, id, labelTooltip, ...props }, ref) => {
     const handleWheel = React.useCallback<React.WheelEventHandler<HTMLInputElement>>(
       (event) => {
         if (type === "number") {
@@ -51,9 +54,22 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     if (label) {
       return (
         <div className="space-y-2">
-          <Label htmlFor={inputId}>
-            {label}
-          </Label>
+          <div className="flex h-5 items-center gap-1.5">
+            <Label htmlFor={inputId}>
+              {label}
+            </Label>
+            {labelTooltip && (
+              <Tooltip content={labelTooltip} placement="top">
+                <button
+                  type="button"
+                  aria-label={`Informacion sobre ${label}`}
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
+            )}
+          </div>
           <input
             id={inputId}
             type={type}

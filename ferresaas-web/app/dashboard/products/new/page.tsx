@@ -1,29 +1,27 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Tooltip } from "@/components/ui/tooltip";
-import { toast } from "sonner";
-import Link from "next/link";
-import Header from "@/components/ui/header";
-import { CircleHelp, Upload, X } from "lucide-react";
+} from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import Header from '@/components/ui/header';
+import { Upload, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +29,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 interface CategoryFormState {
   name: string;
@@ -44,38 +42,38 @@ export default function NewProductPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canCreateProducts = user?.permissions?.includes("products:create");
+  const canCreateProducts = user?.permissions?.includes('products:create');
 
   useEffect(() => {
     if (!canCreateProducts) {
-      router.push("/dashboard/products");
+      router.push('/dashboard/products');
       return;
     }
   }, [canCreateProducts, router]);
   const [formData, setFormData] = useState({
-    name: "",
-    barcode: "",
-    description: "",
-    categoryId: "",
-    unit: "u",
-    cost: "",
-    price: "",
-    taxRate: "21",
-    marginPercent: "",
-    minStock: "",
-    initialStock: "",
-    pricingMode: "margin",
-    targetMargin: "",
+    name: '',
+    barcode: '',
+    description: '',
+    categoryId: '',
+    unit: 'u',
+    cost: '',
+    price: '',
+    taxRate: '21',
+    marginPercent: '',
+    minStock: '',
+    initialStock: '',
+    pricingMode: 'margin',
+    targetMargin: '',
     priceLocked: false,
-    roundingStep: "10",
-    costMethod: "avg_weighted",
+    roundingStep: '10',
+    costMethod: 'avg_weighted',
   });
 
   const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>({
-    name: "",
-    description: "",
+    name: '',
+    description: '',
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -85,31 +83,14 @@ export default function NewProductPage() {
     marginPercent?: string;
   }>({});
 
-  const renderFieldLabel = (fieldId: string, label: string, tooltip?: string) => (
-    <div className="mb-2 flex items-center gap-1.5">
-      <Label htmlFor={fieldId}>{label}</Label>
-      {tooltip && (
-        <Tooltip content={tooltip} placement="top">
-          <button
-            type="button"
-            aria-label={`Informacion sobre ${label}`}
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <CircleHelp className="h-3.5 w-3.5" />
-          </button>
-        </Tooltip>
-      )}
-    </div>
-  );
-
   const resetCategoryForm = () => {
-    setCategoryForm({ name: "", description: "" });
+    setCategoryForm({ name: '', description: '' });
   };
 
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryForm.name.trim()) {
-      toast.error("Ingresa un nombre para la categoría");
+      toast.error('Ingresa un nombre para la categoría');
       return;
     }
     createCategoryMutation.mutate(categoryForm);
@@ -117,76 +98,76 @@ export default function NewProductPage() {
 
   // Obtener categorías
   const { data: categories } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ['categories'],
     queryFn: async () => {
-      const response = await api.get<any[]>("/categories");
+      const response = await api.get<any[]>('/categories');
       return response.data || [];
     },
   });
 
   const createCategoryMutation = useMutation({
     mutationFn: async (payload: CategoryFormState) => {
-      const response = await api.post("/categories", {
+      const response = await api.post('/categories', {
         name: payload.name,
         description: payload.description || undefined,
       });
       return response.data;
     },
     onSuccess: (newCategory: any) => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setFormData((prev) => ({ ...prev, categoryId: newCategory.id }));
-      toast.success("Categoría creada");
+      toast.success('Categoría creada');
       resetCategoryForm();
       setCategoryModalOpen(false);
     },
     onError: (error: any) => {
-      toast.error(error.message || "Error al crear categoría");
+      toast.error(error.message || 'Error al crear categoría');
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await api.post("/products", data);
+      const response = await api.post('/products', data);
       return response.data;
     },
     onSuccess: (newProduct: any) => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       if (selectedImage) {
         uploadImageMutation.mutate({ productId: newProduct.id, file: selectedImage });
       } else {
-        toast.success("Producto creado exitosamente");
-        router.push("/dashboard/products");
+        toast.success('Producto creado exitosamente');
+        router.push('/dashboard/products');
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || "Error al crear producto");
+      toast.error(error.message || 'Error al crear producto');
     },
   });
 
   const uploadImageMutation = useMutation({
     mutationFn: async ({ productId, file }: { productId: string; file: File }) => {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append('image', file);
       await api.upload(`/products/image/${productId}`, formData);
     },
     onSuccess: () => {
-      toast.success("Producto creado y imagen subida exitosamente");
-      router.push("/dashboard/products");
+      toast.success('Producto creado y imagen subida exitosamente');
+      router.push('/dashboard/products');
     },
     onError: (error: any) => {
-      toast.warning("Producto creado pero la imagen no se pudo subir");
-      router.push("/dashboard/products");
+      toast.warning('Producto creado pero la imagen no se pudo subir');
+      router.push('/dashboard/products');
     },
   });
 
   const calculatePrice = async () => {
     if (!formData.cost || !formData.taxRate || !formData.marginPercent) {
-      toast.error("Completa costo, IVA y margen para calcular");
+      toast.error('Completa costo, IVA y margen para calcular');
       return;
     }
 
     try {
-      const response = await api.post<any>("/products/calculate-price", {
+      const response = await api.post<any>('/products/calculate-price', {
         cost: parseFloat(formData.cost),
         taxRate: parseFloat(formData.taxRate),
         marginPercent: parseFloat(formData.marginPercent),
@@ -196,14 +177,14 @@ export default function NewProductPage() {
       setSuggestedPrice(calculated);
       toast.success(`Precio sugerido: $${calculated.toFixed(2)}`);
     } catch (error: any) {
-      toast.error(error.message || "Error al calcular precio");
+      toast.error(error.message || 'Error al calcular precio');
     }
   };
 
   const applySuggestedPrice = () => {
     if (suggestedPrice !== null) {
       setFormData({ ...formData, price: suggestedPrice.toFixed(2) });
-      toast.success("Precio sugerido aplicado");
+      toast.success('Precio sugerido aplicado');
     }
   };
 
@@ -223,25 +204,25 @@ export default function NewProductPage() {
     setSelectedImage(null);
     setImagePreview(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   };
 
   // Validar targetMargin en tiempo real
   const validateTargetMargin = (value: string, mode: string) => {
     const errors = { ...validationErrors };
-    
-    if (mode === "margin") {
+
+    if (mode === 'margin') {
       if (!value) {
-        errors.targetMargin = "El Margen Objetivo es requerido";
+        errors.targetMargin = 'El Margen Objetivo es requerido';
       } else {
         const numValue = parseFloat(value);
         if (isNaN(numValue)) {
-          errors.targetMargin = "Ingresa un número válido";
+          errors.targetMargin = 'Ingresa un número válido';
         } else if (numValue <= 0) {
-          errors.targetMargin = "El margen debe ser mayor a 0% (ej: 37.5)";
+          errors.targetMargin = 'El margen debe ser mayor a 0% (ej: 37.5)';
         } else if (numValue >= 100) {
-          errors.targetMargin = "El margen debe ser menor a 100%. Máximo 99.9%";
+          errors.targetMargin = 'El margen debe ser menor a 100%. Máximo 99.9%';
         } else {
           delete errors.targetMargin;
         }
@@ -249,23 +230,23 @@ export default function NewProductPage() {
     } else {
       delete errors.targetMargin;
     }
-    
+
     setValidationErrors(errors);
   };
 
   // Validar targetMarkup en tiempo real
   const validateTargetMarkup = (value: string, mode: string) => {
     const errors = { ...validationErrors };
-    
-    if (mode === "markup") {
+
+    if (mode === 'markup') {
       if (!value) {
-        errors.targetMarkup = "El Markup Objetivo es requerido";
+        errors.targetMarkup = 'El Markup Objetivo es requerido';
       } else {
         const numValue = parseFloat(value);
         if (isNaN(numValue)) {
-          errors.targetMarkup = "Ingresa un número válido";
+          errors.targetMarkup = 'Ingresa un número válido';
         } else if (numValue <= 0) {
-          errors.targetMarkup = "El markup debe ser mayor a 0% (ej: 60)";
+          errors.targetMarkup = 'El markup debe ser mayor a 0% (ej: 60)';
         } else {
           delete errors.targetMarkup;
         }
@@ -273,27 +254,27 @@ export default function NewProductPage() {
     } else {
       delete errors.targetMarkup;
     }
-    
+
     setValidationErrors(errors);
   };
 
   // Validar margen actual (marginPercent) en tiempo real
   const validateMarginPercent = (value: string) => {
     const errors = { ...validationErrors };
-    
+
     if (value) {
       const numValue = parseFloat(value);
       if (isNaN(numValue)) {
-        errors.marginPercent = "Ingresa un número válido";
+        errors.marginPercent = 'Ingresa un número válido';
       } else if (numValue < 0 || numValue >= 100) {
-        errors.marginPercent = "El margen debe ser menor a 100%. Máximo 99.9%";
+        errors.marginPercent = 'El margen debe ser menor a 100%. Máximo 99.9%';
       } else {
         delete errors.marginPercent;
       }
     } else {
       delete errors.marginPercent;
     }
-    
+
     setValidationErrors(errors);
   };
 
@@ -335,9 +316,9 @@ export default function NewProductPage() {
     const mode = e.target.value;
     setFormData({ ...formData, pricingMode: mode });
     // Validar el campo objetivo según el nuevo modo
-    if (mode === "margin") {
+    if (mode === 'margin') {
       validateTargetMargin(formData.targetMargin, mode);
-    } else if (mode === "markup") {
+    } else if (mode === 'markup') {
       validateTargetMarkup(formData.targetMargin, mode);
     } else {
       setValidationErrors({});
@@ -349,17 +330,17 @@ export default function NewProductPage() {
 
     // Si hay errores de validación, no permitir envío
     if (Object.keys(validationErrors).length > 0) {
-      toast.error("Por favor corrige los errores en el formulario");
+      toast.error('Por favor corrige los errores en el formulario');
       return;
     }
 
     // Validación final para modos que requieren valor objetivo
-    if (formData.pricingMode === "margin" && !formData.targetMargin) {
+    if (formData.pricingMode === 'margin' && !formData.targetMargin) {
       toast.error("Debes configurar un Margen Objetivo para el modo 'Mantener Margen'");
       return;
     }
 
-    if (formData.pricingMode === "markup" && !formData.targetMargin) {
+    if (formData.pricingMode === 'markup' && !formData.targetMargin) {
       toast.error("Debes configurar un Markup Objetivo para el modo 'Mantener Markup'");
       return;
     }
@@ -370,7 +351,7 @@ export default function NewProductPage() {
       description: formData.description || undefined,
       categoryId: formData.categoryId || undefined,
       unit: formData.unit,
-      isFractional: formData.unit !== "u",
+      isFractional: formData.unit !== 'u',
       cost: parseFloat(formData.cost),
       price: parseFloat(formData.price),
       taxRate: parseFloat(formData.taxRate),
@@ -383,8 +364,8 @@ export default function NewProductPage() {
       roundingStep: parseInt(formData.roundingStep),
       costMethod: formData.costMethod,
     };
-    
-    console.log("📤 Enviando producto al backend:", payload);
+
+    console.log('📤 Enviando producto al backend:', payload);
     createMutation.mutate(payload);
   };
 
@@ -405,7 +386,7 @@ export default function NewProductPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="col-span-1 md:col-span-2">
                   <h3 className="text-sm font-semibold">Datos básicos</h3>
                 </div>
@@ -415,9 +396,7 @@ export default function NewProductPage() {
                     id="name"
                     label="Nombre *"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
@@ -427,9 +406,7 @@ export default function NewProductPage() {
                     <div className="flex-1">
                       <Select
                         value={formData.categoryId}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, categoryId: value })
-                        }
+                        onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
                       >
                         <SelectTrigger label="Categoría">
                           <SelectValue placeholder="Sin categoría" />
@@ -461,9 +438,7 @@ export default function NewProductPage() {
                     id="barcode"
                     label="Código de barras"
                     value={formData.barcode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, barcode: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                   />
                 </div>
 
@@ -472,9 +447,7 @@ export default function NewProductPage() {
                     id="description"
                     label="Descripción"
                     value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
                   />
                 </div>
@@ -482,9 +455,7 @@ export default function NewProductPage() {
                 <div>
                   <Select
                     value={formData.unit}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, unit: value })
-                    }
+                    onValueChange={(value) => setFormData({ ...formData, unit: value })}
                   >
                     <SelectTrigger label="Unidad *">
                       <SelectValue placeholder="Selecciona unidad" />
@@ -507,12 +478,10 @@ export default function NewProductPage() {
                     id="initialStock"
                     label="Stock inicial"
                     type="number"
-                    step={formData.unit === "u" ? "1" : "0.01"}
+                    step={formData.unit === 'u' ? '1' : '0.01'}
                     min="0"
                     value={formData.initialStock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, initialStock: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
                     placeholder="0"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -527,9 +496,7 @@ export default function NewProductPage() {
                     type="number"
                     step="0.01"
                     value={formData.minStock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, minStock: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                   />
                 </div>
 
@@ -538,73 +505,54 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  {renderFieldLabel(
-                    "cost",
-                    "Costo *",
-                    "Lo que te cuesta comprar o producir una unidad del producto."
-                  )}
                   <Input
                     id="cost"
+                    label="Costo *"
+                    labelTooltip="Lo que te cuesta comprar o producir una unidad del producto."
                     type="number"
                     step="0.01"
                     value={formData.cost}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cost: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                     required
                   />
                 </div>
 
                 <div>
-                  {renderFieldLabel(
-                    "price",
-                    "Precio de venta *",
-                    "Lo que pagará tu cliente por cada unidad."
-                  )}
                   <Input
                     id="price"
+                    label="Precio de venta *"
+                    labelTooltip="Lo que pagará tu cliente por cada unidad."
                     type="number"
                     step="0.01"
                     value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     required
                   />
                 </div>
 
-                <div>
-                  <Input
-                    id="taxRate"
-                    label="IVA (%)"
-                    type="number"
-                    step="0.01"
-                    value={formData.taxRate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, taxRate: e.target.value })
-                    }
-                  />
-                </div>
+                <Input
+                  id="taxRate"
+                  label="IVA (%)"
+                  type="number"
+                  step="0.01"
+                  value={formData.taxRate}
+                  onChange={(e) => setFormData({ ...formData, taxRate: e.target.value })}
+                />
 
                 <div>
-                  {renderFieldLabel(
-                    "marginPercent",
-                    "Margen (%)",
-                    "Ganancia sobre el precio de venta. Ejemplo: costo 10.000 y venta 16.000 da margen 37,5%."
-                  )}
                   <Input
                     id="marginPercent"
+                    label="Margen (%)"
+                    labelTooltip="Ganancia sobre el precio de venta. Ejemplo: costo 10.000 y venta 16.000 da margen 37,5%."
                     type="number"
                     step="0.01"
                     value={formData.marginPercent}
                     onChange={handleMarginPercentChange}
                     placeholder="Ej: 30"
-                    className={`w-full ${validationErrors.marginPercent ? "border-red-500" : ""}`}
+                    className={`w-full ${validationErrors.marginPercent ? 'border-red-500' : ''}`}
                   />
                   {validationErrors.marginPercent && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {validationErrors.marginPercent}
-                    </p>
+                    <p className="text-sm text-red-500 mt-1">{validationErrors.marginPercent}</p>
                   )}
                 </div>
 
@@ -613,7 +561,9 @@ export default function NewProductPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium leading-none">Precio sugerido</p>
                       <div className="mt-2 flex h-11 w-full rounded-xl border border-input/80 bg-muted px-3.5 py-2.5 text-sm items-center">
-                        {suggestedPrice !== null ? `$${suggestedPrice.toFixed(2)}` : "Completa costo, IVA y margen"}
+                        {suggestedPrice !== null
+                          ? `$${suggestedPrice.toFixed(2)}`
+                          : 'Completa costo, IVA y margen'}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -651,11 +601,6 @@ export default function NewProductPage() {
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div>
-                        {renderFieldLabel(
-                          "pricingMode",
-                          "Modo de precios",
-                          "Define cómo se comporta el precio automático: fijo, por margen, por markup o solo sugerencia."
-                        )}
                         <Select
                           value={formData.pricingMode}
                           onValueChange={(value: any) => {
@@ -663,7 +608,11 @@ export default function NewProductPage() {
                             handlePricingModeChange({ target: { value } } as any);
                           }}
                         >
-                          <SelectTrigger id="pricingMode">
+                          <SelectTrigger
+                            id="pricingMode"
+                            label="Modo de precios"
+                            labelTooltip="Define cómo se comporta el precio automático: fijo, por margen, por markup o solo sugerencia."
+                          >
                             <SelectValue placeholder="Selecciona modo" />
                           </SelectTrigger>
                           <SelectContent>
@@ -676,51 +625,58 @@ export default function NewProductPage() {
                       </div>
 
                       <div>
-                        {renderFieldLabel(
-                          "targetMargin",
-                          formData.pricingMode === "markup" ? "Markup objetivo (%)" : "Margen objetivo (%)",
-                          formData.pricingMode === "markup"
-                            ? "Recargo sobre costo que quieres mantener. Ejemplo: costo 10.000 con 60% da 16.000."
-                            : "Ganancia sobre venta que quieres mantener automáticamente."
-                        )}
                         <Input
                           id="targetMargin"
+                          label={formData.pricingMode === 'markup' ? 'Markup objetivo (%)' : 'Margen objetivo (%)'}
+                          labelTooltip={
+                            formData.pricingMode === 'markup'
+                              ? 'Recargo sobre costo que quieres mantener. Ejemplo: costo 10.000 con 60% da 16.000.'
+                              : 'Ganancia sobre venta que quieres mantener automáticamente.'
+                          }
                           type="number"
                           step="0.01"
                           value={formData.targetMargin}
-                          onChange={formData.pricingMode === "markup" ? handleTargetMarkupChange : handleTargetMarginChange}
-                          placeholder={formData.pricingMode === "markup" ? "Ej: 60" : "Ej: 37.5"}
-                          className={validationErrors.targetMargin || validationErrors.targetMarkup ? "border-red-500" : ""}
-                          disabled={formData.pricingMode === "fixed"}
+                          onChange={
+                            formData.pricingMode === 'markup'
+                              ? handleTargetMarkupChange
+                              : handleTargetMarginChange
+                          }
+                          placeholder={formData.pricingMode === 'markup' ? 'Ej: 60' : 'Ej: 37.5'}
+                          className={
+                            validationErrors.targetMargin || validationErrors.targetMarkup
+                              ? 'border-red-500'
+                              : ''
+                          }
+                          disabled={formData.pricingMode === 'fixed'}
                         />
                         {(validationErrors.targetMargin || validationErrors.targetMarkup) && (
                           <p className="text-sm text-red-500 mt-1">
                             {validationErrors.targetMargin || validationErrors.targetMarkup}
                           </p>
                         )}
-                        {formData.targetMargin && !validationErrors.targetMargin && !validationErrors.targetMarkup && (
-                          <p className="brand-accent-panel mt-2 p-2 text-xs brand-accent-subtle">
-                            {formData.pricingMode === "markup"
-                              ? `Equivalente: Margen ${calculateEquivalentMargin(parseFloat(formData.targetMargin)).toFixed(2)}%`
-                              : `Equivalente: Markup ${calculateEquivalentMarkup(parseFloat(formData.targetMargin)).toFixed(2)}%`
-                            }
-                          </p>
-                        )}
+                        {formData.targetMargin &&
+                          !validationErrors.targetMargin &&
+                          !validationErrors.targetMarkup && (
+                            <p className="brand-accent-panel mt-2 p-2 text-xs brand-accent-subtle">
+                              {formData.pricingMode === 'markup'
+                                ? `Equivalente: Margen ${calculateEquivalentMargin(parseFloat(formData.targetMargin)).toFixed(2)}%`
+                                : `Equivalente: Markup ${calculateEquivalentMarkup(parseFloat(formData.targetMargin)).toFixed(2)}%`}
+                            </p>
+                          )}
                       </div>
 
                       <div>
-                        {renderFieldLabel(
-                          "roundingStep",
-                          "Redondeo de precio",
-                          "Redondea el precio final para vender con cifras más simples."
-                        )}
                         <Select
                           value={formData.roundingStep}
                           onValueChange={(value) =>
                             setFormData({ ...formData, roundingStep: value })
                           }
                         >
-                          <SelectTrigger id="roundingStep">
+                          <SelectTrigger
+                            id="roundingStep"
+                            label="Redondeo de precio"
+                            labelTooltip="Redondea el precio final para vender con cifras más simples."
+                          >
                             <SelectValue placeholder="Selecciona redondeo" />
                           </SelectTrigger>
                           <SelectContent>
@@ -733,18 +689,15 @@ export default function NewProductPage() {
                       </div>
 
                       <div>
-                        {renderFieldLabel(
-                          "costMethod",
-                          "Método de costo",
-                          "Promedio ponderado usa el historial. Último costo usa la compra más reciente."
-                        )}
                         <Select
                           value={formData.costMethod}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, costMethod: value })
-                          }
+                          onValueChange={(value) => setFormData({ ...formData, costMethod: value })}
                         >
-                          <SelectTrigger id="costMethod">
+                          <SelectTrigger
+                            id="costMethod"
+                            label="Método de costo"
+                            labelTooltip="Promedio ponderado usa el historial. Último costo usa la compra más reciente."
+                          >
                             <SelectValue placeholder="Selecciona método" />
                           </SelectTrigger>
                           <SelectContent>
@@ -822,12 +775,8 @@ export default function NewProductPage() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1"
-                >
-                  {createMutation.isPending ? "Creando..." : "Crear Producto"}
+                <Button type="submit" disabled={createMutation.isPending} className="flex-1">
+                  {createMutation.isPending ? 'Creando...' : 'Crear Producto'}
                 </Button>
                 <Link href="/dashboard/products" className="flex-1">
                   <Button type="button" variant="outline" className="w-full">
@@ -854,9 +803,7 @@ export default function NewProductPage() {
                 id="category-name"
                 label="Nombre *"
                 value={categoryForm.name}
-                onChange={(e) =>
-                  setCategoryForm((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Ej: Ferretería"
                 required
               />
@@ -887,7 +834,7 @@ export default function NewProductPage() {
                 Cancelar
               </Button>
               <Button type="submit" disabled={createCategoryMutation.isPending}>
-                {createCategoryMutation.isPending ? "Creando..." : "Crear"}
+                {createCategoryMutation.isPending ? 'Creando...' : 'Crear'}
               </Button>
             </DialogFooter>
           </form>
