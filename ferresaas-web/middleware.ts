@@ -5,6 +5,7 @@ const PUBLIC_FILE_REGEX = /\.[^/]+$/;
 
 // Rutas públicas explícitas (accesibles SIN autenticación)
 const PUBLIC_PATHS = [
+  '/',
   '/login',
   '/forgot-password',
   '/reset-password',
@@ -44,23 +45,17 @@ export function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('refreshToken')?.value;
   const hasSession = !!refreshToken;
 
-  // Caso 1: Raíz "/" - redirigir según estado de sesión
-  if (pathname === '/') {
-    const target = hasSession ? '/dashboard' : '/login';
-    return NextResponse.redirect(new URL(target, request.url));
-  }
-
-  // Caso 2: Usuario CON sesión intenta acceder a ruta de auth (login, forgot, reset)
+  // Caso 1: Usuario CON sesión intenta acceder a ruta de auth (login, forgot, reset)
   if (hasSession && isAuthPath(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Caso 3: Ruta pública - permitir acceso sin sesión
+  // Caso 2: Ruta pública - permitir acceso sin sesión
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  // Caso 4: Todo lo demás es PROTEGIDO por defecto
+  // Caso 3: Todo lo demás es PROTEGIDO por defecto
   // Si NO hay sesión, redirigir a login con returnUrl
   if (!hasSession) {
     const loginUrl = new URL('/login', request.url);
