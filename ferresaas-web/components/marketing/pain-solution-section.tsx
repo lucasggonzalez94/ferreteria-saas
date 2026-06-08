@@ -12,11 +12,11 @@ export function PainSolutionSection() {
               Problema real
             </span>
             <h2 className="mt-5 max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-              El stock desordenado no avisa. Simplemente te hace perder ventas.
+              El desorden no siempre se ve. Pero aparece cuando el cliente está esperando.
             </h2>
           </div>
           <p className="max-w-3xl text-lg leading-8 text-muted-foreground landing-reveal landing-delay-1">
-            La landing empieza por el dolor que más entiende el dueño: productos que faltan, caja que cuesta cerrar y compras que llegan tarde. Ferrahock transforma ese caos en alertas, decisiones y operación visible.
+            Productos que faltan, caja que no cierra y compras que llegan tarde terminan costando ventas. Ferrahock te ayuda a ordenar esos puntos críticos desde una sola plataforma.
           </p>
         </div>
 

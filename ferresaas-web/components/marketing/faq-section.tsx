@@ -7,13 +7,13 @@ export function FaqSection() {
         <div>
           <span className="app-kicker">
             <span className="app-brand-dot" aria-hidden="true" />
-            Confianza v1
+            Antes de empezar
           </span>
           <h2 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
-            Respuestas simples antes de empezar el trial.
+            Respuestas simples antes de probar Ferrahock.
           </h2>
           <p className="mt-5 text-lg leading-8 text-muted-foreground">
-            Sin prueba social inventada. Esta primera versión prioriza claridad, seguridad básica y una propuesta comercial transparente.
+            La decisión es más fácil cuando sabés qué incluye, cómo empezás y qué podés esperar de la prueba gratis.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -33,7 +33,7 @@ export function FaqSection() {
 
         <div className="space-y-4">
           {faqs.map((faq) => (
-            <article key={faq.question} className="rounded-[1.45rem] border border-border/70 bg-card/88 p-6 backdrop-blur-xl">
+            <article key={faq.question} className="rounded-[1.45rem] border border-border/70 bg-card/94 p-6 backdrop-blur-xl">
               <h3 className="text-xl font-semibold">{faq.question}</h3>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">{faq.answer}</p>
             </article>

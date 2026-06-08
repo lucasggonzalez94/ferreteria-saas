@@ -8,10 +8,16 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import type { User, LoginResponse } from "@/types";
+
+const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/reset-password"];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
 
 interface Business {
   id: string;
@@ -60,10 +66,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const hasInitialized = useRef(false);
   const isFetching = useRef(false);
 
   useEffect(() => {
+    const isPublicRoute = isPublicPath(pathname || "/");
+
+    if (isPublicRoute) {
+      setIsLoading(false);
+      return;
+    }
+
     // Prevenir ejecuciones múltiples con ref
     if (hasInitialized.current || isFetching.current) {
       return;
@@ -71,8 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     hasInitialized.current = true;
     isFetching.current = true;
-    
-    // Recuperar tokens de localStorage si existen (para persistencia entre recargas)
+
     initializeTokensFromStorage();
     
     // Intentar obtener usuario (si hay cookie de refresh, el backend responderá)
@@ -81,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Solo ejecutar al montar
+  }, [pathname]);
 
   const initializeTokensFromStorage = () => {
     // Los tokens se recuperan automáticamente mediante:
@@ -113,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      // Si falla, no hay sesión válida - redirigir al login
+      // Si falla en una ruta protegida, no hay sesión válida.
       console.log('No active session', error);
       router.push('/login');
     } finally {

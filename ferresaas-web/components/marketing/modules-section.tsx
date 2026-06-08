@@ -15,7 +15,7 @@ export function ModulesSection() {
             </h2>
           </div>
           <p className="max-w-3xl text-lg leading-8 text-muted-foreground">
-            La propuesta visual muestra cómo cada módulo aporta al control de stock: vender, cobrar, comprar y reportar desde una experiencia consistente.
+            Cada módulo aporta al mismo objetivo: vender, cobrar, comprar y reportar con información consistente, sin duplicar carga ni depender de planillas paralelas.
           </p>
         </div>
 
@@ -25,7 +25,7 @@ export function ModulesSection() {
             return (
               <article
                 key={feature.title}
-                className="group rounded-[1.5rem] border border-border/70 bg-card/86 p-6 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-[hsl(var(--accent)/0.38)] hover:bg-[hsl(var(--brand-accent-soft))]"
+                className="group rounded-[1.5rem] border border-border/70 bg-card/94 p-6 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-[hsl(var(--accent)/0.38)] hover:bg-[hsl(var(--brand-accent-soft))]"
               >
                 <span className="app-icon-badge h-14 w-14 rounded-[1.25rem] border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
                   <Icon className="h-6 w-6" />
@@ -40,19 +40,19 @@ export function ModulesSection() {
         <div className="mt-16 app-panel app-orbit overflow-hidden p-6 sm:p-8">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
             <div>
-              <span className="app-kicker">Trial visual</span>
+              <span className="app-kicker">Prueba guiada</span>
               <h3 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl">
                 Del registro al primer control de stock, sin pedir tarjeta.
               </h3>
               <p className="mt-4 text-base leading-7 text-muted-foreground">
-                Este recorrido es una representación visual del onboarding. La lógica real se conecta en otra etapa.
+                Empezá por lo esencial: tu negocio, tus productos más importantes y las ventas del mostrador. Después sumás más control a medida que lo necesitás.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 return (
-                  <div key={step.title} className="rounded-[1.35rem] border border-border/70 bg-background/72 p-5">
+                  <div key={step.title} className="rounded-[1.35rem] border border-border/70 bg-background/88 p-5">
                     <div className="flex items-center gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-sm font-bold text-[hsl(var(--accent-foreground))]">
                         {index + 1}

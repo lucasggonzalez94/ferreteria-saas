@@ -18,7 +18,7 @@ const redHatDisplay = Red_Hat_Display({
 export const metadata: Metadata = {
   title: "Ferrahock - Software para Ferreterías",
   description:
-    "Gestiona ventas, caja, inventario y compras en una sola plataforma para ferreterias.",
+    "Gestioná ventas, caja, inventario y compras en una sola plataforma para ferreterías.",
   manifest: "/manifest.json",
   icons: {
     icon: [

@@ -21,7 +21,7 @@ export function SiteFooter() {
             className="hidden h-11 w-auto dark:block"
           />
           <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            Landing visual de Ferrahock. Las métricas y pantallas mostradas son representaciones mockeadas para validar UX/UI.
+            Software para ferreterías que necesitan vender, controlar stock, cerrar caja y comprar con más información.
           </p>
         </div>
         <nav aria-label="Legal" className="flex flex-wrap gap-4 text-sm font-semibold text-muted-foreground">

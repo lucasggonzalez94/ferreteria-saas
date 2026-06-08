@@ -290,6 +290,7 @@ router.get('/restore-session', async (req: Request, res: Response, next: NextFun
     try {
       decoded = TokenService.verifyRefreshToken(refreshToken);
     } catch (error) {
+      res.clearCookie('refreshToken', { path: '/' });
       throw new AppError(401, 'INVALID_TOKEN', 'Invalid or expired refresh token');
     }
 

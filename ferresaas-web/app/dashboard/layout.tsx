@@ -103,7 +103,13 @@ export default function DashboardLayout({
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner text="Redirigiendo al login..." />
+        </div>
+      </div>
+    );
   }
 
   return (

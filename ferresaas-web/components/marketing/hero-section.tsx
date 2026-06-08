@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Bell, CheckCircle2, PackageSearch, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockActivity, mockProducts, mockStats, trustItems } from "./landing-data";
+import { dashboardActivity, dashboardProducts, dashboardStats, trustItems } from "./landing-data";
 
 export function HeroSection() {
   return (
@@ -15,10 +15,10 @@ export function HeroSection() {
           </span>
           <div className="mt-7 space-y-6 landing-reveal landing-delay-1">
             <h1 className="max-w-4xl text-5xl font-semibold leading-[0.94] text-foreground sm:text-6xl lg:text-7xl">
-              Controlá el stock antes de perder la venta.
+              Vendé más tranquilo con stock, caja y compras bajo control.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
-              Ferrahock une inventario, POS, caja y compras para que el dueño vea qué falta, qué se vende y dónde se va la plata.
+              Ferrahock reúne inventario, POS, caja y compras para que sepas qué falta, qué se vende y dónde se va la plata, sin depender de planillas sueltas.
             </p>
           </div>
 
@@ -29,7 +29,7 @@ export function HeroSection() {
               className="h-14 bg-[hsl(var(--accent))] px-7 text-base text-[hsl(var(--accent-foreground))] shadow-[0_26px_70px_-34px_hsl(var(--accent))] hover:bg-[hsl(var(--accent)/0.92)]"
             >
               <Link href="/app/register">
-                Probar 14 días gratis
+                Probar gratis 14 días
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </Button>
@@ -64,8 +64,8 @@ export function HeroSection() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              {mockStats.map((stat) => (
-                <div key={stat.label} className="rounded-[1.2rem] border border-border/70 bg-background/70 p-4">
+              {dashboardStats.map((stat) => (
+                <div key={stat.label} className="rounded-[1.2rem] border border-border/70 bg-background/88 p-4">
                   <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
                   <p className="mt-2 text-2xl font-semibold tracking-[-0.04em]">{stat.value}</p>
                 </div>
@@ -73,7 +73,7 @@ export function HeroSection() {
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.82fr]">
-              <div className="rounded-[1.35rem] border border-border/70 bg-background/72 p-4">
+              <div className="rounded-[1.35rem] border border-border/70 bg-background/88 p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="app-icon-badge h-10 w-10 text-[hsl(var(--accent))]">
@@ -81,14 +81,14 @@ export function HeroSection() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold">Stock crítico</p>
-                      <p className="text-xs text-muted-foreground">Mock visual de inventario</p>
+                      <p className="text-xs text-muted-foreground">Productos que necesitan atención</p>
                     </div>
                   </div>
                   <Bell className="h-4 w-4 text-[hsl(var(--accent))]" />
                 </div>
                 <div className="space-y-3">
-                  {mockProducts.map((product) => (
-                    <div key={product.name} className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/70 p-3">
+                  {dashboardProducts.map((product) => (
+                    <div key={product.name} className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/92 p-3">
                       <div>
                         <p className="text-sm font-semibold">{product.name}</p>
                         <p className="text-xs text-muted-foreground">{product.stock}</p>
@@ -101,19 +101,19 @@ export function HeroSection() {
                 </div>
               </div>
 
-              <div className="rounded-[1.35rem] border border-border/70 bg-[hsl(var(--surface-strong))] p-4 text-primary-foreground shadow-[0_32px_80px_-50px_rgba(12,41,69,0.9)]">
+              <div className="rounded-[1.35rem] border border-white/12 bg-[hsl(var(--surface-strong))] p-4 text-white shadow-[0_32px_80px_-50px_rgba(12,41,69,0.9)]">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/15 bg-white/10">
                     <ScanLine className="h-5 w-5" />
                   </span>
                   <div>
                     <p className="text-sm font-semibold">Actividad del mostrador</p>
-                    <p className="text-xs text-white/62">Datos ficticios</p>
+                    <p className="text-xs text-white/76">Ventas, caja y stock en movimiento</p>
                   </div>
                 </div>
                 <div className="mt-5 space-y-3">
-                  {mockActivity.map((item) => (
-                    <div key={item} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-sm text-white/82">
+                  {dashboardActivity.map((item) => (
+                    <div key={item} className="flex gap-3 rounded-2xl border border-white/12 bg-white/[0.08] p-3 text-sm text-white/88">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--accent))]" />
                       <span>{item}</span>
                     </div>

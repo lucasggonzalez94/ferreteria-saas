@@ -16,7 +16,7 @@ export function PricingSection() {
             Empezá gratis. Elegí plan cuando Ferrahock ya te ordenó el mostrador.
           </h2>
           <p className="mt-5 text-lg leading-8 text-muted-foreground">
-            Precios oficiales para la primera propuesta comercial. El trial visual de 14 días no pide tarjeta.
+            Probá Ferrahock 14 días sin tarjeta. Cuando decidas seguir, elegí el plan que mejor calce con el tamaño de tu ferretería.
           </p>
         </div>
 
@@ -26,8 +26,8 @@ export function PricingSection() {
               key={plan.name}
               className={`relative flex min-h-[560px] flex-col rounded-[1.6rem] border p-6 backdrop-blur-xl transition-all hover:-translate-y-1 ${
                 plan.highlighted
-                  ? "border-[hsl(var(--accent)/0.58)] bg-[hsl(var(--surface-strong))] text-primary-foreground shadow-[0_34px_95px_-55px_rgba(12,41,69,0.95)]"
-                  : "border-border/70 bg-card/88"
+                  ? "border-[hsl(var(--accent)/0.72)] bg-[hsl(var(--surface-strong))] text-white shadow-[0_34px_95px_-55px_rgba(12,41,69,0.95)]"
+                  : "border-border/70 bg-card/94"
               }`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -42,13 +42,13 @@ export function PricingSection() {
                   {plan.badge}
                 </span>
               </div>
-              <p className={`mt-4 min-h-[72px] text-sm leading-6 ${plan.highlighted ? "text-white/68" : "text-muted-foreground"}`}>
+              <p className={`mt-4 min-h-[72px] text-sm leading-6 ${plan.highlighted ? "text-white/82" : "text-muted-foreground"}`}>
                 {plan.description}
               </p>
 
               <div className="mt-6">
                 <p className="text-4xl font-semibold tracking-[-0.06em]">{plan.priceArs}</p>
-                <p className={`mt-1 text-sm ${plan.highlighted ? "text-white/62" : "text-muted-foreground"}`}>
+                <p className={`mt-1 text-sm ${plan.highlighted ? "text-white/76" : "text-muted-foreground"}`}>
                   por mes · {plan.priceUsd}
                 </p>
               </div>
@@ -59,13 +59,13 @@ export function PricingSection() {
                     <span
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
                         plan.highlighted
-                          ? "bg-white/12 text-[hsl(var(--accent))]"
+                          ? "bg-white/16 text-[hsl(var(--accent))]"
                           : "bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]"
                       }`}
                     >
                       <Check className="h-3.5 w-3.5" />
                     </span>
-                    <span className={plan.highlighted ? "text-white/82" : "text-foreground/82"}>{feature}</span>
+                    <span className={plan.highlighted ? "text-white/90" : "text-foreground/82"}>{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -79,7 +79,7 @@ export function PricingSection() {
                 }`}
                 variant={plan.highlighted ? "default" : "outline"}
               >
-                <Link href="/app/register">Probar 14 días</Link>
+                <Link href="/app/register">Probar gratis 14 días</Link>
               </Button>
             </article>
           ))}

@@ -318,9 +318,9 @@
 
   .landing-final-cta {
     background:
-      radial-gradient(circle at top left, hsl(var(--accent) / 0.26), transparent 34%),
-      radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.12), transparent 32%),
-      linear-gradient(135deg, hsl(var(--surface-strong)), hsl(var(--primary)));
+      radial-gradient(circle at top left, hsl(var(--accent) / 0.22), transparent 32%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.12), transparent 34%),
+      linear-gradient(135deg, hsl(210 48% 10%), hsl(var(--surface-strong)) 54%, hsl(209 55% 15%));
     box-shadow: 0 42px 110px -62px rgba(12, 41, 69, 0.95);
   }
 
@@ -332,7 +332,7 @@
       linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
     background-size: 34px 34px;
-    opacity: 0.42;
+    opacity: 0.28;
     mask-image: radial-gradient(circle at center, black, transparent 78%);
   }
 

@@ -6,9 +6,11 @@ import { api, clearTokens, getToken, saveTokens } from '@/lib/api';
 
 const mockPush = jest.fn();
 const mockSetBusinessTimezone = jest.fn();
+let mockPathname = '/dashboard';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => mockPathname,
 }));
 
 jest.mock('@/lib/timezone', () => ({
@@ -37,6 +39,7 @@ describe('auth-context', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     currentAuth = null;
+    mockPathname = '/dashboard';
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -86,6 +89,24 @@ describe('auth-context', () => {
     });
 
     expect(mockPush).toHaveBeenCalledWith('/login');
+  });
+
+  it('does not restore or redirect on public pages', async () => {
+    mockPathname = '/';
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+    });
+
+    expect(api.get).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
   });
 
   it('login stores tokens and sanitizes forbidden returnUrl', async () => {

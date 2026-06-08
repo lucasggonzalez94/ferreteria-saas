@@ -19,7 +19,7 @@ export function ProductShowcaseSection() {
       <div className="mx-auto max-w-7xl">
         <div className="app-panel overflow-hidden p-0">
           <div className="grid lg:grid-cols-[0.78fr_1.22fr]">
-            <div className="flex flex-col justify-between gap-10 bg-[hsl(var(--surface-strong))] p-7 text-primary-foreground sm:p-10 lg:p-12">
+            <div className="flex flex-col justify-between gap-10 bg-[hsl(var(--surface-strong))] p-7 text-white sm:p-10 lg:p-12">
               <div>
                 <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/80">
                   Producto en contexto
@@ -27,17 +27,17 @@ export function ProductShowcaseSection() {
                 <h2 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl">
                   Una vista clara para decidir antes de comprar de más o quedarse corto.
                 </h2>
-                <p className="mt-5 text-base leading-8 text-white/70">
-                  Este bloque es visual y mockeado: representa cómo la landing puede vender el resultado de usar Ferrahock sin depender todavía de datos reales.
+                <p className="mt-5 text-base leading-8 text-white/82">
+                  Mirá los productos que requieren atención, revisá señales de rotación y tomá decisiones de reposición con más contexto.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                 {productBenefits.map(({ icon: Icon, title, copy }) => {
                   return (
-                    <div key={title} className="rounded-[1.2rem] border border-white/10 bg-white/[0.06] p-4">
+                    <div key={title} className="rounded-[1.2rem] border border-white/14 bg-white/[0.09] p-4">
                       <Icon className="h-5 w-5 text-[hsl(var(--accent))]" />
-                      <p className="mt-3 text-sm font-semibold">{title}</p>
-                      <p className="mt-1 text-xs leading-5 text-white/60">{copy}</p>
+                      <p className="mt-3 text-sm font-semibold text-white">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-white/76">{copy}</p>
                     </div>
                   );
                 })}
@@ -76,11 +76,11 @@ export function ProductShowcaseSection() {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-[0.92fr_1.08fr]">
-                  <div className="brand-accent-panel p-5">
-                    <p className="text-sm font-semibold">Sugerencia visual</p>
+                  <div className="brand-accent-panel p-5 shadow-[0_24px_70px_-48px_hsl(var(--accent))]">
+                    <p className="text-sm font-semibold">Sugerencia de reposición</p>
                     <p className="mt-2 text-3xl font-semibold tracking-[-0.05em]">Comprar 24</p>
                     <p className="mt-2 text-sm leading-6 brand-accent-subtle">
-                      Mock de recomendación para reponer antes del fin de semana.
+                      Reponé antes de los días de mayor movimiento.
                     </p>
                   </div>
                   <div className="rounded-[1.35rem] border border-border/70 bg-card/90 p-5">
