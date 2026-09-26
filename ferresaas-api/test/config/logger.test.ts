@@ -8,8 +8,8 @@ jest.mock('@/config/env', () => ({
 }));
 
 describe('config/logger', () => {
-  it('creates a logger instance with env configuration', async () => {
-    const module = await import('@/config/logger');
+  it('creates a logger instance with env configuration', () => {
+    const module = jest.requireActual<typeof import('@/config/logger')>('@/config/logger');
     expect(module.logger).toBeDefined();
     expect(typeof module.logger.info).toBe('function');
   });

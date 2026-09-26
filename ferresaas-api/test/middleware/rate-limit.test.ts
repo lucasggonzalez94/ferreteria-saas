@@ -28,8 +28,10 @@ describe('rate-limit middleware config', () => {
       .mockReturnValueOnce('refresh-middleware');
   });
 
-  it('builds all limiters with expected options and messages', async () => {
-    const module = await import('@/middleware/rate-limit');
+  it('builds all limiters with expected options and messages', () => {
+    const module = jest.requireActual<typeof import('@/middleware/rate-limit')>(
+      '@/middleware/rate-limit'
+    );
 
     expect(mockRateLimit).toHaveBeenCalledTimes(5);
 

@@ -28,7 +28,7 @@ router.get(
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
       const skip = (page - 1) * limit;
 
-      const { prisma } = await import('../config/database');
+      const { prisma } = await import('../config/database.js');
 
       const [products, total] = await Promise.all([
         prisma.product.findMany({
