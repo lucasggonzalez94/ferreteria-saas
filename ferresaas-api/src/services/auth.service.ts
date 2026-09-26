@@ -6,12 +6,211 @@ import { AuditService } from './audit.service';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { AppError } from '../utils/response';
 import { addMinutes } from 'date-fns';
+import { USER_ROLES } from '../config/constants';
+
+const DEFAULT_TIMEZONE = 'America/Buenos_Aires';
+
+const CASHIER_PERMISSION_KEYS = [
+  'products:read',
+  'sales:create',
+  'sales:read',
+  'sales:refund',
+  'inventory:read',
+  'inventory:return',
+  'cash_register:read',
+  'cash_register:open',
+  'cash_register:close',
+  'cash_register:manage',
+];
 
 export class AuthService {
   private emailService: EmailService;
 
   constructor() {
     this.emailService = new EmailService();
+  }
+
+  /**
+   * Registrar un nuevo negocio con su usuario dueño y dejar la sesión iniciada.
+   */
+  async signupBusinessOwner(params: {
+    businessName: string;
+    businessCuit: string;
+    taxCondition: 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO';
+    phone?: string;
+    address?: string;
+    timezone?: string;
+    ownerFirstName: string;
+    ownerLastName?: string;
+    email: string;
+    password: string;
+  }, ip?: string, userAgent?: string) {
+    const passwordValidation = PasswordService.validate(params.password);
+    if (!passwordValidation.valid) {
+      throw new AppError(400, 'INVALID_PASSWORD', 'Password does not meet requirements', {
+        errors: passwordValidation.errors,
+      });
+    }
+
+    const [existingUser, existingBusiness] = await Promise.all([
+      prisma.user.findUnique({ where: { email: params.email } }),
+      prisma.business.findUnique({ where: { cuit: params.businessCuit } }),
+    ]);
+
+    if (existingUser) {
+      throw new AppError(409, 'EMAIL_EXISTS', 'Email already registered');
+    }
+
+    if (existingBusiness) {
+      throw new AppError(409, 'CUIT_EXISTS', 'Business CUIT already registered');
+    }
+
+    const hashedPassword = await PasswordService.hash(params.password);
+    const tokens = await prisma.$transaction(async (tx) => {
+      const business = await tx.business.create({
+        data: {
+          name: params.businessName,
+          cuit: params.businessCuit,
+          taxCondition: params.taxCondition,
+          phone: params.phone,
+          address: params.address,
+          email: params.email,
+          timezone: params.timezone || DEFAULT_TIMEZONE,
+        },
+      });
+
+      const [ownerRole, adminRole, cashierRole] = await Promise.all([
+        tx.role.create({
+          data: {
+            businessId: business.id,
+            name: USER_ROLES.OWNER,
+            description: 'Dueño del negocio - acceso total',
+            isSystem: true,
+          },
+        }),
+        tx.role.create({
+          data: {
+            businessId: business.id,
+            name: USER_ROLES.ADMIN,
+            description: 'Administrador - acceso casi total',
+            isSystem: true,
+          },
+        }),
+        tx.role.create({
+          data: {
+            businessId: business.id,
+            name: USER_ROLES.CASHIER,
+            description: 'Cajero - ventas y caja',
+            isSystem: true,
+          },
+        }),
+      ]);
+
+      const permissions = await tx.permission.findMany();
+      const permissionKeys = permissions.map((permission) => `${permission.resource}:${permission.action}`);
+      const permissionMap = permissions.reduce<Record<string, string>>((acc, permission) => {
+        acc[`${permission.resource}:${permission.action}`] = permission.id;
+        return acc;
+      }, {});
+
+      await tx.rolePermission.createMany({
+        data: permissions.flatMap((permission) => [
+          { roleId: ownerRole.id, permissionId: permission.id },
+          { roleId: adminRole.id, permissionId: permission.id },
+        ]),
+        skipDuplicates: true,
+      });
+
+      await tx.rolePermission.createMany({
+        data: CASHIER_PERMISSION_KEYS
+          .map((key) => permissionMap[key])
+          .filter((permissionId): permissionId is string => Boolean(permissionId))
+          .map((permissionId) => ({
+            roleId: cashierRole.id,
+            permissionId,
+          })),
+        skipDuplicates: true,
+      });
+
+      const user = await tx.user.create({
+        data: {
+          businessId: business.id,
+          email: params.email,
+          password: hashedPassword,
+          firstName: params.ownerFirstName,
+          lastName: params.ownerLastName,
+          isActive: true,
+        },
+      });
+
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: ownerRole.id,
+        },
+      });
+
+      const tokenPair = TokenService.generateTokenPair(user.id, business.id, user.email);
+
+      await tx.refreshTokenSession.create({
+        data: {
+          userId: user.id,
+          businessId: business.id,
+          tokenFamily: tokenPair.tokenFamily,
+          tokenHash: tokenPair.refreshTokenHash,
+          expiresAt: tokenPair.expiresAt,
+          ipAddress: ip,
+          userAgent,
+        },
+      });
+
+      return {
+        user,
+        business,
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        csrfToken: tokenPair.csrfToken,
+        csrfHash: tokenPair.csrfHash,
+        permissionKeys,
+      };
+    });
+
+    await AuditService.logCreate(tokens.business.id, tokens.user.id, 'businesses', tokens.business.id, {
+      name: tokens.business.name,
+      cuit: tokens.business.cuit,
+    });
+
+    await AuditService.logCreate(tokens.business.id, tokens.user.id, 'users', tokens.user.id, {
+      email: tokens.user.email,
+    });
+
+    try {
+      await this.emailService.sendWelcomeEmail(tokens.user.email, tokens.user.firstName || 'Usuario');
+    } catch (error) {
+      // No fallar el registro si falla el email
+    }
+
+    return {
+      user: {
+        id: tokens.user.id,
+        email: tokens.user.email,
+        firstName: tokens.user.firstName,
+        lastName: tokens.user.lastName,
+        businessId: tokens.user.businessId,
+        roles: [USER_ROLES.OWNER],
+        permissions: tokens.permissionKeys,
+      },
+      business: {
+        id: tokens.business.id,
+        name: tokens.business.name,
+        timezone: tokens.business.timezone || DEFAULT_TIMEZONE,
+        logoUrl: tokens.business.logoUrl || null,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      csrfToken: tokens.csrfToken,
+      csrfHash: tokens.csrfHash,
+    };
   }
 
   /**

@@ -79,7 +79,7 @@ export function PricingSection() {
                 }`}
                 variant={plan.highlighted ? "default" : "outline"}
               >
-                <Link href="/app/register">Probar gratis 14 días</Link>
+                <Link href="/register">Probar gratis 14 días</Link>
               </Button>
             </article>
           ))}

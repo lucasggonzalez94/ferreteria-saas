@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 
 const mockAuthService = {
   register: jest.fn() as any,
+  signupBusinessOwner: jest.fn() as any,
   login: jest.fn() as any,
   refresh: jest.fn() as any,
   logout: jest.fn() as any,
@@ -44,6 +45,7 @@ const mockEnv = {
 jest.mock('@/services/auth.service', () => ({
   AuthService: class AuthService {
     register = mockAuthService.register;
+    signupBusinessOwner = mockAuthService.signupBusinessOwner;
     login = mockAuthService.login;
     refresh = mockAuthService.refresh;
     logout = mockAuthService.logout;
@@ -58,6 +60,7 @@ jest.mock('@/services/audit.service', () => ({ AuditService: mockAuditService })
 jest.mock('@/config/env', () => ({ env: mockEnv }));
 jest.mock('@/middleware/rate-limit', () => ({
   authLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  signupLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
   resetPasswordLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
   refreshLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
@@ -74,6 +77,7 @@ jest.mock('@/middleware/rbac', () => ({
 }));
 jest.mock('@/routes/auth.schemas', () => ({
   registerSchema: { parse: (v: unknown) => v },
+  signupSchema: { parse: (v: unknown) => v },
   loginSchema: { parse: (v: unknown) => v },
   forgotPasswordSchema: { parse: (v: unknown) => v },
   resetPasswordSchema: { parse: (v: unknown) => v },
@@ -117,6 +121,35 @@ describe('auth.routes', () => {
       .send({ email: 'admin@ferreteria-demo.com', password: 'Admin123456' });
 
     expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.accessToken).toBe('access-1');
+    expect(res.headers['set-cookie']).toBeDefined();
+  });
+
+  it('POST /auth/signup crea cuenta, setea cookie y retorna tokens', async () => {
+    mockAuthService.signupBusinessOwner.mockResolvedValue({
+      user: { id: 'user-1', email: 'owner@test.com', businessId: 'biz-1' },
+      business: { id: 'biz-1', name: 'Ferreteria Test', timezone: 'America/Buenos_Aires' },
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+      csrfToken: 'csrf-1',
+      csrfHash: 'hash-1',
+    });
+
+    const app = createApp();
+    const res = await request(app)
+      .post('/auth/signup')
+      .set('user-agent', 'jest')
+      .send({
+        businessName: 'Ferreteria Test',
+        businessCuit: '20-11111111-1',
+        taxCondition: 'MONOTRIBUTO',
+        ownerFirstName: 'Owner',
+        email: 'owner@test.com',
+        password: 'Password123!',
+      });
+
+    expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.accessToken).toBe('access-1');
     expect(res.headers['set-cookie']).toBeDefined();

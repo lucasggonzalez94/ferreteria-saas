@@ -1,15 +1,25 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 const mockPrisma = {
+  $transaction: jest.fn() as any,
+  business: {
+    findUnique: jest.fn() as any,
+    create: jest.fn() as any,
+  },
   user: {
     findUnique: jest.fn() as any,
     create: jest.fn() as any,
     update: jest.fn() as any,
   },
   role: {
+    create: jest.fn() as any,
+    findMany: jest.fn() as any,
+  },
+  permission: {
     findMany: jest.fn() as any,
   },
   userRole: {
+    create: jest.fn() as any,
     createMany: jest.fn() as any,
   },
   refreshTokenSession: {
@@ -20,6 +30,7 @@ const mockPrisma = {
     update: jest.fn() as any,
   },
   rolePermission: {
+    createMany: jest.fn() as any,
     findMany: jest.fn() as any,
   },
 };
@@ -75,7 +86,82 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation((callback: any) => callback(mockPrisma));
     service = new AuthService();
+  });
+
+  it('signupBusinessOwner rejects duplicate business CUIT', async () => {
+    mockPasswordService.validate.mockReturnValue({ valid: true, errors: [] });
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.business.findUnique.mockResolvedValue({ id: 'biz-existing' });
+
+    await expect(
+      service.signupBusinessOwner({
+        businessName: 'Ferreteria Test',
+        businessCuit: '20-11111111-1',
+        taxCondition: 'MONOTRIBUTO',
+        ownerFirstName: 'Owner',
+        email: 'owner@test.com',
+        password: 'Password123!',
+      })
+    ).rejects.toThrow('Business CUIT already registered');
+  });
+
+  it('signupBusinessOwner creates business, roles, owner user and session', async () => {
+    mockPasswordService.validate.mockReturnValue({ valid: true, errors: [] });
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.business.findUnique.mockResolvedValue(null);
+    mockPasswordService.hash.mockResolvedValue('hashed');
+    mockPrisma.business.create.mockResolvedValue({
+      id: 'biz-1',
+      name: 'Ferreteria Test',
+      cuit: '20-11111111-1',
+      timezone: 'America/Buenos_Aires',
+      logoUrl: null,
+    });
+    mockPrisma.role.create
+      .mockResolvedValueOnce({ id: 'role-owner', name: 'OWNER' })
+      .mockResolvedValueOnce({ id: 'role-admin', name: 'ADMIN' })
+      .mockResolvedValueOnce({ id: 'role-cashier', name: 'CASHIER' });
+    mockPrisma.permission.findMany.mockResolvedValue([
+      { id: 'perm-products-read', resource: 'products', action: 'read' },
+      { id: 'perm-sales-create', resource: 'sales', action: 'create' },
+    ]);
+    mockPrisma.user.create.mockResolvedValue({
+      id: 'user-1',
+      businessId: 'biz-1',
+      email: 'owner@test.com',
+      firstName: 'Owner',
+      lastName: null,
+    });
+    mockTokenService.generateTokenPair.mockReturnValue({
+      tokenFamily: 'family-1',
+      refreshTokenHash: 'hash-rt-1',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+      csrfToken: 'csrf-1',
+      csrfHash: 'csrf-hash-1',
+    });
+
+    const result = await service.signupBusinessOwner({
+      businessName: 'Ferreteria Test',
+      businessCuit: '20-11111111-1',
+      taxCondition: 'MONOTRIBUTO',
+      ownerFirstName: 'Owner',
+      email: 'owner@test.com',
+      password: 'Password123!',
+    });
+
+    expect(mockPrisma.business.create).toHaveBeenCalled();
+    expect(mockPrisma.role.create).toHaveBeenCalledTimes(3);
+    expect(mockPrisma.userRole.create).toHaveBeenCalledWith({
+      data: { userId: 'user-1', roleId: 'role-owner' },
+    });
+    expect(mockPrisma.refreshTokenSession.create).toHaveBeenCalled();
+    expect(result.accessToken).toBe('access-1');
+    expect(result.user.roles).toEqual(['OWNER']);
+    expect(result.user.permissions).toEqual(['products:read', 'sales:create']);
   });
 
   it('register rejects invalid password rules', async () => {

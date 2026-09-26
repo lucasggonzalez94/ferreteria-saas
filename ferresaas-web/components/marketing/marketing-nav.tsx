@@ -40,14 +40,14 @@ export function MarketingNav() {
 
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/app/login">Entrar</Link>
+            <Link href="/login">Entrar</Link>
           </Button>
           <Button
             asChild
             size="sm"
             className="bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] shadow-[0_18px_45px_-28px_hsl(var(--accent))] hover:bg-[hsl(var(--accent)/0.92)]"
           >
-            <Link href="/app/register">Prueba gratis</Link>
+            <Link href="/register">Prueba gratis</Link>
           </Button>
         </div>
       </div>

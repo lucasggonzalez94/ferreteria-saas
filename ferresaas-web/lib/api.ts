@@ -299,6 +299,7 @@ class ApiClient {
     // Excluir solo login, refresh y restore-session para evitar loops infinitos
     const shouldNotRefresh = 
       endpoint.includes("/auth/login") || 
+      endpoint.includes("/auth/signup") ||
       endpoint.includes("/auth/refresh") ||
       endpoint.includes("/auth/restore-session");
     

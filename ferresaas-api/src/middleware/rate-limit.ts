@@ -30,6 +30,19 @@ export const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
+// Rate limiter estricto para alta pública de negocios
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 5,
+  message: {
+    success: false,
+    error: {
+      code: 'SIGNUP_RATE_LIMIT_EXCEEDED',
+      message: 'Too many signup attempts, please try again later',
+    },
+  },
+});
+
 // Rate limiter para reset password
 export const resetPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora

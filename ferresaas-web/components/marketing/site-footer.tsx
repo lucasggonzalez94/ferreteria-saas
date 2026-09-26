@@ -25,7 +25,7 @@ export function SiteFooter() {
           </p>
         </div>
         <nav aria-label="Legal" className="flex flex-wrap gap-4 text-sm font-semibold text-muted-foreground">
-          <Link href="/app/login" className="hover:text-foreground">Entrar</Link>
+          <Link href="/login" className="hover:text-foreground">Entrar</Link>
           <a href="#planes" className="hover:text-foreground">Planes</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <span>Términos</span>

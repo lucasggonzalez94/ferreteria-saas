@@ -12,6 +12,7 @@ const mockPrisma = {
   },
   sale: {
     findUnique: jest.fn() as any,
+    count: jest.fn() as any,
   },
 };
 
@@ -152,6 +153,7 @@ describe('InventoryReportsService', () => {
       mockPrisma.inventoryMovement.findMany.mockResolvedValue(mockMovements);
       mockPrisma.inventoryMovement.count.mockResolvedValue(1);
       mockPrisma.sale.findUnique.mockResolvedValue(mockSale as any);
+      mockPrisma.sale.count.mockResolvedValue(4);
 
       const result = await new InventoryReportsService().getReturnsReport(businessId, {});
 
@@ -164,6 +166,7 @@ describe('InventoryReportsService', () => {
       mockPrisma.inventoryMovement.findMany.mockResolvedValue([]);
       mockPrisma.inventoryMovement.count.mockResolvedValue(0);
       mockPrisma.sale.findUnique.mockResolvedValue(null);
+      mockPrisma.sale.count.mockResolvedValue(0);
 
       const result = await new InventoryReportsService().getReturnsReport(businessId, {
         startDate: new Date('2024-01-01'),

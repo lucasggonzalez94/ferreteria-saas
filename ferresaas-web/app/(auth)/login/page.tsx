@@ -185,6 +185,16 @@ function LoginPageContent() {
                   {isLoading ? "Entrando..." : "Entrar al panel"}
                 </Button>
               </div>
+
+              <p className="text-center text-sm text-muted-foreground">
+                ¿Todavía no tenés cuenta?{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-[hsl(var(--accent))] transition-colors hover:text-foreground hover:underline"
+                >
+                  Crear cuenta
+                </Link>
+              </p>
             </form>
           </CardContent>
         </Card>

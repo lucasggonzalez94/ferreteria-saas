@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { TokenService } from '../services/token.service';
 import { sendSuccess, AppError } from '../utils/response';
-import { authLimiter, resetPasswordLimiter, refreshLimiter } from '../middleware/rate-limit';
+import { authLimiter, signupLimiter, resetPasswordLimiter, refreshLimiter } from '../middleware/rate-limit';
 import { authenticate } from '../middleware/auth';
 import { requirePermissions } from '../middleware/rbac';
 import { AuthRequest } from '../types';
@@ -12,6 +12,7 @@ import { AuditService } from '../services/audit.service';
 import { PERMISSIONS } from '../config/constants';
 import {
   registerSchema,
+  signupSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -20,6 +21,17 @@ import {
 
 const router = Router();
 const authService = new AuthService();
+
+const setRefreshTokenCookie = (res: Response, refreshToken: string) => {
+  res.clearCookie('refreshToken', { path: '/' });
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: env.cookies.secure,
+    sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+};
 
 /**
  * POST /auth/register
@@ -56,6 +68,32 @@ router.post('/register', authenticate, requirePermissions(PERMISSIONS.USERS_CREA
 });
 
 /**
+ * POST /auth/signup
+ * Registrar nuevo negocio y usuario dueño. Devuelve sesión iniciada.
+ */
+router.post('/signup', signupLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const input = signupSchema.parse(req.body);
+    const ip = req.ip;
+    const userAgent = req.get('user-agent');
+
+    const result = await authService.signupBusinessOwner(input, ip, userAgent);
+
+    setRefreshTokenCookie(res, result.refreshToken);
+
+    sendSuccess(res, {
+      user: result.user,
+      business: result.business,
+      accessToken: result.accessToken,
+      csrfToken: result.csrfToken,
+      csrfHash: result.csrfHash,
+    }, 201);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /auth/login
  * Login con email y password
  * Devuelve: accessToken y csrfToken en body, refreshToken en cookie HttpOnly
@@ -68,18 +106,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
 
     const result = await authService.login(input.email, input.password, ip, userAgent);
 
-    // Limpiar cualquier cookie vieja primero
-    res.clearCookie('refreshToken', { path: '/' });
-    
-    // Setear refresh token en cookie HttpOnly
-    // NO especificar domain para evitar duplicados en localhost
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: env.cookies.secure,
-      sameSite: env.cookies.sameSite as 'strict' | 'lax' | 'none',
-      path: '/',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
-    });
+    setRefreshTokenCookie(res, result.refreshToken);
 
     // Devolver solo accessToken, csrfToken y csrfHash (no el refreshToken)
     sendSuccess(res, {

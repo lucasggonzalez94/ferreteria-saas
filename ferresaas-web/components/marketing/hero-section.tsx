@@ -28,7 +28,7 @@ export function HeroSection() {
               size="lg"
               className="h-14 bg-[hsl(var(--accent))] px-7 text-base text-[hsl(var(--accent-foreground))] shadow-[0_26px_70px_-34px_hsl(var(--accent))] hover:bg-[hsl(var(--accent)/0.92)]"
             >
-              <Link href="/app/register">
+              <Link href="/register">
                 Probar gratis 14 días
                 <ArrowRight className="h-5 w-5" />
               </Link>

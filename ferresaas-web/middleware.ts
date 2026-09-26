@@ -7,6 +7,7 @@ const PUBLIC_FILE_REGEX = /\.[^/]+$/;
 const PUBLIC_PATHS = [
   '/',
   '/login',
+  '/register',
   '/forgot-password',
   '/reset-password',
 ];
@@ -14,6 +15,7 @@ const PUBLIC_PATHS = [
 // Rutas de autenticación (redirigen a /dashboard si YA hay sesión)
 const AUTH_PATHS = [
   '/login',
+  '/register',
   '/forgot-password',
   '/reset-password',
 ];
@@ -45,7 +47,7 @@ export function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('refreshToken')?.value;
   const hasSession = !!refreshToken;
 
-  // Caso 1: Usuario CON sesión intenta acceder a ruta de auth (login, forgot, reset)
+  // Caso 1: Usuario CON sesión intenta acceder a ruta de auth (login, register, forgot, reset)
   if (hasSession && isAuthPath(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }

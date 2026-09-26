@@ -11,9 +11,9 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
-import type { User, LoginResponse } from "@/types";
+import type { User, LoginResponse, SignupRequest, SignupResponse } from "@/types";
 
-const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/reset-password"];
+const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -33,6 +33,7 @@ function normalizeReturnUrl(returnUrl?: string) {
 
   if (
     returnUrl.startsWith('/login') ||
+    returnUrl.startsWith('/register') ||
     returnUrl.startsWith('/forgot-password') ||
     returnUrl.startsWith('/reset-password') ||
     returnUrl.startsWith('/.well-known')
@@ -53,6 +54,7 @@ interface AuthContextType {
   business: Business | null;
   isLoading: boolean;
   login: (email: string, password: string, returnUrl?: string) => Promise<void>;
+  signup: (payload: SignupRequest) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   updateUser: (userData: Partial<User>) => void;
@@ -175,6 +177,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signup = async (payload: SignupRequest) => {
+    const response = await api.post<SignupResponse>("/auth/signup", payload);
+
+    if (response.success && response.data) {
+      saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
+      setUser(response.data.user);
+
+      if (response.data.business) {
+        setBusiness(response.data.business);
+        setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
+      }
+
+      router.push("/dashboard");
+    } else {
+      throw new Error(response.error?.message || "Signup failed");
+    }
+  };
+
   const logout = async () => {
     try {
       // Obtener el access token antes de limpiarlo
@@ -220,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         business,
         isLoading,
         login,
+        signup,
         logout,
         isAuthenticated: !!user,
         updateUser,

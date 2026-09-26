@@ -23,6 +23,7 @@ describe('rate-limit middleware config', () => {
     mockRateLimit
       .mockReturnValueOnce('general-middleware')
       .mockReturnValueOnce('auth-middleware')
+      .mockReturnValueOnce('signup-middleware')
       .mockReturnValueOnce('reset-middleware')
       .mockReturnValueOnce('refresh-middleware');
   });
@@ -30,7 +31,7 @@ describe('rate-limit middleware config', () => {
   it('builds all limiters with expected options and messages', async () => {
     const module = await import('@/middleware/rate-limit');
 
-    expect(mockRateLimit).toHaveBeenCalledTimes(4);
+    expect(mockRateLimit).toHaveBeenCalledTimes(5);
 
     const generalConfig = mockRateLimit.mock.calls[0][0];
     expect(generalConfig.windowMs).toBe(60000);
@@ -45,18 +46,24 @@ describe('rate-limit middleware config', () => {
     expect(authConfig.skipSuccessfulRequests).toBe(true);
     expect(authConfig.message.error.code).toBe('LOGIN_RATE_LIMIT_EXCEEDED');
 
-    const resetConfig = mockRateLimit.mock.calls[2][0];
+    const signupConfig = mockRateLimit.mock.calls[2][0];
+    expect(signupConfig.windowMs).toBe(60 * 60 * 1000);
+    expect(signupConfig.max).toBe(5);
+    expect(signupConfig.message.error.code).toBe('SIGNUP_RATE_LIMIT_EXCEEDED');
+
+    const resetConfig = mockRateLimit.mock.calls[3][0];
     expect(resetConfig.windowMs).toBe(60 * 60 * 1000);
     expect(resetConfig.max).toBe(3);
     expect(resetConfig.message.error.code).toBe('RESET_RATE_LIMIT_EXCEEDED');
 
-    const refreshConfig = mockRateLimit.mock.calls[3][0];
+    const refreshConfig = mockRateLimit.mock.calls[4][0];
     expect(refreshConfig.windowMs).toBe(300000);
     expect(refreshConfig.max).toBe(9);
     expect(refreshConfig.message.error.code).toBe('REFRESH_RATE_LIMIT_EXCEEDED');
 
     expect(module.generalLimiter).toBe('general-middleware');
     expect(module.authLimiter).toBe('auth-middleware');
+    expect(module.signupLimiter).toBe('signup-middleware');
     expect(module.resetPasswordLimiter).toBe('reset-middleware');
     expect(module.refreshLimiter).toBe('refresh-middleware');
   });

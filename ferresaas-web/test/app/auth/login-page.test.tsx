@@ -66,6 +66,12 @@ describe('login page', () => {
     expect(mockToastSuccess).toHaveBeenCalled();
   });
 
+  it('links to the public register page', () => {
+    render(<LoginPage />);
+
+    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/register');
+  });
+
   it('shows network-specific error toast on connectivity failures', async () => {
     mockLogin.mockRejectedValue(new Error('Failed to fetch'));
 

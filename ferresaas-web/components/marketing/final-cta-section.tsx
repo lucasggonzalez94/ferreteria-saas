@@ -24,7 +24,7 @@ export function FinalCtaSection() {
                 size="lg"
                 className="h-14 bg-[hsl(var(--accent))] px-8 text-base text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]"
               >
-                <Link href="/app/register">
+                <Link href="/register">
                   Probar gratis 14 días
                   <ArrowRight className="h-5 w-5" />
                 </Link>

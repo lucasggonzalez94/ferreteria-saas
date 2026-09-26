@@ -155,6 +155,23 @@ export interface LoginResponse {
   csrfHash: string;
 }
 
+export type TaxCondition = "RESPONSABLE_INSCRIPTO" | "MONOTRIBUTO" | "EXENTO";
+
+export interface SignupRequest {
+  businessName: string;
+  businessCuit: string;
+  taxCondition: TaxCondition;
+  phone?: string;
+  address?: string;
+  timezone?: string;
+  ownerFirstName: string;
+  ownerLastName?: string;
+  email: string;
+  password: string;
+}
+
+export type SignupResponse = LoginResponse;
+
 export interface ExchangeRateResponse {
   fromCurrency: string;
   toCurrency: string;

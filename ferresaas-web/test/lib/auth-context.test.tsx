@@ -140,6 +140,47 @@ describe('auth-context', () => {
     expect(mockPush).toHaveBeenCalledWith('/dashboard');
   });
 
+  it('signup stores tokens, user and redirects to dashboard', async () => {
+    mockPathname = '/register';
+    (api.post as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        accessToken: 'signup-acc',
+        csrfToken: 'signup-csrf',
+        csrfHash: 'signup-hash',
+        user: { id: 'user-signup' },
+        business: { id: 'biz-signup', name: 'Ferreteria Signup', timezone: 'UTC' },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(currentAuth).not.toBeNull());
+
+    await act(async () => {
+      await currentAuth!.signup({
+        businessName: 'Ferreteria Signup',
+        businessCuit: '20-11111111-1',
+        taxCondition: 'MONOTRIBUTO',
+        ownerFirstName: 'Owner',
+        email: 'owner@test.com',
+        password: 'Password123!',
+      });
+    });
+
+    expect(api.post).toHaveBeenCalledWith('/auth/signup', expect.objectContaining({
+      businessName: 'Ferreteria Signup',
+      email: 'owner@test.com',
+    }));
+    expect(saveTokens).toHaveBeenCalledWith('signup-acc', 'signup-csrf', 'signup-hash');
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('true');
+    expect(mockPush).toHaveBeenCalledWith('/dashboard');
+  });
+
   it('updateUser, updateBusiness and logout clear auth state', async () => {
     (api.get as jest.Mock).mockResolvedValue({
       success: true,

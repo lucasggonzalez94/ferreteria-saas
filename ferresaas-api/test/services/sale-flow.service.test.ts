@@ -18,6 +18,7 @@ const mockPrisma = {
     update: jest.fn() as any,
     findMany: jest.fn() as any,
     count: jest.fn() as any,
+    aggregate: jest.fn() as any,
   },
   invoice: {
     upsert: jest.fn() as any,
@@ -655,6 +656,10 @@ describe('SaleService create/confirm/refund', () => {
     const endDate = new Date('2026-01-31T23:59:59.999Z');
     mockPrisma.sale.findMany.mockResolvedValue([{ id: 'sale-1' }]);
     mockPrisma.sale.count.mockResolvedValue(1);
+    mockPrisma.sale.aggregate.mockResolvedValue({
+      _count: { id: 1 },
+      _sum: { total: n(250) },
+    });
 
     const listed = await service.list('biz-1', {
       customerId: 'cust-1',
@@ -680,6 +685,8 @@ describe('SaleService create/confirm/refund', () => {
       })
     );
     expect(listed.meta.total).toBe(1);
+    expect(listed.meta.confirmedCount).toBe(1);
+    expect(listed.meta.confirmedTotal).toBe(250);
 
     mockPrisma.sale.findUnique.mockResolvedValueOnce(null);
     await expect(service.getById('biz-1', 'sale-x')).rejects.toThrow('Sale not found');

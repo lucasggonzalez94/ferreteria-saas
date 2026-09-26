@@ -336,7 +336,7 @@ export class PayableService {
     ).length;
 
     return {
-      totalPayable: totalPending,
+      totalPayable: totalOriginal,
       totalPending,
       totalPaid,
       overdue,

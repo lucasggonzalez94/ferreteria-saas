@@ -1,6 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   registerSchema,
+  signupSchema,
   loginSchema,
   refreshSchema,
   forgotPasswordSchema,
@@ -56,6 +57,38 @@ describe('auth schemas', () => {
         password: 'password123456',
       };
       const result = registerSchema.safeParse(input);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('signupSchema', () => {
+    it('should validate public signup input', () => {
+      const input = {
+        businessName: 'Ferreteria Test',
+        businessCuit: '20-11111111-1',
+        taxCondition: 'MONOTRIBUTO',
+        ownerFirstName: 'Owner',
+        email: 'owner@test.com',
+        password: 'Password123!',
+      };
+
+      const result = signupSchema.safeParse(input);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject invalid tax condition', () => {
+      const input = {
+        businessName: 'Ferreteria Test',
+        businessCuit: '20-11111111-1',
+        taxCondition: 'INVALID',
+        ownerFirstName: 'Owner',
+        email: 'owner@test.com',
+        password: 'Password123!',
+      };
+
+      const result = signupSchema.safeParse(input);
+
       expect(result.success).toBe(false);
     });
   });

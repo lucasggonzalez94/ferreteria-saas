@@ -11,7 +11,7 @@ export const verifyCsrf = (req: Request, res: Response, next: NextFunction): voi
   }
 
   // Rutas públicas que no requieren CSRF (sin token aún)
-  const publicPaths = ['/auth/login', '/auth/forgot-password', '/auth/reset-password'];
+  const publicPaths = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/reset-password'];
   const isPublicPath = publicPaths.some(path => req.path.includes(path));
 
   if (isPublicPath) {
