@@ -15,8 +15,8 @@
     "db:clean": "npx prisma migrate reset",
     "test": "jest --forceExit",
     "test:coverage": "jest --coverage --forceExit",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
+    "lint": "eslint . --ext .ts,.js,.mjs",
+    "lint:fix": "eslint . --ext .ts,.js,.mjs --fix",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "keywords": [

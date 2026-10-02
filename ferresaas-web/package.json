@@ -5,9 +5,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx --no-ignore -c .eslintrc.json",
-    "lint:fix": "eslint . --ext .ts,.tsx --no-ignore -c .eslintrc.json --fix",
-    "lint:strict": "eslint . --ext .ts,.tsx --no-ignore",
+    "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx --fix",
+    "lint:strict": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx --max-warnings 0",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\""
@@ -75,16 +75,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "eslintConfig": {
-    "extends": [
-      "next/core-web-vitals"
-    ],
-    "rules": {
-      "no-unused-vars": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-      "@typescript-eslint/no-explicit-any": "warn",
-      "no-console": "warn"
-    }
   }
 }
