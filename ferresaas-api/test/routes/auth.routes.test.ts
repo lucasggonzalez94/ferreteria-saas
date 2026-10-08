@@ -3,85 +3,64 @@ import express, { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
 
-const mockAuthService = {
-  register: jest.fn() as any,
-  signupBusinessOwner: jest.fn() as any,
-  login: jest.fn() as any,
-  refresh: jest.fn() as any,
-  logout: jest.fn() as any,
-  forgotPassword: jest.fn() as any,
-  resetPassword: jest.fn() as any,
-  changePassword: jest.fn() as any,
-};
+const mockSignup = jest.fn() as any;
+const mockLogin = jest.fn() as any;
+const mockRefresh = jest.fn() as any;
+const mockRestore = jest.fn() as any;
+const mockLogout = jest.fn() as any;
+const mockForgot = jest.fn() as any;
+const mockReset = jest.fn() as any;
+const mockChange = jest.fn() as any;
+const mockRegister = jest.fn() as any;
+const mockUpdateProfile = jest.fn() as any;
 
-const mockPrisma = {
-  user: { update: jest.fn() as any, findUnique: jest.fn() as any },
-  refreshTokenSession: { findUnique: jest.fn() as any },
-};
-
-const mockAuditService = {
-  log: jest.fn() as any,
-};
-
-const mockTokenService = {
-  verifyRefreshToken: jest.fn() as any,
-  hashToken: jest.fn() as any,
-  generateAccessToken: jest.fn() as any,
-  generateCsrfToken: jest.fn() as any,
-};
-
-const authState = {
-  user: { id: 'user-1', businessId: 'biz-1' },
-  businessId: 'biz-1',
-};
-
-const mockEnv = {
-  cookies: {
-    secure: false,
-    sameSite: 'lax',
-  },
-};
-
-jest.mock('@/services/auth.service', () => ({
-  AuthService: class AuthService {
-    register = mockAuthService.register;
-    signupBusinessOwner = mockAuthService.signupBusinessOwner;
-    login = mockAuthService.login;
-    refresh = mockAuthService.refresh;
-    logout = mockAuthService.logout;
-    forgotPassword = mockAuthService.forgotPassword;
-    resetPassword = mockAuthService.resetPassword;
-    changePassword = mockAuthService.changePassword;
-  },
+jest.mock('@/modules/identity/application/signup-business-owner', () => ({
+  signupBusinessOwner: mockSignup,
 }));
-jest.mock('@/services/token.service', () => ({ TokenService: mockTokenService }));
-jest.mock('@/config/database', () => ({ prisma: mockPrisma }));
-jest.mock('@/services/audit.service', () => ({ AuditService: mockAuditService }));
-jest.mock('@/config/env', () => ({ env: mockEnv }));
-jest.mock('@/middleware/rate-limit', () => ({
-  authLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
-  signupLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
-  resetPasswordLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
-  refreshLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+jest.mock('@/modules/identity/application/login', () => ({ login: mockLogin }));
+jest.mock('@/modules/identity/application/refresh-session', () => ({
+  refreshSession: mockRefresh,
 }));
-jest.mock('@/middleware/auth', () => ({
+jest.mock('@/modules/identity/application/restore-session', () => ({
+  restoreSession: mockRestore,
+}));
+jest.mock('@/modules/identity/application/logout', () => ({ logout: mockLogout }));
+jest.mock('@/modules/identity/application/password', () => ({
+  forgotPassword: mockForgot,
+  resetPassword: mockReset,
+  changePassword: mockChange,
+}));
+jest.mock('@/modules/identity/http/rate-limit', () => ({
+  signupRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  loginRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  refreshRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  resetPasswordRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+jest.mock('@/platform/security/authenticate', () => ({
   authenticate: (req: Request, _res: Response, next: NextFunction) => {
-    (req as any).user = authState.user;
-    (req as any).businessId = authState.businessId;
+    (req as any).user = { id: 'user-1', businessId: 'biz-1', roles: [], permissions: [] };
+    (req as any).businessId = 'biz-1';
     next();
   },
+  requirePermissions: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 jest.mock('@/middleware/rbac', () => ({
-  requirePermissions:
-    () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  requirePermissions: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 jest.mock('@/routes/auth.schemas', () => ({
   registerSchema: { parse: (v: unknown) => v },
-  signupSchema: { parse: (v: unknown) => v },
-  loginSchema: { parse: (v: unknown) => v },
-  forgotPasswordSchema: { parse: (v: unknown) => v },
-  resetPasswordSchema: { parse: (v: unknown) => v },
-  changePasswordSchema: { parse: (v: unknown) => v },
+}));
+jest.mock('@/services/auth.service', () => ({
+  AuthService: class {
+    register = mockRegister;
+    updateProfile = mockUpdateProfile;
+  },
+}));
+jest.mock('@/config/env', () => ({
+  env: {
+    cookies: { secure: false, sameSite: 'lax' },
+    app: { frontendUrl: 'http://localhost:3000' },
+  },
 }));
 
 import authRouter from '@/routes/auth.routes';
@@ -92,21 +71,21 @@ const createApp = () => {
   app.use(cookieParser());
   app.use('/auth', authRouter);
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    res.status(err?.statusCode || 500).json({ success: false, error: { code: err?.code, message: err?.message } });
+    res
+      .status(err?.statusCode || 500)
+      .json({ success: false, error: { code: err?.code, message: err?.message } });
   });
   return app;
 };
 
-describe('auth.routes', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    authState.user = { id: 'user-1', businessId: 'biz-1' };
-    authState.businessId = 'biz-1';
-  });
+const origin = { Origin: 'http://localhost:3000' };
 
-  it('POST /auth/login setea cookie y retorna tokens', async () => {
-    mockAuthService.login.mockResolvedValue({
-      user: { id: 'user-1' },
+describe('auth.routes (aggregate router)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('POST /auth/signup devuelve 201, setea cookie y no expone refresh en el JSON', async () => {
+    mockSignup.mockResolvedValue({
+      user: { id: 'user-1', roles: ['OWNER'], permissions: [] },
       business: { id: 'biz-1' },
       accessToken: 'access-1',
       refreshToken: 'refresh-1',
@@ -114,31 +93,9 @@ describe('auth.routes', () => {
       csrfHash: 'hash-1',
     });
 
-    const app = createApp();
-    const res = await request(app)
-      .post('/auth/login')
-      .set('user-agent', 'jest')
-      .send({ email: 'admin@ferreteria-demo.com', password: 'Admin123456' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.accessToken).toBe('access-1');
-    expect(res.headers['set-cookie']).toBeDefined();
-  });
-
-  it('POST /auth/signup crea cuenta, setea cookie y retorna tokens', async () => {
-    mockAuthService.signupBusinessOwner.mockResolvedValue({
-      user: { id: 'user-1', email: 'owner@test.com', businessId: 'biz-1' },
-      business: { id: 'biz-1', name: 'Ferreteria Test', timezone: 'America/Buenos_Aires' },
-      accessToken: 'access-1',
-      refreshToken: 'refresh-1',
-      csrfToken: 'csrf-1',
-      csrfHash: 'hash-1',
-    });
-
-    const app = createApp();
-    const res = await request(app)
+    const res = await request(createApp())
       .post('/auth/signup')
+      .set(origin)
       .set('user-agent', 'jest')
       .send({
         businessName: 'Ferreteria Test',
@@ -150,48 +107,111 @@ describe('auth.routes', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
     expect(res.body.data.accessToken).toBe('access-1');
-    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.body.data.refreshToken).toBeUndefined();
+    const cookies = res.headers['set-cookie'];
+    expect(String(cookies)).toContain('refreshToken=refresh-1');
+    expect(String(cookies)).toContain('HttpOnly');
+    expect(mockSignup).toHaveBeenCalledWith(
+      expect.objectContaining({ businessName: 'Ferreteria Test' }),
+      expect.anything(),
+      'jest',
+    );
   });
 
-  it('POST /auth/refresh falla sin cookie y funciona con cookie', async () => {
-    const app = createApp();
-    const fail = await request(app).post('/auth/refresh').send({});
-    expect(fail.status).toBe(401);
+  it('POST /auth/signup rechaza origen inválido', async () => {
+    const res = await request(createApp())
+      .post('/auth/signup')
+      .set('Origin', 'https://evil.example')
+      .send({});
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('INVALID_ORIGIN');
+    expect(mockSignup).not.toHaveBeenCalled();
+  });
 
-    mockAuthService.refresh.mockResolvedValue({
-      accessToken: 'new-access',
-      refreshToken: 'new-refresh',
-      csrfToken: 'new-csrf',
-      csrfHash: 'new-hash',
+  it('POST /auth/login devuelve tokens y cookie', async () => {
+    mockLogin.mockResolvedValue({
+      user: { id: 'user-1' },
+      business: { id: 'biz-1' },
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+      csrfToken: 'csrf-1',
+      csrfHash: 'hash-1',
     });
-
-    const ok = await request(app)
-      .post('/auth/refresh')
-      .set('Cookie', ['refreshToken=valid-token'])
-      .set('user-agent', 'jest');
-
-    expect(ok.status).toBe(200);
-    expect(ok.body.data.accessToken).toBe('new-access');
-  });
-
-  it('POST /auth/logout limpia cookie aun sin refresh token', async () => {
-    const app = createApp();
-    const res = await request(app).post('/auth/logout').send({ accessToken: 'acc' });
-
+    const res = await request(createApp())
+      .post('/auth/login')
+      .set(origin)
+      .send({ email: 'a@b.com', password: 'Password123!' });
     expect(res.status).toBe(200);
-    expect(res.body.data.message).toBe('Logged out successfully');
+    expect(res.body.data.accessToken).toBe('access-1');
+    expect(String(res.headers['set-cookie'])).toContain('refreshToken=refresh-1');
   });
 
-  it('GET /auth/me retorna usuario autenticado y cubre rama UNAUTHORIZED', async () => {
-    const app = createApp();
-    const ok = await request(app).get('/auth/me');
-    expect(ok.status).toBe(200);
-    expect(ok.body.data.id).toBe('user-1');
+  it('POST /auth/refresh sin cookie responde 401', async () => {
+    const res = await request(createApp()).post('/auth/refresh').set(origin).send({});
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('NO_REFRESH_TOKEN');
+  });
 
-    authState.user = null as any;
-    const fail = await request(app).get('/auth/me');
-    expect(fail.status).toBe(401);
+  it('POST /auth/refresh rota cookie y responde no-store', async () => {
+    mockRefresh.mockResolvedValue({
+      accessToken: 'a-2',
+      refreshToken: 'r-2',
+      csrfToken: 'c-2',
+      csrfHash: 'h-2',
+    });
+    const res = await request(createApp())
+      .post('/auth/refresh')
+      .set(origin)
+      .set('Cookie', ['refreshToken=r-1']);
+    expect(res.status).toBe(200);
+    expect(res.body.data.accessToken).toBe('a-2');
+    expect(String(res.headers['set-cookie'])).toContain('refreshToken=r-2');
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(mockRefresh).toHaveBeenCalledWith('r-1', expect.anything(), undefined);
+  });
+
+  it('GET /auth/restore-session responde no-store y no rota refresh', async () => {
+    mockRestore.mockResolvedValue({ user: { id: 'user-1' }, accessToken: 'a-3' });
+    const res = await request(createApp())
+      .get('/auth/restore-session')
+      .set('Cookie', ['refreshToken=r-1']);
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.id).toBe('user-1');
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(String(res.headers['set-cookie'] ?? '')).not.toContain('refreshToken=');
+  });
+
+  it('POST /auth/logout limpia la cookie y responde éxito', async () => {
+    mockLogout.mockResolvedValue({ message: 'Logged out successfully' });
+    const res = await request(createApp())
+      .post('/auth/logout')
+      .set('Cookie', ['refreshToken=r-1'])
+      .send({});
+    expect(res.status).toBe(200);
+    expect(mockLogout).toHaveBeenCalledWith('r-1', expect.anything(), undefined);
+    expect(String(res.headers['set-cookie'])).toContain('refreshToken=;');
+  });
+
+  it('POST /auth/register (legacy admin) sigue operativo', async () => {
+    mockRegister.mockResolvedValue({ id: 'u-9', email: 'n@x.com', firstName: 'N', lastName: null, businessId: 'biz-1' });
+    const res = await request(createApp())
+      .post('/auth/register')
+      .send({ email: 'n@x.com', password: 'Password12345' });
+    expect(res.status).toBe(201);
+    expect(mockRegister).toHaveBeenCalledWith(expect.objectContaining({ businessId: 'biz-1' }));
+  });
+
+  it('GET /auth/me devuelve el usuario autenticado', async () => {
+    const res = await request(createApp()).get('/auth/me');
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe('user-1');
+  });
+
+  it('PUT /auth/profile actualiza el perfil', async () => {
+    mockUpdateProfile.mockResolvedValue({ id: 'user-1', firstName: 'Maria' });
+    const res = await request(createApp()).put('/auth/profile').send({ firstName: 'Maria' });
+    expect(res.status).toBe(200);
+    expect(mockUpdateProfile).toHaveBeenCalledWith('biz-1', 'user-1', 'Maria', undefined);
   });
 });

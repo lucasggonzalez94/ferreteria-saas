@@ -4,6 +4,7 @@ const mockPrisma = {
   product: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn().mockResolvedValue(null),
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
@@ -53,6 +54,7 @@ describe('ProductService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (mockPrisma.product.findFirst).mockResolvedValue(null);
     productService = new ProductService();
   });
 
@@ -87,7 +89,7 @@ describe('ProductService', () => {
 
     it('should fail after max attempts when all generated SKUs already exist', async () => {
       (mockPrisma.product.findMany).mockResolvedValue([{ internalSku: 'FER-00001' }]);
-      (mockPrisma.product.findUnique).mockResolvedValue({ id: 'existing' });
+      (mockPrisma.product.findFirst).mockResolvedValue({ id: 'existing' });
 
       await expect((productService as any).generateInternalSku('biz-1')).rejects.toThrow(
         'Unable to generate unique SKU after multiple attempts'
@@ -120,12 +122,9 @@ describe('ProductService', () => {
 
     it('should throw if barcode exists', async () => {
       (mockPrisma.product.findMany).mockResolvedValue([]);
-      (mockPrisma.product.findUnique)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          id: 'existing-prod',
-          barcode: '123456',
-        });
+      (mockPrisma.product.findFirst)
+        .mockResolvedValueOnce(null) // SKU probe
+        .mockResolvedValueOnce({ id: 'existing-prod', barcode: '123456' }); // barcode probe
 
       await expect(
         productService.create('biz-1', 'user-1', {
@@ -302,7 +301,8 @@ describe('ProductService', () => {
         name: 'Test',
         businessId: 'biz-1',
       };
-      (mockPrisma.product.findUnique).mockResolvedValue(mockProduct);
+      (mockPrisma.product.findUnique).mockResolvedValue(mockProduct as never);
+      (mockPrisma.product.findFirst).mockResolvedValue(mockProduct as never);
 
       const result = await productService.getById('biz-1', 'prod-1');
 
@@ -363,12 +363,11 @@ describe('ProductService', () => {
         taxRate: 21,
         marginPercent: null,
       };
-      (mockPrisma.product.findUnique)
-        .mockResolvedValueOnce(currentProduct)
-        .mockResolvedValueOnce({
-          id: 'other-prod',
-          barcode: 'new-barcode',
-        });
+      (mockPrisma.product.findUnique).mockResolvedValueOnce(currentProduct);
+      (mockPrisma.product.findFirst).mockResolvedValue({
+        id: 'other-prod',
+        barcode: 'new-barcode',
+      });
 
       await expect(
         productService.update('biz-1', 'user-1', 'prod-1', {

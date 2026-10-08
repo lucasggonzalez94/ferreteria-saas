@@ -15,6 +15,7 @@ datasource db {
 // ============================================================================
 
 model Business {
+  authorizationVersion Int @default(1)
   id        String   @id @default(cuid())
   name      String
   cuit      String   @unique
@@ -60,7 +61,9 @@ model Business {
   idempotencyKeys     IdempotencyKey[]
   exchangeRateSnapshots ExchangeRateSnapshot[]
   exchangeRateConfig  ExchangeRateConfig?
-  refreshTokenSessions RefreshTokenSession[]
+  authSessions        AuthSession[]
+  consumedRefreshTokens ConsumedRefreshToken[]
+  emailJobs           EmailJob[]
   arcaCredential      BusinessArcaCredential?
   discountApprovals   DiscountApproval[]
   priceHistories      PriceHistory[]
@@ -81,6 +84,7 @@ model Business {
 // ============================================================================
 
 model User {
+  securityVersion Int @default(1)
   id         String   @id @default(cuid())
   businessId String
   email      String   @unique
@@ -102,7 +106,7 @@ model User {
   roles                UserRole[]
   cashRegisterSessions CashRegisterSession[]
   auditLogs            AuditLog[]
-  refreshTokenSessions RefreshTokenSession[]
+  authSessions AuthSession[]
   discountApprovalsRequested DiscountApproval[] @relation("DiscountApprovalRequestedBy")
   discountApprovalsApproved  DiscountApproval[] @relation("DiscountApprovalApprovedBy")
   discountApprovalsRejected  DiscountApproval[] @relation("DiscountApprovalRejectedBy")
@@ -149,6 +153,7 @@ model Permission {
 }
 
 model UserRole {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id     String @id @default(cuid())
   userId String
   roleId String
@@ -166,6 +171,7 @@ model UserRole {
 }
 
 model RolePermission {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id           String @id @default(cuid())
   roleId       String
   permissionId String
@@ -185,19 +191,20 @@ model RolePermission {
 // REFRESH TOKEN SESSIONS (Security)
 // ============================================================================
 
-model RefreshTokenSession {
-  id              String   @id @default(cuid())
+model AuthSession {
+  id              String   @id
   userId          String
   businessId      String
-  tokenFamily     String   // UUID que agrupa tokens rotados de la misma sesión
   tokenHash       String   @unique // Hash SHA-256 del refresh token
-  isRevoked       Boolean  @default(false)
-  reuseDetected   Boolean  @default(false) // Si se detecta reuso, marca toda la familia
+  securityVersion Int
+  revokedAt DateTime?
+  absoluteExpiresAt DateTime
   expiresAt       DateTime
   createdAt       DateTime @default(now())
   lastUsedAt      DateTime @default(now())
   ipAddress       String?
   userAgent       String?
+  consumedTokens ConsumedRefreshToken[]
   
   // Relaciones
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -205,10 +212,43 @@ model RefreshTokenSession {
   
   @@index([userId])
   @@index([businessId])
-  @@index([tokenFamily])
   @@index([tokenHash])
   @@index([expiresAt])
-  @@map("refresh_token_sessions")
+  @@map("auth_sessions")
+}
+
+model ConsumedRefreshToken {
+  id String @id @default(cuid())
+  businessId String
+  sessionId String
+  tokenHash String @unique
+  consumedAt DateTime @default(now())
+  expiresAt DateTime
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@index([businessId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("consumed_refresh_tokens")
+}
+
+model EmailJob {
+  id String @id
+  businessId String
+  recipient String
+  firstName String
+  kind String @default("WELCOME")
+  status String @default("PENDING")
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  lockedAt DateTime?
+  lockToken String?
+  lastError String?
+  createdAt DateTime @default(now())
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@index([businessId])
+  @@index([status, availableAt])
+  @@map("email_jobs")
 }
 
 // ============================================================================
@@ -255,10 +295,12 @@ model Brand {
 }
 
 model Product {
+  @@unique([businessId, internalSku])
+  @@unique([businessId, barcode])
   id           String   @id @default(cuid())
   businessId   String
-  internalSku  String   @unique // Auto-generado: FER-00001
-  barcode      String?  @unique // Código de barras (opcional)
+  internalSku  String // Auto-generado: FER-00001
+  barcode      String? // Código de barras (opcional)
   name         String
   description  String?
   categoryId   String?
@@ -498,6 +540,7 @@ model Purchase {
 }
 
 model PurchaseItem {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id         String  @id @default(cuid())
   purchaseId String
   productId  String
@@ -518,6 +561,7 @@ model PurchaseItem {
 }
 
 model PurchaseAttachment {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id         String  @id @default(cuid())
   purchaseId String
   fileName   String
@@ -650,6 +694,7 @@ model CheckRegister {
 // ============================================================================
 
 model Sale {
+  @@unique([businessId, clientOperationId])
   id            String   @id @default(cuid())
   businessId    String
   customerId    String?
@@ -666,7 +711,7 @@ model Sale {
   total         Decimal  @db.Decimal(12, 2)
   
   // Offline sync
-  clientOperationId String? @unique
+  clientOperationId String?
   
   notes         String?
   
@@ -693,6 +738,7 @@ model Sale {
 }
 
 model SaleItem {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id              String  @id @default(cuid())
   saleId          String
   productId       String
@@ -765,6 +811,7 @@ model DiscountApproval {
 }
 
 model Payment {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id     String  @id @default(cuid())
   saleId String
   method String  // CASH_ARS, CASH_USD, CARD, TRANSFER, QR
@@ -818,6 +865,7 @@ model SaleRefund {
 }
 
 model SaleRefundItem {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id            String   @id @default(cuid())
   saleRefundId  String
   saleItemId    String
@@ -838,6 +886,7 @@ model SaleRefundItem {
 }
 
 model SaleRefundPayment {
+  businessId String @default(dbgenerated("current_setting('app.business_id', true)"))
   id            String   @id @default(cuid())
   saleRefundId  String
   method        String
@@ -1188,9 +1237,10 @@ model AuditLog {
 }
 
 model IdempotencyKey {
+  @@unique([businessId, endpoint, clientOperationId])
   id                String @id @default(cuid())
   businessId        String
-  clientOperationId String @unique
+  clientOperationId String
   endpoint          String
   
   responseStatus    Int

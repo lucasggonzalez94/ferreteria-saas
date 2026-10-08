@@ -6,7 +6,7 @@ const mockDeleteMany = jest.fn() as any;
 
 const mockPrisma = {
   idempotencyKey: {
-    findUnique: mockFindUnique as any,
+    findFirst: mockFindUnique as any,
     create: mockCreate as any,
     deleteMany: mockDeleteMany,
   },
@@ -31,16 +31,16 @@ describe('IdempotencyService', () => {
       expect(result.response).toBeUndefined();
     });
 
-    it('devuelve exists=false si la key pertenece a otro business', async () => {
-      mockFindUnique.mockResolvedValue({
-        businessId: 'other-biz',
-        clientOperationId: 'op-123',
-        responseStatus: 200,
-        responseBody: { result: 'ok' },
-      } as unknown as never);
+    it('scopes the lookup by businessId so keys de otro tenant nunca se resuelven', async () => {
+      // La nueva unicidad es (businessId, endpoint, clientOperationId): la query
+      // ya incluye tenant; un registro ajeno nunca llega a la comparación.
+      mockFindUnique.mockResolvedValue(null as unknown as never);
 
       const result = await IdempotencyService.check('biz-1', 'op-123');
 
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { businessId: 'biz-1', clientOperationId: 'op-123' },
+      });
       expect(result.exists).toBe(false);
     });
 

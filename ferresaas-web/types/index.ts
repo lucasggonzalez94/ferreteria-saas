@@ -155,22 +155,8 @@ export interface LoginResponse {
   csrfHash: string;
 }
 
-export type TaxCondition = "RESPONSABLE_INSCRIPTO" | "MONOTRIBUTO" | "EXENTO";
-
-export interface SignupRequest {
-  businessName: string;
-  businessCuit: string;
-  taxCondition: TaxCondition;
-  phone?: string;
-  address?: string;
-  timezone?: string;
-  ownerFirstName: string;
-  ownerLastName?: string;
-  email: string;
-  password: string;
-}
-
-export type SignupResponse = LoginResponse;
+// Contrato de signup vive en features/auth/model; reexport para compatibilidad.
+export type { TaxCondition, SignupRequest, SignupResponse } from '@/features/auth/model/signup-types';
 
 export interface ExchangeRateResponse {
   fromCurrency: string;

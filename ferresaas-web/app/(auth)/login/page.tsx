@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import Chevron from '@/components/ui/chevron';
 
+// TODO: Refactorizar esta función para que sea más mantenible y legible y quitar comentario de abajo
+// eslint-disable-next-line max-lines-per-function
 function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

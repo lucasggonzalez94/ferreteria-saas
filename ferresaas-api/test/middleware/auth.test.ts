@@ -1,171 +1,135 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn() as any,
-  },
-};
+const mockRunPublic = jest.fn() as any;
+const mockRun = jest.fn() as any;
+const mockVerifyAccessToken = jest.fn() as any;
+const mockRedisGet = jest.fn() as any;
+const mockRedisSet = jest.fn() as any;
 
-const mockIsBlacklisted = jest.fn() as any;
-const mockVerify = jest.fn() as any;
-const mockEnv = {
-  jwt: {
-    accessSecret: 'access-secret',
-  },
-};
-
-jest.mock('@/config/database', () => ({ prisma: mockPrisma }));
-jest.mock('@/config/env', () => ({ env: mockEnv }));
-jest.mock('@/services/token-blacklist.service', () => ({
-  TokenBlacklistService: {
-    isBlacklisted: mockIsBlacklisted,
-  },
+jest.mock('@/platform/tenancy/unit-of-work', () => ({
+  unitOfWork: { runPublic: mockRunPublic, run: mockRun },
+  TenantUnitOfWork: class {},
 }));
-jest.mock('jsonwebtoken', () => {
-  const actual = jest.requireActual('jsonwebtoken') as any;
-  return {
-    ...actual,
-    verify: mockVerify,
-  };
+jest.mock('@/platform/security/jwt', () => ({
+  verifyAccessToken: mockVerifyAccessToken,
+}));
+jest.mock('@/platform/cache/redis', () => ({
+  redisGet: mockRedisGet,
+  redisSet: mockRedisSet,
+  RedisUnavailableError: class RedisUnavailableError extends Error {},
+}));
+jest.mock('@/config/env', () => ({ env: { redis: { enabled: false } } }));
+
+import { authenticate, requirePermissions } from '@/platform/security/authenticate';
+import { AppError } from '@/platform/errors';
+
+const session = (overrides: Record<string, unknown> = {}) => ({
+  id: 'session-1',
+  businessId: 'biz-1',
+  userId: 'user-1',
+  securityVersion: 1,
+  user: {
+    id: 'user-1',
+    email: 'user@test.com',
+    firstName: 'Ana',
+    lastName: null,
+    isActive: true,
+    securityVersion: 1,
+    businessId: 'biz-1',
+    business: { authorizationVersion: 1, timezone: 'America/Buenos_Aires' },
+  },
+  ...overrides,
 });
 
-import jwt from 'jsonwebtoken';
-import { AppError } from '@/utils/response';
-import { authenticate, optionalAuth } from '@/middleware/auth';
-
-describe('auth middleware', () => {
+describe('authenticate (platform)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRunPublic.mockImplementation(async (work: any) =>
+      work({ authSession: { findFirst: jest.fn().mockResolvedValue(session()) } }),
+    );
+    mockRun.mockImplementation(async (_ctx: any, work: any) =>
+      work({
+        user: {
+          findFirst: jest.fn().mockResolvedValue({
+            isActive: true,
+            roles: [
+              { role: { name: 'OWNER', permissions: [{ permission: { resource: 'sales', action: 'create' } }] } },
+            ],
+          }),
+        },
+      }),
+    );
+    mockVerifyAccessToken.mockReturnValue({
+      sub: 'user-1',
+      sid: 'session-1',
+      tid: 'biz-1',
+      sv: 1,
+      av: 1,
+      typ: 'access',
+    });
   });
 
-  it('authenticate rejects when bearer token is missing', async () => {
-    const req = { headers: {} } as any;
+  it('rejects when bearer token is missing', async () => {
     const next = jest.fn();
-
-    await authenticate(req, {} as any, next);
-
-    expect(next).toHaveBeenCalledWith(expect.any(AppError));
+    await authenticate({ headers: {} } as any, {} as any, next);
     const err = next.mock.calls[0][0] as AppError;
     expect(err.code).toBe('UNAUTHORIZED');
   });
 
-  it('authenticate rejects revoked token', async () => {
-    const req = { headers: { authorization: 'Bearer token-1' } } as any;
+  it('rejects invalid access tokens', async () => {
+    mockVerifyAccessToken.mockImplementation(() => { throw AppError.unauthorized('INVALID_TOKEN', 'bad'); });
     const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(true);
-
-    await authenticate(req, {} as any, next);
-
-    const err = next.mock.calls[0][0] as AppError;
-    expect(err.code).toBe('TOKEN_REVOKED');
+    await authenticate({ headers: { authorization: 'Bearer bad' } } as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('INVALID_TOKEN');
   });
 
-  it('authenticate maps jwt errors to INVALID_TOKEN', async () => {
-    const req = { headers: { authorization: 'Bearer token-2' } } as any;
+  it('rejects when session is not found or revoked', async () => {
+    mockRunPublic.mockImplementation(async (work: any) =>
+      work({ authSession: { findFirst: jest.fn().mockResolvedValue(null) } }),
+    );
     const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(false);
-    mockVerify.mockImplementation(() => {
-      throw new jwt.JsonWebTokenError('bad token');
-    });
-
-    await authenticate(req, {} as any, next);
-
-    const err = next.mock.calls[0][0] as AppError;
-    expect(err.code).toBe('INVALID_TOKEN');
-    expect(err.message).toBe('Invalid token');
+    await authenticate({ headers: { authorization: 'Bearer ok' } } as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('UNAUTHORIZED');
   });
 
-  it('authenticate rejects non-access token type', async () => {
-    const req = { headers: { authorization: 'Bearer token-3' } } as any;
+  it('rejects when security version changed (password/reset)', async () => {
+    mockRunPublic.mockImplementation(async (work: any) =>
+      work({ authSession: { findFirst: jest.fn().mockResolvedValue(session({ securityVersion: 2 })) } }),
+    );
     const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(false);
-    mockVerify.mockReturnValue({ userId: 'user-1', type: 'refresh' });
-
-    await authenticate(req, {} as any, next);
-
-    const err = next.mock.calls[0][0] as AppError;
-    expect(err.code).toBe('INVALID_TOKEN');
-    expect(err.message).toBe('Invalid token type');
+    await authenticate({ headers: { authorization: 'Bearer ok' } } as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('TOKEN_REVOKED');
   });
 
-  it('authenticate rejects missing or inactive user', async () => {
-    const req = { headers: { authorization: 'Bearer token-4' } } as any;
+  it('loads identity, roles, permissions, tenant and timezone into the request', async () => {
+    const req = { headers: { authorization: 'Bearer ok' } } as any;
     const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(false);
-    mockVerify.mockReturnValue({ userId: 'user-1', type: 'access' });
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-
     await authenticate(req, {} as any, next);
-
-    const err = next.mock.calls[0][0] as AppError;
-    expect(err.code).toBe('USER_NOT_FOUND');
-  });
-
-  it('authenticate sets request user and business context', async () => {
-    const req = { headers: { authorization: 'Bearer token-5' } } as any;
-    const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(false);
-    mockVerify.mockReturnValue({ userId: 'user-1', type: 'access' });
-    mockPrisma.user.findUnique.mockResolvedValue({
-      id: 'user-1',
-      businessId: 'biz-1',
-      email: 'u1@test.com',
-      firstName: 'User',
-      lastName: 'One',
-      isActive: true,
-      roles: [
-        {
-          role: {
-            name: 'Admin',
-            permissions: [
-              { permission: { resource: 'products', action: 'read' } },
-              { permission: { resource: 'products', action: 'write' } },
-            ],
-          },
-        },
-      ],
-    });
-
-    await authenticate(req, {} as any, next);
-
+    expect(next).toHaveBeenCalledWith();
     expect(req.user).toEqual(
       expect.objectContaining({
         id: 'user-1',
         businessId: 'biz-1',
-        roles: ['Admin'],
-        permissions: ['products:read', 'products:write'],
-      })
+        roles: ['OWNER'],
+        permissions: ['sales:create'],
+      }),
     );
     expect(req.businessId).toBe('biz-1');
-    expect(next).toHaveBeenCalledWith();
+    expect(req.timezone).toBe('America/Buenos_Aires');
+    expect(req.sessionId).toBe('session-1');
+  });
+});
+
+describe('requirePermissions (OR semantics)', () => {
+  it('denies without user', () => {
+    const next = jest.fn();
+    requirePermissions('sales:create')({} as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('UNAUTHORIZED');
   });
 
-  it('optionalAuth skips authentication if no token', async () => {
-    const req = { headers: {} } as any;
+  it('denies without permission', () => {
     const next = jest.fn();
-
-    await optionalAuth(req, {} as any, next);
-
-    expect(next).toHaveBeenCalledWith();
-    expect(mockVerify).not.toHaveBeenCalled();
-  });
-
-  it('optionalAuth delegates to authenticate when bearer token exists', async () => {
-    const req = { headers: { authorization: 'Bearer token-6' } } as any;
-    const next = jest.fn();
-    mockIsBlacklisted.mockResolvedValue(false);
-    mockVerify.mockReturnValue({ userId: 'user-1', type: 'access' });
-    mockPrisma.user.findUnique.mockResolvedValue({
-      id: 'user-1',
-      businessId: 'biz-1',
-      email: 'u1@test.com',
-      isActive: true,
-      roles: [],
-    });
-
-    await optionalAuth(req, {} as any, next);
-
-    expect(mockVerify).toHaveBeenCalled();
-    expect(next).toHaveBeenCalledWith();
+    requirePermissions('sales:create')({ user: { permissions: ['products:read'] } } as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('FORBIDDEN');
   });
 });

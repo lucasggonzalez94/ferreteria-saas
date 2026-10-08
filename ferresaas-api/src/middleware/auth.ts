@@ -1,107 +1,38 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env';
-import { AuthRequest, JwtPayload } from '../types';
-import { AppError } from '../utils/response';
-import { prisma } from '../config/database';
-import { TokenBlacklistService } from '../services/token-blacklist.service';
+import type { Request, Response, NextFunction } from 'express';
+import { authenticate as authenticateIdentity } from '../platform/security/authenticate';
+import type { AuthRequest } from '../types';
 
-export const authenticate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AppError(401, 'UNAUTHORIZED', 'No token provided');
+/**
+ * Compatibilidad transitoria: el middleware oficial de autenticación vive en
+ * platform/security/authenticate. Este adapter conserva la signatura usada
+ * por routers legacy hasta migrar cada módulo; la validación real es la nueva
+ * (JWT access + sesión vigente en PostgreSQL + versiones de seguridad).
+ */
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  await authenticateIdentity(req, res, () => {
+    const authReq = req as AuthRequest;
+    if (req.user) {
+      authReq.user = {
+        id: req.user.id,
+        businessId: req.user.businessId,
+        email: req.user.email,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        roles: req.user.roles,
+        permissions: req.user.permissions,
+      };
     }
-
-    const token = authHeader.substring(7);
-
-    // Verificar si el token está en blacklist
-    const isBlacklisted = await TokenBlacklistService.isBlacklisted(token);
-    if (isBlacklisted) {
-      throw new AppError(401, 'TOKEN_REVOKED', 'Access token has been revoked');
-    }
-
-    // Verificar token
-    const decoded = jwt.verify(token, env.jwt.accessSecret) as JwtPayload;
-
-    if (decoded.type !== 'access') {
-      throw new AppError(401, 'INVALID_TOKEN', 'Invalid token type');
-    }
-
-    // Obtener usuario con roles y permisos
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user || !user.isActive) {
-      throw new AppError(401, 'USER_NOT_FOUND', 'User not found or inactive');
-    }
-
-    // Extraer roles y permisos
-    const roles = user.roles.map((ur) => ur.role.name);
-    const permissions = user.roles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => `${rp.permission.resource}:${rp.permission.action}`)
-    );
-
-    // Agregar datos al request
-    (req as AuthRequest).user = {
-      id: user.id,
-      businessId: user.businessId,
-      email: user.email,
-      firstName: user.firstName || undefined,
-      lastName: user.lastName || undefined,
-      roles,
-      permissions,
-    };
-
-    (req as AuthRequest).businessId = user.businessId;
-
+    authReq.businessId = req.businessId;
+    authReq.timezone = req.timezone;
     next();
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      next(new AppError(401, 'INVALID_TOKEN', 'Invalid token'));
-    } else {
-      next(error);
-    }
-  }
+  });
 };
 
-// Middleware opcional (no requiere autenticación pero la parsea si existe)
-export const optionalAuth = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      await authenticate(req, res, next);
-    } else {
-      next();
-    }
-  } catch (error) {
-    // Ignorar errores de autenticación en modo opcional
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
     next();
+    return;
   }
+  await authenticate(req, res, next);
 };

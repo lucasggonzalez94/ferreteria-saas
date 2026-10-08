@@ -9,16 +9,11 @@ export class IdempotencyService {
     businessId: string,
     clientOperationId: string
   ): Promise<{ exists: boolean; response?: { status: number; body: unknown } }> {
-    const existing = await prisma.idempotencyKey.findUnique({
-      where: { clientOperationId },
+    const existing = await prisma.idempotencyKey.findFirst({
+      where: { businessId, clientOperationId },
     });
 
     if (!existing) {
-      return { exists: false };
-    }
-
-    // Verificar que pertenece al mismo business
-    if (existing.businessId !== businessId) {
       return { exists: false };
     }
 

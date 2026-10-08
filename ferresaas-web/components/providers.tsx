@@ -2,7 +2,8 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { registerQueryClient } from "@/lib/session-cleanup";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -16,6 +17,11 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }),
   );
+
+  // Permite limpiar el caché TanStack al cambiar de sesión/tenant.
+  useEffect(() => {
+    registerQueryClient(queryClient);
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>

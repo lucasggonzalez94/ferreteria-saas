@@ -39,8 +39,8 @@ export class ProductService {
     // Verificar que no exista (en caso de conflicto, incrementar)
     let attempts = 0;
     while (attempts < 10) {
-      const existing = await prisma.product.findUnique({
-        where: { internalSku: sku },
+      const existing = await prisma.product.findFirst({
+        where: { businessId, internalSku: sku },
       });
       
       if (!existing) {
@@ -89,8 +89,8 @@ export class ProductService {
 
     // Verificar si el barcode ya existe (si se proporcionó)
     if (data.barcode) {
-      const existing = await prisma.product.findUnique({
-        where: { barcode: data.barcode },
+      const existing = await prisma.product.findFirst({
+        where: { businessId, barcode: data.barcode },
       });
 
       if (existing) {
@@ -392,8 +392,8 @@ export class ProductService {
 
     // Si se actualiza el barcode, verificar que no exista
     if (data.barcode && data.barcode !== current.barcode) {
-      const existing = await prisma.product.findUnique({
-        where: { barcode: data.barcode },
+      const existing = await prisma.product.findFirst({
+        where: { businessId, barcode: data.barcode },
       });
 
       if (existing && existing.id !== productId) {

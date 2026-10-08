@@ -14,7 +14,7 @@ const Chevron = ({link, linkLabel = 'Volver'}: ChevronProps) => {
       <Button
         variant="ghost"
         size="sm"
-        className="-ml-2 mb-0 px-3 text-muted-foreground hover:text-foreground"
+        className="-ml-2 mb-4 px-3 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
         {linkLabel}

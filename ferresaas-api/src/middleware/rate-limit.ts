@@ -16,55 +16,5 @@ export const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Rate limiter estricto para login
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 intentos por IP
-  message: {
-    success: false,
-    error: {
-      code: 'LOGIN_RATE_LIMIT_EXCEEDED',
-      message: 'Too many login attempts, please try again later',
-    },
-  },
-  skipSuccessfulRequests: true,
-});
-
-// Rate limiter estricto para alta pública de negocios
-export const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max: 5,
-  message: {
-    success: false,
-    error: {
-      code: 'SIGNUP_RATE_LIMIT_EXCEEDED',
-      message: 'Too many signup attempts, please try again later',
-    },
-  },
-});
-
-// Rate limiter para reset password
-export const resetPasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max: 3, // 3 intentos
-  message: {
-    success: false,
-    error: {
-      code: 'RESET_RATE_LIMIT_EXCEEDED',
-      message: 'Too many password reset attempts, please try again later',
-    },
-  },
-});
-
-// Rate limiter para refresh token
-export const refreshLimiter = rateLimit({
-  windowMs: env.rateLimit.refreshWindowMs, // 5 minutos
-  max: env.rateLimit.refreshMax, // 10 intentos
-  message: {
-    success: false,
-    error: {
-      code: 'REFRESH_RATE_LIMIT_EXCEEDED',
-      message: 'Too many refresh attempts, please try again later',
-    },
-  },
-});
+// Los límites de autenticación (login/signup/refresh/password) viven en
+// modules/identity/http/rate-limit.ts: son distribuidos y fallan cerrado.

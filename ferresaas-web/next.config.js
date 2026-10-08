@@ -13,18 +13,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
         expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
       },
     },
-    // Cache de API GET idempotentes (network-first con fallback)
-    {
-      urlPattern: /\/v1\/(exchange-rate|categories|brands|products)(\?.*)?$/i,
-      handler: 'NetworkFirst',
-      method: 'GET',
-      options: {
-        cacheName: 'api-cache',
-        expiration: { maxEntries: 100, maxAgeSeconds: 5 * 60 },
-        networkTimeoutSeconds: 10,
-      },
-    },
-    // Páginas navegadas (network-first)
+    // NO se cachean respuestas autenticadas de la API: la URL no distingue
+    // tenant y mostraría datos de otra ferretería (regla 39, refactor AUTH-01).
+    // Páginas navegadas (network-first, sólo shell)
     {
       urlPattern: /^https?.*\/dashboard.*$/i,
       handler: 'NetworkFirst',

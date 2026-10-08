@@ -11,7 +11,9 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
-import type { User, LoginResponse, SignupRequest, SignupResponse } from "@/types";
+import { destroySessionCaches } from "@/lib/session-cleanup";
+import { signupRequest } from "@/features/auth/api/signup-api";
+import type { User, LoginResponse, SignupRequest } from "@/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -159,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (response.success && response.data) {
+      // Nueva sesión: ningún caché/storage del usuario anterior puede sobrevivir.
+      destroySessionCaches();
       // Guardar access token, CSRF token y CSRF hash en memoria
       saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
       setUser(response.data.user);
@@ -178,34 +182,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (payload: SignupRequest) => {
-    const response = await api.post<SignupResponse>("/auth/signup", payload);
+    const data = await signupRequest(payload);
+    // Nueva sesión de tenant nuevo: ningún caché/storage previo puede sobrevivir.
+    destroySessionCaches();
+    saveTokens(data.accessToken, data.csrfToken, data.csrfHash);
+    setUser(data.user);
 
-    if (response.success && response.data) {
-      saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
-      setUser(response.data.user);
-
-      if (response.data.business) {
-        setBusiness(response.data.business);
-        setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
-      }
-
-      router.push("/dashboard");
-    } else {
-      throw new Error(response.error?.message || "Signup failed");
+    if (data.business) {
+      setBusiness(data.business);
+      setBusinessTimezone(data.business.timezone || DEFAULT_TIMEZONE);
     }
+
+    router.push("/dashboard");
   };
 
   const logout = async () => {
     try {
-      // Obtener el access token antes de limpiarlo
-      const accessToken = getToken();
-      
-      // Llamar al endpoint de logout para revocar refresh token y access token
-      await api.post("/auth/logout", { accessToken });
+      await api.post("/auth/logout", {});
     } catch {
-      // Continuar con logout local incluso si falla el servidor
+      // El cierre local es igualmente definitivo: el access token queda atado
+      // a la sesión revocada/no alcanzable y vence en minutos.
     } finally {
       clearTokens();
+      destroySessionCaches();
       setUser(null);
       setBusiness(null);
       setBusinessTimezone(DEFAULT_TIMEZONE);

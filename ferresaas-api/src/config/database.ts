@@ -1,22 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-import { env } from './env';
+import type { PrismaClient } from '@prisma/client';
+import { closeDatabase, getPrismaBase } from '../platform/database/client';
 
-// Singleton de Prisma Client
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Back-compat durante la migración: el singleton vive en platform/database.
+export const prisma: PrismaClient = getPrismaBase();
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: env.app.isDevelopment ? ['query', 'error', 'warn'] : ['error'],
-  });
-
-if (env.app.env !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
-
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
+process.on('beforeExit', () => {
+  void closeDatabase();
 });

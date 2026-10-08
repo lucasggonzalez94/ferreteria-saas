@@ -1,43 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import { AppError } from '../utils/response';
-import { prisma } from '../config/database';
 import { DEFAULT_TIMEZONE } from '../utils/timezone';
 
 /**
- * Middleware Multi-tenant - Asegura que todas las queries incluyan businessId
- * Este middleware debe ejecutarse DESPUÉS de authenticate
+ * Multi-tenant: el tenant ya viene sanitizado por `authenticate` desde la
+ * sesión autoritativa. Este middleware sólo valida que el contexto exista y
+ * expone el timezone. El aislamiento físico es responsabilidad de RLS +
+ * TenantUnitOfWork; no hay que recordar businessId en cada query.
  */
-export const multiTenant = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const multiTenant = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-
-    if (!authReq.user || !authReq.user.businessId) {
+    if (!authReq.user?.businessId) {
       throw new AppError(401, 'UNAUTHORIZED', 'Business context required');
     }
-
-    // Inyectar businessId en el request para uso en controllers
     authReq.businessId = authReq.user.businessId;
-
-    // Obtener timezone del negocio
-    // Nota: Después de reiniciar el servidor, el cliente Prisma se regenerará
-    // y se podrá usar select: { timezone: true } directamente
-    const business = await prisma.business.findUnique({
-      where: { id: authReq.user.businessId },
-    });
-
-    // Inyectar timezone en el request (default si no está configurado)
-    authReq.timezone = (business as any)?.timezone || DEFAULT_TIMEZONE;
-
+    authReq.timezone = authReq.timezone ?? DEFAULT_TIMEZONE;
     next();
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * Helper para validar que una entidad pertenece al businessId del usuario
- */
 export const validateBusinessOwnership = (
   entityBusinessId: string,
   userBusinessId: string

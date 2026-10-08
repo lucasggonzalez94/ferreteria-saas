@@ -1,221 +1,19 @@
-import { prisma } from '../config/database';
-import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
-import { EmailService } from './email.service';
-import { AuditService } from './audit.service';
-import { TokenBlacklistService } from './token-blacklist.service';
+import { unitOfWork } from '../platform/tenancy/unit-of-work';
 import { AppError } from '../utils/response';
-import { addMinutes } from 'date-fns';
-import { USER_ROLES } from '../config/constants';
+import { hashPassword } from '../platform/security/passwords';
+import { validatePassword } from '../modules/identity/domain/password-policy';
+import { AuditStore } from '../modules/audit/infrastructure/audit-store';
+import { EmailService } from './email.service';
 
-const DEFAULT_TIMEZONE = 'America/Buenos_Aires';
-
-const CASHIER_PERMISSION_KEYS = [
-  'products:read',
-  'sales:create',
-  'sales:read',
-  'sales:refund',
-  'inventory:read',
-  'inventory:return',
-  'cash_register:read',
-  'cash_register:open',
-  'cash_register:close',
-  'cash_register:manage',
-];
-
+/**
+ * AUTH legacy pendiente de migración (AUTH-06/07/08).
+ * Las operaciones de sesión (signup/login/refresh/restore/logout/password)
+ * están migradas a `modules/identity`.
+ */
 export class AuthService {
-  private emailService: EmailService;
+  private emailService = new EmailService();
 
-  constructor() {
-    this.emailService = new EmailService();
-  }
-
-  /**
-   * Registrar un nuevo negocio con su usuario dueño y dejar la sesión iniciada.
-   */
-  async signupBusinessOwner(params: {
-    businessName: string;
-    businessCuit: string;
-    taxCondition: 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO';
-    phone?: string;
-    address?: string;
-    timezone?: string;
-    ownerFirstName: string;
-    ownerLastName?: string;
-    email: string;
-    password: string;
-  }, ip?: string, userAgent?: string) {
-    const passwordValidation = PasswordService.validate(params.password);
-    if (!passwordValidation.valid) {
-      throw new AppError(400, 'INVALID_PASSWORD', 'Password does not meet requirements', {
-        errors: passwordValidation.errors,
-      });
-    }
-
-    const [existingUser, existingBusiness] = await Promise.all([
-      prisma.user.findUnique({ where: { email: params.email } }),
-      prisma.business.findUnique({ where: { cuit: params.businessCuit } }),
-    ]);
-
-    if (existingUser) {
-      throw new AppError(409, 'EMAIL_EXISTS', 'Email already registered');
-    }
-
-    if (existingBusiness) {
-      throw new AppError(409, 'CUIT_EXISTS', 'Business CUIT already registered');
-    }
-
-    const hashedPassword = await PasswordService.hash(params.password);
-    const tokens = await prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({
-        data: {
-          name: params.businessName,
-          cuit: params.businessCuit,
-          taxCondition: params.taxCondition,
-          phone: params.phone,
-          address: params.address,
-          email: params.email,
-          timezone: params.timezone || DEFAULT_TIMEZONE,
-        },
-      });
-
-      const [ownerRole, adminRole, cashierRole] = await Promise.all([
-        tx.role.create({
-          data: {
-            businessId: business.id,
-            name: USER_ROLES.OWNER,
-            description: 'Dueño del negocio - acceso total',
-            isSystem: true,
-          },
-        }),
-        tx.role.create({
-          data: {
-            businessId: business.id,
-            name: USER_ROLES.ADMIN,
-            description: 'Administrador - acceso casi total',
-            isSystem: true,
-          },
-        }),
-        tx.role.create({
-          data: {
-            businessId: business.id,
-            name: USER_ROLES.CASHIER,
-            description: 'Cajero - ventas y caja',
-            isSystem: true,
-          },
-        }),
-      ]);
-
-      const permissions = await tx.permission.findMany();
-      const permissionKeys = permissions.map((permission) => `${permission.resource}:${permission.action}`);
-      const permissionMap = permissions.reduce<Record<string, string>>((acc, permission) => {
-        acc[`${permission.resource}:${permission.action}`] = permission.id;
-        return acc;
-      }, {});
-
-      await tx.rolePermission.createMany({
-        data: permissions.flatMap((permission) => [
-          { roleId: ownerRole.id, permissionId: permission.id },
-          { roleId: adminRole.id, permissionId: permission.id },
-        ]),
-        skipDuplicates: true,
-      });
-
-      await tx.rolePermission.createMany({
-        data: CASHIER_PERMISSION_KEYS
-          .map((key) => permissionMap[key])
-          .filter((permissionId): permissionId is string => Boolean(permissionId))
-          .map((permissionId) => ({
-            roleId: cashierRole.id,
-            permissionId,
-          })),
-        skipDuplicates: true,
-      });
-
-      const user = await tx.user.create({
-        data: {
-          businessId: business.id,
-          email: params.email,
-          password: hashedPassword,
-          firstName: params.ownerFirstName,
-          lastName: params.ownerLastName,
-          isActive: true,
-        },
-      });
-
-      await tx.userRole.create({
-        data: {
-          userId: user.id,
-          roleId: ownerRole.id,
-        },
-      });
-
-      const tokenPair = TokenService.generateTokenPair(user.id, business.id, user.email);
-
-      await tx.refreshTokenSession.create({
-        data: {
-          userId: user.id,
-          businessId: business.id,
-          tokenFamily: tokenPair.tokenFamily,
-          tokenHash: tokenPair.refreshTokenHash,
-          expiresAt: tokenPair.expiresAt,
-          ipAddress: ip,
-          userAgent,
-        },
-      });
-
-      return {
-        user,
-        business,
-        accessToken: tokenPair.accessToken,
-        refreshToken: tokenPair.refreshToken,
-        csrfToken: tokenPair.csrfToken,
-        csrfHash: tokenPair.csrfHash,
-        permissionKeys,
-      };
-    });
-
-    await AuditService.logCreate(tokens.business.id, tokens.user.id, 'businesses', tokens.business.id, {
-      name: tokens.business.name,
-      cuit: tokens.business.cuit,
-    });
-
-    await AuditService.logCreate(tokens.business.id, tokens.user.id, 'users', tokens.user.id, {
-      email: tokens.user.email,
-    });
-
-    try {
-      await this.emailService.sendWelcomeEmail(tokens.user.email, tokens.user.firstName || 'Usuario');
-    } catch (error) {
-      // No fallar el registro si falla el email
-    }
-
-    return {
-      user: {
-        id: tokens.user.id,
-        email: tokens.user.email,
-        firstName: tokens.user.firstName,
-        lastName: tokens.user.lastName,
-        businessId: tokens.user.businessId,
-        roles: [USER_ROLES.OWNER],
-        permissions: tokens.permissionKeys,
-      },
-      business: {
-        id: tokens.business.id,
-        name: tokens.business.name,
-        timezone: tokens.business.timezone || DEFAULT_TIMEZONE,
-        logoUrl: tokens.business.logoUrl || null,
-      },
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      csrfToken: tokens.csrfToken,
-      csrfHash: tokens.csrfHash,
-    };
-  }
-
-  /**
-   * Registrar nuevo usuario
-   */
+  /** Alta de usuario dentro de un negocio (uso admin). Ruta protegida. */
   async register(params: {
     businessId: string;
     email: string;
@@ -225,499 +23,77 @@ export class AuthService {
     lastName?: string;
     roleIds?: string[];
   }) {
-    // Validar password
-    const passwordValidation = PasswordService.validate(params.password);
-    if (!passwordValidation.valid) {
+    const validation = validatePassword(params.password);
+    if (!validation.valid) {
       throw new AppError(400, 'INVALID_PASSWORD', 'Password does not meet requirements', {
-        errors: passwordValidation.errors,
+        errors: validation.errors,
       });
     }
 
-    // Verificar si el email ya existe
-    const existingUser = await prisma.user.findUnique({
-      where: { email: params.email },
-    });
+    const email = params.email.trim().toLowerCase();
+    const hashed = await hashPassword(params.password);
 
-    if (existingUser) {
-      throw new AppError(409, 'EMAIL_EXISTS', 'Email already registered');
-    }
+    return unitOfWork.run({ businessId: params.businessId }, async tx => {
+      const exists = await tx.user.findFirst({ where: { email }, select: { id: true } });
+      if (exists) throw new AppError(409, 'EMAIL_EXISTS', 'Email already registered');
 
-    // Hash password
-    const hashedPassword = await PasswordService.hash(params.password);
-
-    // Crear usuario
-    const user = await prisma.user.create({
-      data: {
-        businessId: params.businessId,
-        email: params.email,
-        username: params.username,
-        password: hashedPassword,
-        firstName: params.firstName,
-        lastName: params.lastName,
-      },
-    });
-
-    // Asignar roles si se especificaron
-    if (params.roleIds && params.roleIds.length > 0) {
-      const roles = await prisma.role.findMany({
-        where: {
-          id: { in: params.roleIds },
-          businessId: params.businessId,
-        },
-      });
-
-      if (roles.length !== params.roleIds.length) {
-        throw new AppError(400, 'INVALID_ROLES', 'One or more roles do not belong to this business');
-      }
-
-      await prisma.userRole.createMany({
-        data: params.roleIds.map((roleId) => ({
-          userId: user.id,
-          roleId,
-        })),
-      });
-    }
-
-    // Auditoría
-    await AuditService.logCreate(params.businessId, undefined, 'users', user.id, {
-      email: user.email,
-      username: user.username,
-    });
-
-    // Enviar email de bienvenida
-    try {
-      await this.emailService.sendWelcomeEmail(user.email, user.firstName || 'Usuario');
-    } catch (error) {
-      // No fallar el registro si falla el email
-    }
-
-    return user;
-  }
-
-  /**
-   * Login
-   */
-  async login(email: string, password: string, ip?: string, userAgent?: string) {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        business: {
-          select: {
-            id: true,
-            name: true,
-            timezone: true,
-            logoUrl: true,
-          },
-        },
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    if (!user || !user.isActive) {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
-    }
-
-    // Verificar password
-    const isValid = await PasswordService.verify(user.password, password);
-    if (!isValid) {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
-    }
-
-    // Generar tokens
-    const tokens = TokenService.generateTokenPair(user.id, user.businessId, user.email);
-
-    // Guardar refresh token session en BD
-    await prisma.refreshTokenSession.create({
-      data: {
-        userId: user.id,
-        businessId: user.businessId,
-        tokenFamily: tokens.tokenFamily,
-        tokenHash: tokens.refreshTokenHash,
-        expiresAt: tokens.expiresAt,
-        ipAddress: ip,
-        userAgent,
-      },
-    });
-
-    // Auditoría
-    await AuditService.log({
-      businessId: user.businessId,
-      userId: user.id,
-      action: 'LOGIN',
-      entity: 'auth',
-      ip,
-      userAgent,
-    });
-
-    // Obtener roles y permisos del usuario
-    const userRoles = user.roles.map((ur) => ur.role.name);
-    const rolePermissions = await prisma.rolePermission.findMany({
-      where: {
-        role: {
-          id: {
-            in: user.roles.map((ur) => ur.roleId),
-          },
-        },
-      },
-      include: {
-        permission: true,
-      },
-    });
-
-    const permissions = Array.from(
-      new Set(
-        rolePermissions.map((rp) => `${rp.permission.resource}:${rp.permission.action}`)
-      )
-    );
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        businessId: user.businessId,
-        roles: userRoles,
-        permissions,
-      },
-      business: {
-        id: user.business.id,
-        name: user.business.name,
-        timezone: (user.business as any).timezone || 'America/Buenos_Aires',
-        logoUrl: (user.business as any).logoUrl || null,
-      },
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      csrfToken: tokens.csrfToken,
-      csrfHash: tokens.csrfHash,
-    };
-  }
-
-  /**
-   * Refresh token con rotación y detección de reuso
-   */
-  async refresh(refreshToken: string, ip?: string, userAgent?: string) {
-    try {
-      const payload = TokenService.verifyRefreshToken(refreshToken);
-      const tokenHash = TokenService.hashToken(refreshToken);
-
-      // Buscar sesión en BD
-      const session = await prisma.refreshTokenSession.findUnique({
-        where: { tokenHash },
-        include: { user: true },
-      });
-
-      // Si no existe la sesión, puede ser reuso
-      if (!session) {
-        // Intentar encontrar por familia para detectar reuso
-        if (payload.tokenFamily) {
-          const familySessions = await prisma.refreshTokenSession.findMany({
-            where: { tokenFamily: payload.tokenFamily },
-          });
-
-          if (familySessions.length > 0) {
-            // REUSO DETECTADO: Revocar toda la familia
-            await prisma.refreshTokenSession.updateMany({
-              where: { tokenFamily: payload.tokenFamily },
-              data: { isRevoked: true, reuseDetected: true },
-            });
-
-            // Auditoría crítica
-            await AuditService.log({
-              businessId: payload.businessId,
-              userId: payload.userId,
-              action: 'TOKEN_REUSE_DETECTED',
-              entity: 'auth',
-              ip,
-              userAgent,
-              after: { tokenFamily: payload.tokenFamily },
-            });
-
-            throw new AppError(401, 'TOKEN_REUSE_DETECTED', 'Refresh token reuse detected. All sessions revoked.');
-          }
+      if (params.roleIds?.length) {
+        const roles = await tx.role.findMany({
+          where: { id: { in: params.roleIds }, businessId: params.businessId },
+        });
+        if (roles.length !== params.roleIds.length) {
+          throw new AppError(400, 'INVALID_ROLES', 'One or more roles do not belong to this business');
         }
-
-        throw new AppError(401, 'INVALID_TOKEN', 'Invalid refresh token');
       }
 
-      // Verificar si está revocada
-      if (session.isRevoked) {
-        throw new AppError(401, 'TOKEN_REVOKED', 'Refresh token has been revoked');
-      }
-
-      // Verificar expiración
-      if (session.expiresAt < new Date()) {
-        throw new AppError(401, 'TOKEN_EXPIRED', 'Refresh token has expired');
-      }
-
-      // Verificar que el usuario existe y está activo
-      if (!session.user || !session.user.isActive) {
-        throw new AppError(401, 'USER_INACTIVE', 'User not found or inactive');
-      }
-
-      // Generar nuevos tokens (mantiene la familia)
-      const newTokens = TokenService.rotateRefreshToken(
-        session.user.id,
-        session.user.businessId,
-        session.user.email,
-        session.tokenFamily
-      );
-
-      // ROTAR: Reutilizar registro existente en lugar de crear uno nuevo
-      await prisma.refreshTokenSession.update({
-        where: { id: session.id },
+      const user = await tx.user.create({
         data: {
-          tokenHash: newTokens.refreshTokenHash,
-          expiresAt: newTokens.expiresAt,
-          lastUsedAt: new Date(),
-          ipAddress: ip,
-          userAgent,
+          businessId: params.businessId,
+          email,
+          username: params.username,
+          password: hashed,
+          firstName: params.firstName,
+          lastName: params.lastName,
         },
       });
 
-      // Auditoría
-      await AuditService.log({
-        businessId: session.user.businessId,
-        userId: session.user.id,
-        action: 'REFRESH_TOKEN',
+      if (params.roleIds?.length) {
+        await tx.userRole.createMany({
+          data: params.roleIds.map(roleId => ({ businessId: params.businessId, userId: user.id, roleId })),
+        });
+      }
+
+      await new AuditStore(tx).logCreate(params.businessId, undefined, 'users', user.id, {
+        email: user.email,
+        username: user.username,
+      });
+
+      return user;
+    }).then(async user => {
+      // IO externo fuera de la transacción; un fallo de email no revierte el alta.
+      try {
+        await this.emailService.sendWelcomeEmail(user.email, user.firstName || 'Usuario');
+      } catch {
+        // intencional: no bloquear el alta por el correo
+      }
+      return user;
+    });
+  }
+
+  async updateProfile(businessId: string, userId: string, firstName: string, lastName?: string) {
+    return unitOfWork.run({ businessId, actorUserId: userId }, async tx => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { firstName: firstName.trim(), lastName: lastName?.trim() || null },
+        select: { id: true, email: true, firstName: true, lastName: true, businessId: true },
+      });
+      await new AuditStore(tx).log({
+        businessId,
+        userId,
+        action: 'PROFILE_UPDATED',
         entity: 'auth',
-        ip,
-        userAgent,
       });
-
-      return {
-        accessToken: newTokens.accessToken,
-        refreshToken: newTokens.refreshToken,
-        csrfToken: newTokens.csrfToken,
-        csrfHash: newTokens.csrfHash,
-      };
-    } catch (error) {
-      if (error instanceof AppError) {
-        throw error;
-      }
-      throw new AppError(401, 'INVALID_TOKEN', 'Invalid refresh token');
-    }
-  }
-
-  /**
-   * Logout (revocar refresh token y agregar access token a blacklist)
-   */
-  async logout(refreshToken: string, accessToken?: string, ip?: string, userAgent?: string) {
-    try {
-      const tokenHash = TokenService.hashToken(refreshToken);
-
-      // Buscar sesión
-      const session = await prisma.refreshTokenSession.findUnique({
-        where: { tokenHash },
-      });
-
-      if (session) {
-        // Revocar sesión
-        await prisma.refreshTokenSession.update({
-          where: { id: session.id },
-          data: { isRevoked: true },
-        });
-
-        // Auditoría
-        await AuditService.log({
-          businessId: session.businessId,
-          userId: session.userId,
-          action: 'LOGOUT',
-          entity: 'auth',
-          ip,
-          userAgent,
-        });
-      }
-
-      // Agregar access token a blacklist (si se proporciona)
-      if (accessToken) {
-        try {
-          // Parsear el token para obtener el tiempo de expiración
-          const decoded = TokenService.verifyAccessToken(accessToken);
-          const now = Math.floor(Date.now() / 1000);
-          const expiresIn = Math.max(0, (decoded.exp || 0) - now);
-
-          if (expiresIn > 0) {
-            await TokenBlacklistService.addToBlacklist(accessToken, expiresIn);
-          }
-        } catch (error) {
-          // No fallar el logout si hay error al agregar a blacklist
-        }
-      }
-
-      return { message: 'Logged out successfully' };
-    } catch (error) {
-      // No fallar el logout si hay error
-      return { message: 'Logged out successfully' };
-    }
-  }
-
-  /**
-   * Revocar todas las sesiones de un usuario
-   */
-  async revokeAllSessions(userId: string) {
-    await prisma.refreshTokenSession.updateMany({
-      where: { userId, isRevoked: false },
-      data: { isRevoked: true },
+      return user;
     });
-
-    return { message: 'All sessions revoked successfully' };
-  }
-
-  /**
-   * Solicitar reset de password
-   */
-  async forgotPassword(email: string) {
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    // No revelar si el email existe o no (seguridad)
-    if (!user) {
-      return { message: 'If the email exists, a reset link will be sent' };
-    }
-
-    // Generar token de reset
-    const resetToken = TokenService.generateResetToken();
-    const resetTokenHash = TokenService.hashToken(resetToken);
-    const resetTokenExpiry = addMinutes(new Date(), 30);
-
-    // Guardar token hasheado
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken: resetTokenHash,
-        resetTokenExpiry,
-      },
-    });
-
-    // Enviar email con token sin hashear (solo el usuario lo recibe)
-    await this.emailService.sendPasswordResetEmail(user.email, resetToken);
-
-    // Auditoría
-    await AuditService.log({
-      businessId: user.businessId,
-      userId: user.id,
-      action: 'PASSWORD_RESET_REQUESTED',
-      entity: 'auth',
-    });
-
-    return { message: 'If the email exists, a reset link will be sent' };
-  }
-
-  /**
-   * Reset password con token
-   */
-  async resetPassword(token: string, newPassword: string) {
-    // Hashear el token para comparar con lo guardado en BD
-    const resetTokenHash = TokenService.hashToken(token);
-
-    const user = await prisma.user.findUnique({
-      where: { resetToken: resetTokenHash },
-    });
-
-    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
-      throw new AppError(400, 'INVALID_TOKEN', 'Invalid or expired reset token');
-    }
-
-    // Validar nueva password
-    const passwordValidation = PasswordService.validate(newPassword);
-    if (!passwordValidation.valid) {
-      throw new AppError(400, 'INVALID_PASSWORD', 'Password does not meet requirements', {
-        errors: passwordValidation.errors,
-      });
-    }
-
-    // Hash nueva password
-    const hashedPassword = await PasswordService.hash(newPassword);
-
-    // Actualizar password y limpiar token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
-
-    // Revocar todas las sesiones del usuario (fuerza re-login)
-    await this.revokeAllSessions(user.id);
-
-    // Auditoría
-    await AuditService.log({
-      businessId: user.businessId,
-      userId: user.id,
-      action: 'PASSWORD_RESET',
-      entity: 'auth',
-    });
-
-    // Enviar email de confirmación
-    await this.emailService.sendPasswordChangedEmail(user.email);
-
-    return { message: 'Password reset successfully' };
-  }
-
-  /**
-   * Cambiar contraseña del usuario actual
-   */
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    // Obtener usuario
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    }
-
-    // Validar contraseña actual
-    const passwordValid = await PasswordService.verify(currentPassword, user.password);
-    if (!passwordValid) {
-      throw new AppError(401, 'INVALID_PASSWORD', 'Current password is incorrect');
-    }
-
-    // Validar nueva contraseña
-    const passwordValidation = PasswordService.validate(newPassword);
-    if (!passwordValidation.valid) {
-      throw new AppError(400, 'INVALID_PASSWORD', 'New password does not meet requirements', {
-        errors: passwordValidation.errors,
-      });
-    }
-
-    // No permitir usar la misma contraseña
-    const samePassword = await PasswordService.verify(newPassword, user.password);
-    if (samePassword) {
-      throw new AppError(400, 'SAME_PASSWORD', 'New password must be different from current password');
-    }
-
-    // Hash nueva contraseña
-    const hashedPassword = await PasswordService.hash(newPassword);
-
-    // Actualizar contraseña
-    await prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    });
-
-    // Revocar todas las sesiones del usuario (fuerza re-login)
-    await this.revokeAllSessions(userId);
-
-    // Auditoría
-    await AuditService.log({
-      businessId: user.businessId,
-      userId: userId,
-      action: 'PASSWORD_CHANGED',
-      entity: 'auth',
-    });
-
-    // Enviar email de confirmación
-    await this.emailService.sendPasswordChangedEmail(user.email);
-
-    return { message: 'Password changed successfully' };
   }
 }
