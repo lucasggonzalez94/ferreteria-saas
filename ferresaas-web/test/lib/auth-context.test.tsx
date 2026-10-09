@@ -3,14 +3,20 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { api, clearTokens, getToken, saveTokens } from '@/lib/api';
+import { requestSessionRestore } from '@/features/auth/api/session-api';
 
 const mockPush = jest.fn();
 const mockSetBusinessTimezone = jest.fn();
+const mockRestore = requestSessionRestore as jest.Mock;
 let mockPathname = '/dashboard';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => mockPathname,
+}));
+
+jest.mock('@/features/auth/api/session-api', () => ({
+  requestSessionRestore: jest.fn(),
 }));
 
 jest.mock('@/lib/timezone', () => ({
@@ -48,15 +54,12 @@ describe('auth-context', () => {
   });
 
   it('restores session on mount when backend returns active session', async () => {
-    (api.get as jest.Mock).mockResolvedValue({
-      success: true,
-      data: {
-        user: { id: 'user-1' },
-        business: { id: 'biz-1', name: 'Ferreteria', timezone: 'UTC' },
-        accessToken: 'acc',
-        csrfToken: 'csrf',
-        csrfHash: 'hash',
-      },
+    mockRestore.mockResolvedValue({
+      user: { id: 'user-1' },
+      business: { id: 'biz-1', name: 'Ferreteria', timezone: 'UTC' },
+      accessToken: 'acc',
+      csrfToken: 'csrf',
+      csrfHash: 'hash',
     });
 
     render(
@@ -76,7 +79,7 @@ describe('auth-context', () => {
   });
 
   it('redirects to /login when restore session fails', async () => {
-    (api.get as jest.Mock).mockRejectedValue(new Error('no session'));
+    mockRestore.mockRejectedValue(new Error('no session'));
 
     render(
       <AuthProvider>
@@ -104,13 +107,13 @@ describe('auth-context', () => {
       expect(screen.getByTestId('loading')).toHaveTextContent('false');
     });
 
-    expect(api.get).not.toHaveBeenCalled();
+    expect(mockRestore).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
     expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
   });
 
   it('login stores tokens and sanitizes forbidden returnUrl', async () => {
-    (api.get as jest.Mock).mockRejectedValue(new Error('no session'));
+    mockRestore.mockRejectedValue(new Error('no session'));
     (api.post as jest.Mock).mockResolvedValue({
       success: true,
       data: {
@@ -194,12 +197,12 @@ describe('auth-context', () => {
   });
 
   it('updateUser, updateBusiness and logout clear auth state', async () => {
-    (api.get as jest.Mock).mockResolvedValue({
-      success: true,
-      data: {
-        user: { id: 'user-3', firstName: 'Ana' },
-        business: { id: 'biz-3', name: 'B3', timezone: 'UTC' },
-      },
+    mockRestore.mockResolvedValue({
+      user: { id: 'user-3', firstName: 'Ana' },
+      business: { id: 'biz-3', name: 'B3', timezone: 'UTC' },
+      accessToken: 'acc-token',
+      csrfToken: 'csrf',
+      csrfHash: 'hash',
     });
     (getToken as jest.Mock).mockReturnValue('acc-token');
     (api.post as jest.Mock).mockRejectedValue(new Error('logout failed'));

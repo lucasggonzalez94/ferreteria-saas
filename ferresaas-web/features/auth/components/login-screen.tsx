@@ -49,7 +49,7 @@ function LoginPageContent() {
       <Chevron link="/" linkLabel="Volver" />
         <div className="app-page flex items-center justify-center">
         <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-          <section className="app-panel app-orbit hidden overflow-hidden p-8 lg:flex lg:min-h-[640px] lg:flex-col lg:justify-between xl:p-10">
+          <section className="app-panel app-orbit hidden overflow-hidden p-8 lg:flex lg:min-h-160 lg:flex-col lg:justify-between xl:p-10">
             <div className="space-y-6">
               <div className="space-y-5">
                 <div>

@@ -1,7 +1,22 @@
-// Configuración de la API
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/v1";
+// Transporte HTTP común: auth, CSRF, reintento 401 y errores estructurados.
+// Los endpoints de negocio viven en features/<módulo>/api; este archivo no los conoce.
+// La coordinación de sesión (tokens en memoria, refresh con dedup) pertenece a
+// features/auth y se re-exporta aquí para los consumidores existentes del transporte.
+import {
+  clearTokens,
+  getAccessToken,
+  getCsrfTokens,
+  refreshSessionTokens,
+  saveTokens,
+} from '@/features/auth/model/session-manager';
 
-// Tipos
+export { saveTokens, clearTokens, getAccessToken as getToken };
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
+
+// Endpoints que no deben gatillar refresh automático ante un 401 (evita loops).
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/signup', '/auth/refresh', '/auth/restore-session'];
+
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -13,330 +28,88 @@ interface ApiResponse<T = unknown> {
   };
 }
 
-// Almacenamiento en memoria para access token y CSRF token
-// NOTA: Los tokens se guardan SOLO en memoria (no en localStorage)
-// La persistencia se logra mediante:
-// 1. Cookie HttpOnly refreshToken (persiste automáticamente)
-// 2. Refresh automático al recargar página
-// 3. Endpoint /auth/me devuelve accessToken
-let accessToken: string | null = null;
-let csrfToken: string | null = null;
-let csrfHash: string | null = null;
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
-let tokenExpiresAt: number | null = null;
-let refreshTimer: NodeJS.Timeout | null = null;
-
-// Helper para obtener access token de memoria
-export function getToken(): string | null {
-  return accessToken;
-}
-
-// Helper para obtener CSRF token
-function getCsrfToken(): string | null {
-  return csrfToken;
-}
-
-// Helper para obtener CSRF hash
-function getCsrfHash(): string | null {
-  return csrfHash;
-}
-
-// Helper para guardar tokens en memoria
-export function saveTokens(newAccessToken: string, newCsrfToken?: string, newCsrfHash?: string): void {
-  accessToken = newAccessToken;
-  if (newCsrfToken) {
-    csrfToken = newCsrfToken;
+/** Error HTTP de la API conservando status, code y details del backend. */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiError';
   }
-  if (newCsrfHash) {
-    csrfHash = newCsrfHash;
-  }
-  
-  // Calcular tiempo de expiración (access token típicamente expira en 15 min)
-  // Refrescar 2 minutos antes de que expire
-  tokenExpiresAt = Date.now() + (13 * 60 * 1000); // 13 minutos
-  scheduleTokenRefresh();
 }
 
-// Programar refresh automático del token
-function scheduleTokenRefresh(): void {
-  // Limpiar timer anterior si existe
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-  }
-  
-  // Programar nuevo refresh
-  refreshTimer = setTimeout(() => {
-    if (accessToken) {
-      // Intentar refrescar silenciosamente sin interrumpir al usuario
-      refreshAccessTokenSilently().catch(() => {
-        // Si falla, el siguiente request 401 lo manejará
-      });
-    }
-  }, 13 * 60 * 1000); // 13 minutos
-}
-
-// Refrescar token silenciosamente sin que el usuario se entere
-async function refreshAccessTokenSilently(): Promise<void> {
-  if (isRefreshing) {
-    return; // Ya se está refrescando
-  }
-  
-  isRefreshing = true;
+async function parseError(response: Response): Promise<ApiError> {
   try {
-    const csrf = getCsrfToken();
-    const hash = getCsrfHash();
-
-    const response = await fetch(`${API_URL}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
-        ...(hash ? { "X-CSRF-Hash": hash } : {}),
-      },
-    });
-
-    if (!response.ok) {
-      // Si falla, intentar restaurar sesión
-      await restoreSessionSilently();
-      return;
-    }
-
-    const data = await response.json();
-    const newAccessToken = data.data?.accessToken;
-    const newCsrfToken = data.data?.csrfToken;
-    const newCsrfHash = data.data?.csrfHash;
-
-    if (newAccessToken) {
-      saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
-      onRefreshed(newAccessToken);
-    }
-  } catch (error) {
-    // Error de red, intentar restaurar sesión
-    await restoreSessionSilently();
-  } finally {
-    isRefreshing = false;
+    const body = await response.json();
+    const err = body?.error;
+    return new ApiError(
+      response.status,
+      err?.code || 'REQUEST_FAILED',
+      err?.message || 'Request failed',
+      err?.details,
+    );
+  } catch {
+    return new ApiError(response.status, 'REQUEST_FAILED', 'Request failed');
   }
 }
 
-// Restaurar sesión silenciosamente usando restore-session
-async function restoreSessionSilently(): Promise<void> {
-  try {
-    const response = await fetch(`${API_URL}/auth/restore-session`, {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+/**
+ * Fetch con Authorization/CSRF y una única recuperación ante 401.
+ * `retried` evita reintentos infinitos: el segundo 401 se propaga.
+ */
+async function rawRequest(baseUrl: string, endpoint: string, options: RequestInit, retried: boolean): Promise<Response> {
+  const token = getAccessToken();
+  const { csrfToken, csrfHash } = getCsrfTokens();
 
-    if (!response.ok) {
-      return;
-    }
-
-    const data = await response.json();
-    if (data.success && data.data?.accessToken) {
-      saveTokens(
-        data.data.accessToken,
-        data.data.csrfToken,
-        data.data.csrfHash
-      );
-      onRefreshed(data.data.accessToken);
-    }
-  } catch (error) {
-    // Falló la restauración, el siguiente error 401 lo manejará
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
   }
-}
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  if (csrfToken && csrfHash) headers['X-CSRF-Hash'] = csrfHash;
 
-// Helper para limpiar tokens de memoria
-export function clearTokens(): void {
-  accessToken = null;
-  csrfToken = null;
-  csrfHash = null;
-  tokenExpiresAt = null;
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  const excluded = NO_REFRESH_PATHS.some(path => endpoint.includes(path));
+  if (response.status === 401 && !retried && !excluded) {
+    // refreshSessionTokens deduplica: los 401 concurrentes comparten la renovación.
+    // Si falla, los tokens ya fueron limpiados por el coordinador.
+    await refreshSessionTokens();
+    return rawRequest(baseUrl, endpoint, options, true);
   }
+
+  return response;
 }
 
-// Suscribirse a refresh de token
-function subscribeTokenRefresh(callback: (token: string) => void): void {
-  refreshSubscribers.push(callback);
-}
-
-// Notificar a todos los suscriptores
-function onRefreshed(token: string): void {
-  refreshSubscribers.forEach((callback) => callback(token));
-  refreshSubscribers = [];
-}
-
-// Cliente API base
 class ApiClient {
-  private baseUrl: string;
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-  }
+  constructor(private readonly baseUrl: string) {}
 
   getBaseUrl(): string {
     return this.baseUrl;
   }
 
-  /**
-   * Refresh access token usando cookie HttpOnly
-   * Si falla, intenta restaurar la sesión usando restore-session
-   */
-  private async refreshAccessToken(): Promise<string> {
-    try {
-      const csrf = getCsrfToken();
-      const hash = getCsrfHash();
-
-      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: "POST",
-        credentials: "include", // Envía cookie automáticamente
-        headers: {
-          "Content-Type": "application/json",
-          ...(csrf ? { "X-CSRF-Token": csrf } : {}),
-          ...(hash ? { "X-CSRF-Hash": hash } : {}),
-        },
-      });
-
-      if (!response.ok) {
-        // Si refresh falla, intentar restaurar sesión
-        return await this.restoreSession();
-      }
-
-      const data = await response.json();
-      const newAccessToken = data.data?.accessToken;
-      const newCsrfToken = data.data?.csrfToken;
-      const newCsrfHash = data.data?.csrfHash;
-
-      if (!newAccessToken) {
-        // Si no hay token, intentar restaurar sesión
-        return await this.restoreSession();
-      }
-
-      saveTokens(newAccessToken, newCsrfToken, newCsrfHash);
-      return newAccessToken;
-    } catch (error) {
-      // Error de red o parsing, intentar restaurar sesión
-      return await this.restoreSession();
-    }
-  }
-
-  /**
-   * Restaurar sesión usando restore-session endpoint
-   * Se usa cuando refresh falla (ej: refreshToken vencido)
-   */
-  private async restoreSession(): Promise<string> {
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/restore-session`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        clearTokens();
-        throw new Error("Failed to restore session");
-      }
-
-      const data = await response.json();
-      if (!data.success || !data.data?.accessToken) {
-        clearTokens();
-        throw new Error("No access token in restore response");
-      }
-
-      saveTokens(
-        data.data.accessToken,
-        data.data.csrfToken,
-        data.data.csrfHash
-      );
-      return data.data.accessToken;
-    } catch (error) {
-      clearTokens();
-      throw error;
-    }
-  }
-
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    retry = true,
   ): Promise<ApiResponse<T>> {
-    const token = getToken();
-    const csrf = getCsrfToken();
-    const hash = getCsrfHash();
-
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
-
-    if (token) {
-      (headers as any)["Authorization"] = `Bearer ${token}`;
-    }
-
-    // Agregar CSRF token y hash en todas las requests
-    if (csrf) {
-      (headers as any)["X-CSRF-Token"] = csrf;
-      if (hash) {
-        (headers as any)["X-CSRF-Hash"] = hash;
-      }
-    }
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-      credentials: "include", // Importante para cookies
-    });
-
-    // Si es 401 y podemos reintentar, refrescar token
-    // Excluir solo login, refresh y restore-session para evitar loops infinitos
-    const shouldNotRefresh = 
-      endpoint.includes("/auth/login") || 
-      endpoint.includes("/auth/signup") ||
-      endpoint.includes("/auth/refresh") ||
-      endpoint.includes("/auth/restore-session");
-    
-    if (response.status === 401 && retry && !shouldNotRefresh) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const newToken = await this.refreshAccessToken();
-          isRefreshing = false;
-          onRefreshed(newToken);
-          // Reintentar request original con nuevo token
-          return this.request<T>(endpoint, options, false);
-        } catch (error) {
-          isRefreshing = false;
-          clearTokens();
-          // No redirigir automáticamente, dejar que el componente maneje el estado
-          throw error;
-        }
-      } else {
-        // Si ya se está refrescando, esperar a que termine
-        return new Promise((resolve, reject) => {
-          subscribeTokenRefresh((token: string) => {
-            // Reintentar con nuevo token
-            this.request<T>(endpoint, options, false)
-              .then(resolve)
-              .catch(reject);
-          });
-        });
-      }
-    }
-
+    const response = await rawRequest(this.baseUrl, endpoint, options, false);
     const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(data.error?.message || "Request failed");
+      throw new ApiError(
+        response.status,
+        data?.error?.code || 'REQUEST_FAILED',
+        data?.error?.message || 'Request failed',
+        data?.error?.details,
+      );
     }
-
     return data;
   }
 
@@ -352,77 +125,54 @@ class ApiClient {
       const queryString = params.toString();
       url = queryString ? `${endpoint}?${queryString}` : endpoint;
     }
-    return this.request<T>(url, { method: "GET" });
+    return this.request<T>(url, { method: 'GET' });
   }
 
   async post<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
+      method: 'POST',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
 
   async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
-      method: "PUT",
-      body: body ? JSON.stringify(body) : undefined,
+      method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
 
   async patch<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
-      method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined,
+      method: 'PATCH',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: "DELETE" });
+    return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
   async upload<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
-    const token = getToken();
-    const csrf = getCsrfToken();
-    const hash = getCsrfHash();
-
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (csrf) headers["X-CSRF-Token"] = csrf;
-    if (hash) headers["X-CSRF-Hash"] = hash;
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: "POST",
-      headers,
-      body: formData,
-      credentials: "include",
-    });
-
+    // FormData: el boundary lo fija el navegador; pasa por el mismo reintento 401.
+    const response = await rawRequest(this.baseUrl, endpoint, { method: 'POST', body: formData }, false);
     const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(data.error?.message || "Upload failed");
+      throw new ApiError(
+        response.status,
+        data?.error?.code || 'UPLOAD_FAILED',
+        data?.error?.message || 'Upload failed',
+        data?.error?.details,
+      );
     }
-
     return data;
   }
 
   async getBlob(endpoint: string): Promise<Blob> {
-    const token = getToken();
-    const headers: HeadersInit = {};
-
-    if (token) {
-      (headers as any)["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: "GET",
-      headers,
-    });
-
+    const response = await rawRequest(this.baseUrl, endpoint, { method: 'GET' }, false);
     if (!response.ok) {
-      throw new Error("Error downloading file");
+      throw await parseError(response);
     }
-
     return response.blob();
   }
 }

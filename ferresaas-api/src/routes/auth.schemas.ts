@@ -38,13 +38,6 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-// Refresh
-export const refreshSchema = z.object({
-  refreshToken: z.string(),
-});
-
-export type RefreshInput = z.infer<typeof refreshSchema>;
-
 // Forgot password
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),

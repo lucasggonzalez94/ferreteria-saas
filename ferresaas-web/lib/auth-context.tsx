@@ -14,6 +14,7 @@ import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { destroySessionCaches } from "@/lib/session-cleanup";
 import { signupRequest } from "@/features/auth/api/signup-api";
 import { loginRequest } from "@/features/auth/api/login-api";
+import { requestSessionRestore } from "@/features/auth/api/session-api";
 import type { User, SignupRequest } from "@/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
@@ -91,9 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasInitialized.current = true;
     isFetching.current = true;
 
-    initializeTokensFromStorage();
-    
-    // Intentar obtener usuario (si hay cookie de refresh, el backend responderá)
+    // Si existe cookie HttpOnly válida, el backend reconstruye la sesión.
     void fetchUser().finally(() => {
       isFetching.current = false;
     });
@@ -101,38 +100,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  const initializeTokensFromStorage = () => {
-    // Los tokens se recuperan automáticamente mediante:
-    // 1. Cookie HttpOnly refreshToken (persiste automáticamente)
-    // 2. Llamada a /auth/me que devuelve accessToken
-    // No hay necesidad de recuperar de localStorage (seguridad)
-    console.log('Initializing authentication from HttpOnly cookies');
-  };
-
   const fetchUser = async () => {
     try {
-      // Intentar restaurar sesión usando cookie HttpOnly refreshToken
-      // Este endpoint NO requiere Authorization header
-      const response = await api.get<any>("/auth/restore-session");
-      if (response.success && response.data) {
-        // Guardar tokens en memoria
-        if (response.data.accessToken && response.data.csrfToken && response.data.csrfHash) {
-          saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
-          console.log('Session restored from /auth/restore-session');
-        }
-        // Establecer usuario y business
-        const user = response.data.user;
-        setUser(user);
-        
-        // Establecer business con timezone si viene en la respuesta
-        if (response.data.business) {
-          setBusiness(response.data.business);
-          setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
+      // La restauración no requiere Authorization: viaja la cookie refreshToken.
+      const data = await requestSessionRestore();
+      if (data) {
+        saveTokens(data.accessToken, data.csrfToken, data.csrfHash);
+        setUser(data.user);
+        if (data.business) {
+          setBusiness(data.business);
+          setBusinessTimezone(data.business.timezone || DEFAULT_TIMEZONE);
         }
       }
-    } catch (error) {
+    } catch {
       // Si falla en una ruta protegida, no hay sesión válida.
-      console.log('No active session', error);
       router.push('/login');
     } finally {
       setIsLoading(false);

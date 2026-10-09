@@ -1,18 +1,9 @@
-import { Response } from 'express';
-import { ApiResponse } from '../types';
+import type { Response } from 'express';
+import type { ApiResponse } from '../types';
 
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    public code: string,
-    message: string,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'AppError';
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+// Clase única de error de aplicación (platform). Se re-exporta aquí porque el
+// código pre-refactor importa desde utils/response; no duplicar la clase.
+export { AppError } from '../platform/errors';
 
 export const sendSuccess = <T>(res: Response, data: T, statusCode = 200): Response => {
   const response: ApiResponse<T> = {

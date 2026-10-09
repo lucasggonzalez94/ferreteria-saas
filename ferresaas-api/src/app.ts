@@ -7,7 +7,7 @@ import { logger } from './config/logger';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
 import { generalLimiter } from './middleware/rate-limit';
-import { verifyCsrf } from './middleware/csrf';
+import { createCsrfMiddleware } from './platform/security/csrf';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -83,6 +83,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/v1', generalLimiter);
 
 // CSRF protection (aplica a métodos mutantes, pero excluye rutas de upload)
+// Rutas públicas sin sesión previa: definidas por la composición, no por platform.
+const verifyCsrf = createCsrfMiddleware([
+  '/auth/login',
+  '/auth/signup',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
 app.use('/v1', (req, res, next) => {
   // Excluir rutas de upload del CSRF (multer maneja multipart/form-data)
   if (req.path.includes('/image') && req.method === 'POST') {

@@ -9,8 +9,10 @@ const mockEnv = {
 
 jest.mock('@/config/env', () => ({ env: mockEnv }));
 
-import { AppError } from '@/utils/response';
-import { verifyCsrf } from '@/middleware/csrf';
+import type { AppError } from '@/platform/errors';
+import { createCsrfMiddleware } from '@/platform/security/csrf';
+
+const verifyCsrf = createCsrfMiddleware(['/auth/login']);
 
 describe('csrf middleware', () => {
   it('skips safe methods', () => {

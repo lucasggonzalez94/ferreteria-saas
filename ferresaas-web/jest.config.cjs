@@ -19,7 +19,6 @@ const customJestConfig = {
     'types/**/*.{ts,tsx}',
     '!test/**/*.{ts,tsx}',
     '!**/*.d.ts',
-    '!lib/api.ts',
     '!lib/hooks/*.ts',
     '!**/*.stories.*',
   ],

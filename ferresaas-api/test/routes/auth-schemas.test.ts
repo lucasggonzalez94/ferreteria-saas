@@ -3,7 +3,6 @@ import {
   registerSchema,
   signupSchema,
   loginSchema,
-  refreshSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
@@ -117,22 +116,6 @@ describe('auth schemas', () => {
         email: 'test@test.com',
       };
       const result = loginSchema.safeParse(input);
-      expect(result.success).toBe(false);
-    });
-  });
-
-  describe('refreshSchema', () => {
-    it('should validate with refresh token', () => {
-      const input = {
-        refreshToken: 'token123',
-      };
-      const result = refreshSchema.safeParse(input);
-      expect(result.success).toBe(true);
-    });
-
-    it('should reject missing refresh token', () => {
-      const input = {};
-      const result = refreshSchema.safeParse(input);
       expect(result.success).toBe(false);
     });
   });
