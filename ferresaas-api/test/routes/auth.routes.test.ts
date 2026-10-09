@@ -203,6 +203,14 @@ describe('auth.routes (aggregate router)', () => {
     expect(String(res.headers['set-cookie'])).toContain('refreshToken=;');
   });
 
+  it('POST /auth/logout sin cookie igualmente responde éxito y limpia cookie', async () => {
+    mockLogout.mockResolvedValue({ message: 'Logged out successfully' });
+    const res = await request(createApp()).post('/auth/logout').send({});
+    expect(res.status).toBe(200);
+    expect(mockLogout).toHaveBeenCalledWith(undefined, expect.anything(), undefined);
+    expect(String(res.headers['set-cookie'])).toContain('refreshToken=;');
+  });
+
   it('POST /auth/register (legacy admin) sigue operativo', async () => {
     mockRegister.mockResolvedValue({ id: 'u-9', email: 'n@x.com', firstName: 'N', lastName: null, businessId: 'biz-1' });
     const res = await request(createApp())

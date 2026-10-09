@@ -4,10 +4,14 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { api, clearTokens, getToken, saveTokens } from '@/lib/api';
 import { requestSessionRestore } from '@/features/auth/api/session-api';
+import { logoutRequest } from '@/features/auth/api/logout-api';
+import { toast } from 'sonner';
 
 const mockPush = jest.fn();
 const mockSetBusinessTimezone = jest.fn();
 const mockRestore = requestSessionRestore as jest.Mock;
+const mockLogout = logoutRequest as jest.Mock;
+const mockToastError = toast.error as jest.Mock;
 let mockPathname = '/dashboard';
 
 jest.mock('next/navigation', () => ({
@@ -17,6 +21,14 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/features/auth/api/session-api', () => ({
   requestSessionRestore: jest.fn(),
+}));
+
+jest.mock('@/features/auth/api/logout-api', () => ({
+  logoutRequest: jest.fn(),
+}));
+
+jest.mock('sonner', () => ({
+  toast: { error: jest.fn() },
 }));
 
 jest.mock('@/lib/timezone', () => ({
@@ -205,7 +217,7 @@ describe('auth-context', () => {
       csrfHash: 'hash',
     });
     (getToken as jest.Mock).mockReturnValue('acc-token');
-    (api.post as jest.Mock).mockRejectedValue(new Error('logout failed'));
+    mockLogout.mockRejectedValue(new Error('logout failed'));
 
     render(
       <AuthProvider>
@@ -226,10 +238,46 @@ describe('auth-context', () => {
       await currentAuth!.logout();
     });
 
+    // La decisión de sesiones exige avisar cuando el servidor no confirma.
+    expect(mockToastError).toHaveBeenCalled();
     expect(clearTokens).toHaveBeenCalled();
     expect(mockSetBusinessTimezone).toHaveBeenCalledWith('America/Argentina/Buenos_Aires');
     expect(mockSetBusinessTimezone).toHaveBeenCalledWith('UTC');
     expect(mockPush).toHaveBeenCalledWith('/login');
     expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+  });
+
+  it('logout dispara una sola request aunque se invoque dos veces en paralelo', async () => {
+    mockRestore.mockResolvedValue({
+      user: { id: 'user-4' },
+      business: { id: 'biz-4', name: 'B4', timezone: 'UTC' },
+      accessToken: 'acc-token',
+      csrfToken: 'csrf',
+      csrfHash: 'hash',
+    });
+    let resolveLogout!: () => void;
+    mockLogout.mockImplementation(() => new Promise<void>(resolve => { resolveLogout = resolve; }));
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('true'));
+
+    let firstLogout!: Promise<void>;
+    let secondLogout!: Promise<void>;
+    act(() => {
+      firstLogout = currentAuth!.logout();
+      secondLogout = currentAuth!.logout();
+    });
+    resolveLogout();
+    await act(async () => {
+      await Promise.all([firstLogout, secondLogout]);
+    });
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith('/login');
   });
 });

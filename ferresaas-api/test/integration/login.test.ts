@@ -115,6 +115,16 @@ describe('AUTH-02 (PostgreSQL real, rol runtime)', () => {
     await expect(restoreSession(refreshed.refreshToken)).rejects.toMatchObject({ code: 'INVALID_TOKEN' });
   });
 
+  it('logout repetido es idempotente y no duplica auditoría', async () => {
+    const session = await login(emailA, 'Valid-password-123!');
+    const countAudits = () => uow.run({ businessId: tenantA }, tx =>
+      tx.auditLog.count({ where: { userId: userA, action: 'LOGOUT' } }));
+    const before = await countAudits();
+    await logout(session.refreshToken, '10.0.0.1', 'jest');
+    await logout(session.refreshToken, '10.0.0.1', 'jest');
+    expect(await countAudits()).toBe(before + 1);
+  });
+
   it('replay confirmado revoca la sesión sin revertir auditoría por el error HTTP', async () => {
     const first = await login(emailA, 'Valid-password-123!');
     await refreshSession(first.refreshToken);

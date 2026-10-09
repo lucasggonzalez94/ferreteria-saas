@@ -9,12 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { api, saveTokens, clearTokens } from "@/lib/api";
+import { toast } from "sonner";
+import { saveTokens, clearTokens } from "@/lib/api";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { destroySessionCaches } from "@/lib/session-cleanup";
 import { signupRequest } from "@/features/auth/api/signup-api";
 import { loginRequest } from "@/features/auth/api/login-api";
 import { requestSessionRestore } from "@/features/auth/api/session-api";
+import { logoutRequest } from "@/features/auth/api/logout-api";
 import type { User, SignupRequest } from "@/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hasInitialized = useRef(false);
   const isFetching = useRef(false);
+  const isLoggingOut = useRef(false);
 
   useEffect(() => {
     const isPublicRoute = isPublicPath(pathname || "/");
@@ -148,18 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Guard contra doble click: la revocación server-side es idempotente,
+    // pero el cliente no debe disparar requests ni limpiezas duplicadas.
+    if (isLoggingOut.current) return;
+    isLoggingOut.current = true;
     try {
-      await api.post("/auth/logout", {});
+      await logoutRequest();
     } catch {
       // El cierre local es igualmente definitivo: el access token queda atado
-      // a la sesión revocada/no alcanzable y vence en minutos.
+      // a la sesión y vence en minutos. La decisión de sesiones exige avisar.
+      toast.error("No se pudo confirmar el cierre de sesión en el servidor.");
     } finally {
+      // Navegar antes de limpiar el estado evita la doble navegación del
+      // guard del dashboard (que también empuja a /login al perder auth).
+      router.push("/login");
       clearTokens();
       destroySessionCaches();
       setUser(null);
       setBusiness(null);
       setBusinessTimezone(DEFAULT_TIMEZONE);
-      router.push("/login");
+      isLoggingOut.current = false;
     }
   };
 
