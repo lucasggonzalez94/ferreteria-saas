@@ -25,7 +25,7 @@ export function ModulesSection() {
             return (
               <article
                 key={feature.title}
-                className="group rounded-[1.5rem] border border-border/70 bg-card/94 p-6 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-[hsl(var(--accent)/0.38)] hover:bg-[hsl(var(--brand-accent-soft))]"
+                className="group rounded-3xl border border-border/70 bg-card/94 p-6 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-[hsl(var(--accent)/0.38)] hover:bg-[hsl(var(--brand-accent-soft))]"
               >
                 <span className="app-icon-badge h-14 w-14 rounded-[1.25rem] border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
                   <Icon className="h-6 w-6" />

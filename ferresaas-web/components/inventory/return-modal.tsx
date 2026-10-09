@@ -209,7 +209,7 @@ export default function ReturnModal({
                           </div>
 
                           {returnItem ? (
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                               <div className="flex flex-col gap-1">
                                 <Input
                                   type="number"
@@ -246,7 +246,7 @@ export default function ReturnModal({
                               variant="outline"
                               size="sm"
                               onClick={() => handleAddItem(item.productId)}
-                              className="flex-shrink-0"
+                              className="shrink-0"
                             >
                               Devolver
                             </Button>

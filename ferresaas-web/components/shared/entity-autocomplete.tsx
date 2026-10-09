@@ -194,7 +194,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       {value && !disabled && (
         <button
           onClick={handleClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           type="button"
           aria-label="Limpiar selección"
         >
@@ -205,7 +205,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       {showDropdown && (isLoading || entities.length > 0) && (
         <div
           ref={listRef}
-          className="absolute top-full left-0 right-0 z-[120] mt-2 max-h-60 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl"
+          className="absolute top-full left-0 right-0 z-120 mt-2 max-h-60 overflow-y-auto rounded-[1.25rem] border border-border/70 bg-popover/95 p-1.5 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl"
         >
           {isLoading ? (
             <div className="p-3 text-sm text-muted-foreground text-center">
@@ -235,7 +235,7 @@ export function EntityAutocomplete<T extends { id: string }>({
       )}
 
       {showDropdown && !isLoading && entities.length === 0 && search.length >= minSearchLength && (
-        <div className="absolute top-full left-0 right-0 z-[120] mt-2 rounded-[1.25rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
+        <div className="absolute top-full left-0 right-0 z-120 mt-2 rounded-[1.25rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
           <p className="text-sm text-muted-foreground text-center">
             No se encontraron resultados
           </p>

@@ -77,7 +77,7 @@ export function PricingSection() {
                     ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]"
                     : ""
                 }`}
-                variant={plan.highlighted ? "default" : "outline"}
+                variant={plan.highlighted ? "default" : "outline-solid"}
               >
                 <Link href="/register">Probar gratis 14 días</Link>
               </Button>

@@ -247,7 +247,7 @@ export function SalesReport({ data }: SalesReportProps) {
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="rounded-[1rem] border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
+                      <div className="rounded-2xl border border-border/70 bg-popover/95 p-3 shadow-[0_22px_52px_-32px_rgba(12,41,69,0.6)] backdrop-blur-xl">
                         <p className="text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">{payload[0].payload.fullDate}</p>
                         <p className="text-sm brand-accent-text">
                           Ingresos: ${Number(payload[0].value).toFixed(2)}

@@ -395,7 +395,7 @@ export default function ProductDetailViewPage() {
               ).map((preset) => (
                 <Button
                   key={preset.value}
-                  variant={datePreset === preset.value ? "default" : "outline"}
+                  variant={datePreset === preset.value ? "default" : "outline-solid"}
                   size="sm"
                   onClick={() => setDatePreset(preset.value)}
                 >

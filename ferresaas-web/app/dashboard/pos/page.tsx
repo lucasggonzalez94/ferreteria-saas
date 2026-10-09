@@ -596,13 +596,13 @@ export default function POSPage() {
           description="Cobro rápido, búsqueda asistida por scanner y resumen de pagos."
         />
 
-        <div className="mb-4 flex flex-col gap-3 rounded-[1.4rem] border border-border/70 bg-background/80 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3 rounded-[1.4rem] border border-border/70 bg-background/80 p-4 shadow-xs md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Venta actual
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-right md:min-w-[30rem]">
+          <div className="grid grid-cols-3 gap-3 text-right md:min-w-120">
             <div>
               <p className="text-xs text-muted-foreground">Items</p>
               <p className="text-lg font-semibold text-foreground">{cart.length}</p>
@@ -997,7 +997,7 @@ export default function POSPage() {
                     {payments.map((payment, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between rounded-[1rem] border border-border/60 bg-background/70 p-3 text-sm"
+                        className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/70 p-3 text-sm"
                       >
                         <div className="flex-1">
                           <p className="font-medium">
@@ -1023,7 +1023,7 @@ export default function POSPage() {
                         </div>
                         <button
                           onClick={() => removePayment(index)}
-                          className="ml-2 rounded-sm text-red-600 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="ml-2 rounded-sm text-red-600 hover:text-red-800 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           type="button"
                           aria-label="Eliminar pago"
                         >
@@ -1113,7 +1113,7 @@ export default function POSPage() {
             <button
               type="button"
               onClick={() => setCustomerPanelOpen((open) => !open)}
-              className="flex w-full items-center justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex w-full items-center justify-between text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <div>
                 <CardTitle>Cliente (opcional)</CardTitle>

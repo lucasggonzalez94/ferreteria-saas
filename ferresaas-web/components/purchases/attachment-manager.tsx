@@ -168,7 +168,7 @@ export function AttachmentManager({
                 className="flex items-center justify-between p-3 border rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 text-muted-foreground">
+                  <div className="shrink-0 text-muted-foreground">
                     {getFileIcon(attachment.fileType)}
                   </div>
                   <div>

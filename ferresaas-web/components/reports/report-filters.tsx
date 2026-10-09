@@ -67,7 +67,7 @@ export function ReportFilters({ onFilterChange, defaultPreset = "30d" }: ReportF
             {presets.map((p) => (
               <Button
                 key={p.value}
-                variant={preset === p.value ? "default" : "outline"}
+                variant={preset === p.value ? "default" : "outline-solid"}
                 size="sm"
                 onClick={() => setPreset(p.value)}
                 className={preset === p.value ? "bg-[hsl(var(--accent))] text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/0.92)]" : undefined}

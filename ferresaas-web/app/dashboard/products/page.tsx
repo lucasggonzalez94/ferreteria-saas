@@ -329,7 +329,7 @@ export default function ProductsPage() {
                         width={48}
                         height={48}
                         unoptimized
-                        className="w-12 h-12 object-cover rounded-lg border flex-shrink-0"
+                        className="w-12 h-12 object-cover rounded-lg border shrink-0"
                       />
                     )}
                     <div className="flex-1 min-w-0">
@@ -352,7 +352,7 @@ export default function ProductsPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-6 flex-shrink-0">
+                    <div className="flex items-center gap-6 shrink-0">
                       <div className="text-right hidden sm:block">
                         <p className="text-sm text-muted-foreground">Precio</p>
                         <p className="font-semibold">${Number(product.price).toFixed(2)}</p>
@@ -372,7 +372,7 @@ export default function ProductsPage() {
                           {product.stockQuantity} {product.unit}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         {product.stockQuantity === 0 ? (
                           <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
                             Sin stock

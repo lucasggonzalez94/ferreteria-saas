@@ -1,6 +1,294 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility app-page {
+  @apply px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8;
+}
+
+@utility app-shell {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background) / 0.56),
+    transparent 24%
+  );
+}
+
+@utility app-section {
+  @apply mx-auto w-full max-w-7xl;
+}
+
+@utility app-panel {
+  @apply rounded-[1.75rem] border border-border/70 bg-card/90 text-card-foreground backdrop-blur-xl;
+}
+
+@utility app-panel-muted {
+  @apply rounded-[1.25rem] border border-border/60 bg-background/75 backdrop-blur-md;
+  box-shadow: 0 16px 40px -28px rgba(12, 41, 69, 0.4);
+}
+
+@utility app-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--brand-accent-border));
+  background: hsl(var(--brand-accent-soft));
+  color: hsl(var(--primary));
+  padding: 0.45rem 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+
+  .dark & {
+    color: hsl(var(--foreground));
+  }
+}
+
+@utility dark {
+  & .app-kicker {
+    color: hsl(var(--foreground));
+  }
+}
+
+@utility app-inline-hint {
+  @apply text-xs text-muted-foreground;
+}
+
+@utility app-status-pill {
+  @apply inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-4 py-2 text-sm font-medium text-foreground;
+}
+
+@utility brand-accent-panel {
+  border: 1px solid hsl(var(--brand-accent-border));
+  background: hsl(var(--brand-accent-soft));
+  color: hsl(var(--foreground));
+  border-radius: 1.15rem;
+}
+
+@utility brand-accent-text {
+  color: hsl(var(--accent));
+}
+
+@utility brand-accent-subtle {
+  color: hsl(var(--foreground) / 0.8);
+}
+
+@utility app-brand-dot {
+  display: inline-block;
+  height: 0.5rem;
+  width: 0.5rem;
+  border-radius: 9999px;
+  background: hsl(var(--accent));
+  box-shadow: 0 0 0 6px hsl(var(--accent) / 0.12);
+}
+
+@utility app-orbit {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -8rem;
+    top: -8rem;
+    height: 16rem;
+    width: 16rem;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      hsl(var(--accent) / 0.16),
+      transparent 68%
+    );
+    pointer-events: none;
+  }
+}
+
+@utility app-icon-badge {
+  @apply inline-flex items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-foreground;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+@utility landing-aurora {
+  position: absolute;
+  inset: -12rem -8rem auto auto;
+  height: 34rem;
+  width: 34rem;
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      circle at 34% 34%,
+      hsl(var(--accent) / 0.22),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 72% 52%,
+      hsl(var(--primary) / 0.18),
+      transparent 48%
+    );
+  filter: blur(12px);
+  opacity: 0.9;
+  pointer-events: none;
+  animation: landing-float 12s ease-in-out infinite alternate;
+}
+
+@utility landing-dashboard-card {
+  box-shadow:
+    0 38px 110px -58px rgba(12, 41, 69, 0.84),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+@utility landing-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(
+      circle at 70% 10%,
+      hsl(var(--accent) / 0.12),
+      transparent 28%
+    ),
+    linear-gradient(hsl(var(--border) / 0.36) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.26) 1px, transparent 1px);
+  background-size:
+    auto,
+    28px 28px,
+    28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 92%);
+  pointer-events: none;
+}
+
+@utility landing-final-cta {
+  background:
+    radial-gradient(
+      circle at top left,
+      hsl(var(--accent) / 0.22),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      hsl(var(--accent) / 0.12),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      hsl(210 48% 10%),
+      hsl(var(--surface-strong)) 54%,
+      hsl(209 55% 15%)
+    );
+  box-shadow: 0 42px 110px -62px rgba(12, 41, 69, 0.95);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 34px 34px;
+    opacity: 0.28;
+    mask-image: radial-gradient(circle at center, black, transparent 78%);
+  }
+}
+
+@utility landing-reveal {
+  animation: landing-reveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility landing-delay-1 {
+  animation-delay: 110ms;
+}
+
+@utility landing-delay-2 {
+  animation-delay: 220ms;
+}
+
+@utility landing-delay-3 {
+  animation-delay: 330ms;
+}
 
 @layer base {
   :root {
@@ -178,178 +466,6 @@
     top: 0.5rem;
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
-  }
-}
-
-@layer components {
-  .app-page {
-    @apply px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8;
-  }
-
-  .app-shell {
-    background: linear-gradient(
-      180deg,
-      hsl(var(--background) / 0.56),
-      transparent 24%
-    );
-  }
-
-  .app-section {
-    @apply mx-auto w-full max-w-7xl;
-  }
-
-  .app-panel {
-    @apply rounded-[1.75rem] border border-border/70 bg-card/90 text-card-foreground backdrop-blur-xl;
-  }
-
-  .app-panel-muted {
-    @apply rounded-[1.25rem] border border-border/60 bg-background/75 backdrop-blur-md;
-    box-shadow: 0 16px 40px -28px rgba(12, 41, 69, 0.4);
-  }
-
-  .app-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 9999px;
-    border: 1px solid hsl(var(--brand-accent-border));
-    background: hsl(var(--brand-accent-soft));
-    color: hsl(var(--primary));
-    padding: 0.45rem 0.85rem;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  .dark .app-kicker {
-    color: hsl(var(--foreground));
-  }
-
-  .app-inline-hint {
-    @apply text-xs text-muted-foreground;
-  }
-
-  .app-status-pill {
-    @apply inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/75 px-4 py-2 text-sm font-medium text-foreground;
-  }
-
-  .brand-accent-panel {
-    border: 1px solid hsl(var(--brand-accent-border));
-    background: hsl(var(--brand-accent-soft));
-    color: hsl(var(--foreground));
-    border-radius: 1.15rem;
-  }
-
-  .brand-accent-text {
-    color: hsl(var(--accent));
-  }
-
-  .brand-accent-subtle {
-    color: hsl(var(--foreground) / 0.8);
-  }
-
-  .app-brand-dot {
-    display: inline-block;
-    height: 0.5rem;
-    width: 0.5rem;
-    border-radius: 9999px;
-    background: hsl(var(--accent));
-    box-shadow: 0 0 0 6px hsl(var(--accent) / 0.12);
-  }
-
-  .app-orbit {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .app-orbit::after {
-    content: "";
-    position: absolute;
-    right: -8rem;
-    top: -8rem;
-    height: 16rem;
-    width: 16rem;
-    border-radius: 9999px;
-    background: radial-gradient(circle, hsl(var(--accent) / 0.16), transparent 68%);
-    pointer-events: none;
-  }
-
-  .app-icon-badge {
-    @apply inline-flex items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-foreground;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  }
-
-  .landing-aurora {
-    position: absolute;
-    inset: -12rem -8rem auto auto;
-    height: 34rem;
-    width: 34rem;
-    border-radius: 9999px;
-    background:
-      radial-gradient(circle at 34% 34%, hsl(var(--accent) / 0.22), transparent 42%),
-      radial-gradient(circle at 72% 52%, hsl(var(--primary) / 0.18), transparent 48%);
-    filter: blur(12px);
-    opacity: 0.9;
-    pointer-events: none;
-    animation: landing-float 12s ease-in-out infinite alternate;
-  }
-
-  .landing-dashboard-card {
-    box-shadow:
-      0 38px 110px -58px rgba(12, 41, 69, 0.84),
-      inset 0 1px 0 rgba(255, 255, 255, 0.48);
-  }
-
-  .landing-grid-bg {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(circle at 70% 10%, hsl(var(--accent) / 0.12), transparent 28%),
-      linear-gradient(hsl(var(--border) / 0.36) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.26) 1px, transparent 1px);
-    background-size:
-      auto,
-      28px 28px,
-      28px 28px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 92%);
-    pointer-events: none;
-  }
-
-  .landing-final-cta {
-    background:
-      radial-gradient(circle at top left, hsl(var(--accent) / 0.22), transparent 32%),
-      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.12), transparent 34%),
-      linear-gradient(135deg, hsl(210 48% 10%), hsl(var(--surface-strong)) 54%, hsl(209 55% 15%));
-    box-shadow: 0 42px 110px -62px rgba(12, 41, 69, 0.95);
-  }
-
-  .landing-final-cta::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: 34px 34px;
-    opacity: 0.28;
-    mask-image: radial-gradient(circle at center, black, transparent 78%);
-  }
-
-  .landing-reveal {
-    animation: landing-reveal 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .landing-delay-1 {
-    animation-delay: 110ms;
-  }
-
-  .landing-delay-2 {
-    animation-delay: 220ms;
-  }
-
-  .landing-delay-3 {
-    animation-delay: 330ms;
   }
 }
 

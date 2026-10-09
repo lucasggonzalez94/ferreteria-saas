@@ -34,7 +34,7 @@ export function ProductShowcaseSection() {
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                 {productBenefits.map(({ icon: Icon, title, copy }) => {
                   return (
-                    <div key={title} className="rounded-[1.2rem] border border-white/14 bg-white/[0.09] p-4">
+                    <div key={title} className="rounded-[1.2rem] border border-white/14 bg-white/9 p-4">
                       <Icon className="h-5 w-5 text-[hsl(var(--accent))]" />
                       <p className="mt-3 text-sm font-semibold text-white">{title}</p>
                       <p className="mt-1 text-xs leading-5 text-white/76">{copy}</p>
@@ -78,7 +78,7 @@ export function ProductShowcaseSection() {
                 <div className="grid gap-5 md:grid-cols-[0.92fr_1.08fr]">
                   <div className="brand-accent-panel p-5 shadow-[0_24px_70px_-48px_hsl(var(--accent))]">
                     <p className="text-sm font-semibold">Sugerencia de reposición</p>
-                    <p className="mt-2 text-3xl font-semibold tracking-[-0.05em]">Comprar 24</p>
+                    <p className="mt-2 text-3xl font-semibold tracking-tighter">Comprar 24</p>
                     <p className="mt-2 text-sm leading-6 brand-accent-subtle">
                       Reponé antes de los días de mayor movimiento.
                     </p>

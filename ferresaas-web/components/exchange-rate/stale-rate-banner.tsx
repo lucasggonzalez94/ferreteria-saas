@@ -48,7 +48,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
   return (
     <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] p-4 text-[hsl(var(--primary))] dark:border-[hsl(var(--brand-accent-border))] dark:bg-[hsl(var(--brand-accent-soft))] dark:text-foreground">
       <div className="flex items-center gap-3 flex-1">
-        <div className="app-icon-badge h-10 w-10 flex-shrink-0 border-[hsl(var(--brand-accent-border))] bg-background/60 text-[hsl(var(--accent))]">
+        <div className="app-icon-badge h-10 w-10 shrink-0 border-[hsl(var(--brand-accent-border))] bg-background/60 text-[hsl(var(--accent))]">
           <DollarSign className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
@@ -65,7 +65,7 @@ export function StaleRateBanner({ rate, onRetry, onUpdateManually, isRetrying }:
           </div>
         </div>
       </div>
-      <div className="flex gap-2 flex-shrink-0">
+      <div className="flex gap-2 shrink-0">
         <Button
           size="sm"
           variant="ghost"

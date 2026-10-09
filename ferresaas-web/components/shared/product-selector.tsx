@@ -266,7 +266,7 @@ export function ProductSelector({
               key={product.id}
               type="button"
               onClick={() => handleSelect(product)}
-              className={`w-full rounded-[1.25rem] border border-border/70 bg-background/80 p-3 text-left transition-all hover:-translate-y-px hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+              className={`w-full rounded-[1.25rem] border border-border/70 bg-background/80 p-3 text-left transition-all hover:-translate-y-px hover:border-[hsl(var(--accent)/0.35)] hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 selectedIndex === index
                   ? "border-[hsl(var(--accent))] bg-[hsl(var(--brand-accent-soft))] ring-2 ring-[hsl(var(--accent))]"
                   : ""
@@ -284,7 +284,7 @@ export function ProductSelector({
                       width={64}
                       height={64}
                       unoptimized
-                      className="h-16 w-16 flex-shrink-0 rounded-xl border border-border/70 object-cover"
+                      className="h-16 w-16 shrink-0 rounded-xl border border-border/70 object-cover"
                     />
                   )}
                 <div className="flex-1 min-w-0">

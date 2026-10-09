@@ -487,7 +487,7 @@ export function CommandPalette({
                           }}
                           role="option"
                           aria-selected={activeIndex === index}
-                          className={`w-full rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                          className={`w-full rounded-xl px-3 py-2.5 text-left text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                             activeIndex === index
                               ? "bg-[hsl(var(--brand-accent-soft))] text-foreground"
                               : "hover:bg-[hsl(var(--brand-accent-soft))] hover:text-foreground"

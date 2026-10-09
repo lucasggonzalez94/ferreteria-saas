@@ -198,7 +198,7 @@ export function UnknownBarcodeModal({
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
                 <Barcode className="h-5 w-5 text-amber-600" />
               </div>
               <div>
@@ -233,7 +233,7 @@ export function UnknownBarcodeModal({
 
               {!canCreate && !canUpdate && (
                 <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-800 dark:text-amber-200">
                     No tienes permisos para crear ni modificar productos.
                     Contacta a un administrador.
@@ -248,7 +248,7 @@ export function UnknownBarcodeModal({
                     onClick={() => setStep("create")}
                     className="flex items-center gap-4 p-4 border-2 rounded-lg text-left hover:border-primary hover:bg-primary/5 transition-colors group"
                   >
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] transition-colors group-hover:bg-[hsl(var(--brand-accent-soft))]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] transition-colors group-hover:bg-[hsl(var(--brand-accent-soft))]">
                       <PackagePlus className="h-5 w-5 brand-accent-text" />
                     </div>
                     <div>
@@ -269,7 +269,7 @@ export function UnknownBarcodeModal({
                     onClick={() => setStep("assign")}
                     className="flex items-center gap-4 p-4 border-2 rounded-lg text-left hover:border-primary hover:bg-primary/5 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 flex items-center justify-center flex-shrink-0 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 flex items-center justify-center shrink-0 transition-colors">
                       <PackageSearch className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
@@ -525,7 +525,7 @@ export function UnknownBarcodeModal({
           {step === "confirm-replace" && productToReplace && (
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
                     Este producto ya tiene un código asignado

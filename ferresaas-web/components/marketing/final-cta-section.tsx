@@ -6,7 +6,7 @@ export function FinalCtaSection() {
   return (
     <section className="px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="landing-final-cta relative overflow-hidden rounded-[2rem] border border-[hsl(var(--brand-accent-border))] p-8 text-center sm:p-12 lg:p-16">
+        <div className="landing-final-cta relative overflow-hidden rounded-4xl border border-[hsl(var(--brand-accent-border))] p-8 text-center sm:p-12 lg:p-16">
           <div className="relative z-10 mx-auto max-w-4xl">
             <span className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/12 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/88">
               <ShieldCheck className="h-4 w-4 text-[hsl(var(--accent))]" />

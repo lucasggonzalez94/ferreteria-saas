@@ -113,7 +113,7 @@ export function HeroSection() {
                 </div>
                 <div className="mt-5 space-y-3">
                   {dashboardActivity.map((item) => (
-                    <div key={item} className="flex gap-3 rounded-2xl border border-white/12 bg-white/[0.08] p-3 text-sm text-white/88">
+                    <div key={item} className="flex gap-3 rounded-2xl border border-white/12 bg-white/8 p-3 text-sm text-white/88">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--accent))]" />
                       <span>{item}</span>
                     </div>

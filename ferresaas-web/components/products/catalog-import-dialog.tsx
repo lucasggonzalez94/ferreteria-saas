@@ -398,7 +398,7 @@ export function CatalogImportDialog({
                   {preview.rows.length > 0 && (
                     <div className="max-h-96 overflow-auto rounded-xl border border-border/70">
                       <table className="min-w-max text-xs">
-                          <thead className="sticky top-0 bg-muted/90 backdrop-blur">
+                          <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium text-muted-foreground w-12 shrink-0">#</th>
                               {TABLE_COLUMNS.map((col) => (

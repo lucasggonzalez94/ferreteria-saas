@@ -638,7 +638,7 @@ export default function DashboardPage() {
                 </span>
               )}
               <Button
-                variant={isEditingQuickActions ? "secondary" : "outline"}
+                variant={isEditingQuickActions ? "secondary" : "outline-solid"}
                 size="sm"
                 onClick={() => {
                   if (isEditingQuickActions) {
@@ -712,7 +712,7 @@ export default function DashboardPage() {
                                   <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         moveQuickAction(action.id, "up");
@@ -723,7 +723,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         moveQuickAction(action.id, "down");
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         toggleQuickActionVisibility(action.id);
@@ -811,7 +811,7 @@ export default function DashboardPage() {
                                   <div className="absolute right-3 top-3 z-10 flex items-center gap-1 text-muted-foreground">
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         toggleQuickActionVisibility(action.id);
@@ -823,7 +823,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         moveQuickAction(action.id, "up");
@@ -834,7 +834,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                       type="button"
-                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-background/90 hover:bg-[hsl(var(--brand-accent-soft))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         moveQuickAction(action.id, "down");

@@ -30,7 +30,7 @@ export function SearchBar({
       {showClearButton && value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-3 top-3 rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="absolute right-3 top-3 rounded-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           type="button"
           aria-label="Limpiar búsqueda"
         >

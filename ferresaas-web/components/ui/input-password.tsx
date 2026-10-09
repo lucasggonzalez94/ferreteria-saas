@@ -50,7 +50,7 @@ export function InputPassword({
           aria-pressed={showPassword}
           onClick={() => setShowPassword((current) => !current)}
           disabled={disabled}
-          className="absolute right-2 bottom-0 inline-flex h-11 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="absolute right-2 bottom-0 inline-flex h-11 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
           {showPassword ? (
             <EyeOff className="h-4 w-4" aria-hidden="true" />

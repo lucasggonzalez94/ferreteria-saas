@@ -201,7 +201,7 @@ export default function AdjustmentModal({
                       <button
                         key={product.id}
                         type="button"
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted focus:bg-muted focus:outline-none"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted focus:bg-muted focus:outline-hidden"
                         onClick={() => handleSelectProduct(product)}
                       >
                         <span className="font-medium">{product.internalSku}</span>

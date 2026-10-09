@@ -238,7 +238,7 @@ export default function DiscountApprovalsPage() {
                     </div>
 
                     {/* Detalles de precios */}
-                      <div className="grid grid-cols-2 gap-4 rounded-[1rem] border border-border/60 bg-background/70 p-3">
+                      <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border/60 bg-background/70 p-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Precio original</p>
                         <p className="font-medium">${Number(approval.originalPrice).toFixed(2)}</p>

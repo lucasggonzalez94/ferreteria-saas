@@ -428,7 +428,7 @@ export default function SuppliersPage() {
                       className="rounded-lg border p-3 flex items-center gap-4 hover:bg-accent/5 transition-colors cursor-pointer"
                       onClick={() => router.push(`/dashboard/suppliers/${supplier.id}`)}
                     >
-                      <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-gradient-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
+                      <div className="app-icon-badge h-12 w-12 rounded-full border-2 border-[hsl(var(--brand-accent-border)/0.5)] bg-linear-to-br from-[hsl(var(--brand-accent-soft))] to-[hsl(var(--accent)/0.1)] text-[hsl(var(--accent))] shrink-0 shadow-xs group-hover:shadow-md transition-shadow">
                         <Building2 className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -470,7 +470,7 @@ export default function SuppliersPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-5 flex-shrink-0">
+                      <div className="flex items-center gap-5 shrink-0">
                         <div className="text-right min-w-[80px]">
                           <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-medium">
                             Saldo
