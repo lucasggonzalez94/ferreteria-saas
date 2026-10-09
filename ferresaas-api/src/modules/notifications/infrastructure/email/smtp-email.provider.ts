@@ -1,7 +1,7 @@
-import nodemailer, { Transporter } from 'nodemailer';
-import { EmailProvider } from './email.provider.interface';
-import { env } from '../../config/env';
-import { logger } from '../../config/logger';
+import nodemailer, { type Transporter } from 'nodemailer';
+import type { EmailProvider } from './email.port';
+import { env } from '../../../../config/env';
+import { logger } from '../../../../config/logger';
 
 export class SmtpEmailProvider implements EmailProvider {
   private transporter: Transporter;

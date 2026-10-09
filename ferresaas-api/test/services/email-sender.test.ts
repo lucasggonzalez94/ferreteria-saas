@@ -18,27 +18,27 @@ const mockSmtpProviderSend = jest.fn() as any;
 
 jest.mock('@/config/env', () => ({ env: mockEnv }));
 jest.mock('@/config/logger', () => ({ logger: mockLogger }));
-jest.mock('@/providers/email/mock.provider', () => ({
+jest.mock('@/modules/notifications/infrastructure/email/mock-email.provider', () => ({
   MockEmailProvider: jest.fn().mockImplementation(() => ({
     sendEmail: mockMockProviderSend,
   })),
 }));
-jest.mock('@/providers/email/smtp.provider', () => ({
+jest.mock('@/modules/notifications/infrastructure/email/smtp-email.provider', () => ({
   SmtpEmailProvider: jest.fn().mockImplementation(() => ({
     sendEmail: mockSmtpProviderSend,
   })),
 }));
 
-import { EmailService } from '@/services/email.service';
+import { EmailSender } from '@/modules/notifications';
 
-describe('EmailService', () => {
+describe('EmailSender', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEnv.email.provider = 'mock';
   });
 
   it('uses mock provider when env provider is mock', async () => {
-    const service = new EmailService();
+    const service = new EmailSender();
 
     await service.sendWelcomeEmail('u1@test.com', 'Carlos');
 
@@ -51,7 +51,7 @@ describe('EmailService', () => {
 
   it('uses smtp provider when env provider is smtp', async () => {
     mockEnv.email.provider = 'smtp';
-    const service = new EmailService();
+    const service = new EmailSender();
 
     await service.sendPasswordChangedEmail('u1@test.com');
 
@@ -63,7 +63,7 @@ describe('EmailService', () => {
   });
 
   it('builds reset url in password reset email html', async () => {
-    const service = new EmailService();
+    const service = new EmailSender();
 
     await service.sendPasswordResetEmail('u1@test.com', 'token-123');
 

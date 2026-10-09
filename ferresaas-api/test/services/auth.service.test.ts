@@ -14,8 +14,8 @@ jest.mock('@/platform/tenancy/unit-of-work', () => ({
   unitOfWork: { run: mockRun, setTenant: jest.fn() as any },
   TenantUnitOfWork: class {},
 }));
-jest.mock('@/services/email.service', () => ({
-  EmailService: class {
+jest.mock('@/modules/notifications', () => ({
+  EmailSender: class {
     sendWelcomeEmail = mockSendWelcomeEmail;
   },
 }));

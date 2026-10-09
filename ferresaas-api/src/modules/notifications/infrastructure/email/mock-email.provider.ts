@@ -1,5 +1,5 @@
-import { EmailProvider } from './email.provider.interface';
-import { logger } from '../../config/logger';
+import type { EmailProvider } from './email.port';
+import { logger } from '../../../../config/logger';
 
 export class MockEmailProvider implements EmailProvider {
   async sendEmail(to: string, subject: string, html: string): Promise<void> {

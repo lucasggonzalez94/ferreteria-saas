@@ -30,7 +30,7 @@ jest.mock('nodemailer', () => ({
   },
 }));
 
-import { SmtpEmailProvider } from '@/providers/email/smtp.provider';
+import { SmtpEmailProvider } from '@/modules/notifications/infrastructure/email/smtp-email.provider';
 
 describe('SmtpEmailProvider', () => {
   beforeEach(() => {

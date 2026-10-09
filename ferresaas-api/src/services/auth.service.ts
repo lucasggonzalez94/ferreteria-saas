@@ -3,7 +3,7 @@ import { AppError } from '../utils/response';
 import { hashPassword } from '../platform/security/passwords';
 import { validatePassword } from '../modules/identity/domain/password-policy';
 import { AuditStore } from '../modules/audit/infrastructure/audit-store';
-import { EmailService } from './email.service';
+import { EmailSender } from '../modules/notifications';
 
 /**
  * AUTH legacy pendiente de migración (AUTH-06/07/08).
@@ -11,7 +11,7 @@ import { EmailService } from './email.service';
  * están migradas a `modules/identity`.
  */
 export class AuthService {
-  private emailService = new EmailService();
+  private emailService = new EmailSender();
 
   /** Alta de usuario dentro de un negocio (uso admin). Ruta protegida. */
   async register(params: {

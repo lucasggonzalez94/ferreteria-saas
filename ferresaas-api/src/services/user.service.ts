@@ -2,15 +2,15 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/response';
 import { AuditService } from './audit.service';
 import { PasswordService } from './password.service';
-import { EmailService } from './email.service';
+import { EmailSender } from '../modules/notifications';
 import { TokenService } from './token.service';
 import crypto from 'crypto';
 
 export class UserService {
-  private emailService: EmailService;
+  private emailService: EmailSender;
 
   constructor() {
-    this.emailService = new EmailService();
+    this.emailService = new EmailSender();
   }
 
   /**
@@ -246,7 +246,7 @@ export class UserService {
         </html>
       `;
       await this.emailService['provider'].sendEmail(user.email, subject, html);
-    } catch (error) {
+    } catch {
       // No fallar la creación si falla el email
     }
 
@@ -379,7 +379,7 @@ export class UserService {
     // Enviar email
     try {
       await this.emailService.sendPasswordResetEmail(user.email, resetToken);
-    } catch (error) {
+    } catch {
       // No fallar si falla el email
     }
 

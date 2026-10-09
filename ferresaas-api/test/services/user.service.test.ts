@@ -37,8 +37,8 @@ jest.mock('@/config/database', () => ({ prisma: mockPrisma }));
 jest.mock('@/services/audit.service', () => ({ AuditService: mockAuditService }));
 jest.mock('@/services/password.service', () => ({ PasswordService: mockPasswordService }));
 jest.mock('@/services/token.service', () => ({ TokenService: mockTokenService }));
-jest.mock('@/services/email.service', () => ({
-  EmailService: class EmailService {
+jest.mock('@/modules/notifications', () => ({
+  EmailSender: class EmailSender {
     provider = { sendEmail: mockProviderSendEmail };
     sendPasswordResetEmail = mockSendPasswordResetEmail;
   },

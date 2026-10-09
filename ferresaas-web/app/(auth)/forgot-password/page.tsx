@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { api } from "@/lib/api";
+import { requestPasswordReset } from "@/features/auth/api/password-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await api.post("/auth/forgot-password", { email });
+      await requestPasswordReset(email);
       setSubmitted(true);
       setEmail("");
     } catch (err: any) {

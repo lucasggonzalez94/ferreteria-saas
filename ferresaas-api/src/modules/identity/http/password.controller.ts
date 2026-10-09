@@ -12,7 +12,7 @@ export const passwordController = {
   async forgot(req: Request, res: Response, next: NextFunction) {
     try {
       const input = forgotSchema.parse(req.body);
-      const result = await forgotPassword(input.email);
+      const result = await forgotPassword(input.email, req.ip, req.get('user-agent'));
       sendSuccess(res, result);
     } catch (error) {
       next(error);
@@ -22,7 +22,7 @@ export const passwordController = {
   async reset(req: Request, res: Response, next: NextFunction) {
     try {
       const input = resetSchema.parse(req.body);
-      const result = await resetPassword(input.token, input.newPassword);
+      const result = await resetPassword(input.token, input.newPassword, req.ip, req.get('user-agent'));
       sendSuccess(res, result);
     } catch (error) {
       next(error);

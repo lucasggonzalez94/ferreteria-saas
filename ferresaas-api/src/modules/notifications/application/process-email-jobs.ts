@@ -1,11 +1,11 @@
 import crypto from 'node:crypto';
 import { unitOfWork } from '../../../platform/tenancy/unit-of-work';
-import { EmailService } from '../../../services/email.service';
+import { EmailSender } from '../infrastructure/email/email-sender';
 import { logger } from '../../../config/logger';
 
 const MAX_ATTEMPTS = 5;
 
-const email = new EmailService();
+const email = new EmailSender();
 
 async function claimJob() {
   const lockToken = crypto.randomUUID();

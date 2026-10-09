@@ -6,7 +6,7 @@ const mockLogger = {
 
 jest.mock('@/config/logger', () => ({ logger: mockLogger }));
 
-import { MockEmailProvider } from '@/providers/email/mock.provider';
+import { MockEmailProvider } from '@/modules/notifications/infrastructure/email/mock-email.provider';
 
 describe('MockEmailProvider', () => {
   it('logs email preview and prints mock output', async () => {

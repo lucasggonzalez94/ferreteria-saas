@@ -1,10 +1,10 @@
-import { EmailProvider } from '../providers/email/email.provider.interface';
-import { SmtpEmailProvider } from '../providers/email/smtp.provider';
-import { MockEmailProvider } from '../providers/email/mock.provider';
-import { env } from '../config/env';
-import { logger } from '../config/logger';
+import type { EmailProvider } from './email.port';
+import { SmtpEmailProvider } from './smtp-email.provider';
+import { MockEmailProvider } from './mock-email.provider';
+import { env } from '../../../../config/env';
+import { logger } from '../../../../config/logger';
 
-export class EmailService {
+export class EmailSender {
   private provider: EmailProvider;
 
   constructor() {

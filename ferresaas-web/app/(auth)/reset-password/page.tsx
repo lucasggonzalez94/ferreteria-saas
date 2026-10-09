@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { api } from "@/lib/api";
+import { resetPassword } from "@/features/auth/api/password-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -78,10 +78,7 @@ function ResetPasswordPageContent() {
     setIsLoading(true);
 
     try {
-      await api.post("/auth/reset-password", {
-        token,
-        newPassword: password,
-      });
+      await resetPassword({ token, newPassword: password });
       setSuccess(true);
       setPassword("");
       setConfirmPassword("");
