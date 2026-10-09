@@ -38,7 +38,7 @@ export class TenantUnitOfWork {
       // LOCAL a la transacción: no contamina conexiones del pool.
       await tx.$executeRaw`SELECT set_config('app.business_id', ${ctx.businessId}, true)`;
       return work(tx);
-    });
+    }, { maxWait: 10_000 });
   }
 
   /**
@@ -47,7 +47,7 @@ export class TenantUnitOfWork {
    * las políticas de bootstrap o el WITH CHECK por tenant aplican.
    */
   async runPublic<T>(work: WorkUnit<T>): Promise<T> {
-    return this.prisma.$transaction(work);
+    return this.prisma.$transaction(work, { maxWait: 10_000 });
   }
 
   /** Define el tenant dentro de una transacción pública ya abierta. */

@@ -19,6 +19,7 @@ export async function loginController(req: Request, res: Response, next: NextFun
     getValidatedOrigin(req);
     const input = loginSchema.parse(req.body);
     const result = await login(input.email, input.password, req.ip, req.get('user-agent'));
+    res.setHeader('Cache-Control', 'no-store');
     setRefreshCookie(res, result.refreshToken);
     sendSuccess(res, {
       user: result.user,

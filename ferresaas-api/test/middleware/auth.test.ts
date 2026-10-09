@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 const mockRunPublic = jest.fn() as any;
 const mockRun = jest.fn() as any;
+const mockSetTenant = jest.fn() as any;
 const mockVerifyAccessToken = jest.fn() as any;
 const mockRedisGet = jest.fn() as any;
 const mockRedisSet = jest.fn() as any;
 
 jest.mock('@/platform/tenancy/unit-of-work', () => ({
-  unitOfWork: { runPublic: mockRunPublic, run: mockRun },
+  unitOfWork: { runPublic: mockRunPublic, run: mockRun, setTenant: mockSetTenant },
   TenantUnitOfWork: class {},
 }));
 jest.mock('@/platform/security/jwt', () => ({
@@ -45,7 +46,7 @@ describe('authenticate (platform)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRunPublic.mockImplementation(async (work: any) =>
-      work({ authSession: { findFirst: jest.fn().mockResolvedValue(session()) } }),
+      work({ $queryRaw: jest.fn().mockResolvedValue([{ business_id: 'biz-1' }]), authSession: { findFirst: jest.fn().mockResolvedValue(session()) } }),
     );
     mockRun.mockImplementation(async (_ctx: any, work: any) =>
       work({
@@ -85,7 +86,7 @@ describe('authenticate (platform)', () => {
 
   it('rejects when session is not found or revoked', async () => {
     mockRunPublic.mockImplementation(async (work: any) =>
-      work({ authSession: { findFirst: jest.fn().mockResolvedValue(null) } }),
+      work({ $queryRaw: jest.fn().mockResolvedValue([{ business_id: 'biz-1' }]), authSession: { findFirst: jest.fn().mockResolvedValue(null) } }),
     );
     const next = jest.fn();
     await authenticate({ headers: { authorization: 'Bearer ok' } } as any, {} as any, next);
@@ -94,7 +95,7 @@ describe('authenticate (platform)', () => {
 
   it('rejects when security version changed (password/reset)', async () => {
     mockRunPublic.mockImplementation(async (work: any) =>
-      work({ authSession: { findFirst: jest.fn().mockResolvedValue(session({ securityVersion: 2 })) } }),
+      work({ $queryRaw: jest.fn().mockResolvedValue([{ business_id: 'biz-1' }]), authSession: { findFirst: jest.fn().mockResolvedValue(session({ securityVersion: 2 })) } }),
     );
     const next = jest.fn();
     await authenticate({ headers: { authorization: 'Bearer ok' } } as any, {} as any, next);

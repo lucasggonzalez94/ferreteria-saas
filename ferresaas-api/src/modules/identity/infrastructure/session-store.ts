@@ -56,13 +56,13 @@ export class SessionStore {
     return updated.count === 1;
   }
 
-  async consumeToken(session: SessionRecord, tokenHash: string) {
+  async consumeToken(session: SessionRecord & { absoluteExpiresAt: Date }, tokenHash: string) {
     await this.tx.consumedRefreshToken.create({
       data: {
         businessId: session.businessId,
         sessionId: session.id,
         tokenHash,
-        expiresAt: new Date(Date.now() + IDLE_MS),
+        expiresAt: session.absoluteExpiresAt,
       },
     });
   }

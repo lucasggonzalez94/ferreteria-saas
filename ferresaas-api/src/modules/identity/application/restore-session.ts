@@ -3,11 +3,15 @@ import { AppError } from '../../../platform/errors';
 import { generateCsrfToken, hashOpaqueToken, issueAccessToken } from '../../../platform/security/jwt';
 import { sessionPolicy } from '../domain/session-policy';
 import { IdentityStore } from '../infrastructure/identity-store';
+import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import type { AuthTokensResult } from './login';
 
 /** Restauración al cargar la página: NO rota refresh; sólo emite access+CSRF. */
 export async function restoreSession(refreshToken: string): Promise<Omit<AuthTokensResult, 'refreshToken'>> {
   return unitOfWork.runPublic(async tx => {
+    const resolved = await new BootstrapStore(tx).sessionByHash(hashOpaqueToken(refreshToken));
+    if (!resolved) throw AppError.unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token');
+    await unitOfWork.setTenant(tx, resolved.business_id);
     const session = await tx.authSession.findFirst({
       where: {
         tokenHash: hashOpaqueToken(refreshToken),
@@ -18,10 +22,12 @@ export async function restoreSession(refreshToken: string): Promise<Omit<AuthTok
     });
     if (!session) throw AppError.unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token');
 
-    await unitOfWork.setTenant(tx, session.businessId);
     const identity = new IdentityStore(tx);
     const user = await identity.findUserByIdWithAccess(session.userId);
     if (!user || !user.isActive) throw AppError.unauthorized('USER_NOT_FOUND', 'User not found or inactive');
+    if (session.securityVersion !== user.securityVersion) {
+      throw AppError.unauthorized('TOKEN_REVOKED', 'Session version changed');
+    }
 
     const roles: string[] = [];
     const permissions = new Set<string>();

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { unitOfWork } from '../../../platform/tenancy/unit-of-work';
 import { AppError } from '../../../platform/errors';
-import { verifyPassword } from '../../../platform/security/passwords';
+import { hashPassword, verifyPassword } from '../../../platform/security/passwords';
 import {
   generateCsrfToken,
   generateRefreshToken,
@@ -11,6 +11,7 @@ import {
 import { sessionPolicy } from '../domain/session-policy';
 import { SessionStore } from '../infrastructure/session-store';
 import { IdentityStore } from '../infrastructure/identity-store';
+import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import { AuditStore } from '../../audit';
 
 export interface AuthTokensResult {
@@ -30,18 +31,26 @@ export interface AuthTokensResult {
   csrfHash: string;
 }
 
+// Verificación de costo equivalente incluso si el email no existe.
+let dummyHash: Promise<string> | undefined;
+
 export async function login(emailRaw: string, password: string, ip?: string, userAgent?: string): Promise<AuthTokensResult> {
   const email = emailRaw.trim().toLowerCase();
-  return unitOfWork.runPublic(async tx => {
+  const credentials = await unitOfWork.runPublic(tx => new BootstrapStore(tx).credentials(email));
+  dummyHash ??= hashPassword('ferresaas-invalid-credential');
+  const valid = await verifyPassword(credentials?.password_hash ?? await dummyHash, password);
+  if (!credentials || !credentials.active || !valid) {
+    throw AppError.unauthorized('INVALID_CREDENTIALS', 'Invalid email or password');
+  }
+
+  return unitOfWork.run({ businessId: credentials.business_id, actorUserId: credentials.id }, async tx => {
     const identity = new IdentityStore(tx);
-    const user = await identity.findUserForCredentials(email);
-    const valid = !user ? false : await verifyPassword(user.password, password);
-    // Mismo error para inexistente/inactivo/inválido (anti-enumeración).
-    if (!user || !user.isActive || !valid) {
+    const user = await identity.findUserByIdWithAccess(credentials.id);
+    // Una desactivación o cambio de contraseña entre la verificación y el commit
+    // no debe crear una sesión autorizada con credenciales obsoletas.
+    if (!user || user.email !== email || !user.isActive || user.password !== credentials.password_hash) {
       throw AppError.unauthorized('INVALID_CREDENTIALS', 'Invalid email or password');
     }
-
-    await unitOfWork.setTenant(tx, user.businessId);
 
     const sessionId = crypto.randomUUID();
     const refreshToken = generateRefreshToken();

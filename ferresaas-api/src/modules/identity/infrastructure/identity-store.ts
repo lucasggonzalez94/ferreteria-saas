@@ -31,18 +31,7 @@ const userAccessInclude = {
 export class IdentityStore {
   constructor(private readonly tx: Transaction) {}
 
-  findUserForCredentials(email: string): Promise<UserWithAccess | null> {
-    return this.tx.user.findUnique({ where: { email }, include: userAccessInclude });
-  }
-
   findUserByIdWithAccess(userId: string): Promise<UserWithAccess | null> {
     return this.tx.user.findUnique({ where: { id: userId }, include: userAccessInclude });
-  }
-
-  canonicalConflicts(email: string, cuit: string) {
-    return Promise.all([
-      this.tx.user.findFirst({ where: { email }, select: { id: true } }),
-      this.tx.business.findFirst({ where: { cuit }, select: { id: true } }),
-    ]);
   }
 }

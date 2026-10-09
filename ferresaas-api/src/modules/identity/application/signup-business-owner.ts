@@ -13,6 +13,7 @@ import { validatePassword } from '../domain/password-policy';
 import { ADMIN, CASHIER, CASHIER_PERMISSION_KEYS, OWNER, SYSTEM_ROLES } from '../domain/initial-roles';
 import { canonicalCuit, validCuit, validTimezone } from '../../tenant';
 import { SessionStore } from '../infrastructure/session-store';
+import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import { EmailJobStore } from '../../notifications';
 import { AuditStore } from '../../audit';
 
@@ -74,12 +75,9 @@ export async function signupBusinessOwner(
   // eslint-disable-next-line max-lines-per-function
   return unitOfWork.runPublic(async tx => {
     // Reserva global: CUIT y email son únicos globales por decisión de negocio.
-    const [userExists, businessExists] = await Promise.all([
-      tx.user.findFirst({ where: { email }, select: { id: true } }),
-      tx.business.findFirst({ where: { cuit }, select: { id: true } }),
-    ]);
-    if (userExists) throw AppError.conflict('EMAIL_EXISTS', 'Email already registered');
-    if (businessExists) throw AppError.conflict('CUIT_EXISTS', 'Business CUIT already registered');
+    const conflicts = await new BootstrapStore(tx).conflicts(email, cuit);
+    if (conflicts.email_exists) throw AppError.conflict('EMAIL_EXISTS', 'Email already registered');
+    if (conflicts.cuit_exists) throw AppError.conflict('CUIT_EXISTS', 'Business CUIT already registered');
 
     const businessId = crypto.randomUUID();
     // Bootstrap: el contexto se fija al tenant nuevo dentro de la transacción;

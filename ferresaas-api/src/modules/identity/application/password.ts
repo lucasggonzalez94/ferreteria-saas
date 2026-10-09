@@ -6,6 +6,7 @@ import { generateRefreshToken, hashOpaqueToken } from '../../../platform/securit
 import { validatePassword } from '../domain/password-policy';
 import { AuditStore } from '../../audit';
 import { SessionStore } from '../infrastructure/session-store';
+import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import { EmailService } from '../../../services/email.service';
 
 const email = new EmailService();
@@ -13,9 +14,11 @@ const email = new EmailService();
 export async function forgotPassword(emailRaw: string): Promise<{ message: string }> {
   const emailAddress = emailRaw.trim().toLowerCase();
   const delivery = await unitOfWork.runPublic(async tx => {
-    const user = await tx.user.findFirst({ where: { email: emailAddress } });
+    const resolved = await new BootstrapStore(tx).credentials(emailAddress);
+    if (!resolved) return null;
+    await unitOfWork.setTenant(tx, resolved.business_id);
+    const user = await tx.user.findUnique({ where: { id: resolved.id } });
     if (!user) return null;
-    await unitOfWork.setTenant(tx, user.businessId);
     const token = generateRefreshToken();
     await tx.user.update({
       where: { id: user.id },
@@ -34,11 +37,13 @@ export async function resetPassword(token: string, newPassword: string): Promise
     throw AppError.badRequest('INVALID_PASSWORD', 'Password does not meet requirements', { errors: validation.errors });
   }
   const notifyTo = await unitOfWork.runPublic(async tx => {
+    const resolved = await new BootstrapStore(tx).resetByHash(hashOpaqueToken(token));
+    if (!resolved) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
+    await unitOfWork.setTenant(tx, resolved.business_id);
     const user = await tx.user.findFirst({
       where: { resetToken: hashOpaqueToken(token), resetTokenExpiry: { gt: new Date() } },
     });
     if (!user) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
-    await unitOfWork.setTenant(tx, user.businessId);
     await tx.user.update({
       where: { id: user.id },
       data: { password: await hashPassword(newPassword), resetToken: null, resetTokenExpiry: null },
@@ -51,8 +56,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return { message: 'Password reset successfully' };
 }
 
-export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
-  const notifyTo = await unitOfWork.runPublic(async tx => {
+export async function changePassword(businessId: string, userId: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
+  const notifyTo = await unitOfWork.run({ businessId, actorUserId: userId }, async tx => {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) throw AppError.notFound('USER_NOT_FOUND', 'User not found');
     const ok = await verifyPassword(user.password, currentPassword);
@@ -63,7 +68,6 @@ export async function changePassword(userId: string, currentPassword: string, ne
     }
     const same = await verifyPassword(user.password, newPassword);
     if (same) throw AppError.badRequest('SAME_PASSWORD', 'New password must be different');
-    await unitOfWork.setTenant(tx, user.businessId);
     await tx.user.update({ where: { id: user.id }, data: { password: await hashPassword(newPassword) } });
     await new SessionStore(tx).revokeAllForUser(user.id);
     await new AuditStore(tx).log({ businessId: user.businessId, userId: user.id, action: 'PASSWORD_CHANGED', entity: 'auth' });

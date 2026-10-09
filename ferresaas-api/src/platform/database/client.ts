@@ -9,11 +9,13 @@ let baseClient: PrismaClient | null = null;
  * desde `config/database.ts` hasta completar el refactor por módulos.
  */
 export function getPrismaBase(): PrismaClient {
+  if (!process.env.DATABASE_RUNTIME_URL) {
+    throw new Error('DATABASE_RUNTIME_URL is required for the API runtime');
+  }
   baseClient ??= new PrismaClient({
-    // DATABASE_RUNTIME_URL (rol ferresaas_runtime, sin bypass de RLS) tiene
-    // precedencia. DATABASE_URL es el usuario admin para migraciones/seed.
+    // Nunca caer en DATABASE_URL (usuario de migraciones/seed) en runtime.
     datasources: {
-      db: { url: process.env.DATABASE_RUNTIME_URL ?? process.env.DATABASE_URL },
+      db: { url: process.env.DATABASE_RUNTIME_URL },
     },
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });

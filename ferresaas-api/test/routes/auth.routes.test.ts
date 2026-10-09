@@ -145,6 +145,16 @@ describe('auth.routes (aggregate router)', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.accessToken).toBe('access-1');
     expect(String(res.headers['set-cookie'])).toContain('refreshToken=refresh-1');
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('POST /auth/login rechaza un subdominio que sólo comparte prefijo de origen', async () => {
+    const res = await request(createApp())
+      .post('/auth/login')
+      .set('Origin', 'http://localhost:3000.evil.example')
+      .send({ email: 'a@b.com', password: 'Password123!' });
+    expect(res.status).toBe(403);
+    expect(mockLogin).not.toHaveBeenCalled();
   });
 
   it('POST /auth/refresh sin cookie responde 401', async () => {

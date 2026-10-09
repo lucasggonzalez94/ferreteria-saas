@@ -92,6 +92,10 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     const payload = verifyAccessToken(header.slice(7));
 
     const session = await unitOfWork.runPublic(async tx => {
+      const tenant = await tx.$queryRaw<Array<{ business_id: string }>>`
+        SELECT * FROM private.session_tenant_by_id(${payload.sid})`;
+      if (!tenant[0] || tenant[0].business_id !== payload.tid) return null;
+      await unitOfWork.setTenant(tx, tenant[0].business_id);
       return tx.authSession.findFirst({
         where: {
           id: payload.sid,

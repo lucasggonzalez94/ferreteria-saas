@@ -31,9 +31,9 @@ export const passwordController = {
 
   async change(req: Request, res: Response, next: NextFunction) {
     try {
-      if (!req.user?.id) throw AppError.unauthorized();
+      if (!req.user?.id || !req.businessId) throw AppError.unauthorized();
       const input = changeSchema.parse(req.body);
-      const result = await changePassword(req.user.id, input.currentPassword, input.newPassword);
+      const result = await changePassword(req.businessId, req.user.id, input.currentPassword, input.newPassword);
       res.clearCookie('refreshToken', { path: '/' });
       sendSuccess(res, result);
     } catch (error) {

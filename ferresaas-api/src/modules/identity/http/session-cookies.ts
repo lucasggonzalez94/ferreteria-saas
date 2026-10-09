@@ -21,7 +21,13 @@ export function clearRefreshCookie(res: Response): void {
 /** Origen estricto para operaciones que crean o renuevan sesión. */
 export function getValidatedOrigin(req: Request): void {
   const origin = req.get('origin') ?? req.get('referer');
-  if (!origin || !origin.startsWith(env.app.frontendUrl)) {
+  let actualOrigin: string | undefined;
+  try {
+    if (origin) actualOrigin = new URL(origin).origin;
+  } catch {
+    // Formatos inválidos tampoco son un origen permitido.
+  }
+  if (actualOrigin !== new URL(env.app.frontendUrl).origin) {
     throw AppError.forbidden('INVALID_ORIGIN', 'Invalid request origin');
   }
 }

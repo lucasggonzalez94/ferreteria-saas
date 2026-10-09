@@ -9,11 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { api, saveTokens, clearTokens, getToken } from "@/lib/api";
+import { api, saveTokens, clearTokens } from "@/lib/api";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { destroySessionCaches } from "@/lib/session-cleanup";
 import { signupRequest } from "@/features/auth/api/signup-api";
-import type { User, LoginResponse, SignupRequest } from "@/types";
+import { loginRequest } from "@/features/auth/api/login-api";
+import type { User, SignupRequest } from "@/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -29,7 +30,7 @@ interface Business {
 }
 
 function normalizeReturnUrl(returnUrl?: string) {
-  if (!returnUrl || !returnUrl.startsWith('/')) {
+  if (!returnUrl || !returnUrl.startsWith('/') || returnUrl.startsWith('//') || returnUrl.includes('\\')) {
     return '/dashboard';
   }
 
@@ -57,7 +58,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string, returnUrl?: string) => Promise<void>;
   signup: (payload: SignupRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   updateUser: (userData: Partial<User>) => void;
   updateBusiness: (businessData: Partial<Business>) => void;
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeTokensFromStorage();
     
     // Intentar obtener usuario (si hay cookie de refresh, el backend responderá)
-    fetchUser().finally(() => {
+    void fetchUser().finally(() => {
       isFetching.current = false;
     });
 
@@ -138,47 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Función para sincronizar usuario cuando la sesión se restaura automáticamente
-  const syncUserFromSession = async () => {
-    try {
-      const response = await api.get<any>("/auth/restore-session");
-      if (response.success && response.data?.user) {
-        setUser(response.data.user);
-        if (response.data.business) {
-          setBusiness(response.data.business);
-          setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
-        }
-      }
-    } catch (error) {
-      // Si falla la sincronización, el siguiente request 401 lo manejará
-    }
-  };
-
   const login = async (email: string, password: string, returnUrl?: string) => {
-    const response = await api.post<LoginResponse>("/auth/login", {
-      email,
-      password,
-    });
-
-    if (response.success && response.data) {
-      // Nueva sesión: ningún caché/storage del usuario anterior puede sobrevivir.
-      destroySessionCaches();
-      // Guardar access token, CSRF token y CSRF hash en memoria
-      saveTokens(response.data.accessToken, response.data.csrfToken, response.data.csrfHash);
-      setUser(response.data.user);
-      
-      // Establecer business con timezone
-      if (response.data.business) {
-        setBusiness(response.data.business);
-        setBusinessTimezone(response.data.business.timezone || DEFAULT_TIMEZONE);
-      }
-      
-      // Redirigir al destino original si existe, o al dashboard por defecto
-      const destination = normalizeReturnUrl(returnUrl);
-      router.push(destination);
-    } else {
-      throw new Error(response.error?.message || "Login failed");
+    const data = await loginRequest({ email, password });
+    destroySessionCaches();
+    saveTokens(data.accessToken, data.csrfToken, data.csrfHash);
+    setUser(data.user);
+    if (data.business) {
+      setBusiness(data.business);
+      setBusinessTimezone(data.business.timezone || DEFAULT_TIMEZONE);
     }
+    router.push(normalizeReturnUrl(returnUrl));
   };
 
   const signup = async (payload: SignupRequest) => {

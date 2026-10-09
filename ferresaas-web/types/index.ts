@@ -147,13 +147,7 @@ export interface BusinessInfo {
   logoUrl?: string | null;
 }
 
-export interface LoginResponse {
-  user: User;
-  business: BusinessInfo;
-  accessToken: string;
-  csrfToken: string;
-  csrfHash: string;
-}
+export type { LoginResponse } from '@/features/auth/model/login-types';
 
 // Contrato de signup vive en features/auth/model; reexport para compatibilidad.
 export type { TaxCondition, SignupRequest, SignupResponse } from '@/features/auth/model/signup-types';

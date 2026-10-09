@@ -140,6 +140,18 @@ describe('auth-context', () => {
     expect(mockPush).toHaveBeenCalledWith('/dashboard');
   });
 
+  it('login no redirige a URLs externas con doble slash', async () => {
+    mockPathname = '/login';
+    (api.post as jest.Mock).mockResolvedValue({
+      success: true,
+      data: { accessToken: 'a', csrfToken: 'c', csrfHash: 'h', user: { id: 'u' },
+        business: { id: 'b', name: 'B', timezone: 'UTC' } },
+    });
+    render(<AuthProvider><Consumer /></AuthProvider>);
+    await act(async () => { await currentAuth!.login('a@test.com', 'pass', '//evil.example'); });
+    expect(mockPush).toHaveBeenCalledWith('/dashboard');
+  });
+
   it('signup stores tokens, user and redirects to dashboard', async () => {
     mockPathname = '/register';
     (api.post as jest.Mock).mockResolvedValue({
