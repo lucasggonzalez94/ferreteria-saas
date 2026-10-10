@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import express, { NextFunction, Request, Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
 
@@ -44,7 +44,10 @@ jest.mock('@/modules/identity/http/rate-limit', () => ({
 }));
 jest.mock('@/platform/security/authenticate', () => ({
   authenticate: (req: Request, _res: Response, next: NextFunction) => {
-    (req as any).user = { id: 'user-1', businessId: 'biz-1', roles: [], permissions: [] };
+    (req as any).user = {
+      id: 'user-1', businessId: 'biz-1', email: 'user@test.com', firstName: 'Ana',
+      roles: [], permissions: [], password: 'must-not-leak', sessionId: 'private-session',
+    };
     (req as any).businessId = 'biz-1';
     next();
   },
@@ -60,13 +63,13 @@ jest.mock('@/config/env', () => ({
   },
 }));
 
-import authRouter from '@/routes/auth.routes';
+import { identityRouter } from '@/modules/identity';
 
 const createApp = () => {
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
-  app.use('/auth', authRouter);
+  app.use('/auth', identityRouter);
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err?.name === 'ZodError') {
       res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Validation failed' } });
@@ -81,7 +84,7 @@ const createApp = () => {
 
 const origin = { Origin: 'http://localhost:3000' };
 
-describe('auth.routes (aggregate router)', () => {
+describe('identity.routes (module router)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('POST /auth/signup devuelve 201, setea cookie y no expone refresh en el JSON', async () => {
@@ -239,7 +242,11 @@ describe('auth.routes (aggregate router)', () => {
   it('GET /auth/me devuelve el usuario autenticado', async () => {
     const res = await request(createApp()).get('/auth/me');
     expect(res.status).toBe(200);
-    expect(res.body.data.id).toBe('user-1');
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body.data).toEqual({
+      id: 'user-1', businessId: 'biz-1', email: 'user@test.com', firstName: 'Ana',
+      roles: [], permissions: [],
+    });
   });
 
   it('PUT /auth/profile actualiza el perfil', async () => {

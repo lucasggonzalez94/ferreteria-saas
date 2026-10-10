@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { verifyAccessToken } from './jwt';
 import { AppError } from '../errors';
 import { unitOfWork, type RequestContext } from '../tenancy/unit-of-work';
 import { redisGet, redisSet, RedisUnavailableError } from '../cache/redis';
 import { env } from '../../config/env';
+import { AccessStore } from './infrastructure/access-store';
 
 export interface AuthenticatedUser {
   id: string;
@@ -26,10 +28,20 @@ declare module 'express-serve-static-core' {
 
 const AUTHZ_CACHE_TTL_SECONDS = 300;
 
-interface AuthzSnapshot {
-  roles: string[];
-  permissions: string[];
-  isActive: boolean;
+const authzSnapshotSchema = z.object({
+  roles: z.array(z.string()),
+  permissions: z.array(z.string()),
+});
+type AuthzSnapshot = z.infer<typeof authzSnapshotSchema>;
+
+function parseAuthzCache(cached: string): AuthzSnapshot | null {
+  try {
+    const result = authzSnapshotSchema.safeParse(JSON.parse(cached) as unknown);
+    return result.success ? result.data : null;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return null;
+  }
 }
 
 function authzCacheKey(businessId: string, userId: string, version: number): string {
@@ -51,26 +63,11 @@ async function loadAuthorization(
       // Caché auxiliar caído: fallback a PostgreSQL (documentado).
     }
   }
-  if (cached) return JSON.parse(cached) as AuthzSnapshot;
+  const cachedSnapshot = cached ? parseAuthzCache(cached) : null;
+  if (cachedSnapshot) return cachedSnapshot;
 
-  const snapshot = await unitOfWork.run({ businessId }, async tx => {
-    const user = await tx.user.findFirst({
-      where: { id: userId },
-      include: {
-        roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
-      },
-    });
-    if (!user) throw AppError.unauthorized('USER_NOT_FOUND', 'User not found or inactive');
-    const permissions = new Set<string>();
-    const roles: string[] = [];
-    for (const userRole of user.roles) {
-      roles.push(userRole.role.name);
-      for (const rp of userRole.role.permissions) {
-        permissions.add(`${rp.permission.resource}:${rp.permission.action}`);
-      }
-    }
-    return { roles, permissions: [...permissions], isActive: user.isActive } satisfies AuthzSnapshot;
-  });
+  const snapshot = await unitOfWork.run({ businessId }, tx =>
+    new AccessStore(tx).authorization(userId));
 
   if (env.redis.enabled) {
     try {
@@ -92,21 +89,11 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     const payload = verifyAccessToken(header.slice(7));
 
     const session = await unitOfWork.runPublic(async tx => {
-      const tenant = await tx.$queryRaw<Array<{ business_id: string }>>`
-        SELECT * FROM private.session_tenant_by_id(${payload.sid})`;
-      if (!tenant[0] || tenant[0].business_id !== payload.tid) return null;
-      await unitOfWork.setTenant(tx, tenant[0].business_id);
-      return tx.authSession.findFirst({
-        where: {
-          id: payload.sid,
-          userId: payload.sub,
-          businessId: payload.tid,
-          revokedAt: null,
-          expiresAt: { gt: new Date() },
-          absoluteExpiresAt: { gt: new Date() },
-        },
-        include: { user: { include: { business: true } } },
-      });
+      const store = new AccessStore(tx);
+      const businessId = await store.sessionTenant(payload.sid);
+      if (businessId !== payload.tid) return null;
+      await unitOfWork.setTenant(tx, businessId);
+      return store.findActiveSession(payload);
     });
     if (!session || !session.user.isActive) {
       throw AppError.unauthorized('UNAUTHORIZED', 'Session is not active');
@@ -114,11 +101,10 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     if (session.securityVersion !== payload.sv || session.user.securityVersion !== payload.sv) {
       throw AppError.unauthorized('TOKEN_REVOKED', 'Session version changed');
     }
-    const authVersion = session.user.business?.authorizationVersion ?? 0;
-    const businessTimezone = session.user.business?.timezone;
+    const authVersion = session.user.business.authorizationVersion;
+    const businessTimezone = session.user.business.timezone;
 
     const authz = await loadAuthorization(session.businessId, session.userId, authVersion);
-    if (!authz.isActive) throw AppError.unauthorized('USER_INACTIVE', 'User is inactive');
 
     req.user = {
       id: session.userId,
@@ -130,7 +116,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       permissions: authz.permissions,
     };
     req.businessId = session.businessId;
-    req.timezone = businessTimezone ?? 'America/Buenos_Aires';
+    req.timezone = businessTimezone;
     req.sessionId = session.id;
     next();
   } catch (error) {

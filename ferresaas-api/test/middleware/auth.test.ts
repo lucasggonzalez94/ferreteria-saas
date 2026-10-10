@@ -23,6 +23,8 @@ jest.mock('@/config/env', () => ({ env: { redis: { enabled: false } } }));
 
 import { authenticate, requirePermissions } from '@/platform/security/authenticate';
 import { AppError } from '@/platform/errors';
+import { env } from '@/config/env';
+import { RedisUnavailableError } from '@/platform/cache/redis';
 
 const session = (overrides: Record<string, unknown> = {}) => ({
   id: 'session-1',
@@ -45,6 +47,9 @@ const session = (overrides: Record<string, unknown> = {}) => ({
 describe('authenticate (platform)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    env.redis.enabled = false;
+    mockRedisGet.mockResolvedValue(null);
+    mockRedisSet.mockResolvedValue(undefined);
     mockRunPublic.mockImplementation(async (work: any) =>
       work({ $queryRaw: jest.fn().mockResolvedValue([{ business_id: 'biz-1' }]), authSession: { findFirst: jest.fn().mockResolvedValue(session()) } }),
     );
@@ -118,6 +123,40 @@ describe('authenticate (platform)', () => {
     expect(req.businessId).toBe('biz-1');
     expect(req.timezone).toBe('America/Buenos_Aires');
     expect(req.sessionId).toBe('session-1');
+  });
+
+  it.each(['{broken', 'null', '{"roles":[],"permissions":[42],"isActive":true}'])('ignores invalid auxiliary cache: %s', async cached => {
+    env.redis.enabled = true;
+    mockRedisGet.mockResolvedValue(cached);
+    const req = { headers: { authorization: 'Bearer ok' } } as any;
+    const next = jest.fn();
+    await authenticate(req, {} as any, next);
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user.permissions).toEqual(['sales:create']);
+    expect(mockRun).toHaveBeenCalled();
+  });
+
+  it('falls back to PostgreSQL when Redis fails for reads and writes', async () => {
+    env.redis.enabled = true;
+    mockRedisGet.mockRejectedValue(new RedisUnavailableError());
+    mockRedisSet.mockRejectedValue(new RedisUnavailableError());
+    const req = { headers: { authorization: 'Bearer ok' } } as any;
+    const next = jest.fn();
+    await authenticate(req, {} as any, next);
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user.permissions).toEqual(['sales:create']);
+  });
+
+  it('validates PostgreSQL session before accepting a positive cache hit', async () => {
+    env.redis.enabled = true;
+    mockRedisGet.mockResolvedValue(JSON.stringify({ roles: ['OWNER'], permissions: ['sales:create'], isActive: true }));
+    mockRunPublic.mockImplementation(async (work: any) =>
+      work({ $queryRaw: jest.fn().mockResolvedValue([{ business_id: 'biz-1' }]), authSession: { findFirst: jest.fn().mockResolvedValue(null) } }),
+    );
+    const next = jest.fn();
+    await authenticate({ headers: { authorization: 'Bearer ok' } } as any, {} as any, next);
+    expect((next.mock.calls[0][0] as AppError).code).toBe('UNAUTHORIZED');
+    expect(mockRedisGet).not.toHaveBeenCalled();
   });
 });
 

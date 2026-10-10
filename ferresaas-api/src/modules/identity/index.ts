@@ -3,5 +3,4 @@ export {
   type SignupCommand,
   type SignupResult,
 } from './application/signup-business-owner';
-export { signupController } from './http/signup.controller';
-export { signupRateLimiter } from './http/rate-limit';
+export { default as identityRouter } from './http/identity.routes';

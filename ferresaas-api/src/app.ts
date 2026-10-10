@@ -10,7 +10,7 @@ import { generalLimiter } from './middleware/rate-limit';
 import { createCsrfMiddleware } from './platform/security/csrf';
 
 // Import routes
-import authRoutes from './routes/auth.routes';
+import { identityRouter } from './modules/identity';
 import exchangeRateRoutes from './routes/exchange-rate.routes';
 import productsRoutes from './routes/products.routes';
 import categoriesBrandsRoutes from './routes/categories-brands.routes';
@@ -104,7 +104,7 @@ app.get('/health', (_req, res) => {
 });
 
 // API Routes
-app.use('/v1/auth', authRoutes);
+app.use('/v1/auth', identityRouter);
 app.use('/v1/exchange-rate', exchangeRateRoutes);
 app.use('/v1/products', productsRoutes);
 app.use('/v1', categoriesBrandsRoutes); // /categories y /brands

@@ -4,8 +4,8 @@ import { logger } from '../../config/logger';
 
 /**
  * Cliente Redis único de la aplicación (ioredis).
- * En producción es OBLIGATORIO: la revocación distribuida y el rate limiting
- * de auth fallan cerrado si no hay Redis alcanzable.
+ * En producción es OBLIGATORIO para rate limiting distribuido (falla cerrado).
+ * Sesiones/revocación son PostgreSQL autoritativas; el caché de permisos puede degradar a PostgreSQL.
  */
 export class RedisUnavailableError extends Error {
   constructor() {
