@@ -14,8 +14,10 @@ export { saveTokens, clearTokens, getAccessToken as getToken };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
 
-// Endpoints que no deben gatillar refresh automático ante un 401 (evita loops).
-const NO_REFRESH_PATHS = ['/auth/login', '/auth/signup', '/auth/refresh', '/auth/restore-session'];
+// Endpoints que no deben gatillar refresh automático ante un 401 (evita loops
+// y reintentos espurios, p. ej. change-password devuelve 401 INVALID_PASSWORD
+// cuando la contraseña actual es incorrecta: no es un problema de sesión).
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/signup', '/auth/refresh', '/auth/restore-session', '/auth/change-password'];
 
 interface ApiResponse<T = unknown> {
   success: boolean;

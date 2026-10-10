@@ -2,19 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
+import { updateProfile } from "@/features/auth/api/profile-api";
+import { changePassword } from "@/features/auth/api/password-api";
+import {
+  PASSWORD_REQUIREMENTS,
+  isPasswordPolicyCompliant,
+} from "@/features/auth/model/password-policy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Edit2, Check, X, Moon, Sun } from "lucide-react";
+import { Eye, EyeOff, Edit2, Check, X } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useTheme } from "next-themes";
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, clearLocalSession } = useAuth();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [editingPersonal, setEditingPersonal] = useState(false);
@@ -41,21 +46,13 @@ export default function ProfilePage() {
 
     setLoadingPersonal(true);
     try {
-      const response = await api.put<any>("/auth/profile", {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+      const updated = await updateProfile({ firstName, lastName });
+      updateUser({
+        firstName: updated.firstName || firstName.trim(),
+        lastName: updated.lastName || lastName.trim(),
       });
-
-      if (response.data) {
-        // Actualizar el contexto de autenticación con los nuevos datos
-        updateUser({
-          firstName: response.data.firstName || firstName.trim(),
-          lastName: response.data.lastName || lastName.trim(),
-        });
-        
-        toast.success("Información personal actualizada");
-        setEditingPersonal(false);
-      }
+      toast.success("Información personal actualizada");
+      setEditingPersonal(false);
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error(error.message || "Error al actualizar información personal");
@@ -78,8 +75,11 @@ export default function ProfilePage() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres");
+    if (!isPasswordPolicyCompliant(newPassword)) {
+      const missing = PASSWORD_REQUIREMENTS.filter((r) => !r.regex.test(newPassword))
+        .map((r) => r.label.toLowerCase())
+        .join(", ");
+      toast.error(`La contraseña no cumple los requisitos: ${missing}`);
       return;
     }
 
@@ -95,18 +95,13 @@ export default function ProfilePage() {
 
     setLoading(true);
     try {
-      await api.post("/auth/change-password", {
-        currentPassword,
-        newPassword,
-      });
-
-      toast.success("Contraseña actualizada correctamente");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      await changePassword({ currentPassword, newPassword });
+      // El servidor revocó todas las sesiones y limpió la cookie refresh:
+      // la sesión actual ya no es válida. Cierre local + redirect (AUTH-06).
+      toast.success("Contraseña actualizada. Iniciá sesión con tu nueva contraseña.");
+      clearLocalSession();
     } catch (error: any) {
       toast.error(error.message || "Error al cambiar la contraseña");
-    } finally {
       setLoading(false);
     }
   };
@@ -305,7 +300,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Mínimo 8 caracteres
+                  Mínimo 8 caracteres, con mayúscula, minúscula, número y un carácter especial
                 </p>
               </div>
 

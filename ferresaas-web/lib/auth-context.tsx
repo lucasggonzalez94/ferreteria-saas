@@ -62,6 +62,7 @@ interface AuthContextType {
   login: (email: string, password: string, returnUrl?: string) => Promise<void>;
   signup: (payload: SignupRequest) => Promise<void>;
   logout: () => Promise<void>;
+  clearLocalSession: () => void;
   isAuthenticated: boolean;
   updateUser: (userData: Partial<User>) => void;
   updateBusiness: (businessData: Partial<Business>) => void;
@@ -174,6 +175,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * Cierre local sin request al servidor: para cuando el servidor YA revocó
+   * la sesión (p. ej. cambio de contraseña exitoso, AUTH-06). Pedir /logout
+   * fallaría con 401 y mostraría un error engañoso.
+   */
+  const clearLocalSession = () => {
+    router.push("/login");
+    clearTokens();
+    destroySessionCaches();
+    setUser(null);
+    setBusiness(null);
+    setBusinessTimezone(DEFAULT_TIMEZONE);
+  };
+
   const updateUser = (userData: Partial<User>) => {
     if (user) {
       setUser({ ...user, ...userData });
@@ -203,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         logout,
+        clearLocalSession,
         isAuthenticated: !!user,
         updateUser,
         updateBusiness,

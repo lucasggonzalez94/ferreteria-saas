@@ -292,7 +292,7 @@ export default function RegisterScreen() {
                       <InputPassword
                         id="password"
                         label="Contraseña"
-                        placeholder="Mínimo 10 caracteres"
+                        placeholder="Mínimo 8 caracteres, mayúscula, número y carácter especial"
                         value={formData.password}
                         onChange={(event) => updateField('password', event.target.value)}
                         disabled={isLoading}

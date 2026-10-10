@@ -19,3 +19,19 @@ export async function resetPassword(input: { token: string; newPassword: string 
   }
   return response.data;
 }
+
+/**
+ * Cambio de contraseña del usuario autenticado. Si tiene éxito, el servidor
+ * revoca TODAS las sesiones y limpia la cookie refresh: el caller debe cerrar
+ * la sesión local y redirigir a /login.
+ */
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<MessageResponse> {
+  const response = await api.post<MessageResponse>('/auth/change-password', input);
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.message || 'No pudimos cambiar la contraseña');
+  }
+  return response.data;
+}

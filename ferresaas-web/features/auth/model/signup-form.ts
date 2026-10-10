@@ -1,4 +1,5 @@
 import type { SignupRequest, TaxCondition } from './signup-types';
+import { isPasswordPolicyCompliant } from './password-policy';
 
 export const TAX_CONDITION_OPTIONS: Array<{ value: TaxCondition; label: string }> = [
   { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable inscripto' },
@@ -78,8 +79,8 @@ export function validateRegisterForm(data: RegisterFormData): RegisterFormErrors
 
   if (!data.password) {
     errors.password = 'Creá una contraseña.';
-  } else if (data.password.length < 10) {
-    errors.password = 'Usá al menos 10 caracteres.';
+  } else if (!isPasswordPolicyCompliant(data.password)) {
+    errors.password = 'Usá al menos 8 caracteres, con mayúscula, minúscula, número y un carácter especial.';
   }
 
   if (!data.confirmPassword) {

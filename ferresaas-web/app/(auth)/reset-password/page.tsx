@@ -15,14 +15,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
-
-const PASSWORD_REQUIREMENTS = [
-  { regex: /.{8,}/, label: "Mínimo 8 caracteres" },
-  { regex: /[A-Z]/, label: "Una mayúscula" },
-  { regex: /[a-z]/, label: "Una minúscula" },
-  { regex: /[0-9]/, label: "Un número" },
-  { regex: /[!@#$%^&*]/, label: "Un carácter especial (!@#$%^&*)" },
-];
+import {
+  PASSWORD_REQUIREMENTS,
+  isPasswordPolicyCompliant,
+} from "@/features/auth/model/password-policy";
 
 function ResetPasswordPageContent() {
   const router = useRouter();
@@ -50,10 +46,7 @@ function ResetPasswordPageContent() {
   };
 
   const isPasswordValid = () => {
-    return (
-      getPasswordStrength() === PASSWORD_REQUIREMENTS.length &&
-      password === confirmPassword
-    );
+    return isPasswordPolicyCompliant(password) && password === confirmPassword;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

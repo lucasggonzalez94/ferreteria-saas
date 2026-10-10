@@ -30,6 +30,12 @@ jest.mock('@/modules/identity/application/password', () => ({
   resetPassword: mockReset,
   changePassword: mockChange,
 }));
+jest.mock('@/modules/identity/application/update-profile', () => ({
+  updateProfile: mockUpdateProfile,
+}));
+jest.mock('@/modules/identity/application/register-user', () => ({
+  registerUser: mockRegister,
+}));
 jest.mock('@/modules/identity/http/rate-limit', () => ({
   signupRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
   loginRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
@@ -47,15 +53,6 @@ jest.mock('@/platform/security/authenticate', () => ({
 jest.mock('@/middleware/rbac', () => ({
   requirePermissions: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
-jest.mock('@/routes/auth.schemas', () => ({
-  registerSchema: { parse: (v: unknown) => v },
-}));
-jest.mock('@/services/auth.service', () => ({
-  AuthService: class {
-    register = mockRegister;
-    updateProfile = mockUpdateProfile;
-  },
-}));
 jest.mock('@/config/env', () => ({
   env: {
     cookies: { secure: false, sameSite: 'lax' },
@@ -71,6 +68,10 @@ const createApp = () => {
   app.use(cookieParser());
   app.use('/auth', authRouter);
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    if (err?.name === 'ZodError') {
+      res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Validation failed' } });
+      return;
+    }
     res
       .status(err?.statusCode || 500)
       .json({ success: false, error: { code: err?.code, message: err?.message } });
@@ -211,13 +212,28 @@ describe('auth.routes (aggregate router)', () => {
     expect(String(res.headers['set-cookie'])).toContain('refreshToken=;');
   });
 
-  it('POST /auth/register (legacy admin) sigue operativo', async () => {
+  it('POST /auth/register delega en registerUser con el contexto de sesión', async () => {
     mockRegister.mockResolvedValue({ id: 'u-9', email: 'n@x.com', firstName: 'N', lastName: null, businessId: 'biz-1' });
     const res = await request(createApp())
       .post('/auth/register')
-      .send({ email: 'n@x.com', password: 'Password12345' });
+      .set('user-agent', 'jest-register')
+      .send({ email: 'n@x.com', password: 'Password123!', roleIds: ['r-1', 'r-1'] });
     expect(res.status).toBe(201);
-    expect(mockRegister).toHaveBeenCalledWith(expect.objectContaining({ businessId: 'biz-1' }));
+    expect(res.body.data).toMatchObject({ id: 'u-9', email: 'n@x.com', businessId: 'biz-1' });
+    expect(mockRegister).toHaveBeenCalledWith(
+      { businessId: 'biz-1', actorUserId: 'user-1' },
+      { email: 'n@x.com', password: 'Password123!', roleIds: ['r-1', 'r-1'] },
+      expect.anything(),
+      'jest-register',
+    );
+  });
+
+  it('POST /auth/register rechaza forma inválida sin invocar el caso de uso', async () => {
+    const res = await request(createApp())
+      .post('/auth/register')
+      .send({ email: 'no-es-email', password: 'short' });
+    expect(res.status).toBe(400);
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 
   it('GET /auth/me devuelve el usuario autenticado', async () => {
@@ -230,6 +246,19 @@ describe('auth.routes (aggregate router)', () => {
     mockUpdateProfile.mockResolvedValue({ id: 'user-1', firstName: 'Maria' });
     const res = await request(createApp()).put('/auth/profile').send({ firstName: 'Maria' });
     expect(res.status).toBe(200);
-    expect(mockUpdateProfile).toHaveBeenCalledWith('biz-1', 'user-1', 'Maria', undefined);
+    expect(mockUpdateProfile).toHaveBeenCalledWith(
+      { businessId: 'biz-1', actorUserId: 'user-1' },
+      { firstName: 'Maria' },
+      expect.anything(),
+      undefined,
+    );
+  });
+
+  it('PUT /auth/profile rechaza firstName vacío o lastName de tipo incorrecto', async () => {
+    const empty = await request(createApp()).put('/auth/profile').send({ firstName: '   ' });
+    expect(empty.status).toBe(400);
+    const wrongType = await request(createApp()).put('/auth/profile').send({ firstName: 'Maria', lastName: 42 });
+    expect(wrongType.status).toBe(400);
+    expect(mockUpdateProfile).not.toHaveBeenCalled();
   });
 });

@@ -7,7 +7,10 @@ import {
   restoreSessionController,
 } from './session.controller';
 import { passwordController } from './password.controller';
-import { authenticate } from '../../../platform/security/authenticate';
+import { profileController } from './profile.controller';
+import { registerController } from './register.controller';
+import { authenticate, requirePermissions } from '../../../platform/security/authenticate';
+import { PERMISSIONS } from '../../../config/constants';
 import {
   loginRateLimiter,
   refreshRateLimiter,
@@ -15,7 +18,7 @@ import {
   signupRateLimiter,
 } from './rate-limit';
 
-// Módulo identity: frontera pública de AUTH-01..06 migrada.
+// Módulo identity: frontera pública de AUTH-01..07 migrada.
 const router = Router();
 router.post('/signup', signupRateLimiter, signupController);
 router.post('/login', loginRateLimiter, loginController);
@@ -25,5 +28,7 @@ router.post('/logout', logoutController);
 router.post('/forgot-password', resetPasswordRateLimiter, passwordController.forgot);
 router.post('/reset-password', resetPasswordRateLimiter, passwordController.reset);
 router.post('/change-password', authenticate, passwordController.change);
+router.put('/profile', authenticate, profileController.update);
+router.post('/register', authenticate, requirePermissions(PERMISSIONS.USERS_CREATE), registerController);
 
 export default router;

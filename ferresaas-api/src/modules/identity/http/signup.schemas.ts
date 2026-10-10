@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PASSWORD_MIN_LENGTH } from '../domain/password-policy';
 
 export const signupSchema = z.object({
   businessName: z.string().trim().min(1).max(150),
@@ -10,7 +11,7 @@ export const signupSchema = z.object({
   ownerFirstName: z.string().trim().min(1).max(100),
   ownerLastName: z.string().trim().min(1).max(100).optional(),
   email: z.string().trim().email().max(254),
-  password: z.string().min(10),
+  password: z.string().min(PASSWORD_MIN_LENGTH),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;

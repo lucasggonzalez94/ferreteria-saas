@@ -104,13 +104,14 @@ export async function resetPassword(
 }
 
 export async function changePassword(
-  businessId: string,
-  userId: string,
-  currentPassword: string,
-  newPassword: string,
+  ctx: { businessId: string; actorUserId: string },
+  input: { currentPassword: string; newPassword: string },
+  ip?: string,
+  userAgent?: string,
 ): Promise<{ message: string }> {
-  const notifyTo = await unitOfWork.run({ businessId, actorUserId: userId }, async tx => {
-    const user = await tx.user.findUnique({ where: { id: userId } });
+  const { currentPassword, newPassword } = input;
+  const notifyTo = await unitOfWork.run(ctx, async tx => {
+    const user = await tx.user.findUnique({ where: { id: ctx.actorUserId } });
     if (!user) throw AppError.notFound('USER_NOT_FOUND', 'User not found');
     const ok = await verifyPassword(user.password, currentPassword);
     if (!ok) throw AppError.unauthorized('INVALID_PASSWORD', 'Current password is incorrect');
@@ -129,6 +130,9 @@ export async function changePassword(
       userId: user.id,
       action: 'PASSWORD_CHANGED',
       entity: 'auth',
+      entityId: user.id,
+      ip,
+      userAgent,
     });
     return user.email;
   });
