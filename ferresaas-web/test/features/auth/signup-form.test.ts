@@ -9,6 +9,7 @@ const validForm = {
   ...initialRegisterForm,
   businessName: 'Ferreteria Test',
   businessCuit: '20-11111111-1',
+  taxCondition: 'MONOTRIBUTO' as const,
   ownerFirstName: 'Owner',
   email: 'owner@test.com',
   password: 'Password123!',
@@ -29,6 +30,14 @@ describe('signup-form model', () => {
     expect(errors.businessName).toBeDefined();
     expect(errors.businessCuit).toBeDefined();
     expect(errors.password).toBeDefined();
+  });
+
+  it('requires an explicit tax condition', () => {
+    const errors = validateRegisterForm({ ...validForm, taxCondition: '' });
+    expect(errors.taxCondition).toBeDefined();
+
+    const payload = toSignupPayload(validForm);
+    expect(payload.taxCondition).toBe('MONOTRIBUTO');
   });
 
   it('toSignupPayload normalizes optionals and never sends confirmPassword', () => {

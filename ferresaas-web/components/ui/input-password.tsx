@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export interface InputPasswordProps extends React.InputHTMLAttributes<HTMLInputElement> {
   id: string
@@ -27,21 +28,23 @@ export function InputPassword({
   ...props
 }: InputPasswordProps) {
   const [showPassword, setShowPassword] = React.useState(false)
+  const errorId = `${id}-error`
 
   return (
-    <>
-      <div className="relative w-full">
+    <div className="space-y-2">
+      <div className="flex h-5 items-center">
+        <Label htmlFor={id}>{label}</Label>
+      </div>
+      <div className="relative">
         <Input
           id={id}
           type={showPassword ? "text" : type}
-          label={label}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
           disabled={disabled}
-          aria-invalid={props["aria-invalid"]}
-          aria-describedby={props["aria-describedby"]}
-          className="w-full"
+          error={error}
+          className="w-full pr-12"
           {...props}
         />
         <button
@@ -60,10 +63,10 @@ export function InputPassword({
         </button>
       </div>
       {error && (
-        <p id={`${id}-error`} className="mt-1 text-xs font-medium leading-5 text-destructive">
+        <p id={errorId} className="text-xs font-medium leading-5 text-destructive">
           {error}
         </p>
       )}
-    </>
+    </div>
   )
 }

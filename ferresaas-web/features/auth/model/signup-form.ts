@@ -1,5 +1,5 @@
 import type { SignupRequest, TaxCondition } from './signup-types';
-import { isPasswordPolicyCompliant } from './password-policy';
+import { isPasswordPolicyCompliant, PASSWORD_RULES_TEXT } from './password-policy';
 
 export const TAX_CONDITION_OPTIONS: Array<{ value: TaxCondition; label: string }> = [
   { value: 'RESPONSABLE_INSCRIPTO', label: 'Responsable inscripto' },
@@ -10,7 +10,7 @@ export const TAX_CONDITION_OPTIONS: Array<{ value: TaxCondition; label: string }
 export interface RegisterFormData {
   businessName: string;
   businessCuit: string;
-  taxCondition: TaxCondition;
+  taxCondition: TaxCondition | '';
   phone: string;
   ownerFirstName: string;
   ownerLastName: string;
@@ -22,7 +22,7 @@ export interface RegisterFormData {
 export const initialRegisterForm: RegisterFormData = {
   businessName: '',
   businessCuit: '',
-  taxCondition: 'MONOTRIBUTO',
+  taxCondition: '',
   phone: '',
   ownerFirstName: '',
   ownerLastName: '',
@@ -44,6 +44,20 @@ function normalizeOptional(value: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function validatePassword(data: RegisterFormData, errors: RegisterFormErrors) {
+  if (!data.password) {
+    errors.password = 'Creá una contraseña.';
+  } else if (!isPasswordPolicyCompliant(data.password)) {
+    errors.password = `${PASSWORD_RULES_TEXT}.`;
+  }
+
+  if (!data.confirmPassword) {
+    errors.confirmPassword = 'Repetí la contraseña.';
+  } else if (data.password && data.password !== data.confirmPassword) {
+    errors.confirmPassword = 'Las contraseñas no coinciden.';
+  }
+}
+
 /**
  * Validación de forma (UX). El servidor vuelve a validar e impone las reglas
  * de negocio: dígito verificador de CUIT, unicidad, fortaleza real, etc.
@@ -63,6 +77,10 @@ export function validateRegisterForm(data: RegisterFormData): RegisterFormErrors
     errors.businessCuit = 'El CUIT debe tener 11 dígitos. Podés escribirlo con o sin guiones.';
   }
 
+  if (!data.taxCondition) {
+    errors.taxCondition = 'Seleccioná la condición fiscal de tu ferretería.';
+  }
+
   if (!data.ownerFirstName.trim()) {
     errors.ownerFirstName = 'Ingresá tu nombre.';
   }
@@ -77,17 +95,7 @@ export function validateRegisterForm(data: RegisterFormData): RegisterFormErrors
     errors.phone = 'El teléfono parece demasiado corto. Revisá el código de área y número.';
   }
 
-  if (!data.password) {
-    errors.password = 'Creá una contraseña.';
-  } else if (!isPasswordPolicyCompliant(data.password)) {
-    errors.password = 'Usá al menos 8 caracteres, con mayúscula, minúscula, número y un carácter especial.';
-  }
-
-  if (!data.confirmPassword) {
-    errors.confirmPassword = 'Repetí la contraseña.';
-  } else if (data.password && data.password !== data.confirmPassword) {
-    errors.confirmPassword = 'Las contraseñas no coinciden.';
-  }
+  validatePassword(data, errors);
 
   return errors;
 }
@@ -96,7 +104,8 @@ export function toSignupPayload(data: RegisterFormData): SignupRequest {
   return {
     businessName: data.businessName.trim(),
     businessCuit: data.businessCuit.trim(),
-    taxCondition: data.taxCondition,
+    // validateRegisterForm garantiza que taxCondition esté seleccionado.
+    taxCondition: data.taxCondition as TaxCondition,
     phone: normalizeOptional(data.phone),
     ownerFirstName: data.ownerFirstName.trim(),
     ownerLastName: normalizeOptional(data.ownerLastName),

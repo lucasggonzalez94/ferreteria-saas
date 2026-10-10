@@ -5,6 +5,10 @@
  */
 export const PASSWORD_MIN_LENGTH = 8;
 
+/** Texto canónico de la política: única fuente para placeholders, ayuda y errores. */
+export const PASSWORD_RULES_TEXT =
+  'Mínimo 8 caracteres, con minúscula, mayúscula, número y un carácter especial';
+
 export const PASSWORD_REQUIREMENTS = [
   { regex: /.{8,}/, label: "Mínimo 8 caracteres" },
   { regex: /[a-z]/, label: "Una minúscula" },

@@ -51,6 +51,20 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     )
 
     const inputId = id || htmlFor
+    const errorId = inputId ? `${inputId}-error` : undefined
+    const {
+      "aria-describedby": propsDescribedBy,
+      "aria-invalid": propsInvalid,
+      ...restProps
+    } = props
+    const describedBy =
+      Array.from(
+        new Set(
+          [propsDescribedBy, error ? errorId : undefined].filter(
+            (value): value is string => Boolean(value),
+          ),
+        ),
+      ).join(" ") || undefined
 
     if (label) {
       return (
@@ -75,16 +89,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             type={type}
             className={cn(
-              "flex h-11 w-full rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-0 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-11 w-full rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_hsl(var(--background)/0.7)] ring-offset-0 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
               error && "border-destructive focus-visible:ring-destructive",
               className,
             )}
             onWheel={handleWheel}
             onWheelCapture={handleWheel}
             ref={ref}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? `${inputId}-error` : undefined}
-            {...props}
+            {...restProps}
+            aria-invalid={Boolean(error) || Boolean(propsInvalid)}
+            aria-describedby={describedBy}
           />
           {error && (
             <p id={`${inputId}-error`} className="text-xs font-medium leading-5 text-destructive">
@@ -99,7 +113,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-11 w-full rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-0 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-11 w-full rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_hsl(var(--background)/0.7)] ring-offset-0 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
           error && "border-destructive focus-visible:ring-destructive",
           className,
         )}
@@ -107,9 +121,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         onWheelCapture={handleWheel}
         ref={ref}
         id={id}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...props}
+        {...restProps}
+        aria-invalid={Boolean(error) || Boolean(propsInvalid)}
+        aria-describedby={describedBy}
       />
     )
   },

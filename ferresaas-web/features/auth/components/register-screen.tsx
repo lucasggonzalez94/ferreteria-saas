@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Building2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,19 +23,22 @@ import {
   TAX_CONDITION_OPTIONS,
   type RegisterFormErrors,
 } from '../model/signup-form';
+import { PASSWORD_MIN_LENGTH, PASSWORD_RULES_TEXT } from '../model/password-policy';
 import Chevron from '@/components/ui/chevron';
 import { InputPassword } from '@/components/ui/input-password';
+import { BrandLogo } from '@/components/ui/brand-logo';
+import { RegisterMarketingPanel } from './register-marketing-panel';
 
 const initialForm = initialRegisterForm;
 
-// TODO: Refactorizar esta función para que sea más mantenible y legible y quitar comentario de abajo
-// eslint-disable-next-line max-lines-per-function, complexity
+// eslint-disable-next-line max-lines-per-function
 export default function RegisterScreen() {
   const [formData, setFormData] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState<RegisterFormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const { signup } = useAuth();
+  const formAlertRef = useRef<HTMLDivElement>(null);
 
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((current) => ({ ...current, [field]: value }));
@@ -52,6 +54,13 @@ export default function RegisterScreen() {
     setFormError(null);
   };
 
+  const focusFirstInvalidField = (errors: RegisterFormErrors) => {
+    const firstInvalidField = Object.keys(errors)[0];
+    if (firstInvalidField) {
+      document.getElementById(firstInvalidField)?.focus();
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
@@ -61,6 +70,7 @@ export default function RegisterScreen() {
 
     if (Object.keys(nextErrors).length > 0) {
       setFormError('Revisá los campos marcados para crear tu cuenta.');
+      focusFirstInvalidField(nextErrors);
       return;
     }
 
@@ -73,81 +83,19 @@ export default function RegisterScreen() {
     } catch (error) {
       const message = signupErrorMessage(error);
       setFormError(message);
-      toast.error(message);
+      formAlertRef.current?.focus();
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="app-page flex-col min-h-screen items-center justify-center">
+    <div className="app-page flex min-h-screen flex-col">
       <Chevron link="/" linkLabel="Volver" />
 
-      <main className="app-page flex items-center justify-center">
+      <main className="flex flex-1 items-center justify-center">
         <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-          <section className="app-panel app-orbit hidden overflow-hidden p-8 lg:flex lg:min-h-[640px] lg:flex-col lg:justify-between xl:p-10">
-            <div className="space-y-6">
-              <Image
-                src="/icons/logo-principal-oscuro.png"
-                alt="Ferrahock"
-                width={246}
-                height={82}
-                className="h-20 w-auto dark:hidden"
-                priority
-              />
-              <Image
-                src="/icons/logo-principal-blanco.png"
-                alt="Ferrahock"
-                width={246}
-                height={82}
-                className="hidden h-20 w-auto dark:block"
-                priority
-              />
-
-              <div className="max-w-xl space-y-3">
-                <span className="app-kicker">
-                  <span className="app-brand-dot" aria-hidden="true" />
-                  Alta guiada en minutos
-                </span>
-                <h1 className="text-4xl font-semibold leading-tight text-foreground xl:text-5xl">
-                  Crea tu ferretería y entra directo al panel.
-                </h1>
-                <p className="text-base leading-7 text-muted-foreground">
-                  Configuramos tu negocio, tu usuario dueño y los permisos iniciales para que puedas
-                  empezar por ventas, stock o caja sin pasos extra.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              {[
-                [Building2, 'Negocio listo', 'Se crea el espacio para tu ferretería.'],
-                [
-                  ShieldCheck,
-                  'Dueño seguro',
-                  'Tu primer usuario queda con rol administrador y acceso completo.',
-                ]
-              ].map(([Icon, title, copy]) => {
-                const FeatureIcon = Icon as typeof Building2;
-                return (
-                  <div
-                    key={title as string}
-                    className="app-panel-muted flex gap-4 rounded-[1.4rem] p-4"
-                  >
-                    <span className="app-icon-badge h-11 w-11 text-[hsl(var(--accent))]">
-                      <FeatureIcon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{title as string}</p>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {copy as string}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <RegisterMarketingPanel />
 
           <Card className="mx-auto w-full max-w-2xl overflow-hidden">
             <CardHeader className="space-y-4">
@@ -157,27 +105,14 @@ export default function RegisterScreen() {
                   Crear cuenta
                 </span>
                 <div className="ml-auto lg:hidden">
-                  <Image
-                    src="/icons/logo-principal-oscuro.png"
-                    alt="Ferrahock"
-                    width={176}
-                    height={58}
-                    className="h-14 w-auto dark:hidden"
-                    priority
-                  />
-                  <Image
-                    src="/icons/logo-principal-blanco.png"
-                    alt="Ferrahock"
-                    width={176}
-                    height={58}
-                    className="hidden h-14 w-auto dark:block"
-                    priority
-                  />
+                  <BrandLogo className="h-14 w-auto" priority />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <CardTitle className="text-3xl">Empieza con Ferrahock</CardTitle>
+                <CardTitle as="h1" className="text-3xl">
+                  Empieza con Ferrahock
+                </CardTitle>
                 <CardDescription className="max-w-lg">
                   Crea el negocio y tu usuario administrador.
                 </CardDescription>
@@ -187,8 +122,10 @@ export default function RegisterScreen() {
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 {formError && (
                   <div
+                    ref={formAlertRef}
+                    tabIndex={-1}
                     role="alert"
-                    className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                    className="rounded-[1.25rem] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive focus:outline-hidden focus:ring-2 focus:ring-ring"
                   >
                     <p className="font-semibold">No pudimos continuar</p>
                     <p className="mt-1 text-xs leading-5 text-destructive/90">{formError}</p>
@@ -196,28 +133,26 @@ export default function RegisterScreen() {
                 )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Input
-                      id="businessName"
-                      label="Nombre de la ferretería"
-                      placeholder="Ferretería Los Andes"
-                      value={formData.businessName}
-                      onChange={(event) => updateField('businessName', event.target.value)}
-                      disabled={isLoading}
-                      error={fieldErrors.businessName}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      id="businessCuit"
-                      label="CUIT"
-                      placeholder="20-12345678-9"
-                      value={formData.businessCuit}
-                      onChange={(event) => updateField('businessCuit', event.target.value)}
-                      disabled={isLoading}
-                      error={fieldErrors.businessCuit}
-                    />
-                  </div>
+                  <Input
+                    id="businessName"
+                    label="Nombre de la ferretería"
+                    placeholder="Ferretería Los Andes"
+                    autoComplete="organization"
+                    value={formData.businessName}
+                    onChange={(event) => updateField('businessName', event.target.value)}
+                    disabled={isLoading}
+                    error={fieldErrors.businessName}
+                  />
+                  <Input
+                    id="businessCuit"
+                    label="CUIT"
+                    placeholder="20-12345678-9"
+                    autoComplete="off"
+                    value={formData.businessCuit}
+                    onChange={(event) => updateField('businessCuit', event.target.value)}
+                    disabled={isLoading}
+                    error={fieldErrors.businessCuit}
+                  />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -226,7 +161,11 @@ export default function RegisterScreen() {
                     onValueChange={(value) => updateField('taxCondition', value)}
                     disabled={isLoading}
                   >
-                    <SelectTrigger id="taxCondition" label="Condición fiscal">
+                    <SelectTrigger
+                      id="taxCondition"
+                      label="Condición fiscal"
+                      error={fieldErrors.taxCondition}
+                    >
                       <SelectValue placeholder="Seleccionar condición" />
                     </SelectTrigger>
                     <SelectContent>
@@ -237,86 +176,81 @@ export default function RegisterScreen() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="space-y-2">
-                    <Input
-                      id="phone"
-                      label="Teléfono opcional"
-                      type="tel"
-                      placeholder="+54 11 1234-5678"
-                      value={formData.phone}
-                      onChange={(event) => updateField('phone', event.target.value)}
-                      disabled={isLoading}
-                      error={fieldErrors.phone}
-                    />
-                  </div>
+                  <Input
+                    id="phone"
+                    label="Teléfono opcional"
+                    type="tel"
+                    placeholder="+54 11 1234-5678"
+                    autoComplete="tel"
+                    value={formData.phone}
+                    onChange={(event) => updateField('phone', event.target.value)}
+                    disabled={isLoading}
+                    error={fieldErrors.phone}
+                  />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Input
-                      id="ownerFirstName"
-                      label="Nombre"
-                      placeholder="Ana"
-                      value={formData.ownerFirstName}
-                      onChange={(event) => updateField('ownerFirstName', event.target.value)}
-                      disabled={isLoading}
-                      error={fieldErrors.ownerFirstName}
-                    />
-                  </div>
+                  <Input
+                    id="ownerFirstName"
+                    label="Nombre"
+                    placeholder="Ana"
+                    autoComplete="given-name"
+                    value={formData.ownerFirstName}
+                    onChange={(event) => updateField('ownerFirstName', event.target.value)}
+                    disabled={isLoading}
+                    error={fieldErrors.ownerFirstName}
+                  />
                   <Input
                     id="ownerLastName"
                     label="Apellido (opcional)"
                     placeholder="García"
+                    autoComplete="family-name"
                     value={formData.ownerLastName}
                     onChange={(event) => updateField('ownerLastName', event.target.value)}
                     disabled={isLoading}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Input
-                    id="email"
-                    label="Correo"
-                    type="email"
-                    placeholder="admin@tuferreteria.com"
-                    value={formData.email}
-                    onChange={(event) => updateField('email', event.target.value)}
-                    disabled={isLoading}
-                    error={fieldErrors.email}
-                  />
-                </div>
+                <Input
+                  id="email"
+                  label="Correo"
+                  type="email"
+                  placeholder="admin@tuferreteria.com"
+                  autoComplete="email"
+                  value={formData.email}
+                  onChange={(event) => updateField('email', event.target.value)}
+                  disabled={isLoading}
+                  error={fieldErrors.email}
+                />
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <div className="relative">
-                      <InputPassword
-                        id="password"
-                        label="Contraseña"
-                        placeholder="Mínimo 8 caracteres, mayúscula, número y carácter especial"
-                        value={formData.password}
-                        onChange={(event) => updateField('password', event.target.value)}
-                        disabled={isLoading}
-                        error={fieldErrors.password}
-                      />
-                      <p id="password-help" className="text-xs leading-5 text-muted-foreground">
-                        Usá 10 o más caracteres. Evitá contraseñas fáciles de adivinar.
-                      </p>
-                    </div>
+                    <InputPassword
+                      id="password"
+                      label="Contraseña"
+                      placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
+                      autoComplete="new-password"
+                      value={formData.password}
+                      onChange={(event) => updateField('password', event.target.value)}
+                      disabled={isLoading}
+                      error={fieldErrors.password}
+                      aria-describedby="password-help"
+                    />
+                    <p id="password-help" className="text-xs leading-5 text-muted-foreground">
+                      {PASSWORD_RULES_TEXT}. Evitá contraseñas fáciles de adivinar o reutilizadas.
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <InputPassword
-                        id="confirmPassword"
-                        label="Confirmar contraseña"
-                        placeholder="Repetí la contraseña"
-                        value={formData.confirmPassword}
-                        onChange={(event) => updateField('confirmPassword', event.target.value)}
-                        disabled={isLoading}
-                        error={fieldErrors.confirmPassword}
-                      />
-                    </div>
-                  </div>
-                </div>
+                  <InputPassword
+                    id="confirmPassword"
+                    label="Confirmar contraseña"
+                    placeholder="Repetí la contraseña"
+                    autoComplete="new-password"
+                    value={formData.confirmPassword}
+                    onChange={(event) => updateField('confirmPassword', event.target.value)}
+                    disabled={isLoading}
+                    error={fieldErrors.confirmPassword}
+                  />
+               </div>
 
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
                   <p className="app-inline-hint flex items-center gap-2">

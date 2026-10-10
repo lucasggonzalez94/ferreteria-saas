@@ -8,19 +8,19 @@ import { Tooltip } from "@/components/ui/tooltip"
 
 import { cn } from "@/lib/utils"
 
-const Select = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
-    value?: string
-    onValueChange?: (value: string) => void
-  }
->(({ value, onValueChange, ...props }, ref: any) => {
+type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
+  value?: string
+  onValueChange?: (value: string) => void
+}
+
+function Select({ value, onValueChange, ...props }: SelectProps) {
   const handleValueChange = (newValue: string) => {
     const actualValue = newValue === "__empty__" ? "" : newValue
     onValueChange?.(actualValue)
   }
 
-  const safeValue = value === "" ? "__empty__" : value
+  // value="" significa "sin selección": undefined hace que SelectValue muestre el placeholder.
+  const safeValue = value === "" ? undefined : value
 
   return (
     <SelectPrimitive.Root
@@ -29,7 +29,7 @@ const Select = React.forwardRef<
       {...props}
     />
   )
-})
+}
 Select.displayName = "Select"
 
 const SelectGroup = SelectPrimitive.Group
@@ -41,13 +41,49 @@ interface SelectTriggerProps
   label?: string
   htmlFor?: string
   labelTooltip?: React.ReactNode
+  error?: string
 }
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, children, label, htmlFor, id, labelTooltip, ...props }, ref) => {
+>(({ className, children, label, htmlFor, id, labelTooltip, error, ...props }, ref) => {
   const triggerId = id || htmlFor
+  const errorId = triggerId ? `${triggerId}-error` : undefined
+  const {
+    "aria-describedby": propsDescribedBy,
+    "aria-invalid": propsInvalid,
+    ...restProps
+  } = props
+  const describedBy =
+    Array.from(
+      new Set(
+        [propsDescribedBy, error ? errorId : undefined].filter(
+          (value): value is string => Boolean(value),
+        ),
+      ),
+    ).join(" ") || undefined
+  const renderError = Boolean(error && errorId)
+
+  const trigger = (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      id={triggerId}
+      className={cn(
+        "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_hsl(var(--background)/0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+        error && "border-destructive focus:ring-destructive",
+        className,
+      )}
+      {...restProps}
+      aria-invalid={Boolean(error) || Boolean(propsInvalid)}
+      aria-describedby={describedBy}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  )
 
   if (label) {
     return (
@@ -66,39 +102,25 @@ const SelectTrigger = React.forwardRef<
             </Tooltip>
           )}
         </div>
-        <SelectPrimitive.Trigger
-          ref={ref}
-          id={triggerId}
-          className={cn(
-            "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-            className,
-          )}
-          {...props}
-        >
-          {children}
-          <SelectPrimitive.Icon asChild>
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </SelectPrimitive.Icon>
-        </SelectPrimitive.Trigger>
+        {trigger}
+        {renderError && (
+          <p id={errorId} className="text-xs font-medium leading-5 text-destructive">
+            {error}
+          </p>
+        )}
       </div>
     )
   }
 
   return (
-    <SelectPrimitive.Trigger
-      ref={ref}
-      className={cn(
-        "flex h-11 w-full items-center justify-between rounded-xl border border-input/80 bg-background/80 px-3.5 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-        className,
+    <>
+      {trigger}
+      {renderError && (
+        <p id={errorId} className="text-xs font-medium leading-5 text-destructive">
+          {error}
+        </p>
       )}
-      id={id}
-      {...props}
-    >
-      {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 opacity-50" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
+    </>
   )
 })
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
@@ -140,9 +162,9 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-2xl border border-input/80 bg-popover/95 text-popover-foreground shadow-[0_24px_60px_-34px_rgba(12,41,69,0.55)] backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 " +
+        "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-2xl border border-input/80 bg-popover/95 text-popover-foreground shadow-[0_24px_60px_-34px_rgba(12,41,69,0.55)] backdrop-blur-xl data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 " +
         (position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1"),
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1"),
         className,
       )}
       position={position}
