@@ -66,13 +66,13 @@ export default function UsersPage() {
       return;
     }
 
-    listUsers();
-    listRoles();
+    void listUsers();
+    void listRoles();
   }, [user?.permissions, router, listUsers, listRoles]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    listUsers({
+    void listUsers({
       q: searchQuery || undefined,
       status: statusFilter !== "all" ? (statusFilter as "active" | "inactive") : undefined,
     });
@@ -221,7 +221,7 @@ export default function UsersPage() {
                   onClick={() => {
                     setSearchQuery("");
                     setStatusFilter("all");
-                    listUsers();
+                    void listUsers();
                   }}
                 >
                   Limpiar

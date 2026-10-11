@@ -1,10 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,7 +163,7 @@ export default function PayablesPage() {
       // La respuesta tiene: { success: true, data: [...], meta: {...} }
       // response.data es el array de proveedores
       return response.data || [];
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }, []);
@@ -267,8 +266,8 @@ export default function PayablesPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payables"] });
-      queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["payables"] });
+      void queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
       setPaymentDialogOpen(false);
       setSelectedPayableId(null);
       setPaymentAmount("");
@@ -326,12 +325,12 @@ export default function PayablesPage() {
                   size="icon"
                   aria-label="Refrescar cuentas por pagar"
                   onClick={() => {
-                    queryClient.invalidateQueries({ queryKey: ["payables"] });
-                    queryClient.invalidateQueries({
+                    void queryClient.invalidateQueries({ queryKey: ["payables"] });
+                    void queryClient.invalidateQueries({
                       queryKey: ["payables-summary"],
                     });
-                    refetchPayables();
-                    refetchSummary();
+                    void refetchPayables();
+                    void refetchSummary();
                   }}
                   disabled={isFetchingPayables || isFetchingSummary}
                 >

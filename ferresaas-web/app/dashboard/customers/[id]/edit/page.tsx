@@ -69,8 +69,8 @@ export default function EditCustomerPage({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["customer", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["customers"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer", params.id] });
       toast.success("Cliente actualizado exitosamente");
       router.push(`/dashboard/customers/${params.id}`);
     },

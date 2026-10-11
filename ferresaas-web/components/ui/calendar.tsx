@@ -40,7 +40,7 @@ export type CalendarProps = {
 }
 
 export function Calendar({
-  mode = "single",
+  mode: _mode = "single",
   selected,
   onSelect,
   className,
@@ -97,7 +97,7 @@ export function Calendar({
 
   // Generar lista de años (1900 - 2100)
   const years = React.useMemo(() => {
-    const currentYear = new Date().getFullYear()
+    const _currentYear = new Date().getFullYear()
     const startYear = 1900
     const endYear = 2100
     return Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i)
@@ -180,7 +180,7 @@ export function Calendar({
 
       {/* Grid: Días del mes */}
       <div className="grid grid-cols-7 gap-1">
-        {calendarDays.map((day, dayIdx) => {
+        {calendarDays.map((day, _dayIdx) => {
           const isSelected = selected ? isSameDay(day, selected) : false
           const isToday = isSameDay(day, new Date())
           const isCurrentMonth = isSameMonth(day, currentMonth)

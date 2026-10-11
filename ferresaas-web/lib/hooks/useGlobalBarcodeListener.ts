@@ -68,7 +68,7 @@ export function useGlobalBarcodeListener() {
       if (key === 'Enter') {
         if (inputBufferRef.current.length >= 8) {
           const barcode = inputBufferRef.current;
-          searchProduct(barcode);
+          void searchProduct(barcode);
         }
         inputBufferRef.current = '';
         inputStartTimeRef.current = null;
@@ -94,7 +94,7 @@ export function useGlobalBarcodeListener() {
           
           if (inputBufferRef.current.length >= 8 && timeSinceStart < 500) {
             const barcode = inputBufferRef.current;
-            searchProduct(barcode);
+            void searchProduct(barcode);
           }
           
           inputBufferRef.current = '';

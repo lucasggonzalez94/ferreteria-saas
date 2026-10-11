@@ -217,7 +217,7 @@ export default function ReportsPage() {
   });
 
   usePermissionGuard("reports:read");
-  const { canRead: canViewReports } = usePermissions({
+  const { canRead: _canViewReports } = usePermissions({
     canRead: "reports:read",
   });
 

@@ -14,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getDatePresetRange, DATE_PRESETS } from '@/lib/date-filters';
-import type { DatePreset } from '@/lib/date-filters';
+import { getDatePresetRange, DATE_PRESETS, type DatePreset } from '@/lib/date-filters';
 import { localDateToUTC, localDateToUTCEndOfDay } from '@/lib/timezone';
 import {
   Table,

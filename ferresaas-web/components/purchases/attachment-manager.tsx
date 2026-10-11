@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
-  FileText,
   Upload,
   Trash2,
   Download,
@@ -46,7 +45,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getFileIcon(fileType: string) {
+function getFileIcon(_fileType: string) {
   return <Paperclip className="h-5 w-5" />;
 }
 
@@ -77,7 +76,7 @@ export function AttachmentManager({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["purchase", purchaseId] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase", purchaseId] });
     },
     onSettled: () => {
       setUploading(false);
@@ -93,7 +92,7 @@ export function AttachmentManager({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["purchase", purchaseId] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase", purchaseId] });
       setDeleteTarget(null);
     },
   });

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parseNumericInput, formatNumericDisplay } from '@/lib/numeric-input';
+import { parseNumericInput } from '@/lib/numeric-input';
 
 interface UseNumericInputOptions {
   initialValue?: number | string;

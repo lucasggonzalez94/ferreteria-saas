@@ -97,8 +97,8 @@ export default function FinancialAccountsPage() {
       await api.put(`/financial-accounts/${id}`, data);
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
       
       if (variables.data.isDefault === true) {
         const previousAccounts = queryClient.getQueryData<FinancialAccount[]>(["financial-accounts"]);
@@ -124,8 +124,8 @@ export default function FinancialAccountsPage() {
     },
     onSuccess: () => {
       toast.success("Cuenta eliminada correctamente");
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo eliminar la cuenta");
@@ -200,10 +200,10 @@ export default function FinancialAccountsPage() {
                 size="icon"
                 aria-label="Refrescar cuentas financieras"
                 onClick={() => {
-                  queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-                  queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
-                  refetchAccounts();
-                  refetchSummary();
+                  void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+                  void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+                  void refetchAccounts();
+                  void refetchSummary();
                 }}
                 disabled={isFetchingAccounts || isFetchingSummary}
               >

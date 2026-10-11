@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Printer, Upload, X, Sparkles } from "lucide-react";
+import { Trash2, Printer, Upload, X, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { parseNumericInput } from "@/lib/numeric-input";
@@ -136,8 +136,8 @@ export default function EditProductPage({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["product", params.id] });
       toast.success("Producto actualizado exitosamente");
       router.push("/dashboard/products");
     },
@@ -151,7 +151,7 @@ export default function EditProductPage({
       await api.delete(`/products/${params.id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Producto eliminado exitosamente");
       router.push("/dashboard/products");
     },
@@ -168,7 +168,7 @@ export default function EditProductPage({
     },
     onSuccess: () => {
       toast.success("Imagen subida correctamente");
-      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["product", params.id] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo subir la imagen");
@@ -181,7 +181,7 @@ export default function EditProductPage({
     },
     onSuccess: () => {
       toast.success("Imagen eliminada");
-      queryClient.invalidateQueries({ queryKey: ["product", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["product", params.id] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo eliminar la imagen");
@@ -194,7 +194,7 @@ export default function EditProductPage({
       return response.data;
     },
     onSuccess: (suggestion) => {
-      queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
       toast.success(`Sugerencia creada: $${Number(suggestion.suggestedPrice).toFixed(2)}`);
     },
     onError: (error: any) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -39,6 +39,10 @@ export default function RegisterScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const { signup } = useAuth();
   const formAlertRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (formError) formAlertRef.current?.focus();
+  }, [formError]);
 
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((current) => ({ ...current, [field]: value }));
@@ -83,7 +87,6 @@ export default function RegisterScreen() {
     } catch (error) {
       const message = signupErrorMessage(error);
       setFormError(message);
-      formAlertRef.current?.focus();
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +96,7 @@ export default function RegisterScreen() {
     <div className="app-page flex min-h-screen flex-col">
       <Chevron link="/" linkLabel="Volver" />
 
-      <main className="flex flex-1 items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr]">
           <RegisterMarketingPanel />
 
@@ -282,7 +285,7 @@ export default function RegisterScreen() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

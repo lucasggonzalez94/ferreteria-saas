@@ -109,7 +109,7 @@ export function UnknownBarcodeModal({
       return res.data!;
     },
     onSuccess: (newProduct) => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.removeQueries({ queryKey: ["products-search"] });
       toast.success(`Producto "${newProduct.name}" creado`);
       handleClose();
@@ -126,7 +126,7 @@ export function UnknownBarcodeModal({
       return res.data!;
     },
     onSuccess: (updatedProduct) => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.removeQueries({ queryKey: ["products-search"] });
       toast.success(`Código asignado a "${updatedProduct.name}"`);
       handleClose();

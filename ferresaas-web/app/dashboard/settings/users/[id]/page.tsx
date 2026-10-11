@@ -12,7 +12,7 @@ import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
-import { Lock, Mail, User as UserIcon } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 
 interface UserDetail extends UserListItem {
   roleCount: number;
@@ -29,7 +29,7 @@ export default function UserDetailPage() {
   const { roles, listRoles } = useRoles();
 
   const [user, setUser] = useState<UserDetail | null>(null);
-  const [userRoles, setUserRoles] = useState<UserRole | null>(null);
+  const [_userRoles, setUserRoles] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({ firstName: "", lastName: "" });
@@ -70,7 +70,7 @@ export default function UserDetailPage() {
       }
     };
 
-    loadData();
+    void loadData();
   }, [userId, canManageUsers, canUpdateUsers, router, getUser, getUserRoles, listRoles]);
 
   const handleSaveInfo = async (e: React.FormEvent) => {

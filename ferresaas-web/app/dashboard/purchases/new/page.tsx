@@ -77,8 +77,7 @@ export default function NewPurchasePage() {
   const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileType, setFileType] = useState("INVOICE");
-  const [uploading, setUploading] = useState(false);
+  const [fileType, _setFileType] = useState("INVOICE");
 
   // Hook para tipo de cambio con fallback
   const {
@@ -113,7 +112,7 @@ export default function NewPurchasePage() {
       router.push("/dashboard");
       return;
     }
-    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
   }, [canCreatePurchase, router, queryClient, isAuthLoading]);
 
   const { data: suppliers, isLoading: isLoadingSuppliers, error: suppliersError, refetch: refetchSuppliers } = useQuery<any[]>({
@@ -199,13 +198,13 @@ export default function NewPurchasePage() {
       return response.data;
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["purchases"] });
-      queryClient.invalidateQueries({ queryKey: ["purchases-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["approval-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      void queryClient.invalidateQueries({ queryKey: ["purchases-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["approval-counts"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
 
       if (pendingAttachments.length > 0) {
         sessionStorage.setItem(

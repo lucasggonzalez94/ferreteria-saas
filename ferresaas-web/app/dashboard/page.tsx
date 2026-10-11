@@ -463,8 +463,8 @@ export default function DashboardPage() {
 
       if (event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
-        refetchApprovalCounts();
-        refetchDashboardData();
+        void refetchApprovalCounts();
+        void refetchDashboardData();
       }
     };
 
@@ -586,8 +586,8 @@ export default function DashboardPage() {
                   aria-label="Refrescar datos del dashboard"
                   aria-keyshortcuts="R"
                   onClick={() => {
-                    refetchApprovalCounts();
-                    refetchDashboardData();
+                    void refetchApprovalCounts();
+                    void refetchDashboardData();
                   }}
                   disabled={isRefetching}
                 >
@@ -638,7 +638,7 @@ export default function DashboardPage() {
                 </span>
               )}
               <Button
-                variant={isEditingQuickActions ? "secondary" : "outline-solid"}
+                variant={isEditingQuickActions ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => {
                   if (isEditingQuickActions) {

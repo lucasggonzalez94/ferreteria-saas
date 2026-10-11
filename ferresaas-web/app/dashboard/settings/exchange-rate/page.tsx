@@ -123,8 +123,8 @@ export default function ExchangeRateConfigPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["exchange-rate-config"] });
-      queryClient.invalidateQueries({ queryKey: ["exchange-rate-current"] });
+      void queryClient.invalidateQueries({ queryKey: ["exchange-rate-config"] });
+      void queryClient.invalidateQueries({ queryKey: ["exchange-rate-current"] });
       toast.success("Configuración actualizada exitosamente");
     },
     onError: (error: any) => {

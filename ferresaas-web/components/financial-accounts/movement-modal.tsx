@@ -55,9 +55,9 @@ export function MovementModal({ open, onOpenChange, accounts }: MovementModalPro
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
       toast.success("Movimiento registrado exitosamente");
       resetForm();
       onOpenChange(false);

@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { Role, Permission } from "@/types/rbac";
-import { Check, X, Lock } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 
 export default function RoleDetailPage() {
   const { user } = useAuth();
@@ -58,7 +58,7 @@ export default function RoleDetailPage() {
       }
     };
 
-    loadData();
+    void loadData();
   }, [roleId, canManageRoles, router, getRole, listPermissions]);
 
   const handleSave = async (e: React.FormEvent) => {

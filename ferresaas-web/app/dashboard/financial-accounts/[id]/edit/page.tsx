@@ -16,7 +16,6 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
-import Header from "@/components/ui/header";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 

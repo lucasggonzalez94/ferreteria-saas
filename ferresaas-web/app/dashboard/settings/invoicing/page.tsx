@@ -127,7 +127,7 @@ const SALE_INVOICE_STATUS_MAP: Record<SaleInvoiceStatus, InvoiceStatus> = {
   FAILED: "FAILED",
 };
 
-const PROVIDER_LABELS: Record<InvoiceProvider, string> = {
+const _PROVIDER_LABELS: Record<InvoiceProvider, string> = {
   mock: "Mock",
   facturante: "Facturante",
   arca_direct: "ARCA Direct",
@@ -325,7 +325,7 @@ export default function InvoicingSettingsPage() {
       await api.post(`/sales/invoice-jobs/${jobId}/retry`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoice-jobs"] });
+      void queryClient.invalidateQueries({ queryKey: ["invoice-jobs"] });
       toast.success("Reintento ejecutado");
     },
     onError: (error: any) => {
@@ -368,7 +368,7 @@ export default function InvoicingSettingsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["business", "invoicing", "arca-credentials"],
       });
       setArcaCertificatePem("");
@@ -391,7 +391,7 @@ export default function InvoicingSettingsPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["business", "invoicing", "arca-credentials"],
       });
       toast.success("Token/Sign renovados con WSAA");
@@ -455,7 +455,7 @@ export default function InvoicingSettingsPage() {
     }
   };
 
-  const providerBreakdown = useMemo(() => {
+  const _providerBreakdown = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of statsData?.providersLast24h || []) {
       map.set(item.provider, item.issued);
@@ -867,7 +867,7 @@ export default function InvoicingSettingsPage() {
                               actions={[
                                 {
                                   label: "Ver detalle",
-                                  onClick: () => handleViewInvoiceDetail(job),
+                                  onClick: () => { void handleViewInvoiceDetail(job); },
                                 },
                                 ...(job.sale.invoiceStatus === "INVOICED"
                                   ? [

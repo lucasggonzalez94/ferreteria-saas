@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import type { ExchangeRateConfig } from '@/types';
+import type { ExchangeRateConfig, Product, Sale, Customer } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Minus, Trash2, DollarSign } from 'lucide-react';
-import type { Product, Sale, Customer } from '@/types';
 import Header from '@/components/ui/header';
 import { parseNumericInput } from '@/lib/numeric-input';
 import { usePermissionGuard } from '@/lib/hooks/usePermissionGuard';
@@ -119,7 +118,7 @@ export default function POSPage() {
   const handleProductFromBarcode = (product: Product) => {
     setUnknownBarcodeModalOpen(false);
     setUnknownBarcode('');
-    queryClient.invalidateQueries({ queryKey: ['products-search'] });
+    void queryClient.invalidateQueries({ queryKey: ['products-search'] });
     addToCart(product);
     toast.success(`${product.name} agregado al carrito`);
   };
@@ -198,9 +197,9 @@ export default function POSPage() {
       setSelectedCustomer(null);
       setCustomerPanelOpen(false);
       clearCart();
-      queryClient.invalidateQueries({ queryKey: ['sales'] });
-      queryClient.invalidateQueries({ queryKey: ['cash-register'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-accounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['sales'] });
+      void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
+      void queryClient.invalidateQueries({ queryKey: ['financial-accounts'] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, 'Error al registrar venta'));

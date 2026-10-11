@@ -59,7 +59,7 @@ export function usePermissions() {
         setResources(response.data.resources);
         return response.data.resources;
       }
-    } catch (err: any) {
+    } catch (_err: any) {
       toast.error("Error al cargar recursos");
     }
   }, []);
@@ -73,7 +73,7 @@ export function usePermissions() {
       if (response.success && response.data) {
         return response.data.actions;
       }
-    } catch (err: any) {
+    } catch (_err: any) {
       toast.error("Error al cargar acciones");
     }
   }, []);

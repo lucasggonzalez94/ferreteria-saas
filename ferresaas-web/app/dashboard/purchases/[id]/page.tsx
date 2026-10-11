@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ArrowLeft, Package, DollarSign } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { getPurchaseStatusLabel, getPurchaseStatusColor } from "@/lib/purchase-status";

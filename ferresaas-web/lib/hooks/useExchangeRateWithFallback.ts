@@ -57,8 +57,8 @@ export function useExchangeRateWithFallback() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exchange-rate-current'] });
-      queryClient.invalidateQueries({ queryKey: ['exchange-rate-config'] });
+      void queryClient.invalidateQueries({ queryKey: ['exchange-rate-current'] });
+      void queryClient.invalidateQueries({ queryKey: ['exchange-rate-config'] });
       setShowManualModal(false);
       toast.success('Cotización manual guardada exitosamente');
     },
@@ -70,7 +70,7 @@ export function useExchangeRateWithFallback() {
   const handleUseLastKnown = () => {
     setShowManualModal(false);
     // La última cotización ya está en el sistema, solo cerramos el modal
-    refetch();
+    void refetch();
   };
 
   const handleManualRate = (manualRate: number) => {

@@ -108,7 +108,7 @@ export default function CustomersPage() {
         address: '',
         initialBalance: '',
       });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      void queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, 'Error al crear cliente'));
@@ -119,7 +119,7 @@ export default function CustomersPage() {
     mutationFn: deleteCustomer,
     onSuccess: () => {
       toast.success('Cliente eliminado exitosamente');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      void queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, 'Error al eliminar cliente'));

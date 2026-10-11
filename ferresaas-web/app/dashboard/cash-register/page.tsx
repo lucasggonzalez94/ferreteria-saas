@@ -192,8 +192,8 @@ export default function CashRegisterPage() {
       setShowDifferenceConfirmation(false);
       setPendingOpenAmount(null);
       setPendingOpenAmountUSD(null);
-      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       setTimeout(() => {
         router.push("/dashboard/pos");
       }, 1000);
@@ -224,7 +224,7 @@ export default function CashRegisterPage() {
       setMovementAmount("");
       setMovementReason("");
       setShowMovementDialog(false);
-      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      void queryClient.invalidateQueries({ queryKey: ["cash-register"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Error al registrar movimiento"));
@@ -251,8 +251,8 @@ onSuccess: (data: any) => {
       setClosingAmount("");
       setClosingAmountUSD("");
       setDestinationAccountId("");
-      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Error al cerrar caja"));
@@ -345,7 +345,7 @@ onSuccess: (data: any) => {
       a.download = `cierre-caja-${session.id}-${new Date().toISOString().split("T")[0]}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Error al generar el PDF. Por favor, intenta nuevamente.");
     }
   };
@@ -374,14 +374,14 @@ onSuccess: (data: any) => {
                     size="icon"
                     aria-label="Refrescar datos de caja"
                     onClick={() => {
-                      queryClient.invalidateQueries({
+                      void queryClient.invalidateQueries({
                         queryKey: ["cash-register"],
                       });
-                      queryClient.invalidateQueries({
+                      void queryClient.invalidateQueries({
                         queryKey: ["financial-accounts"],
                       });
-                      refetchSession();
-                      refetchSummary();
+                      void refetchSession();
+                      void refetchSummary();
                     }}
                     disabled={isFetchingSession || isFetchingSummary}
                   >

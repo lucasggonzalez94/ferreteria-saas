@@ -88,10 +88,10 @@ export default function NewCheckPage() {
       return response.data as CreateCheckResponse;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["checks"] });
-      queryClient.invalidateQueries({ queryKey: ["checks-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["payables"] });
-      queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["checks"] });
+      void queryClient.invalidateQueries({ queryKey: ["checks-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["payables"] });
+      void queryClient.invalidateQueries({ queryKey: ["payables-summary"] });
       toast.success("Cheque emitido correctamente");
       router.push(`/dashboard/checks/${data.id}`);
     },

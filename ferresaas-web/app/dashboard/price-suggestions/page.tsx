@@ -79,8 +79,8 @@ export default function PriceSuggestionsPage() {
       await api.post(`/price-suggestions/${suggestionId}/approve`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Sugerencia aprobada y precio actualizado");
     },
     onError: (error: any) => {
@@ -95,7 +95,7 @@ export default function PriceSuggestionsPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
+      void queryClient.invalidateQueries({ queryKey: ["price-suggestions"] });
       toast.success("Sugerencia rechazada");
       setRejectModalOpen(false);
       setSelectedSuggestion(null);

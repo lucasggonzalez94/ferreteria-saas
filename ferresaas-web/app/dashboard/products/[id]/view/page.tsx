@@ -183,7 +183,7 @@ export default function ProductDetailViewPage() {
     },
     onSuccess: () => {
       toast.success("Producto eliminado");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
       router.push("/dashboard/products");
     },
     onError: (error: any) => {
@@ -197,8 +197,8 @@ export default function ProductDetailViewPage() {
     },
     onSuccess: () => {
       toast.success("Estado actualizado");
-      queryClient.invalidateQueries({ queryKey: ["product", productId] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo actualizar el estado");
@@ -213,7 +213,7 @@ export default function ProductDetailViewPage() {
     },
     onSuccess: () => {
       toast.success("Imagen subida correctamente");
-      queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      void queryClient.invalidateQueries({ queryKey: ["product", productId] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo subir la imagen");
@@ -226,7 +226,7 @@ export default function ProductDetailViewPage() {
     },
     onSuccess: () => {
       toast.success("Imagen eliminada");
-      queryClient.invalidateQueries({ queryKey: ["product", productId] });
+      void queryClient.invalidateQueries({ queryKey: ["product", productId] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo eliminar la imagen");
@@ -395,7 +395,7 @@ export default function ProductDetailViewPage() {
               ).map((preset) => (
                 <Button
                   key={preset.value}
-                  variant={datePreset === preset.value ? "default" : "outline-solid"}
+                  variant={datePreset === preset.value ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDatePreset(preset.value)}
                 >

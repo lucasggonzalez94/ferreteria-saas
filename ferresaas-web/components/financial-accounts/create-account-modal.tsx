@@ -58,9 +58,9 @@ export function CreateAccountModal({ open, onOpenChange, initialCurrency }: Crea
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["cash-register", "suggested-opening"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["cash-register", "suggested-opening"] });
       toast.success("Cuenta creada exitosamente");
       resetForm();
       onOpenChange(false);

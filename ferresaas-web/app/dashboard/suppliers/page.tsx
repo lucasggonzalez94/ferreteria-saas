@@ -110,7 +110,7 @@ export default function SuppliersPage() {
   const createMutation = useMutation({
     mutationFn: async (data: SupplierFormData) => createSupplier(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       setIsOpen(false);
       setFormData({ name: "" });
     },
@@ -122,7 +122,7 @@ export default function SuppliersPage() {
   const updateMutation = useMutation({
     mutationFn: async (data: SupplierFormData) => updateSupplier(editingId as string, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       setIsOpen(false);
       setEditingId(null);
       setFormData({ name: "" });
@@ -135,7 +135,7 @@ export default function SuppliersPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteSupplier,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "No se pudo eliminar el proveedor"));
@@ -147,7 +147,7 @@ export default function SuppliersPage() {
       return updateSupplierStatus(id, isActive);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "No se pudo actualizar el estado"));

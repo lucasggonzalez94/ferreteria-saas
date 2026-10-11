@@ -437,7 +437,7 @@ export default function InvoicesPage() {
                               },
                               {
                                 label: "Descargar PDF",
-                                onClick: () => handleDownloadPdf(invoice),
+                                onClick: () => { void handleDownloadPdf(invoice); },
                                 disabled: invoice.status !== "ISSUED",
                               },
                             ]}

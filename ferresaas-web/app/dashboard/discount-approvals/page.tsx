@@ -83,7 +83,7 @@ export default function DiscountApprovalsPage() {
     },
     onSuccess: () => {
       toast.success("Descuento aprobado");
-      queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
+      void queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al aprobar descuento");
@@ -102,7 +102,7 @@ export default function DiscountApprovalsPage() {
       toast.success("Descuento rechazado");
       setRejectingId(null);
       setRejectionReason("");
-      queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
+      void queryClient.invalidateQueries({ queryKey: ["discount-approvals"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "Error al rechazar descuento");

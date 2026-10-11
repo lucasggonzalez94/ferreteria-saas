@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker } from "@/components/ui/date-picker";
-import { X } from "lucide-react";
 import AdjustmentModal from "@/components/inventory/adjustment-modal";
 import { StockAlertsList } from "@/components/stock-alerts/stock-alerts-list";
 import {
@@ -180,7 +179,7 @@ export default function InventoryPage() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setAdjustmentOpen(false);
     },
   });

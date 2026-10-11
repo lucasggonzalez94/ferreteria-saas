@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import Header from "@/components/ui/header";
@@ -26,7 +26,6 @@ import { Pagination } from "@/components/ui/pagination";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import { useConfirmDialog } from "@/lib/hooks/useConfirmDialog";
 import { CatalogImportDialog } from "@/components/products/catalog-import-dialog";
-import { Upload } from "lucide-react";
 import {
   getDefaultPaginationMeta,
 } from "@/lib/pagination";
@@ -124,7 +123,7 @@ export default function ProductsPage() {
     mutationFn: deleteProduct,
     onSuccess: () => {
       toast.success("Producto eliminado");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "No se pudo eliminar el producto"));
@@ -137,7 +136,7 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       toast.success("Estado actualizado");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "No se pudo actualizar el estado"));
@@ -163,9 +162,9 @@ export default function ProductsPage() {
   }, [products, meta.page, meta.limit, meta.total, lowStockTotal]);
 
   const handleImportComplete = () => {
-    queryClient.invalidateQueries({ queryKey: ["products"] });
-    queryClient.invalidateQueries({ queryKey: ["categories"] });
-    queryClient.invalidateQueries({ queryKey: ["brands"] });
+    void queryClient.invalidateQueries({ queryKey: ["products"] });
+    void queryClient.invalidateQueries({ queryKey: ["categories"] });
+    void queryClient.invalidateQueries({ queryKey: ["brands"] });
   };
 
   return (

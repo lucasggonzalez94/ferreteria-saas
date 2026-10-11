@@ -114,7 +114,7 @@ export default function NewProductPage() {
       return response.data;
     },
     onSuccess: (newCategory: any) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
       setFormData((prev) => ({ ...prev, categoryId: newCategory.id }));
       toast.success('Categoría creada');
       resetCategoryForm();
@@ -131,7 +131,7 @@ export default function NewProductPage() {
       return response.data;
     },
     onSuccess: (newProduct: any) => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      void queryClient.invalidateQueries({ queryKey: ['products'] });
       if (selectedImage) {
         uploadImageMutation.mutate({ productId: newProduct.id, file: selectedImage });
       } else {
@@ -154,7 +154,7 @@ export default function NewProductPage() {
       toast.success('Producto creado y imagen subida exitosamente');
       router.push('/dashboard/products');
     },
-    onError: (error: any) => {
+    onError: (_error: any) => {
       toast.warning('Producto creado pero la imagen no se pudo subir');
       router.push('/dashboard/products');
     },

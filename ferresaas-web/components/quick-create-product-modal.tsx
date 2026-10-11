@@ -93,7 +93,7 @@ export function QuickCreateProductModal({
       return response.data;
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["products-list"] });
+      void queryClient.invalidateQueries({ queryKey: ["products-list"] });
       toast.success("Producto creado exitosamente");
       resetForm();
       onOpenChange(false);

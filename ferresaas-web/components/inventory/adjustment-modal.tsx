@@ -60,7 +60,7 @@ export default function AdjustmentModal({
     return products?.find((product: any) => product.barcode === barcode);
   }, [products]);
 
-  const { clearBuffer: clearBarcodeBuffer } = useBarcodeScanner({
+  const { clearBuffer: _clearBarcodeBuffer } = useBarcodeScanner({
     minLength: 8,
     maxTimeBetweenChars: 300,
     onBarcodeDetected: (barcode) => {

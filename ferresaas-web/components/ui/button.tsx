@@ -17,7 +17,9 @@ outline:
           "border border-input/80 bg-background/80 text-foreground hover:border-[hsl(var(--accent)/0.5)] hover:bg-[hsl(var(--brand-accent-soft))] hover:text-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
-        link: "text-[hsl(var(--accent))] underline-offset-4 hover:text-[hsl(var(--accent))] hover:underline",
+        link: "text-accent-text underline-offset-4 hover:text-accent-text hover:underline",
+        accent:
+          "bg-accent text-accent-foreground hover:-translate-y-px hover:bg-accent/90",
       },
       size: {
         default: "h-11 px-5 py-2.5",

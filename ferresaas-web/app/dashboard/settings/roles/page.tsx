@@ -38,7 +38,7 @@ export default function RolesPage() {
       router.push("/dashboard/settings");
       return;
     }
-    listRoles({ search });
+    void listRoles({ search });
   }, [search, canManageRoles, router, listRoles]);
 
   const handleCreateRole = async (e: React.FormEvent) => {

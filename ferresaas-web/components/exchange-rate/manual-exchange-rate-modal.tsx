@@ -27,7 +27,7 @@ interface ManualExchangeRateModalProps {
 export function ManualExchangeRateModal({
   isOpen,
   lastKnownRate,
-  dollarType,
+  dollarType: _dollarType,
   onUseLastKnown,
   onManualInput,
   onCancel,

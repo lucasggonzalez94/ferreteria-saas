@@ -146,7 +146,7 @@ const movementTypeColors = {
 
 export default function AccountDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const { user } = useAuth();
   const accountId = params.id as string;
 
@@ -176,7 +176,7 @@ export default function AccountDetailPage() {
     enabled: canRead && !!accountId,
   });
 
-  const { data: movementsData, isLoading: movementsLoading, refetch: refetchMovements } =
+  const { data: movementsData, isLoading: movementsLoading, refetch: _refetchMovements } =
     useQuery<MovementsResponse | null>({
       queryKey: ["financial-accounts", accountId, "movements", startDate, endDate, movementType, currentPage, limit],
       queryFn: async () => {

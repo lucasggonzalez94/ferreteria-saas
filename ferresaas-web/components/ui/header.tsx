@@ -13,7 +13,7 @@ interface HeaderProps {
   buttonAction?: () => void;
   buttonVariant?:
     | "default"
-    | "outline-solid"
+    | "outline"
     | "ghost"
     | "link"
     | "destructive"

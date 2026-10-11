@@ -462,7 +462,7 @@ function TimezoneSection({
       const nextTimezone = data.timezone || selectedTimezone;
       setBusinessTimezone(nextTimezone);
       updateBusiness({ timezone: nextTimezone });
-      queryClient.invalidateQueries({ queryKey: ["business"] });
+      void queryClient.invalidateQueries({ queryKey: ["business"] });
       toast.success("Zona horaria actualizada correctamente");
     },
     onError: (error: any) => {

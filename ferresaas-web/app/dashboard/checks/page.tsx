@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/formatters";
-import { CHECK_STATUS_CONFIG, StatusBadge } from "@/components/ui/status-badge";
 import { usePermissionGuard, usePermissions } from "@/lib/hooks/usePermissionGuard";
 import Header from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { RefreshCw, FileText, Plus, CheckCircle, XCircle } from "lucide-react";
+import { RefreshCw, FileText, Plus } from "lucide-react";
 import { ActionsMenu } from "@/components/ui/actions-menu";
 import {
   Table,
@@ -81,7 +80,7 @@ function getStatusLabel(status: string): string {
   return status;
 }
 
-function getStatusClass(status: string): string {
+function _getStatusClass(status: string): string {
   if (status === "ISSUED") return "border border-slate-300 text-slate-700";
   if (status === "CLEARED") return "bg-emerald-100 text-emerald-800";
   if (status === "BOUNCED") return "bg-red-100 text-red-800";
@@ -198,7 +197,7 @@ export default function ChecksPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                refetchChecks();
+                void refetchChecks();
               }}
               disabled={isFetching}
               aria-label="Refrescar cheques"

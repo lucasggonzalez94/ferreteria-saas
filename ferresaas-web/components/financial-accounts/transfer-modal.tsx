@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -93,9 +93,9 @@ export function TransferModal({ open, onOpenChange, accounts }: TransferModalPro
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-movements"] });
       toast.success("Transferencia realizada exitosamente");
       resetForm();
       onOpenChange(false);

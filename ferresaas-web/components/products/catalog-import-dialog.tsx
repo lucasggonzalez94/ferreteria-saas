@@ -111,7 +111,7 @@ export function CatalogImportDialog({
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const rowsWithIssues = useMemo(() => {
+  const _rowsWithIssues = useMemo(() => {
     if (!preview) {
       return [] as ImportRow[];
     }

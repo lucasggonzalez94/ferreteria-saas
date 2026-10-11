@@ -93,9 +93,9 @@ export default function CheckDetailPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["check", checkId] });
-      queryClient.invalidateQueries({ queryKey: ["checks"] });
-      queryClient.invalidateQueries({ queryKey: ["checks-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["check", checkId] });
+      void queryClient.invalidateQueries({ queryKey: ["checks"] });
+      void queryClient.invalidateQueries({ queryKey: ["checks-summary"] });
       toast.success("Estado del cheque actualizado");
     },
     onError: (error: unknown) => {

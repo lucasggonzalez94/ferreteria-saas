@@ -23,7 +23,7 @@ export function BrandLogo({ className, priority = false }: BrandLogoProps) {
         width={246}
         height={82}
         priority={priority}
-        className={cn('dark:block', className)}
+        className={cn('hidden dark:block', className)}
       />
     </>
   );

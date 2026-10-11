@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -129,11 +128,11 @@ export default function SaleDetailPage() {
     onSuccess: () => {
       toast.success("Devolucion registrada correctamente");
       setRefundModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["sale-detail", params.id] });
-      queryClient.invalidateQueries({ queryKey: ["sales"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["cash-register"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["sale-detail", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      void queryClient.invalidateQueries({ queryKey: ["cash-register"] });
+      void queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
     },
     onError: (error: any) => {
       toast.error(error.message || "No se pudo procesar la devolucion");

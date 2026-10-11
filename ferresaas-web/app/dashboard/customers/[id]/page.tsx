@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,7 +18,7 @@ export default function CustomerDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState(false);
 
   const { data: customer, isLoading } = useQuery({
