@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { resetPassword } from "@/features/auth/api/password-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -14,12 +14,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 import {
   PASSWORD_REQUIREMENTS,
   isPasswordPolicyCompliant,
 } from "@/features/auth/model/password-policy";
 
+// eslint-disable-next-line max-lines-per-function
 function ResetPasswordPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,12 +35,17 @@ function ResetPasswordPageContent() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState(false);
+  const formAlertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) {
       setTokenError(true);
     }
   }, [token]);
+
+  useEffect(() => {
+    if (error) formAlertRef.current?.focus();
+  }, [error]);
 
   const getPasswordStrength = () => {
     return PASSWORD_REQUIREMENTS.filter((req) => req.regex.test(password))
@@ -54,17 +61,17 @@ function ResetPasswordPageContent() {
     setError(null);
 
     if (!token) {
-      setError("Token invalido o vencido");
+      setError("Token inválido o vencido");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Las contrasenas no coinciden");
+      setError("Las contraseñas no coinciden");
       return;
     }
 
     if (!isPasswordValid()) {
-      setError("La contrasena no cumple los requisitos");
+      setError("La contraseña no cumple los requisitos");
       return;
     }
 
@@ -75,15 +82,16 @@ function ResetPasswordPageContent() {
       setSuccess(true);
       setPassword("");
       setConfirmPassword("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (
         err.message?.includes("expired") ||
         err.message?.includes("invalid")
       ) {
-        setError("El enlace de recuperacion vencio. Solicita uno nuevo.");
+        setError("El enlace de recuperación venció. Solicitá uno nuevo.");
         setTokenError(true);
       } else {
-        setError(err.message || "No pudimos actualizar la contrasena");
+        setError(err.message || "No pudimos actualizar la contraseña");
       }
     } finally {
       setIsLoading(false);
@@ -98,41 +106,26 @@ function ResetPasswordPageContent() {
             <div className="mb-3 flex items-center justify-between gap-4">
               <span className="app-kicker">
                 <span className="app-brand-dot" aria-hidden="true" />
-                Enlace invalido
+                Enlace inválido
               </span>
-              <Image
-                src="/icons/logo-principal-oscuro.png"
-                alt="Ferrahock"
-                width={148}
-                height={48}
-                className="h-11 w-auto dark:hidden"
-                priority
-              />
-              <Image
-                src="/icons/logo-principal-blanco.png"
-                alt="Ferrahock"
-                width={148}
-                height={48}
-                className="hidden h-11 w-auto dark:block"
-                priority
-              />
+              <BrandLogo className="h-11 w-auto" priority />
             </div>
             <div className="flex justify-center mb-4">
-              <div className="bg-red-100 p-3 rounded-full">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+              <div className="app-icon-badge h-14 w-14 rounded-full border-destructive/30 bg-destructive/10 text-destructive-text">
+                <AlertCircle className="w-6 h-6" />
               </div>
             </div>
-            <CardTitle className="text-center">
-              Enlace invalido o vencido
+            <CardTitle as="h1" className="text-center">
+              Enlace inválido o vencido
             </CardTitle>
             <CardDescription className="text-center">
-              El enlace de recuperacion ya no es valido.
+              El enlace de recuperación ya no es válido.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="brand-accent-panel p-4">
               <p className="text-sm brand-accent-subtle">
-                Los enlaces vencen en <strong>30 minutos</strong>. Solicita uno
+                Los enlaces vencen en <strong>30 minutos</strong>. Solicitá uno
                 nuevo para continuar.
               </p>
             </div>
@@ -147,7 +140,7 @@ function ResetPasswordPageContent() {
               onClick={() => router.push("/login")}
               className="w-full"
             >
-              Volver a iniciar sesion
+              Volver a iniciar sesión
             </Button>
           </CardContent>
         </Card>
@@ -163,46 +156,31 @@ function ResetPasswordPageContent() {
             <div className="mb-3 flex items-center justify-between gap-4">
               <span className="app-kicker">
                 <span className="app-brand-dot" aria-hidden="true" />
-                Contrasena actualizada
+                Contraseña actualizada
               </span>
-              <Image
-                src="/icons/logo-principal-oscuro.png"
-                alt="Ferrahock"
-                width={148}
-                height={48}
-                className="h-11 w-auto dark:hidden"
-                priority
-              />
-              <Image
-                src="/icons/logo-principal-blanco.png"
-                alt="Ferrahock"
-                width={148}
-                height={48}
-                className="hidden h-11 w-auto dark:block"
-                priority
-              />
+              <BrandLogo className="h-11 w-auto" priority />
             </div>
             <div className="flex justify-center mb-4">
               <div className="app-icon-badge h-14 w-14 rounded-full border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
+                <CheckCircle2 className="w-6 h-6" />
               </div>
             </div>
-            <CardTitle className="text-center">
-              Contrasena actualizada
+            <CardTitle as="h1" className="text-center">
+              Contraseña actualizada
             </CardTitle>
             <CardDescription className="text-center">
-              Tu contrasena se actualizo correctamente.
+              Tu contraseña se actualizó correctamente.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="brand-accent-panel p-4">
               <p className="text-sm brand-accent-subtle">
-                Por seguridad cerramos tus sesiones activas. Inicia sesion de
-                nuevo con tu nueva contrasena.
+                Por seguridad cerramos tus sesiones activas. Iniciá sesión de
+                nuevo con tu nueva contraseña.
               </p>
             </div>
             <Button onClick={() => router.push("/login")} className="w-full">
-              Iniciar sesion
+              Iniciar sesión
             </Button>
           </CardContent>
         </Card>
@@ -222,52 +200,39 @@ function ResetPasswordPageContent() {
               <span className="app-brand-dot" aria-hidden="true" />
               Restablecer acceso
             </span>
-            <Image
-              src="/icons/logo-principal-oscuro.png"
-              alt="Ferrahock"
-              width={148}
-              height={48}
-              className="h-11 w-auto dark:hidden"
-              priority
-            />
-            <Image
-              src="/icons/logo-principal-blanco.png"
-              alt="Ferrahock"
-              width={148}
-              height={48}
-              className="hidden h-11 w-auto dark:block"
-              priority
-            />
+            <BrandLogo className="h-11 w-auto" priority />
           </div>
           <div className="flex justify-center mb-4">
             <div className="app-icon-badge h-14 w-14 rounded-full border-[hsl(var(--brand-accent-border))] bg-[hsl(var(--brand-accent-soft))] text-[hsl(var(--accent))]">
               <Lock className="w-6 h-6" />
             </div>
           </div>
-          <CardTitle className="text-center">Restablecer contraseña</CardTitle>
+          <CardTitle as="h1" className="text-center">Restablecer contraseña</CardTitle>
           <CardDescription className="text-center">
-            Escribi tu nueva contrasena.
+            Escribí tu nueva contraseña.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                <p className="text-sm text-red-800">{error}</p>
+              <div
+                ref={formAlertRef}
+                tabIndex={-1}
+                role="alert"
+                className="rounded-[1.25rem] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive-text focus:outline-hidden focus:ring-2 focus:ring-ring"
+              >
+                {error}
               </div>
             )}
 
-            {/* Nueva Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Nueva contraseña
-              </label>
+              <Label htmlFor="password">Nueva contraseña</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Escribi tu nueva contrasena"
+                  autoComplete="new-password"
+                  placeholder="Escribí tu nueva contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
@@ -287,7 +252,7 @@ function ResetPasswordPageContent() {
               </div>
             </div>
 
-            {/* Indicador de Fortaleza */}
+            {/* Indicador de fortaleza */}
             {password && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -298,7 +263,7 @@ function ResetPasswordPageContent() {
                     {strength}/{PASSWORD_REQUIREMENTS.length}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all ${
                       strength <= 2
@@ -331,7 +296,7 @@ function ResetPasswordPageContent() {
                         className={`w-4 h-4 rounded border flex items-center justify-center ${
                           req.regex.test(password)
                             ? "bg-green-100 border-green-300"
-                            : "bg-gray-100 border-gray-300"
+                            : "bg-muted border-border"
                         }`}
                       >
                         {req.regex.test(password) && (
@@ -353,23 +318,21 @@ function ResetPasswordPageContent() {
               </div>
             )}
 
-            {/* Confirmar Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirmar contrasena
-              </label>
+              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Repeti tu nueva contrasena"
+                  autoComplete="new-password"
+                  placeholder="Repetí tu nueva contraseña"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
                   className={`pr-10 ${
                     confirmPassword &&
                     password !== confirmPassword &&
-                    "border-red-300"
+                    "border-destructive"
                   }`}
                 />
                 <button
@@ -385,8 +348,8 @@ function ResetPasswordPageContent() {
                 </button>
               </div>
               {confirmPassword && password !== confirmPassword && (
-                <p className="text-xs text-red-600">
-                  Las contrasenas no coinciden
+                <p className="text-xs text-destructive-text">
+                  Las contraseñas no coinciden
                 </p>
               )}
             </div>
@@ -396,17 +359,17 @@ function ResetPasswordPageContent() {
               className="w-full"
               disabled={isLoading || !isPasswordValid()}
             >
-              {isLoading ? "Actualizando..." : "Actualizar contrasena"}
+              {isLoading ? "Actualizando..." : "Actualizar contraseña"}
             </Button>
 
             <div className="text-center">
-              <p className="text-sm text-gray-600">
-                ¿Ya recordaste tu contrasena?{" "}
+              <p className="text-sm text-muted-foreground">
+                ¿Ya recordaste tu contraseña?{" "}
                 <Link
                   href="/login"
-                  className="font-medium text-[hsl(var(--accent))] hover:underline"
+                  className="inline-block rounded-sm py-2 font-medium text-accent-text transition-colors hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Inicia sesion
+                  Iniciá sesión
                 </Link>
               </p>
             </div>
@@ -426,7 +389,7 @@ function ResetPasswordFallback() {
           Cargando enlace
         </span>
         <p className="mt-4 text-sm text-muted-foreground">
-          Estamos validando tu solicitud de recuperacion...
+          Estamos validando tu solicitud de recuperación...
         </p>
       </div>
     </div>
