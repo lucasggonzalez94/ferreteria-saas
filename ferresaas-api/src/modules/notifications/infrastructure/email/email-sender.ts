@@ -18,7 +18,7 @@ export class EmailSender {
   }
 
   async sendWelcomeEmail(to: string, firstName: string): Promise<void> {
-    const subject = 'Bienvenido a FerreSaaS';
+    const subject = 'Bienvenido a Ferrahock';
     const html = `
       <!DOCTYPE html>
       <html>
@@ -26,12 +26,12 @@ export class EmailSender {
           <meta charset="utf-8">
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333;">¡Bienvenido a FerreSaaS!</h1>
+          <h1 style="color: #333;">¡Bienvenido a Ferrahock!</h1>
           <p>Hola ${firstName},</p>
           <p>Tu cuenta ha sido creada exitosamente.</p>
           <p>Ya podés comenzar a usar el sistema.</p>
           <br>
-          <p>Saludos,<br>El equipo de FerreSaaS</p>
+          <p>Saludos,<br>El equipo de Ferrahock</p>
         </body>
       </html>
     `;
@@ -41,7 +41,7 @@ export class EmailSender {
 
   async sendPasswordResetEmail(to: string, resetToken: string): Promise<void> {
     const resetUrl = `${env.app.frontendUrl}/reset-password?token=${resetToken}`;
-    const subject = 'Restablecer contraseña - FerreSaaS';
+    const subject = 'Restablecer contraseña - Ferrahock';
     const html = `
       <!DOCTYPE html>
       <html>
@@ -64,7 +64,7 @@ export class EmailSender {
             Si no solicitaste este cambio, podés ignorar este email.
           </p>
           <br>
-          <p>Saludos,<br>El equipo de FerreSaaS</p>
+          <p>Saludos,<br>El equipo de Ferrahock</p>
         </body>
       </html>
     `;
@@ -73,7 +73,7 @@ export class EmailSender {
   }
 
   async sendPasswordChangedEmail(to: string): Promise<void> {
-    const subject = 'Contraseña modificada - FerreSaaS';
+    const subject = 'Contraseña modificada - Ferrahock';
     const html = `
       <!DOCTYPE html>
       <html>
@@ -87,7 +87,7 @@ export class EmailSender {
             Si no realizaste este cambio, contactá inmediatamente con soporte.
           </p>
           <br>
-          <p>Saludos,<br>El equipo de FerreSaaS</p>
+          <p>Saludos,<br>El equipo de Ferrahock</p>
         </body>
       </html>
     `;
