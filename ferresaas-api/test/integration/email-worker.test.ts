@@ -61,6 +61,25 @@ function createJob(data: { status?: string; attempts?: number; lockedAt?: Date |
   }));
 }
 
+// -----------------------
+
+/** Itera el worker hasta que NUESTRO job alcance el estado esperado.
+ *  email_jobs es compartida entre suites; en paralelo o en serie pueden existir
+ *  jobs ajenos más viejos que se reclaman primero. El mock sólo simula el envío
+ *  del destinatario propio; el resto se consume como éxito benigno. */
+async function processUntil(job: { id: string; recipient: string }, predicate: (row: { status: string; attempts: number }) => boolean) {
+  for (let i = 0; i < 25; i++) {
+    await processEmailJobs();
+    const row = await readJob(job.id);
+    if (predicate(row)) return row;
+  }
+  const row = await readJob(job.id);
+  throw new Error(`job no alcanzó el estado esperado (último: ${row.status}, attempts=${row.attempts})`);
+}
+
+const callsToRecipient = (recipient: string) =>
+  (mockSendWelcomeEmail.mock.calls as any[][]).filter(args => args[0] === recipient).length;
+
 describe('Email job worker (PostgreSQL real)', () => {
   beforeAll(async () => {
     await adminPrisma.business.create({
@@ -91,46 +110,40 @@ describe('Email job worker (PostgreSQL real)', () => {
 
   it('envía un job pendiente y lo marca SENT', async () => {
     const job = await createJob({});
-    expect(await processEmailJobs()).toBe(1);
-    expect(mockSendWelcomeEmail).toHaveBeenCalledTimes(1);
-    const updated = await readJob(job.id);
-    expect(updated.status).toBe('SENT');
+    const updated = await processUntil(job, row => row.status === 'SENT');
+    expect(callsToRecipient(job.recipient)).toBe(1);
     expect(updated.attempts).toBe(1);
   });
 
   it('un fallo deja el job RETRYING con backoff y lastError, sin perder el lock para otro dueño', async () => {
-    mockSendWelcomeEmail.mockRejectedValueOnce(new Error('smtp caído'));
+    mockSendWelcomeEmail.mockImplementation((to: string) =>
+      to === `worker-${stamp}@test.example` ? Promise.reject(new Error('smtp caído')) : Promise.resolve());
     const job = await createJob({});
-    expect(await processEmailJobs()).toBe(1);
-    const updated = await readJob(job.id);
-    expect(updated.status).toBe('RETRYING');
+    const updated = await processUntil(job, row => row.status === 'RETRYING');
     expect(updated.attempts).toBe(1);
     expect(updated.lastError).toContain('smtp caído');
     expect(updated.availableAt.getTime()).toBeGreaterThan(Date.now() + 30_000);
-    // No es reclamable hasta que venza el backoff: iteraciones extra no lo tocan
-    // (pueden procesar filas ajenas de otras suites; nuestro job no se reenvía).
+    // No es reclamable hasta que venza el backoff: iteraciones extra drenan
+    // filas ajenas pero nuestro job no se reenvía.
     await processEmailJobs();
     await processEmailJobs();
-    const callsToOurs = (mockSendWelcomeEmail.mock.calls as any[][])
-      .filter(args => args[0] === job.recipient).length;
-    expect(callsToOurs).toBe(1);
+    expect(callsToRecipient(job.recipient)).toBe(1);
     expect((await readJob(job.id)).status).toBe('RETRYING');
   });
 
   it('el límite de intentos permite los 5 envíos reales y falla definitivo en el quinto', async () => {
-    mockSendWelcomeEmail.mockRejectedValue(new Error('smtp caído'));
+    mockSendWelcomeEmail.mockImplementation((to: string) =>
+      to === `worker-${stamp}@test.example` ? Promise.reject(new Error('smtp caído')) : Promise.resolve());
     // 4to envío falla: queda RETRYING (todavía puede correr el 5to).
-    // availableAt eventos ordenan el claim: cuarto primero, quinto después.
-    const cuarto = await createJob({ attempts: 3, availableAt: new Date(Date.now() - 120_000) });
-    await processEmailJobs();
-    expect(await readJob(cuarto.id)).toMatchObject({
+    const cuarto = await createJob({ attempts: 3 });
+    expect(await processUntil(cuarto, row => row.status === 'RETRYING')).toMatchObject({
       status: 'RETRYING',
       attempts: 4,
     });
-    // 5to envío falla: FAILED definitivo.
-    const quinto = await createJob({ attempts: 4, availableAt: new Date(Date.now() - 60_000) });
-    await processEmailJobs();
-    expect(await readJob(quinto.id)).toMatchObject({
+    // 5to envío falla: FAILED definitivo. availableAt del backoff quedó en el
+    // futuro para el 4to, así que la siguiente iteración toca el 5to.
+    const quinto = await createJob({ attempts: 4 });
+    expect(await processUntil(quinto, row => row.status === 'FAILED')).toMatchObject({
       status: 'FAILED',
       attempts: 5,
     });
@@ -143,19 +156,18 @@ describe('Email job worker (PostgreSQL real)', () => {
       lockedAt: new Date(Date.now() - 10 * 60_000),
       lockToken: 'lock-muerto',
     });
-    expect(await processEmailJobs()).toBe(1);
-    const updated = await readJob(job.id);
-    expect(updated.status).toBe('SENT');
+    const updated = await processUntil(job, row => row.status === 'SENT');
     expect(updated.attempts).toBe(2);
   });
 
   it('un worker tardío no sobrescribe el estado de quien le robó el lock', async () => {
     const job = await createJob({});
     const slow = deferred();
-    mockSendWelcomeEmail.mockImplementation(() => slow.promise);
+    mockSendWelcomeEmail.mockImplementation((to: string) =>
+      to === job.recipient ? slow.promise : Promise.resolve());
 
     const running = processEmailJobs();
-    await waitUntil(() => mockSendWelcomeEmail.mock.calls.length === 1);
+    await waitUntil(() => callsToRecipient(job.recipient) === 1);
 
     // Otro proceso reclamó el job (lock de 5 min vencido) y lo está tratando como suyo.
     // La manipulación adversarial se hace con el rol admin de fixtures, equivalente a
