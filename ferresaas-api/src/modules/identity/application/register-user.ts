@@ -3,6 +3,7 @@ import { unitOfWork } from '../../../platform/tenancy/unit-of-work';
 import { AppError } from '../../../platform/errors';
 import { hashPassword } from '../../../platform/security/passwords';
 import { validatePassword } from '../domain/password-policy';
+import { IdentityStore } from '../infrastructure/identity-store';
 import { AuditStore } from '../../audit';
 import { EmailJobStore } from '../../notifications';
 
@@ -21,6 +22,52 @@ export interface RegisterUserResult {
   firstName: string | null;
   lastName: string | null;
   businessId: string;
+}
+
+/**
+ * Pre-chequeos confinados por RLS: precisos dentro del tenant. La unicidad
+ * GLOBAL sigue garantizada por las constraints; un duplicado cross-tenant o
+ * una carrera llegan al P2002 y se responden como 409 genérico (sin filtrar
+ * la existencia del email/username en otros negocios).
+ */
+async function assertRegistrationAvailable(
+  identity: IdentityStore,
+  email: string,
+  username: string | null,
+  roleIds: string[],
+): Promise<void> {
+  if (await identity.findUserIdByEmail(email)) {
+    throw AppError.conflict('EMAIL_EXISTS', 'Email already registered');
+  }
+  if (username && (await identity.findUserIdByUsername(username))) {
+    throw AppError.conflict('USERNAME_EXISTS', 'Username already registered');
+  }
+  if (roleIds.length > 0) {
+    // RLS confina la lectura al tenant del contexto: un rol ajeno falta.
+    const existingRoleIds = await identity.findExistingRoleIds(roleIds);
+    if (existingRoleIds.length !== roleIds.length) {
+      throw AppError.badRequest('INVALID_ROLES', 'One or more roles do not belong to this business');
+    }
+  }
+}
+
+/**
+ * El usuario se crea bajo RLS del tenant del actor. Una carrera o duplicado
+ * cross-tenant (RLS oculta la fila al pre-chequeo y el driver no informa el
+ * campo violado) se traduce a conflicto genérico.
+ */
+async function createTenantUser(
+  identity: IdentityStore,
+  data: Parameters<IdentityStore['createUser']>[0],
+) {
+  try {
+    return await identity.createUser(data);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2002') {
+      throw AppError.conflict('DUPLICATE_ERROR', 'Duplicate value');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -54,51 +101,21 @@ export async function registerUser(
   const username = input.username?.trim() || null;
 
   return unitOfWork.run(ctx, async tx => {
-    // Pre-chequeo confinado por RLS: preciso dentro del tenant. La unicidad
-    // GLOBAL sigue garantizada por las constraints; un duplicado cross-tenant o
-    // una carrera llegan al P2002 y se responden como 409 genérico (sin filtrar
-    // la existencia del email/username en otros negocios).
-    const emailTaken = await tx.user.findFirst({ where: { email }, select: { id: true } });
-    if (emailTaken) throw AppError.conflict('EMAIL_EXISTS', 'Email already registered');
-    if (username) {
-      const usernameTaken = await tx.user.findFirst({ where: { username }, select: { id: true } });
-      if (usernameTaken) throw AppError.conflict('USERNAME_EXISTS', 'Username already registered');
-    }
+    const identity = new IdentityStore(tx);
+    await assertRegistrationAvailable(identity, email, username, roleIds);
+
+    const user = await createTenantUser(identity, {
+      id: crypto.randomUUID(),
+      businessId: ctx.businessId,
+      email,
+      username,
+      password: hashed,
+      firstName: input.firstName?.trim() || null,
+      lastName: input.lastName?.trim() || null,
+    });
 
     if (roleIds.length > 0) {
-      // RLS confina la lectura al tenant del contexto: un rol ajeno falta.
-      const roles = await tx.role.findMany({ where: { id: { in: roleIds } }, select: { id: true } });
-      if (roles.length !== roleIds.length) {
-        throw AppError.badRequest('INVALID_ROLES', 'One or more roles do not belong to this business');
-      }
-    }
-
-    let user;
-    try {
-      user = await tx.user.create({
-        data: {
-          id: crypto.randomUUID(),
-          businessId: ctx.businessId,
-          email,
-          username,
-          password: hashed,
-          firstName: input.firstName?.trim() || null,
-          lastName: input.lastName?.trim() || null,
-        },
-      });
-    } catch (error) {
-      // Carrera o duplicado cross-tenant (RLS oculta la fila al pre-chequeo y
-      // el driver no informa el campo violado): conflicto genérico.
-      if ((error as { code?: string }).code === 'P2002') {
-        throw AppError.conflict('DUPLICATE_ERROR', 'Duplicate value');
-      }
-      throw error;
-    }
-
-    if (roleIds.length > 0) {
-      await tx.userRole.createMany({
-        data: roleIds.map(roleId => ({ businessId: ctx.businessId, userId: user.id, roleId })),
-      });
+      await identity.createUserRoles(roleIds.map(roleId => ({ businessId: ctx.businessId, userId: user.id, roleId })));
     }
 
     await new AuditStore(tx).log({
