@@ -43,6 +43,8 @@ export interface SignupResult {
   business: { id: string; name: string; timezone: string; logoUrl: string | null };
   accessToken: string;
   refreshToken: string;
+  /** Vigencia absoluta de la sesión: el controller la usa para acotar la cookie. */
+  sessionAbsoluteExpiresAt: Date;
   csrfToken: string;
   csrfHash: string;
 }
@@ -72,8 +74,12 @@ export async function signupBusinessOwner(
     throw AppError.badRequest('INVALID_TIMEZONE', 'Timezone is not valid');
   }
 
+  // Hashing fuera de la transacción (R2): no depende de la base y una tx
+  // abierta durante Argon2 mantiene conexión y locks ocupados sin beneficio.
+  const passwordHash = await hashPassword(command.password);
+
   // eslint-disable-next-line max-lines-per-function
-  return unitOfWork.runPublic(async tx => {
+  const data = await unitOfWork.runPublic(async tx => {
     // Reserva global: CUIT y email son únicos globales por decisión de negocio.
     const conflicts = await new BootstrapStore(tx).conflicts(email, cuit);
     if (conflicts.email_exists) throw AppError.conflict('EMAIL_EXISTS', 'Email already registered');
@@ -134,7 +140,7 @@ export async function signupBusinessOwner(
         id: crypto.randomUUID(),
         businessId,
         email,
-        password: await hashPassword(command.password),
+        password: passwordHash,
         firstName: command.ownerFirstName.trim(),
         lastName: command.ownerLastName?.trim() ?? null,
         isActive: true,
@@ -149,7 +155,7 @@ export async function signupBusinessOwner(
     const sessionId = crypto.randomUUID();
     const refreshToken = generateRefreshToken();
     const sessions = new SessionStore(tx);
-    await sessions.create({
+    const createdSession = await sessions.create({
       id: sessionId,
       businessId,
       userId: user.id,
@@ -176,12 +182,12 @@ export async function signupBusinessOwner(
       firstName: user.firstName ?? 'Usuario',
     });
 
-    const businessInfo = business as { authorizationVersion: number };
-    const accessToken = issueAccessToken(
-      { sub: user.id, sid: sessionId, tid: businessId, sv: 1, av: businessInfo.authorizationVersion, typ: 'access' },
-      sessionPolicy.accessTokenSeconds,
-    );
-    const csrf = generateCsrfToken();
+    // Los triggers de roles/user_roles/role_permissions ya subieron la versión:
+    // el claim av debe reflejar el valor FINAL, no el del objeto creado antes.
+    const businessFresh = await tx.business.findUniqueOrThrow({
+      where: { id: businessId },
+      select: { authorizationVersion: true },
+    });
 
     return {
       user: {
@@ -199,10 +205,27 @@ export async function signupBusinessOwner(
         timezone: business.timezone,
         logoUrl: null,
       },
-      accessToken,
+      sessionId,
       refreshToken,
-      csrfToken: csrf.token,
-      csrfHash: csrf.hash,
+      sessionAbsoluteExpiresAt: createdSession.absoluteExpiresAt,
+      authorizationVersion: businessFresh.authorizationVersion,
     };
   });
+
+  // Emisión fuera de la transacción (R2).
+  const accessToken = issueAccessToken(
+    { sub: data.user.id, sid: data.sessionId, tid: data.user.businessId, sv: 1, av: data.authorizationVersion, typ: 'access' },
+    sessionPolicy.accessTokenSeconds,
+  );
+  const csrf = generateCsrfToken(data.refreshToken);
+
+  return {
+    user: data.user,
+    business: data.business,
+    accessToken,
+    refreshToken: data.refreshToken,
+    sessionAbsoluteExpiresAt: data.sessionAbsoluteExpiresAt,
+    csrfToken: csrf.token,
+    csrfHash: csrf.hash,
+  };
 }

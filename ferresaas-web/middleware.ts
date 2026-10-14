@@ -12,12 +12,13 @@ const PUBLIC_PATHS = [
   '/reset-password',
 ];
 
-// Rutas de autenticación (redirigen a /dashboard si YA hay sesión)
+// Rutas de autenticación (redirigen a /dashboard si YA hay sesión).
+// OJO: /forgot-password y /reset-password quedan fuera deliberadamente: la
+// recuperación debe funcionar aunque exista una cookie de sesión obsoleta;
+// redirigirlas generaría un bucle login↔dashboard con esa cookie (PR 4.4).
 const AUTH_PATHS = [
   '/login',
   '/register',
-  '/forgot-password',
-  '/reset-password',
 ];
 
 function isPublicPath(pathname: string): boolean {

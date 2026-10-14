@@ -82,21 +82,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting
 app.use('/v1', generalLimiter);
 
-// CSRF protection (aplica a métodos mutantes, pero excluye rutas de upload)
-// Rutas públicas sin sesión previa: definidas por la composición, no por platform.
+// CSRF protection (aplica a métodos mutantes).
+// Exenciones explícitas: auth público sin sesión previa + uploads multipart
+// legados (multer) pendientes de refactor. Lista exacta; nunca substring (R5).
 const verifyCsrf = createCsrfMiddleware([
-  '/auth/login',
-  '/auth/signup',
-  '/auth/forgot-password',
-  '/auth/reset-password',
+  { method: 'POST', path: '/auth/login' },
+  { method: 'POST', path: '/auth/signup' },
+  { method: 'POST', path: '/auth/forgot-password' },
+  { method: 'POST', path: '/auth/reset-password' },
+  { method: 'POST', path: '/business/image' },
+  { method: 'POST', path: /^\/products\/image\/[^/]+$/ },
 ]);
-app.use('/v1', (req, res, next) => {
-  // Excluir rutas de upload del CSRF (multer maneja multipart/form-data)
-  if (req.path.includes('/image') && req.method === 'POST') {
-    return next();
-  }
-  verifyCsrf(req, res, next);
-});
+app.use('/v1', verifyCsrf);
 
 // Health check
 app.get('/health', (_req, res) => {

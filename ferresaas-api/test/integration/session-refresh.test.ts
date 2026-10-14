@@ -155,4 +155,27 @@ describe('AUTH-03 (PostgreSQL real, rol runtime)', () => {
       tx.consumedRefreshToken.findUnique({ where: { tokenHash: hashOpaqueToken(sessionC.refreshToken) } }));
     expect(consumedFromD).toBeNull();
   });
+
+  it('R1: dos refresh concurrentes del MISMO hash — uno gana y el perdedor recibe CONCURRENT_SESSION_UPDATE (nunca un P2002 genérico)', async () => {
+    const { refreshToken } = await login(emailC, 'Valid-password-123!');
+    const results = await Promise.allSettled([refreshSession(refreshToken), refreshSession(refreshToken)]);
+    const won = results.filter(r => r.status === 'fulfilled');
+    const lost = results.filter(r => r.status === 'rejected');
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+    // El error del perdedor es de dominio y reintentable, no una violación de constraint.
+    expect((lost[0] as PromiseRejectedResult).reason).toMatchObject({
+      name: 'AppError',
+      code: 'CONCURRENT_SESSION_UPDATE',
+      statusCode: 409,
+    });
+
+    // Y el ganador persiste la rotación: el hash viejo quedó consumido.
+    const session = await uow.run({ businessId: tenantC }, tx =>
+      tx.authSession.findFirst({ where: { userId: userC }, orderBy: { createdAt: 'desc' } }));
+    expect(session).not.toBeNull();
+    expect(await uow.run({ businessId: tenantC }, tx =>
+      tx.consumedRefreshToken.findUnique({ where: { tokenHash: hashOpaqueToken(refreshToken) } }),
+    )).not.toBeNull();
+  });
 });

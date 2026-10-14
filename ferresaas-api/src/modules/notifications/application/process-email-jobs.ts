@@ -7,55 +7,67 @@ const MAX_ATTEMPTS = 5;
 
 const email = new EmailSender();
 
-async function claimJob() {
+interface ClaimedJob {
+  id: string;
+  businessId: string;
+  recipient: string;
+  firstName: string;
+  attempts: number;
+}
+
+/**
+ * email_jobs está bajo RLS + FORCE (PR 3.1): el runtime no tiene DML libre sobre
+ * ella. El worker opera sólo a través de capacidades globales explícitas:
+ * private.claim_email_job (reclamo con lock) y private.finish_email_job
+ * (finalización condicionada por lockToken).
+ */
+async function claimJob(): Promise<{ job: ClaimedJob; lockToken: string } | null> {
   const lockToken = crypto.randomUUID();
-  const rows = await unitOfWork.runPublic(async tx => {
-    const found = await tx.$queryRaw<Array<{ id: string }>>`
-      UPDATE email_jobs
-         SET status='PROCESSING', "lockedAt"=CURRENT_TIMESTAMP, "lockToken"=${lockToken},
-             attempts=attempts+1
-       WHERE id = (
-         SELECT id FROM email_jobs
-          WHERE (status IN ('PENDING','RETRYING') AND "availableAt" <= CURRENT_TIMESTAMP
-                 OR status='PROCESSING' AND "lockedAt" < CURRENT_TIMESTAMP - INTERVAL '5 minutes')
-            AND attempts < ${MAX_ATTEMPTS}
-          ORDER BY "availableAt" ASC
-          FOR UPDATE SKIP LOCKED
-          LIMIT 1
-       )
-      RETURNING id`;
-    return found;
-  });
-  if (rows.length === 0) return null;
-  return unitOfWork.runPublic(async tx =>
-    tx.emailJob.findUnique({ where: { id: rows[0].id } }),
+  const rows = await unitOfWork.runPublic(async tx =>
+    tx.$queryRaw<ClaimedJob[]>`SELECT * FROM private.claim_email_job(${lockToken}, ${MAX_ATTEMPTS}::integer)`,
   );
+  const job = rows.at(0);
+  return job ? { job, lockToken } : null;
+}
+
+/**
+ * Finaliza el job SÓLO si este proceso todavía posee el lock (R1/R4):
+ * la condición lockToken dentro de la función evita que un worker tardío
+ * sobrescriba el estado de otro que reclamó el job cuando expiró el lock.
+ */
+async function finalize(
+  jobId: string,
+  lockToken: string,
+  data: { status: string; availableAt: Date | null; lastError: string | null },
+): Promise<boolean> {
+  const rows = await unitOfWork.runPublic(async tx =>
+    tx.$queryRaw<Array<{ finish_email_job: boolean }>>`
+      SELECT private.finish_email_job(${jobId}, ${lockToken}, ${data.status}, ${data.availableAt}::timestamptz, ${data.lastError}) AS finish_email_job`,
+  );
+  return rows.at(0)?.finish_email_job === true;
 }
 
 export async function processEmailJobs(): Promise<number> {
-  const job = await claimJob();
-  if (!job) return 0;
+  const claimed = await claimJob();
+  if (!claimed) return 0;
+  const { job, lockToken } = claimed;
+
   try {
     await email.sendWelcomeEmail(job.recipient, job.firstName);
-    await unitOfWork.runPublic(tx =>
-      tx.emailJob.update({ where: { id: job.id }, data: { status: 'SENT' } }),
-    );
+    const finalizado = await finalize(job.id, lockToken, { status: 'SENT', availableAt: null, lastError: null });
+    if (!finalizado) {
+      logger.warn({ id: job.id }, 'Email job sent but lock was lost; leaving state to the current owner');
+    }
   } catch (error) {
-    const retrying = job.attempts + 1 < MAX_ATTEMPTS;
+    // attempts ya fue incrementado al reclamar: MAX_ATTEMPTS envíos reales antes de FAILED.
+    const retrying = job.attempts < MAX_ATTEMPTS;
     const delaySeconds = Math.min(60 * job.attempts, 900);
     logger.warn({ id: job.id, attempts: job.attempts, error }, 'Email job failed');
-    await unitOfWork.runPublic(tx =>
-      tx.emailJob.update({
-        where: { id: job.id },
-        data: {
-          status: retrying ? 'RETRYING' : 'FAILED',
-          availableAt: new Date(Date.now() + delaySeconds * 1000),
-          lastError: error instanceof Error ? error.message : String(error),
-          lockedAt: null,
-          lockToken: null,
-        },
-      }),
-    );
+    await finalize(job.id, lockToken, {
+      status: retrying ? 'RETRYING' : 'FAILED',
+      availableAt: new Date(Date.now() + delaySeconds * 1000),
+      lastError: error instanceof Error ? error.message : String(error),
+    });
   }
   return 1;
 }

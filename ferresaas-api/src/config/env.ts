@@ -72,7 +72,7 @@ const envSchema = z.object({
   RATE_LIMIT_REFRESH_MAX: z.string().default('10'),
 
   // Cookies
-  COOKIE_DOMAIN: z.string().default('localhost'),
+  COOKIE_DOMAIN: z.string().optional(),
   COOKIE_SECURE: z.enum(['true', 'false']).default('false'),
   COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('strict'),
 
@@ -92,6 +92,10 @@ if (!parsed.success) {
   console.error('❌ Invalid environment variables:');
   console.error(parsed.error.flatten().fieldErrors);
   throw new Error('Invalid environment variables');
+}
+
+if (parsed.data.NODE_ENV === 'production' && parsed.data.COOKIE_SECURE !== 'true') {
+  throw new Error('COOKIE_SECURE=true is required in production');
 }
 
 // Exportar configuración tipada

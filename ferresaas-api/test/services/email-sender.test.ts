@@ -44,7 +44,7 @@ describe('EmailSender', () => {
 
     expect(mockMockProviderSend).toHaveBeenCalledWith(
       'u1@test.com',
-      'Bienvenido a FerreSaaS',
+      'Bienvenido a Ferrahock',
       expect.stringContaining('Carlos')
     );
   });
@@ -57,7 +57,7 @@ describe('EmailSender', () => {
 
     expect(mockSmtpProviderSend).toHaveBeenCalledWith(
       'u1@test.com',
-      'Contraseña modificada - FerreSaaS',
+      'Contraseña modificada - Ferrahock',
       expect.stringContaining('Contraseña modificada')
     );
   });
@@ -69,7 +69,7 @@ describe('EmailSender', () => {
 
     expect(mockMockProviderSend).toHaveBeenCalledWith(
       'u1@test.com',
-      'Restablecer contraseña - FerreSaaS',
+      'Restablecer contraseña - Ferrahock',
       expect.stringContaining('http://localhost:3000/reset-password?token=token-123')
     );
   });

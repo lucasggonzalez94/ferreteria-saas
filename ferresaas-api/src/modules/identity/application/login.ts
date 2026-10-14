@@ -27,6 +27,8 @@ export interface AuthTokensResult {
   business: { id: string; name: string; timezone: string; logoUrl: string | null };
   accessToken: string;
   refreshToken: string;
+  /** Vigencia absoluta de la sesión: el controller la usa para acotar la cookie. */
+  sessionAbsoluteExpiresAt: Date;
   csrfToken: string;
   csrfHash: string;
 }
@@ -34,6 +36,8 @@ export interface AuthTokensResult {
 // Verificación de costo equivalente incluso si el email no existe.
 let dummyHash: Promise<string> | undefined;
 
+// TODO: Refactorizar funciones
+// eslint-disable-next-line max-lines-per-function
 export async function login(emailRaw: string, password: string, ip?: string, userAgent?: string): Promise<AuthTokensResult> {
   const email = emailRaw.trim().toLowerCase();
   const credentials = await unitOfWork.runPublic(tx => new BootstrapStore(tx).credentials(email));
@@ -43,7 +47,8 @@ export async function login(emailRaw: string, password: string, ip?: string, use
     throw AppError.unauthorized('INVALID_CREDENTIALS', 'Invalid email or password');
   }
 
-  return unitOfWork.run({ businessId: credentials.business_id, actorUserId: credentials.id }, async tx => {
+  // eslint-disable-next-line max-lines-per-function
+  const data = await unitOfWork.run({ businessId: credentials.business_id, actorUserId: credentials.id }, async tx => {
     const identity = new IdentityStore(tx);
     const user = await identity.findUserByIdWithAccess(credentials.id);
     // Una desactivación o cambio de contraseña entre la verificación y el commit
@@ -55,7 +60,7 @@ export async function login(emailRaw: string, password: string, ip?: string, use
     const sessionId = crypto.randomUUID();
     const refreshToken = generateRefreshToken();
     const sessions = new SessionStore(tx);
-    await sessions.create({
+    const createdSession = await sessions.create({
       id: sessionId,
       businessId: user.businessId,
       userId: user.id,
@@ -84,19 +89,6 @@ export async function login(emailRaw: string, password: string, ip?: string, use
       }
     }
 
-    const accessToken = issueAccessToken(
-      {
-        sub: user.id,
-        sid: sessionId,
-        tid: user.businessId,
-        sv: user.securityVersion,
-        av: user.business.authorizationVersion,
-        typ: 'access',
-      },
-      sessionPolicy.accessTokenSeconds,
-    );
-    const csrf = generateCsrfToken();
-
     return {
       user: {
         id: user.id,
@@ -113,10 +105,35 @@ export async function login(emailRaw: string, password: string, ip?: string, use
         timezone: user.business.timezone,
         logoUrl: user.business.logoUrl,
       },
-      accessToken,
+      sessionId,
       refreshToken,
-      csrfToken: csrf.token,
-      csrfHash: csrf.hash,
+      sessionAbsoluteExpiresAt: createdSession.absoluteExpiresAt,
+      securityVersion: user.securityVersion,
+      authorizationVersion: user.business.authorizationVersion,
     };
   });
+
+  // Emisión fuera de la transacción (R2): la tx ya confirmó sesión y auditoría.
+  const accessToken = issueAccessToken(
+    {
+      sub: data.user.id,
+      sid: data.sessionId,
+      tid: data.user.businessId,
+      sv: data.securityVersion,
+      av: data.authorizationVersion,
+      typ: 'access',
+    },
+    sessionPolicy.accessTokenSeconds,
+  );
+  const csrf = generateCsrfToken(data.refreshToken);
+
+  return {
+    user: data.user,
+    business: data.business,
+    accessToken,
+    refreshToken: data.refreshToken,
+    sessionAbsoluteExpiresAt: data.sessionAbsoluteExpiresAt,
+    csrfToken: csrf.token,
+    csrfHash: csrf.hash,
+  };
 }

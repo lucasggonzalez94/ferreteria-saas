@@ -17,6 +17,7 @@ jest.mock('@/platform/security/jwt', () => ({
 jest.mock('@/platform/cache/redis', () => ({
   redisGet: mockRedisGet,
   redisSet: mockRedisSet,
+  redisKey: (scope: string): string => `ferresaas:test:${scope}`,
   RedisUnavailableError: class RedisUnavailableError extends Error {},
 }));
 jest.mock('@/config/env', () => ({ env: { redis: { enabled: false } } }));

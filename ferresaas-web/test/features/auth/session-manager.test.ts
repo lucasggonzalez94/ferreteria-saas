@@ -2,6 +2,7 @@ import {
   clearTokens,
   getAccessToken,
   getCsrfTokens,
+  onSessionCleared,
   refreshSessionTokens,
   saveTokens,
 } from '@/features/auth/model/session-manager';
@@ -100,5 +101,39 @@ describe('session-manager', () => {
     clearTokens();
     await jest.advanceTimersByTimeAsync(15 * 60 * 1000);
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it('una renovación que resuelve después de clearTokens no repuebla tokens', async () => {
+    saveTokens(fakeJwt(600), 'csrf-1', 'hash-1');
+    let resolveRefresh!: (value: unknown) => void;
+    mockRefresh.mockReturnValue(new Promise(resolve => { resolveRefresh = resolve; }));
+
+    const pending = refreshSessionTokens();
+    // Logout local (o cambio de identidad) mientras la request sigue en vuelo.
+    clearTokens();
+    resolveRefresh({ accessToken: fakeJwt(900), csrfToken: 'csrf-tardio', csrfHash: 'hash-tardio' });
+
+    await expect(pending).rejects.toThrow('SESSION_REFRESH_FAILED');
+    expect(getAccessToken()).toBeNull();
+    expect(getCsrfTokens()).toEqual({ csrfToken: null, csrfHash: null });
+  });
+
+  it('notifica sesión terminada sólo cuando el coordinador agota refresh y restore', async () => {
+    const listener = jest.fn();
+    const unsubscribe = onSessionCleared(listener);
+
+    // clearTokens manual (logout local): NO notifica — la UI ya limpió sola.
+    saveTokens(fakeJwt(600), 'csrf-1', 'hash-1');
+    clearTokens();
+    expect(listener).not.toHaveBeenCalled();
+
+    // Falla real de sesión: notifica una vez aunque haya esperantes concurrentes.
+    mockRefresh.mockResolvedValue(null);
+    mockRestore.mockResolvedValue(null);
+    await expect(refreshSessionTokens()).rejects.toThrow('SESSION_REFRESH_FAILED');
+    await expect(refreshSessionTokens()).rejects.toThrow('SESSION_REFRESH_FAILED');
+    expect(listener).toHaveBeenCalledTimes(2); // una vez por coordinación fallida
+
+    unsubscribe();
   });
 });

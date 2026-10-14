@@ -7,6 +7,7 @@ import { TenantUnitOfWork } from '@/platform/tenancy/unit-of-work';
 import { hashPassword, verifyPassword } from '@/platform/security/passwords';
 import { login } from '@/modules/identity/application/login';
 import { updateProfile } from '@/modules/identity/application/update-profile';
+import { changePassword } from '@/modules/identity/application/password';
 import app from '@/app';
 
 const uow = new TenantUnitOfWork(prisma);
@@ -88,7 +89,11 @@ describe('AUTH-06 (PostgreSQL real, rol runtime)', () => {
     expect(noCsrf.status).toBe(403);
 
     const session = await login(emailA, PASSWORD);
-    const csrf = { 'X-CSRF-Token': session.csrfToken, 'X-CSRF-Hash': session.csrfHash };
+    const csrf = {
+      'X-CSRF-Token': session.csrfToken,
+      'X-CSRF-Hash': session.csrfHash,
+      Cookie: `refreshToken=${session.refreshToken}`,
+    };
     const noAuth = await request(app).put('/v1/auth/profile').set({ ...csrf, ...origin }).send({ firstName: 'X' });
     expect(noAuth.status).toBe(401);
 
@@ -113,14 +118,26 @@ describe('AUTH-06 (PostgreSQL real, rol runtime)', () => {
 
       // Contraseña actual incorrecta: 401 sin efectos (sin refresh-retry del cliente aquí).
       const wrong = await request(app).post('/v1/auth/change-password')
-        .set({ Authorization: `Bearer ${session.accessToken}`, 'X-CSRF-Token': session.csrfToken, 'X-CSRF-Hash': session.csrfHash, ...origin })
+        .set({
+          Authorization: `Bearer ${session.accessToken}`,
+          'X-CSRF-Token': session.csrfToken,
+          'X-CSRF-Hash': session.csrfHash,
+          Cookie: `refreshToken=${session.refreshToken}`,
+          ...origin,
+        })
         .send({ currentPassword: 'Not-the-password-1!', newPassword: 'New-valid-456!' });
       expect(wrong.status).toBe(401);
       expect(wrong.body.error.code).toBe('INVALID_PASSWORD');
 
       // Cambio exitoso: limpia cookie, revoca sesiones, audita y el access viejo muere.
       const ok = await request(app).post('/v1/auth/change-password')
-        .set({ Authorization: `Bearer ${session.accessToken}`, 'X-CSRF-Token': session.csrfToken, 'X-CSRF-Hash': session.csrfHash, ...origin })
+        .set({
+          Authorization: `Bearer ${session.accessToken}`,
+          'X-CSRF-Token': session.csrfToken,
+          'X-CSRF-Hash': session.csrfHash,
+          Cookie: `refreshToken=${session.refreshToken}`,
+          ...origin,
+        })
         .set('user-agent', 'jest-change')
         .send({ currentPassword: PASSWORD, newPassword: 'New-valid-456!' });
       expect(ok.status).toBe(200);
@@ -138,7 +155,13 @@ describe('AUTH-06 (PostgreSQL real, rol runtime)', () => {
 
       // El access token previo queda inválido porque su sesión fue revocada.
       const after = await request(app).put('/v1/auth/profile')
-        .set({ Authorization: `Bearer ${session.accessToken}`, 'X-CSRF-Token': session.csrfToken, 'X-CSRF-Hash': session.csrfHash, ...origin })
+        .set({
+          Authorization: `Bearer ${session.accessToken}`,
+          'X-CSRF-Token': session.csrfToken,
+          'X-CSRF-Hash': session.csrfHash,
+          Cookie: `refreshToken=${session.refreshToken}`,
+          ...origin,
+        })
         .send({ firstName: 'X' });
       expect(after.status).toBe(401);
 
@@ -149,12 +172,45 @@ describe('AUTH-06 (PostgreSQL real, rol runtime)', () => {
     }
   });
 
+  it('R1: dos change-password concurrentes — sólo uno gana (CAS) y el otro recibe PASSWORD_CONFLICT', async () => {
+    const emailD = `profile-d-${stamp}@test.example`;
+    const tenantD = crypto.randomUUID();
+    const userD = (await createIdentity(tenantD, emailD)).id;
+    try {
+      const ctx = { businessId: tenantD, actorUserId: userD };
+      const results = await Promise.allSettled([
+        changePassword(ctx, { currentPassword: PASSWORD, newPassword: 'Ganador-123!' }),
+        changePassword(ctx, { currentPassword: PASSWORD, newPassword: 'Perdedor-456!' }),
+      ]);
+      const won = results.filter(r => r.status === 'fulfilled');
+      const lost = results.filter(r => r.status === 'rejected');
+      expect(won).toHaveLength(1);
+      expect(lost).toHaveLength(1);
+      // El perdedor falla de dos formas legítimas según su intercalado:
+      // leyó el hash anterior y perdió el CAS (409), o leyó el hash nuevo y
+      // la contraseña actual ya no verifica (401). Nunca gana en silencio.
+      expect((lost[0] as PromiseRejectedResult).reason).toMatchObject({
+        name: 'AppError',
+        code: expect.stringMatching(/^(PASSWORD_CONFLICT|INVALID_PASSWORD)$/),
+      });
+
+      const user = await uow.run({ businessId: tenantD }, tx =>
+        tx.user.findUniqueOrThrow({ where: { id: userD }, select: { password: true } }));
+      const winnerIsStored = await verifyPassword(user.password, 'Ganador-123!');
+      expect(winnerIsStored).toBe(true);
+      await expect(login(emailD, PASSWORD)).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
+    } finally {
+      await adminPrisma.business.deleteMany({ where: { id: tenantD } });
+    }
+  });
+
   it('la política de contraseña exige 8+ con minúscula, mayúscula, número y especial', async () => {
     const session = await login(emailB, PASSWORD);
     const auth = {
       Authorization: `Bearer ${session.accessToken}`,
       'X-CSRF-Token': session.csrfToken,
       'X-CSRF-Hash': session.csrfHash,
+      Cookie: `refreshToken=${session.refreshToken}`,
       ...origin,
     };
     const attempt = (newPassword: string) => request(app).post('/v1/auth/change-password')

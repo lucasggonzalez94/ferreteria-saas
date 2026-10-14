@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { env } from '../../../config/env';
-import { redisRateLimitHit, RedisUnavailableError } from '../../../platform/cache/redis';
+import { redisRateLimitHit, redisKey, RedisUnavailableError } from '../../../platform/cache/redis';
 import { AppError } from '../../../platform/errors';
 
 interface RateRule {
@@ -23,7 +23,7 @@ function distributedLimiter(rule: RateRule) {
       return;
     }
     try {
-      const key = `ferresaas:rate:${rule.keyPrefix}:${req.ip}`;
+      const key = redisKey(`rate:${rule.keyPrefix}:${req.ip}`);
       const count = await redisRateLimitHit(key, rule.windowSeconds);
       if (count > rule.max) {
         next(new AppError(429, rule.errorCode, 'Too many attempts, please try again later'));

@@ -9,7 +9,7 @@ export async function signupController(req: Request, res: Response, next: NextFu
     getValidatedOrigin(req);
     const input = signupSchema.parse(req.body);
     const result = await signupBusinessOwner(input, req.ip, req.get('user-agent'));
-    setRefreshCookie(res, result.refreshToken);
+    setRefreshCookie(res, result.refreshToken, result.sessionAbsoluteExpiresAt);
     sendSuccess(
       res,
       {

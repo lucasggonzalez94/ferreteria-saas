@@ -6,9 +6,9 @@ import { IdentityStore } from '../infrastructure/identity-store';
 import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import type { AuthTokensResult } from './login';
 
-/** Restauración al cargar la página: NO rota refresh; sólo emite access+CSRF. */
-export async function restoreSession(refreshToken: string): Promise<Omit<AuthTokensResult, 'refreshToken'>> {
-  return unitOfWork.runPublic(async tx => {
+/** Restauración al cargar la página: NO rota refresh ni re-setea cookie; sólo emite access+CSRF. */
+export async function restoreSession(refreshToken: string): Promise<Omit<AuthTokensResult, 'refreshToken' | 'sessionAbsoluteExpiresAt'>> {
+  const data = await unitOfWork.runPublic(async tx => {
     const resolved = await new BootstrapStore(tx).sessionByHash(hashOpaqueToken(refreshToken));
     if (!resolved) throw AppError.unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token');
     await unitOfWork.setTenant(tx, resolved.business_id);
@@ -38,19 +38,6 @@ export async function restoreSession(refreshToken: string): Promise<Omit<AuthTok
       }
     }
 
-    const accessToken = issueAccessToken(
-      {
-        sub: user.id,
-        sid: session.id,
-        tid: user.businessId,
-        sv: user.securityVersion,
-        av: user.business.authorizationVersion,
-        typ: 'access',
-      },
-      sessionPolicy.accessTokenSeconds,
-    );
-    const csrf = generateCsrfToken();
-
     return {
       user: {
         id: user.id,
@@ -67,9 +54,31 @@ export async function restoreSession(refreshToken: string): Promise<Omit<AuthTok
         timezone: user.business.timezone,
         logoUrl: user.business.logoUrl,
       },
-      accessToken,
-      csrfToken: csrf.token,
-      csrfHash: csrf.hash,
+      sessionId: session.id,
+      securityVersion: user.securityVersion,
+      authorizationVersion: user.business.authorizationVersion,
     };
   });
+
+  // Emisión fuera de la transacción (R2).
+  const accessToken = issueAccessToken(
+    {
+      sub: data.user.id,
+      sid: data.sessionId,
+      tid: data.user.businessId,
+      sv: data.securityVersion,
+      av: data.authorizationVersion,
+      typ: 'access',
+    },
+    sessionPolicy.accessTokenSeconds,
+  );
+  const csrf = generateCsrfToken(refreshToken);
+
+  return {
+    user: data.user,
+    business: data.business,
+    accessToken,
+    csrfToken: csrf.token,
+    csrfHash: csrf.hash,
+  };
 }

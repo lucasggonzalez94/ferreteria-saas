@@ -19,8 +19,7 @@ export async function loginController(req: Request, res: Response, next: NextFun
     getValidatedOrigin(req);
     const input = loginSchema.parse(req.body);
     const result = await login(input.email, input.password, req.ip, req.get('user-agent'));
-    res.setHeader('Cache-Control', 'no-store');
-    setRefreshCookie(res, result.refreshToken);
+    setRefreshCookie(res, result.refreshToken, result.sessionAbsoluteExpiresAt);
     sendSuccess(res, {
       user: result.user,
       business: result.business,
@@ -39,8 +38,7 @@ export async function refreshController(req: Request, res: Response, next: NextF
     const token = req.cookies?.refreshToken as string | undefined;
     if (!token) throw AppError.unauthorized('NO_REFRESH_TOKEN', 'No refresh token provided');
     const result = await refreshSession(token, req.ip, req.get('user-agent'));
-    setRefreshCookie(res, result.refreshToken);
-    res.setHeader('Cache-Control', 'no-store');
+    setRefreshCookie(res, result.refreshToken, result.sessionAbsoluteExpiresAt);
     sendSuccess(res, {
       accessToken: result.accessToken,
       csrfToken: result.csrfToken,
@@ -56,7 +54,6 @@ export async function restoreSessionController(req: Request, res: Response, next
     const token = req.cookies?.refreshToken as string | undefined;
     if (!token) throw AppError.unauthorized('NO_REFRESH_TOKEN', 'No refresh token provided');
     const result = await restoreSession(token);
-    res.setHeader('Cache-Control', 'no-store');
     sendSuccess(res, result);
   } catch (error) {
     next(error);

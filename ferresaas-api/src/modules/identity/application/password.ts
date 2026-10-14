@@ -26,11 +26,12 @@ export async function forgotPassword(
     // No enumeración: cuenta inexistente o inactiva responden igual y sin efectos.
     if (!resolved || !resolved.active) return null;
     await unitOfWork.setTenant(tx, resolved.business_id);
-    const user = await tx.user.findUnique({ where: { id: resolved.id } });
+    // R1: la relectura bajo tenant repite la condición de activo, no confía en el bootstrap.
+    const user = await tx.user.findFirst({ where: { id: resolved.id, isActive: true } });
     if (!user) return null;
     const token = generateRefreshToken();
     await tx.user.update({
-      where: { id: user.id },
+      where: { id: user.id, isActive: true },
       data: {
         resetToken: hashOpaqueToken(token),
         resetTokenExpiry: addMinutes(new Date(), RESET_TOKEN_TTL_MINUTES),
@@ -48,8 +49,16 @@ export async function forgotPassword(
     return { to: user.email, token };
   });
   // IO externo fuera de la transacción; el token ya quedó persistido y un
-  // reintento del usuario lo reemplaza (self-service recovery).
-  if (delivery) await email.sendPasswordResetEmail(delivery.to, delivery.token);
+  // reintento del usuario lo reemplaza (self-service recovery). Un fallo del
+  // proveedor NUNCA cambia la respuesta: responder distinto aquí filtraría
+  // qué emails existen por status/latencia (no-enumeración, también en errores).
+  if (delivery) {
+    try {
+      await email.sendPasswordResetEmail(delivery.to, delivery.token);
+    } catch (error) {
+      logger.error({ error, to: delivery.to }, 'Password reset email failed after commit');
+    }
+  }
   return { message: GENERIC_FORGOT_MESSAGE };
 }
 
@@ -66,6 +75,8 @@ export async function resetPassword(
     });
   }
   const tokenHash = hashOpaqueToken(token);
+  // Hashing fuera de la transacción (R2).
+  const newHash = await hashPassword(newPassword);
   const notifyTo = await unitOfWork.runPublic(async tx => {
     const resolved = await new BootstrapStore(tx).resetByHash(tokenHash);
     if (!resolved) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
@@ -74,11 +85,12 @@ export async function resetPassword(
       where: { resetToken: tokenHash, resetTokenExpiry: { gt: new Date() }, isActive: true },
     });
     if (!user) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
-    // Consumo atómico: un solo request puede reemplazar el hash por null.
-    // Dos resets concurrentes con el mismo token compiten aquí y sólo uno gana.
+    // Consumo atómico (R1): un solo request puede reemplazar el hash por null.
+    // El predicado repite expiración y actividad en el propio write: un token que
+    // vence o un usuario desactivado durante el hashing no consumen de todos modos.
     const consumed = await tx.user.updateMany({
-      where: { id: user.id, resetToken: tokenHash },
-      data: { password: await hashPassword(newPassword), resetToken: null, resetTokenExpiry: null },
+      where: { id: user.id, resetToken: tokenHash, resetTokenExpiry: { gt: new Date() }, isActive: true },
+      data: { password: newHash, resetToken: null, resetTokenExpiry: null },
     });
     if (consumed.count !== 1) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
     await new SessionStore(tx).revokeAllForUser(user.id);
@@ -110,31 +122,49 @@ export async function changePassword(
   userAgent?: string,
 ): Promise<{ message: string }> {
   const { currentPassword, newPassword } = input;
+  const validation = validatePassword(newPassword);
+  if (!validation.valid) {
+    throw AppError.badRequest('INVALID_PASSWORD', 'New password does not meet requirements', {
+      errors: validation.errors,
+    });
+  }
+
+  // Fase 1: lectura rápida tenant-scoped, sin trabajo costoso dentro.
+  const stored = await unitOfWork.run(ctx, async tx =>
+    tx.user.findUnique({
+      where: { id: ctx.actorUserId },
+      select: { id: true, email: true, password: true, businessId: true },
+    }));
+  if (!stored) throw AppError.notFound('USER_NOT_FOUND', 'User not found');
+
+  // Verificación y hashing fuera de la transacción (R2).
+  const ok = await verifyPassword(stored.password, currentPassword);
+  if (!ok) throw AppError.unauthorized('INVALID_PASSWORD', 'Current password is incorrect');
+  const same = await verifyPassword(stored.password, newPassword);
+  if (same) throw AppError.badRequest('SAME_PASSWORD', 'New password must be different');
+  const newHash = await hashPassword(newPassword);
+
   const notifyTo = await unitOfWork.run(ctx, async tx => {
-    const user = await tx.user.findUnique({ where: { id: ctx.actorUserId } });
-    if (!user) throw AppError.notFound('USER_NOT_FOUND', 'User not found');
-    const ok = await verifyPassword(user.password, currentPassword);
-    if (!ok) throw AppError.unauthorized('INVALID_PASSWORD', 'Current password is incorrect');
-    const validation = validatePassword(newPassword);
-    if (!validation.valid) {
-      throw AppError.badRequest('INVALID_PASSWORD', 'New password does not meet requirements', {
-        errors: validation.errors,
-      });
+    // R1 compare-and-set: si otra request cambió el hash entre la lectura y este
+    // write, ninguna de las dos "gana" en silencio: la que pierde recibe conflicto.
+    const updated = await tx.user.updateMany({
+      where: { id: stored.id, password: stored.password },
+      data: { password: newHash },
+    });
+    if (updated.count !== 1) {
+      throw AppError.conflict('PASSWORD_CONFLICT', 'Password was changed concurrently; try again');
     }
-    const same = await verifyPassword(user.password, newPassword);
-    if (same) throw AppError.badRequest('SAME_PASSWORD', 'New password must be different');
-    await tx.user.update({ where: { id: user.id }, data: { password: await hashPassword(newPassword) } });
-    await new SessionStore(tx).revokeAllForUser(user.id);
+    await new SessionStore(tx).revokeAllForUser(stored.id);
     await new AuditStore(tx).log({
-      businessId: user.businessId,
-      userId: user.id,
+      businessId: stored.businessId,
+      userId: stored.id,
       action: 'PASSWORD_CHANGED',
       entity: 'auth',
-      entityId: user.id,
+      entityId: stored.id,
       ip,
       userAgent,
     });
-    return user.email;
+    return stored.email;
   });
   // IO externo fuera de la transacción; misma política que resetPassword.
   try {

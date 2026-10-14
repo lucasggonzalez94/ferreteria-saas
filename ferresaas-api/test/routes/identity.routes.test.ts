@@ -93,6 +93,7 @@ describe('identity.routes (module router)', () => {
       business: { id: 'biz-1' },
       accessToken: 'access-1',
       refreshToken: 'refresh-1',
+      sessionAbsoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       csrfToken: 'csrf-1',
       csrfHash: 'hash-1',
     });
@@ -113,6 +114,8 @@ describe('identity.routes (module router)', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.accessToken).toBe('access-1');
     expect(res.body.data.refreshToken).toBeUndefined();
+    // R6: el header no-store es central del router, también para signup.
+    expect(res.headers['cache-control']).toBe('no-store');
     const cookies = res.headers['set-cookie'];
     expect(String(cookies)).toContain('refreshToken=refresh-1');
     expect(String(cookies)).toContain('HttpOnly');
@@ -139,6 +142,7 @@ describe('identity.routes (module router)', () => {
       business: { id: 'biz-1' },
       accessToken: 'access-1',
       refreshToken: 'refresh-1',
+      sessionAbsoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       csrfToken: 'csrf-1',
       csrfHash: 'hash-1',
     });
@@ -171,6 +175,7 @@ describe('identity.routes (module router)', () => {
     mockRefresh.mockResolvedValue({
       accessToken: 'a-2',
       refreshToken: 'r-2',
+      sessionAbsoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       csrfToken: 'c-2',
       csrfHash: 'h-2',
     });

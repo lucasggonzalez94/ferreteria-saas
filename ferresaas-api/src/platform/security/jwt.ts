@@ -47,10 +47,16 @@ export function hashOpaqueToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/** CSRF ligado a la sesión: HMAC(sessionSecret?) — secreto por sesión. */
-export function generateCsrfToken(): { token: string; hash: string } {
+/** Hash CSRF ligado a la sesión: HMAC del par (token, credencial de sesión). La credencial
+ *  es el refresh token plano vigente al emitir: un par de otra sesión nunca valida y una
+ *  rotación de refresh invalida el par anterior. */
+export function csrfHashFor(token: string, sessionSecret: string): string {
+  return hmacSha256(`${token}|${sessionSecret}`);
+}
+
+export function generateCsrfToken(sessionSecret: string): { token: string; hash: string } {
   const token = crypto.randomBytes(32).toString('base64url');
-  return { token, hash: hmacSha256(token) };
+  return { token, hash: csrfHashFor(token, sessionSecret) };
 }
 
 export function hmacSha256(value: string): string {

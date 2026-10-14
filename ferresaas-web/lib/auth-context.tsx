@@ -11,6 +11,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { saveTokens, clearTokens } from "@/lib/api";
+import { onSessionCleared } from "@/features/auth/model/session-manager";
 import { setBusinessTimezone, DEFAULT_TIMEZONE } from "@/lib/timezone";
 import { destroySessionCaches } from "@/lib/session-cleanup";
 import { signupRequest } from "@/features/auth/api/signup-api";
@@ -104,6 +105,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  // Si el coordinador de tokens determina que la sesión ya no existe (refresh
+  // y restore agotados), la identidad mostrada no puede quedar vieja: la UI
+  // se limpia y las rutas protegidas vuelven a /login.
+  useEffect(() => {
+    return onSessionCleared(() => {
+      setUser(null);
+      setBusiness(null);
+      setBusinessTimezone(DEFAULT_TIMEZONE);
+      destroySessionCaches();
+      if (!isPublicPath(pathname || "/")) {
+        router.push("/login");
+      }
+    });
+  }, [pathname, router]);
+
   const fetchUser = async () => {
     try {
       // La restauración no requiere Authorization: viaja la cookie refreshToken.
@@ -117,7 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // Si falla en una ruta protegida, no hay sesión válida.
+      // Si falla en una ruta protegida, no hay sesión válida. La cookie puede
+      // seguir viva pero obsoleta (sesión revocada): pedir logout limpia el
+      // refreshToken server-side y evita el bucle middleware↔dashboard.
+      try { await logoutRequest(); } catch { /* sin sesión que confirmar */ }
       router.push('/login');
     } finally {
       setIsLoading(false);

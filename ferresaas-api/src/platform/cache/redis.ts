@@ -24,6 +24,15 @@ export const redis = new Redis(env.redis.enabled && env.redis.url ? env.redis.ur
 
 redis.on('error', error => logger.warn({ err: error.message }, 'Redis error'));
 
+/**
+ * Namespace obligatorio de keys (R8): `ferresaas:{entorno}:{...}`.
+ * Evita mezclar contadores/cachés entre entornos que comparten un mismo Redis.
+ * Toda key nueva del proyecto se construye con esta función.
+ */
+export function redisKey(scope: string): string {
+  return `ferresaas:${env.app.env}:${scope}`;
+}
+
 export async function connectRedis(): Promise<void> {
   if (!env.redis.enabled) {
     if (env.app.isProduction) {
@@ -57,12 +66,21 @@ export async function redisSet(key: string, value: string | number, ttlSeconds: 
   }
 }
 
-/** Incrementa y aplica TTL al primer hit. Devuelve el contador. */
+/**
+ * Incrementa el contador y aplica TTL al primer hit EN UNA SOLA OPERACIÓN
+ * atómica (Lua). INCR+EXPIRE separados pueden dejar una key huérfana sin TTL
+ * si el segundo comando falla (R3).
+ */
+const RATE_LIMIT_LUA = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count`;
+
 export async function redisRateLimitHit(key: string, windowSeconds: number): Promise<number> {
   try {
-    const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, windowSeconds);
-    return count;
+    return (await redis.eval(RATE_LIMIT_LUA, 1, key, windowSeconds)) as number;
   } catch {
     throw new RedisUnavailableError();
   }

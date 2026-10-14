@@ -71,11 +71,13 @@ export class SessionStore {
     return this.tx.consumedRefreshToken.findUnique({ where: { tokenHash } });
   }
 
-  async revoke(session: SessionRecord) {
-    await this.tx.authSession.updateMany({
+  /** Revocación condicionada (R1): revoca sólo si sigue activa y devuelve si revocó. */
+  async revoke(session: SessionRecord): Promise<boolean> {
+    const updated = await this.tx.authSession.updateMany({
       where: { id: session.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    return updated.count === 1;
   }
 
   async revokeAllForUser(userId: string) {

@@ -1,10 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import crypto from 'node:crypto';
 import { prisma, adminPrisma } from './setup';
 import { signupBusinessOwner } from '@/modules/identity';
 import { TenantUnitOfWork } from '@/platform/tenancy/unit-of-work';
+import { verifyAccessToken } from '@/platform/security/jwt';
 import { AppError } from '@/platform/errors';
 
 const uow = new TenantUnitOfWork(prisma);
+const stamp = crypto.randomUUID();
 
 const base = {
   businessName: 'Ferreteria Int',
@@ -19,7 +22,7 @@ describe('signupBusinessOwner (PostgreSQL real, rol runtime)', () => {
   beforeAll(async () => {
     // Limpieza idempotente con el rol admin (bypass) para corridas repetidas.
     await adminPrisma.$executeRawUnsafe(
-      `DELETE FROM businesses WHERE cuit IN ('20307894565','20111111112')`,
+      `DELETE FROM businesses WHERE cuit IN ('20307894565','20111111112','20111111113')`,
     );
   });
   afterAll(async () => {
@@ -50,6 +53,23 @@ describe('signupBusinessOwner (PostgreSQL real, rol runtime)', () => {
     expect(session).toBe(1);
     expect(audits).toBe(2);
     expect(emailJob).toBe(1);
+  });
+
+  it('el claim av del JWT coincide con la authorizationVersion FINAL (post-triggers)', async () => {
+    const result = await signupBusinessOwner({
+      ...base,
+      email: `av-${stamp}@test.example`,
+      businessCuit: '20111111112',
+    });
+    const claims = verifyAccessToken(result.accessToken);
+    const business = await uow.run({ businessId: result.business.id }, tx =>
+      tx.business.findUniqueOrThrow({
+        where: { id: result.business.id },
+        select: { authorizationVersion: true },
+      }));
+    expect(claims.av).toBe(business.authorizationVersion);
+    // Y es mayor que 1: los triggers de grants iniciales ya la subieron.
+    expect(business.authorizationVersion).toBeGreaterThan(1);
   });
 
   it('rechaza email duplicado sin dejar filas', async () => {

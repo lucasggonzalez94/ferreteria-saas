@@ -79,7 +79,12 @@ describe('AUTH-02 (PostgreSQL real, rol runtime)', () => {
       .send({ email: emailA, password: 'Valid-password-123!' });
     expect(result.status).toBe(200);
     expect(result.headers['cache-control']).toBe('no-store');
-    expect(String(result.headers['set-cookie'])).toContain('HttpOnly');
+    const setCookie = String(result.headers['set-cookie']);
+    expect(setCookie).toContain('HttpOnly');
+    // R7: la cookie nunca excede el límite absoluto de la sesión (30 días).
+    const maxAge = Number(/Max-Age=(\d+)/.exec(setCookie)?.[1]);
+    expect(maxAge).toBeGreaterThan(0);
+    expect(maxAge).toBeLessThanOrEqual(30 * 24 * 60 * 60);
     expect(result.body.data.refreshToken).toBeUndefined();
     const me = await request(app).get('/v1/auth/me')
       .set('Authorization', `Bearer ${result.body.data.accessToken}`);
@@ -106,6 +111,27 @@ describe('AUTH-02 (PostgreSQL real, rol runtime)', () => {
     expect(fromB).toEqual([]);
   });
 
+  it('CSRF ligado a sesión: un par válido emitido para otra sesión es rechazado (403)', async () => {
+    const victim = await login(emailA, 'Valid-password-123!');
+    const attacker = await login(emailA, 'Valid-password-123!');
+    const headers = { Origin: 'http://localhost:3000' };
+
+    // El atacante conoce SU par, pero la cookie que viaja es la de la víctima.
+    const reuse = await request(app).post('/v1/auth/refresh')
+      .set(headers)
+      .set('Cookie', `refreshToken=${victim.refreshToken}`)
+      .set({ 'X-CSRF-Token': attacker.csrfToken, 'X-CSRF-Hash': attacker.csrfHash });
+    expect(reuse.status).toBe(403);
+    expect(reuse.body.error.code).toContain('CSRF');
+
+    // El par correcto con su propia cookie sí valida y rota.
+    const ok = await request(app).post('/v1/auth/refresh')
+      .set(headers)
+      .set('Cookie', `refreshToken=${victim.refreshToken}`)
+      .set({ 'X-CSRF-Token': victim.csrfToken, 'X-CSRF-Hash': victim.csrfHash });
+    expect(ok.status).toBe(200);
+  });
+
   it('restore/refresh/logout usan el tenant resuelto y revocan persistentemente', async () => {
     const first = await login(emailA, 'Valid-password-123!');
     expect((await restoreSession(first.refreshToken)).user.id).toBe(userA);
@@ -123,6 +149,31 @@ describe('AUTH-02 (PostgreSQL real, rol runtime)', () => {
     await logout(session.refreshToken, '10.0.0.1', 'jest');
     await logout(session.refreshToken, '10.0.0.1', 'jest');
     expect(await countAudits()).toBe(before + 1);
+  });
+
+  it('R1: dos logout simultáneos del mismo refresh — se audita una sola vez y la sesión queda revocada', async () => {
+    const session = await login(emailA, 'Valid-password-123!');
+    const sid = verifyAccessToken(session.accessToken).sid;
+    const countAudits = () => uow.run({ businessId: tenantA }, tx =>
+      tx.auditLog.count({ where: { userId: userA, action: 'LOGOUT' } }));
+    const before = await countAudits();
+    await Promise.all([logout(session.refreshToken), logout(session.refreshToken)]);
+    expect(await countAudits()).toBe(before + 1);
+    expect(await uow.run({ businessId: tenantA }, tx =>
+      tx.authSession.findUnique({ where: { id: sid } }),
+    )).toMatchObject({ revokedAt: expect.anything() });
+  });
+
+  it('logout con un refresh recién rotado también revoca la sesión (carrera tab/tab)', async () => {
+    const session = await login(emailA, 'Valid-password-123!');
+    const sid = verifyAccessToken(session.accessToken).sid;
+    // Otra tab hace refresh primero: el refresh viejo queda consumido.
+    await refreshSession(session.refreshToken);
+    // Esta tab cierra sesión con el refresh viejo: debe revocar la sesión igual.
+    await logout(session.refreshToken);
+    expect(await uow.run({ businessId: tenantA }, tx =>
+      tx.authSession.findUnique({ where: { id: sid } }),
+    )).toMatchObject({ revokedAt: expect.anything() });
   });
 
   it('replay confirmado revoca la sesión sin revertir auditoría por el error HTTP', async () => {

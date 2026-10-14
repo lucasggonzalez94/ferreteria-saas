@@ -21,6 +21,12 @@ import {
 
 // Módulo identity: frontera HTTP de AUTH-01..08 migrada.
 const router = Router();
+// R6: toda respuesta que emite/rota credenciales es no-store, en éxito y error,
+// fijado acá de forma central y no controller por controller.
+router.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 router.post('/signup', signupRateLimiter, signupController);
 router.post('/login', loginRateLimiter, loginController);
 router.post('/refresh', refreshRateLimiter, refreshController);
@@ -31,9 +37,6 @@ router.post('/reset-password', resetPasswordRateLimiter, passwordController.rese
 router.post('/change-password', authenticate, passwordController.change);
 router.put('/profile', authenticate, profileController.update);
 router.post('/register', authenticate, requirePermissions(PERMISSIONS.USERS_CREATE), registerController);
-router.get('/me', (_req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
-  next();
-}, authenticate, currentIdentityController);
+router.get('/me', authenticate, currentIdentityController);
 
 export default router;

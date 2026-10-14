@@ -13,7 +13,7 @@ jest.mock('@/config/env', () => {
 });
 
 import { env } from '@/config/env';
-import { redis } from '@/platform/cache/redis';
+import { redis, redisKey } from '@/platform/cache/redis';
 import { closeDatabase } from '@/platform/database/client';
 import { TenantUnitOfWork } from '@/platform/tenancy/unit-of-work';
 import { hashPassword } from '@/platform/security/passwords';
@@ -74,7 +74,7 @@ async function cacheKey(businessId: string, userId: string) {
   const business = await uow.run({ businessId }, tx => tx.business.findUniqueOrThrow({
     where: { id: businessId }, select: { authorizationVersion: true },
   }));
-  const key = `ferresaas:authz:${businessId}:${userId}:${business.authorizationVersion}`;
+  const key = redisKey(`authz:${businessId}:${userId}:${business.authorizationVersion}`);
   cacheKeys.add(key);
   return key;
 }

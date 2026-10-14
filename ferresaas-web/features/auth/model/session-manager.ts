@@ -11,6 +11,20 @@ let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 // resultado, resolviendo o rechazando juntos (sin suscriptores colgados).
 let inFlightRefresh: Promise<string> | null = null;
 
+// PR 4.3: cada clearTokens cambia la generación. Una renovación en vuelo que
+// resuelve DESPUÉS de un logout/clear local no puede repoblar tokens viejos.
+let sessionEpoch = 0;
+
+// Consumidores globales (AuthContext) escuchan "la sesión ya no existe en
+// servidor": se dispara sólo cuando el coordinador de refresh agota sus vías,
+// nunca en un logout manual (que ya limpia el estado UI por su cuenta).
+const sessionClearedListeners = new Set<() => void>();
+
+export function onSessionCleared(listener: () => void): () => void {
+  sessionClearedListeners.add(listener);
+  return () => sessionClearedListeners.delete(listener);
+}
+
 const REFRESH_SAFETY_MARGIN_MS = 2 * 60 * 1000;
 const FALLBACK_REFRESH_DELAY_MS = 13 * 60 * 1000;
 const MIN_REFRESH_DELAY_MS = 5 * 1000;
@@ -55,6 +69,7 @@ export function saveTokens(newAccessToken: string, newCsrfToken?: string, newCsr
 }
 
 export function clearTokens(): void {
+  sessionEpoch += 1;
   accessToken = null;
   csrfToken = null;
   csrfHash = null;
@@ -72,19 +87,25 @@ export function clearTokens(): void {
 export function refreshSessionTokens(): Promise<string> {
   if (inFlightRefresh) return inFlightRefresh;
 
+  const epochAtStart = sessionEpoch;
   inFlightRefresh = (async () => {
     const { csrfToken: csrf, csrfHash: hash } = getCsrfTokens();
     const refreshed = await requestSessionRefresh(csrf, hash);
     if (refreshed) {
+      // La sesión cambió de generación mientras volvía la respuesta (logout
+      // local o cambio de identidad): los tokens tardíos se descartan.
+      if (sessionEpoch !== epochAtStart) throw new Error('SESSION_REFRESH_FAILED');
       saveTokens(refreshed.accessToken, refreshed.csrfToken, refreshed.csrfHash);
       return refreshed.accessToken;
     }
     const restored = await requestSessionRestore();
     if (restored) {
+      if (sessionEpoch !== epochAtStart) throw new Error('SESSION_REFRESH_FAILED');
       saveTokens(restored.accessToken, restored.csrfToken, restored.csrfHash);
       return restored.accessToken;
     }
     clearTokens();
+    for (const listener of sessionClearedListeners) listener();
     throw new Error('SESSION_REFRESH_FAILED');
   })().finally(() => {
     inFlightRefresh = null;

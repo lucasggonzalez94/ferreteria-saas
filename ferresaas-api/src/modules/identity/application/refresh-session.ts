@@ -15,6 +15,8 @@ import { AuditStore } from '../../audit';
 export interface RefreshedTokens {
   accessToken: string;
   refreshToken: string;
+  /** Vigencia absoluta de la sesión: el controller la usa para acotar la cookie. */
+  sessionAbsoluteExpiresAt: Date;
   csrfToken: string;
   csrfHash: string;
 }
@@ -72,13 +74,16 @@ export async function refreshSession(refreshToken: string, ip?: string, userAgen
     const nextHash = hashOpaqueToken(nextToken);
     const idleExpiry = new Date(Math.min(now.getTime() + IDLE_MS, session.absoluteExpiresAt.getTime()));
 
+    // Rotación condicionada PRIMERO (R1): el ganador es quien cambia el hash;
+    // el perdedor recibe conflicto de dominio, nunca un P2002 genérico del
+    // insert del token consumido. El consumo se registra después de ganar.
+    const rotated = await sessions.rotate(tokenHash, nextHash, idleExpiry, ip, userAgent);
+    if (!rotated) throw AppError.retryableConflict('Concurrent refresh detected, retry with the new token');
     await sessions.consumeToken(
       { id: session.id, businessId: session.businessId, userId: session.userId,
         securityVersion: session.securityVersion, absoluteExpiresAt: session.absoluteExpiresAt },
       tokenHash,
     );
-    const rotated = await sessions.rotate(tokenHash, nextHash, idleExpiry, ip, userAgent);
-    if (!rotated) throw AppError.retryableConflict('Concurrent refresh detected, retry with the new token');
 
     await new AuditStore(tx).log({
       businessId: session.businessId,
@@ -89,22 +94,39 @@ export async function refreshSession(refreshToken: string, ip?: string, userAgen
       userAgent,
     });
 
-    const accessToken = issueAccessToken(
-      {
-        sub: user.id,
-        sid: session.id,
-        tid: user.businessId,
-        sv: user.securityVersion,
-        av: user.business.authorizationVersion,
-        typ: 'access',
-      },
-      sessionPolicy.accessTokenSeconds,
-    );
-    const csrf = generateCsrfToken();
-    return { kind: 'tokens' as const, accessToken, refreshToken: nextToken, csrfToken: csrf.token, csrfHash: csrf.hash };
+    return {
+      kind: 'tokens' as const,
+      sessionId: session.id,
+      userId: user.id,
+      businessId: user.businessId,
+      securityVersion: user.securityVersion,
+      authorizationVersion: user.business.authorizationVersion,
+      absoluteExpiresAt: session.absoluteExpiresAt,
+      refreshToken: nextToken,
+    };
   });
   if (result.kind === 'replayed') {
     throw AppError.unauthorized('TOKEN_REUSE_DETECTED', 'Refresh token reuse detected');
   }
-  return result;
+  // Emisión fuera de la transacción (R2): firmar no es trabajo de base y el
+  // callback ya confirmó; conexión y locks quedan liberados antes.
+  const accessToken = issueAccessToken(
+    {
+      sub: result.userId,
+      sid: result.sessionId,
+      tid: result.businessId,
+      sv: result.securityVersion,
+      av: result.authorizationVersion,
+      typ: 'access',
+    },
+    sessionPolicy.accessTokenSeconds,
+  );
+  const csrf = generateCsrfToken(result.refreshToken);
+  return {
+    accessToken,
+    refreshToken: result.refreshToken,
+    sessionAbsoluteExpiresAt: result.absoluteExpiresAt,
+    csrfToken: csrf.token,
+    csrfHash: csrf.hash,
+  };
 }

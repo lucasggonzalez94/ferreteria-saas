@@ -97,7 +97,7 @@ describe('RLS tenant isolation (PostgreSQL real)', () => {
     const missing = await adminPrisma.$queryRaw<Array<{ tablename: string }>>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'public'
-        AND tablename NOT IN ('_prisma_migrations', 'permissions', 'email_jobs')
+        AND tablename NOT IN ('_prisma_migrations', 'permissions')
         AND NOT rowsecurity`;
     expect(missing).toEqual([]);
   });

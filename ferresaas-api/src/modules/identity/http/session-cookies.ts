@@ -3,19 +3,23 @@ import { env } from '../../../config/env';
 import { AppError } from '../../../platform/errors';
 import { sessionPolicy } from '../domain/session-policy';
 
-export function setRefreshCookie(res: Response, refreshToken: string): void {
-  res.clearCookie('refreshToken', { path: '/' });
+export function setRefreshCookie(res: Response, refreshToken: string, sessionAbsoluteExpiresAt: Date): void {
+  const cookieOptions = { path: '/', ...(env.cookies.domain ? { domain: env.cookies.domain } : {}) };
+  res.clearCookie('refreshToken', cookieOptions);
+  const policyMs = sessionPolicy.absoluteDays * 24 * 60 * 60 * 1000;
+  const sessionMs = Math.max(sessionAbsoluteExpiresAt.getTime() - Date.now(), 0);
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.cookies.secure,
     sameSite: env.cookies.sameSite,
-    path: '/',
-    maxAge: sessionPolicy.absoluteDays * 24 * 60 * 60 * 1000,
+    ...cookieOptions,
+    // La cookie nunca sobrevive a la vigencia absoluta de la sesión que transporta (R7).
+    maxAge: Math.min(policyMs, sessionMs),
   });
 }
 
 export function clearRefreshCookie(res: Response): void {
-  res.clearCookie('refreshToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/', ...(env.cookies.domain ? { domain: env.cookies.domain } : {}) });
 }
 
 /** Origen estricto para operaciones que crean o renuevan sesión. */

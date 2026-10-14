@@ -2,6 +2,10 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   register: true,
   skipWaiting: true,
+  // PR 4.6: al cambiar el SW, purga cachés obsoletas del navegador ya instalado.
+  // Límite: sólo aplica a quien vuelva a cargar la app; nada purga un navegador
+  // que nunca vuelve a abrir la app ni puede garantizar limpieza retroactiva total.
+  cleanupOutdatedCaches: true,
   disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
     // Cache de assets estáticos (stale-while-revalidate)

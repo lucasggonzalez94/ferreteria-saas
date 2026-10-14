@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { verifyAccessToken } from './jwt';
 import { AppError } from '../errors';
 import { unitOfWork, type RequestContext } from '../tenancy/unit-of-work';
-import { redisGet, redisSet, RedisUnavailableError } from '../cache/redis';
+import { redisGet, redisSet, redisKey, RedisUnavailableError } from '../cache/redis';
 import { env } from '../../config/env';
 import { AccessStore } from './infrastructure/access-store';
 
@@ -45,7 +45,7 @@ function parseAuthzCache(cached: string): AuthzSnapshot | null {
 }
 
 function authzCacheKey(businessId: string, userId: string, version: number): string {
-  return `ferresaas:authz:${businessId}:${userId}:${version}`;
+  return redisKey(`authz:${businessId}:${userId}:${version}`);
 }
 
 async function loadAuthorization(

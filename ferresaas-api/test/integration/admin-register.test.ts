@@ -77,6 +77,7 @@ async function sessionOf(email: string) {
     Authorization: `Bearer ${session.accessToken}`,
     'X-CSRF-Token': session.csrfToken,
     'X-CSRF-Hash': session.csrfHash,
+    Cookie: `refreshToken=${session.refreshToken}`,
     ...origin,
   };
 }
