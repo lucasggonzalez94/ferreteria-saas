@@ -66,4 +66,58 @@ export class IdentityStore {
   createUserRoles(entries: Array<{ businessId: string; userId: string; roleId: string }>) {
     return this.tx.userRole.createMany({ data: entries });
   }
+
+  /** Relectura tenant-scoped tras el bootstrap: exige activo (no confiar en el bootstrap). */
+  findActiveUser(userId: string) {
+    return this.tx.user.findFirst({ where: { id: userId, isActive: true } });
+  }
+
+  /**
+   * Programa un reset de contraseña. El predicado repite `isActive` en el
+   * propio write: un usuario desactivado tras la lectura no recibe token.
+   */
+  setResetToken(userId: string, tokenHash: string, expiry: Date) {
+    return this.tx.user.update({
+      where: { id: userId, isActive: true },
+      data: { resetToken: tokenHash, resetTokenExpiry: expiry },
+    });
+  }
+
+  findUserByResetToken(tokenHash: string, now: Date) {
+    return this.tx.user.findFirst({
+      where: { resetToken: tokenHash, resetTokenExpiry: { gt: now }, isActive: true },
+    });
+  }
+
+  /**
+   * Consumo atómico del reset (R1 compare-and-set): un solo request reemplaza
+   * el hash por null; expiración y actividad se repiten en el predicado.
+   */
+  async consumeResetToken(userId: string, tokenHash: string, newPasswordHash: string, now: Date): Promise<boolean> {
+    const updated = await this.tx.user.updateMany({
+      where: { id: userId, resetToken: tokenHash, resetTokenExpiry: { gt: now }, isActive: true },
+      data: { password: newPasswordHash, resetToken: null, resetTokenExpiry: null },
+    });
+    return updated.count === 1;
+  }
+
+  /** Fase de lectura del cambio de contraseña (verificación fuera de tx, R2). */
+  findUserForPasswordChange(userId: string) {
+    return this.tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, password: true, businessId: true },
+    });
+  }
+
+  /**
+   * Cambio de contraseña con compare-and-set (R1): si otra request cambió el
+   * hash entre la lectura y este write, la que pierde recibe conflicto.
+   */
+  async updatePasswordIfHashMatches(userId: string, expectedHash: string, newHash: string): Promise<boolean> {
+    const updated = await this.tx.user.updateMany({
+      where: { id: userId, password: expectedHash },
+      data: { password: newHash },
+    });
+    return updated.count === 1;
+  }
 }

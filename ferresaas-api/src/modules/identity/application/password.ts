@@ -9,6 +9,7 @@ import { AuditStore } from '../../audit';
 import { EmailSender } from '../../notifications';
 import { SessionStore } from '../infrastructure/session-store';
 import { BootstrapStore } from '../infrastructure/bootstrap-store';
+import { IdentityStore } from '../infrastructure/identity-store';
 
 const email = new EmailSender();
 
@@ -26,17 +27,12 @@ export async function forgotPassword(
     // No enumeración: cuenta inexistente o inactiva responden igual y sin efectos.
     if (!resolved || !resolved.active) return null;
     await unitOfWork.setTenant(tx, resolved.business_id);
+    const identity = new IdentityStore(tx);
     // R1: la relectura bajo tenant repite la condición de activo, no confía en el bootstrap.
-    const user = await tx.user.findFirst({ where: { id: resolved.id, isActive: true } });
+    const user = await identity.findActiveUser(resolved.id);
     if (!user) return null;
     const token = generateRefreshToken();
-    await tx.user.update({
-      where: { id: user.id, isActive: true },
-      data: {
-        resetToken: hashOpaqueToken(token),
-        resetTokenExpiry: addMinutes(new Date(), RESET_TOKEN_TTL_MINUTES),
-      },
-    });
+    await identity.setResetToken(user.id, hashOpaqueToken(token), addMinutes(new Date(), RESET_TOKEN_TTL_MINUTES));
     await new AuditStore(tx).log({
       businessId: user.businessId,
       userId: user.id,
@@ -81,18 +77,14 @@ export async function resetPassword(
     const resolved = await new BootstrapStore(tx).resetByHash(tokenHash);
     if (!resolved) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
     await unitOfWork.setTenant(tx, resolved.business_id);
-    const user = await tx.user.findFirst({
-      where: { resetToken: tokenHash, resetTokenExpiry: { gt: new Date() }, isActive: true },
-    });
+    const identity = new IdentityStore(tx);
+    const user = await identity.findUserByResetToken(tokenHash, new Date());
     if (!user) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
     // Consumo atómico (R1): un solo request puede reemplazar el hash por null.
     // El predicado repite expiración y actividad en el propio write: un token que
     // vence o un usuario desactivado durante el hashing no consumen de todos modos.
-    const consumed = await tx.user.updateMany({
-      where: { id: user.id, resetToken: tokenHash, resetTokenExpiry: { gt: new Date() }, isActive: true },
-      data: { password: newHash, resetToken: null, resetTokenExpiry: null },
-    });
-    if (consumed.count !== 1) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
+    const consumed = await identity.consumeResetToken(user.id, tokenHash, newHash, new Date());
+    if (!consumed) throw AppError.badRequest('INVALID_TOKEN', 'Invalid or expired reset token');
     await new SessionStore(tx).revokeAllForUser(user.id);
     await new AuditStore(tx).log({
       businessId: user.businessId,
@@ -131,10 +123,7 @@ export async function changePassword(
 
   // Fase 1: lectura rápida tenant-scoped, sin trabajo costoso dentro.
   const stored = await unitOfWork.run(ctx, async tx =>
-    tx.user.findUnique({
-      where: { id: ctx.actorUserId },
-      select: { id: true, email: true, password: true, businessId: true },
-    }));
+    new IdentityStore(tx).findUserForPasswordChange(ctx.actorUserId));
   if (!stored) throw AppError.notFound('USER_NOT_FOUND', 'User not found');
 
   // Verificación y hashing fuera de la transacción (R2).
@@ -147,11 +136,8 @@ export async function changePassword(
   const notifyTo = await unitOfWork.run(ctx, async tx => {
     // R1 compare-and-set: si otra request cambió el hash entre la lectura y este
     // write, ninguna de las dos "gana" en silencio: la que pierde recibe conflicto.
-    const updated = await tx.user.updateMany({
-      where: { id: stored.id, password: stored.password },
-      data: { password: newHash },
-    });
-    if (updated.count !== 1) {
+    const updated = await new IdentityStore(tx).updatePasswordIfHashMatches(stored.id, stored.password, newHash);
+    if (!updated) {
       throw AppError.conflict('PASSWORD_CONFLICT', 'Password was changed concurrently; try again');
     }
     await new SessionStore(tx).revokeAllForUser(stored.id);
