@@ -12,9 +12,7 @@ const envSchema = z.object({
 
   // JWT
   JWT_ACCESS_SECRET: z.string().min(32),
-  JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   // Redis
   REDIS_URL: z.string().optional(),
@@ -68,8 +66,6 @@ const envSchema = z.object({
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100'),
-  RATE_LIMIT_REFRESH_WINDOW_MS: z.string().default('300000'),
-  RATE_LIMIT_REFRESH_MAX: z.string().default('10'),
 
   // Cookies
   COOKIE_DOMAIN: z.string().optional(),
@@ -108,9 +104,7 @@ export const env = {
   // JWT
   jwt: {
     accessSecret: parsed.data.JWT_ACCESS_SECRET,
-    refreshSecret: parsed.data.JWT_REFRESH_SECRET,
     accessExpiresIn: parsed.data.JWT_ACCESS_EXPIRES_IN,
-    refreshExpiresIn: parsed.data.JWT_REFRESH_EXPIRES_IN,
   },
 
   // Redis
@@ -193,8 +187,6 @@ export const env = {
   rateLimit: {
     windowMs: parseInt(parsed.data.RATE_LIMIT_WINDOW_MS),
     maxRequests: parseInt(parsed.data.RATE_LIMIT_MAX_REQUESTS),
-    refreshWindowMs: parseInt(parsed.data.RATE_LIMIT_REFRESH_WINDOW_MS),
-    refreshMax: parseInt(parsed.data.RATE_LIMIT_REFRESH_MAX),
   },
 
   // Cookies

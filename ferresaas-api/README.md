@@ -59,7 +59,6 @@ DATABASE_URL="postgresql://user:password@localhost:5432/ferresaas"
 
 # JWT Secrets (REQUERIDO - cambiar en producción)
 JWT_ACCESS_SECRET="tu-secret-de-minimo-32-caracteres-aqui"
-JWT_REFRESH_SECRET="otro-secret-diferente-de-minimo-32-caracteres"
 
 # Email (opcional en desarrollo)
 EMAIL_PROVIDER="mock"  # mock para desarrollo, smtp para producción
@@ -201,7 +200,6 @@ ferresaas-api/
 NODE_ENV="production"
 DATABASE_URL="postgresql://..."
 JWT_ACCESS_SECRET="secret-seguro-de-produccion"
-JWT_REFRESH_SECRET="otro-secret-seguro-de-produccion"
 
 # Email real
 EMAIL_PROVIDER="smtp"
