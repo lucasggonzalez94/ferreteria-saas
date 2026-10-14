@@ -7,6 +7,11 @@ export default {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  globals: {
+    'ts-jest': {
+      tsconfig: 'tsconfig.test.json',
+    },
+  },
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/', '/prisma/'],
   collectCoverageFrom: [
     'src/**/*.ts',

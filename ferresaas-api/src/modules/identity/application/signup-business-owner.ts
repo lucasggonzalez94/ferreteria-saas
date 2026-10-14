@@ -14,6 +14,7 @@ import { ADMIN, CASHIER, CASHIER_PERMISSION_KEYS, OWNER, SYSTEM_ROLES } from '..
 import { canonicalCuit, validCuit, validTimezone } from '../../tenant';
 import { SessionStore } from '../infrastructure/session-store';
 import { BootstrapStore } from '../infrastructure/bootstrap-store';
+import { SignupStore } from '../infrastructure/signup-store';
 import { EmailJobStore } from '../../notifications';
 import { AuditStore } from '../../audit';
 
@@ -90,28 +91,27 @@ export async function signupBusinessOwner(
     // RLS exige que las inserciones dependientes coincidan con este contexto.
     await unitOfWork.setTenant(tx, businessId);
 
-    const business = await tx.business.create({
-      data: {
-        id: businessId,
-        name: command.businessName.trim(),
-        cuit,
-        taxCondition: command.taxCondition,
-        phone: command.phone,
-        address: command.address,
-        email,
-        timezone,
-      },
+    const signup = new SignupStore(tx);
+    const business = await signup.createBusiness({
+      id: businessId,
+      name: command.businessName.trim(),
+      cuit,
+      taxCondition: command.taxCondition,
+      phone: command.phone,
+      address: command.address,
+      email,
+      timezone,
     });
 
     const roleIds = new Map<string, string>();
     for (const role of SYSTEM_ROLES) {
-      const created = await tx.role.create({
-        data: { id: crypto.randomUUID(), businessId, name: role.name, description: role.description, isSystem: true },
+      const created = await signup.createRole({
+        id: crypto.randomUUID(), businessId, name: role.name, description: role.description, isSystem: true,
       });
       roleIds.set(role.name, created.id);
     }
 
-    const permissions = await tx.permission.findMany();
+    const permissions = await signup.listPermissions();
     const permissionKeys = permissions.map(p => `${p.resource}:${p.action}`);
     const permissionIdByKey = new Map(permissions.map(p => [`${p.resource}:${p.action}`, p.id]));
 
@@ -126,30 +126,23 @@ export async function signupBusinessOwner(
       .filter((id): id is string => Boolean(id))
       .map(permissionId => ({ businessId, roleId: roleIds.get(CASHIER)!, permissionId }));
 
-    await tx.rolePermission.createMany({
-      data: [
-        ...grantAll(roleIds.get(OWNER)!),
-        ...grantAll(roleIds.get(ADMIN)!),
-        ...grantCashier,
-      ],
-      skipDuplicates: true,
+    await signup.createRolePermissions([
+      ...grantAll(roleIds.get(OWNER)!),
+      ...grantAll(roleIds.get(ADMIN)!),
+      ...grantCashier,
+    ]);
+
+    const user = await signup.createUser({
+      id: crypto.randomUUID(),
+      businessId,
+      email,
+      password: passwordHash,
+      firstName: command.ownerFirstName.trim(),
+      lastName: command.ownerLastName?.trim() ?? null,
+      isActive: true,
     });
 
-    const user = await tx.user.create({
-      data: {
-        id: crypto.randomUUID(),
-        businessId,
-        email,
-        password: passwordHash,
-        firstName: command.ownerFirstName.trim(),
-        lastName: command.ownerLastName?.trim() ?? null,
-        isActive: true,
-      },
-    });
-
-    await tx.userRole.create({
-      data: { businessId, userId: user.id, roleId: roleIds.get(OWNER)! },
-    });
+    await signup.createUserRole({ businessId, userId: user.id, roleId: roleIds.get(OWNER)! });
 
     // Primera sesión dentro de la misma transacción.
     const sessionId = crypto.randomUUID();
@@ -184,10 +177,7 @@ export async function signupBusinessOwner(
 
     // Los triggers de roles/user_roles/role_permissions ya subieron la versión:
     // el claim av debe reflejar el valor FINAL, no el del objeto creado antes.
-    const businessFresh = await tx.business.findUniqueOrThrow({
-      where: { id: businessId },
-      select: { authorizationVersion: true },
-    });
+    const authorizationVersion = await signup.readAuthorizationVersion(businessId);
 
     return {
       user: {
@@ -208,7 +198,7 @@ export async function signupBusinessOwner(
       sessionId,
       refreshToken,
       sessionAbsoluteExpiresAt: createdSession.absoluteExpiresAt,
-      authorizationVersion: businessFresh.authorizationVersion,
+      authorizationVersion,
     };
   });
 
