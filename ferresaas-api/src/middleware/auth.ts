@@ -9,7 +9,14 @@ import type { AuthRequest } from '../types';
  * (JWT access + sesión vigente en PostgreSQL + versiones de seguridad).
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  await authenticateIdentity(req, res, () => {
+  await authenticateIdentity(req, res, error => {
+    // Reenvío obligatorio: si platform rechazó (token/sesión inválida), el error
+    // llega acá como argumento y debe propagarse; ignorarlo dejaría entrar la
+    // request legacy sin autenticación.
+    if (error) {
+      next(error);
+      return;
+    }
     const authReq = req as AuthRequest;
     if (req.user) {
       authReq.user = {
