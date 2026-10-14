@@ -14,88 +14,65 @@ jest.mock('@/config/env', () => {
 import { env } from '@/config/env';
 import { redis, redisKey } from '@/platform/cache/redis';
 import { closeDatabase } from '@/platform/database/client';
-import { hashPassword } from '@/platform/security/passwords';
 import app from '@/app';
 
 const stamp = crypto.randomUUID().slice(0, 8);
-const email = `rl-${stamp}@test.example`;
-const tenantId = crypto.randomUUID();
 
-const rateKeys = async () => redis.keys(redisKey('rate:login:*'));
+const flushRateKeys = async () => {
+  const keys = await redis.keys(redisKey('rate:*'));
+  if (keys.length) await redis.del(...keys);
+};
 
-describe('Rate limiter distribuido (Redis real)', () => {
+describe('Limiters distribuidos genéricos (Redis real)', () => {
   beforeAll(async () => {
-    const password = await hashPassword('Valid-password-123!');
-    await adminPrisma.business.create({ data: {
-      id: tenantId, name: 'Tenant rate-limit',
-      cuit: tenantId.replace(/\D/g, '').padEnd(11, '1').slice(0, 11), taxCondition: 'MONOTRIBUTO',
-    } });
-    await adminPrisma.user.create({ data: { businessId: tenantId, email, password } });
     await redis.connect();
     await redis.ping();
-    // Las ventanas de login duran 15 min: una corrida previa puede haber dejado la key.
-    const leftovers = await rateKeys();
-    if (leftovers.length) await redis.del(...leftovers);
+    await flushRateKeys();
   });
 
   beforeEach(() => Object.assign(env.redis, { enabled: true }));
 
   afterAll(async () => {
-    if (redis.status === 'ready') {
-      const keys = await rateKeys();
-      if (keys.length) await redis.del(...keys);
-    }
+    if (redis.status === 'ready') await flushRateKeys();
     redis.disconnect();
     await closeDatabase();
     await prisma.$disconnect();
-    await adminPrisma.business.deleteMany({ where: { id: tenantId } });
     await adminPrisma.$disconnect();
   });
 
-  it('bloquea la 6ta request de login en la ventana y la key namespaceada tiene TTL (operación atómica)', async () => {
-    const attempt = () => request(app).post('/v1/auth/login')
-      .set('Origin', 'http://localhost:3000')
-      .send({ email, password: 'invalida' });
+  it('forgot y reset tienen contadores independientes por IP', async () => {
+    const forgot = () => request(app).post('/v1/auth/forgot-password')
+      .send({ email: `forgot-${stamp}@test.example` });
+    const reset = () => request(app).post('/v1/auth/reset-password')
+      .send({ token: 'token-invalido', newPassword: 'Valid-password-123!' });
 
-    const statuses: number[] = [];
-    for (let i = 0; i < 5; i++) statuses.push((await attempt()).status);
-    expect(statuses).toEqual([401, 401, 401, 401, 401]);
+    // forgot: límite 3/hora por IP.
+    for (let i = 0; i < 3; i++) expect((await forgot()).status).toBe(200);
+    const fourth = await forgot();
+    expect(fourth.status).toBe(429);
+    expect(fourth.body.error.code).toBe('FORGOT_RATE_LIMIT_EXCEEDED');
 
-    const sixth = await attempt();
+    // reset: no heredó los consumos de forgot; responde por token inválido.
+    for (let i = 0; i < 5; i++) expect((await reset()).status).toBe(400);
+    const sixth = await reset();
     expect(sixth.status).toBe(429);
-    expect(sixth.body.error.code).toBe('LOGIN_RATE_LIMIT_EXCEEDED');
+    expect(sixth.body.error.code).toBe('RESET_RATE_LIMIT_EXCEEDED');
 
-    // La key creada por el Lua lleva namespace de entorno y TTL desde el primer hit.
-    const keys = await rateKeys();
-    expect(keys).toHaveLength(1);
-    expect(keys[0]).toMatch(/^ferresaas:test:rate:login:/);
-    expect(await redis.pttl(keys[0])).toBeGreaterThan(0);
-    expect(Number(await redis.get(keys[0]))).toBe(6);
+    // Keys namespaceadas por endpoint, con TTL (Lua atómico).
+    const forgotKeys = await redis.keys(redisKey('rate:forgot-password:*'));
+    const resetKeys = await redis.keys(redisKey('rate:reset-password:*'));
+    expect(forgotKeys).toHaveLength(1);
+    expect(resetKeys).toHaveLength(1);
+    for (const key of [...forgotKeys, ...resetKeys]) {
+      expect(await redis.pttl(key)).toBeGreaterThan(0);
+    }
   });
 
-  it('incrementos concurrentes no pierden conteo (INCR atómico en Lua)', async () => {
-    const parallel = await Promise.all(
-      Array.from({ length: 4 }, () => request(app).post('/v1/auth/login')
-        .set('Origin', 'http://localhost:3000')
-        .send({ email, password: 'invalida' })),
-    );
-    // Ya hay 6 hits del test anterior: 4 más superan el límite de 5 => todos 429,
-    // pero el contador debe reflejar exactamente los 10 hits (sin pérdidas).
-    expect(parallel.every(res => res.status === 429)).toBe(true);
-    const [key] = await rateKeys();
-    expect(Number(await redis.get(key))).toBe(10);
-    // Los hits bloqueados no prolongan la ventana: el TTL sigue contando.
-    expect(await redis.pttl(key)).toBeGreaterThan(0);
-  });
-
-  it('Redis dados de baja con límite habilitado falla cerrado con 503 (no deja pasar login)', async () => {
-    // Comando real del cliente rechazando (Redis caído): el wrapper lo traduce
-    // a RedisUnavailableError y el limiter decide fail-closed.
+  it('Redis dados de baja con límite habilitado falla cerrado con 503', async () => {
     const spy = jest.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('ECONNREFUSED'));
     try {
-      const res = await request(app).post('/v1/auth/login')
-        .set('Origin', 'http://localhost:3000')
-        .send({ email, password: 'Valid-password-123!' });
+      const res = await request(app).post('/v1/auth/forgot-password')
+        .send({ email: `fc-${stamp}@test.example` });
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('RATE_LIMIT_UNAVAILABLE');
     } finally {

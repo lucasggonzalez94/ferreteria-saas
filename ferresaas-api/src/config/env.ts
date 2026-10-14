@@ -66,6 +66,16 @@ const envSchema = z.object({
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().default('100'),
+  // Login multidimensional: volúmenes por IP, fallos por cuenta y por IP+cuenta.
+  LOGIN_RATE_IP_MAX: z.string().default('60'),
+  LOGIN_RATE_IP_WINDOW_SECONDS: z.string().default('900'),
+  LOGIN_RATE_IP_BURST_MAX: z.string().default('15'),
+  LOGIN_RATE_IP_BURST_WINDOW_SECONDS: z.string().default('60'),
+  LOGIN_RATE_ACCOUNT_MAX_FAILURES: z.string().default('5'),
+  LOGIN_RATE_IP_ACCOUNT_MAX_FAILURES: z.string().default('5'),
+  LOGIN_RATE_FAILURE_WINDOW_SECONDS: z.string().default('900'),
+  LOGIN_RATE_BACKOFF_BASE_SECONDS: z.string().default('30'),
+  LOGIN_RATE_BACKOFF_MAX_SECONDS: z.string().default('900'),
 
   // Cookies
   COOKIE_DOMAIN: z.string().optional(),
@@ -187,6 +197,17 @@ export const env = {
   rateLimit: {
     windowMs: parseInt(parsed.data.RATE_LIMIT_WINDOW_MS),
     maxRequests: parseInt(parsed.data.RATE_LIMIT_MAX_REQUESTS),
+    login: {
+      ipMax: parseInt(parsed.data.LOGIN_RATE_IP_MAX),
+      ipWindowMs: parseInt(parsed.data.LOGIN_RATE_IP_WINDOW_SECONDS) * 1000,
+      ipBurstMax: parseInt(parsed.data.LOGIN_RATE_IP_BURST_MAX),
+      ipBurstWindowMs: parseInt(parsed.data.LOGIN_RATE_IP_BURST_WINDOW_SECONDS) * 1000,
+      accountMaxFailures: parseInt(parsed.data.LOGIN_RATE_ACCOUNT_MAX_FAILURES),
+      ipAccountMaxFailures: parseInt(parsed.data.LOGIN_RATE_IP_ACCOUNT_MAX_FAILURES),
+      failureWindowMs: parseInt(parsed.data.LOGIN_RATE_FAILURE_WINDOW_SECONDS) * 1000,
+      backoffBaseMs: parseInt(parsed.data.LOGIN_RATE_BACKOFF_BASE_SECONDS) * 1000,
+      backoffMaxMs: parseInt(parsed.data.LOGIN_RATE_BACKOFF_MAX_SECONDS) * 1000,
+    },
   },
 
   // Cookies

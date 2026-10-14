@@ -38,9 +38,19 @@ jest.mock('@/modules/identity/application/register-user', () => ({
 }));
 jest.mock('@/modules/identity/http/rate-limit', () => ({
   signupRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
-  loginRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
   refreshRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  forgotPasswordRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
   resetPasswordRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+jest.mock('@/modules/identity/http/login-rate-limit', () => ({
+  loginRateLimiter: (_req: Request, _res: Response, next: NextFunction) => next(),
+  recordLoginFailure: jest.fn(async () => undefined),
+  clearLoginFailures: jest.fn(async () => undefined),
+}));
+// El controller importa RedisUnavailableError; sin este mock, cargar redis.ts
+// requeriría la config env completa (logger, entorno) en una suite de rutas.
+jest.mock('@/platform/cache/redis', () => ({
+  RedisUnavailableError: class RedisUnavailableError extends Error {},
 }));
 jest.mock('@/platform/security/authenticate', () => ({
   authenticate: (req: Request, _res: Response, next: NextFunction) => {

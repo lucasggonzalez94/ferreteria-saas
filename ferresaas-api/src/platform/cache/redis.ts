@@ -120,3 +120,91 @@ export async function redisExists(key: string): Promise<boolean> {
     throw new RedisUnavailableError();
   }
 }
+
+/**
+ * Hit de ventana deslizante sobre sorted set en UNA operación atómica (R3):
+ * recorta miembros vencidos, cuenta y agrega el hit sólo si hay cupo.
+ * A diferencia del contador fijo, no hay borde de ventana que duplique el cupo.
+ */
+const SLIDING_WINDOW_HIT_LUA = `
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1] - ARGV[2])
+local count = redis.call('ZCARD', KEYS[1])
+if count >= tonumber(ARGV[3]) then
+  return {0, count}
+end
+redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
+redis.call('PEXPIRE', KEYS[1], ARGV[2])
+return {1, count + 1}`;
+
+export interface SlidingWindowHit {
+  allowed: boolean;
+  count: number;
+}
+
+export interface SlidingWindowHitArgs {
+  windowMs: number;
+  max: number;
+  member: string;
+  now?: number;
+}
+
+export async function redisSlidingWindowHit(
+  key: string,
+  { windowMs, max, member, now = Date.now() }: SlidingWindowHitArgs,
+): Promise<SlidingWindowHit> {
+  try {
+    const [allowed, count] = (await redis.eval(SLIDING_WINDOW_HIT_LUA, 1, key, now, windowMs, max, member)) as [number, number];
+    return { allowed: allowed === 1, count };
+  } catch {
+    throw new RedisUnavailableError();
+  }
+}
+
+/**
+ * Estado de una ventana deslizante sin registrar hit: cuántos miembros hay y
+ * el score más reciente. Sirve para backoff progresivo basado en el último evento.
+ */
+const SLIDING_WINDOW_STATUS_LUA = `
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1] - ARGV[2])
+local count = redis.call('ZCARD', KEYS[1])
+if count == 0 then return {0, 0} end
+local newest = redis.call('ZRANGE', KEYS[1], -1, -1, 'WITHSCORES')
+return {count, tonumber(newest[2])}`;
+
+export async function redisSlidingWindowStatus(
+  key: string,
+  windowMs: number,
+  now = Date.now(),
+): Promise<{ count: number; newest: number }> {
+  try {
+    const [count, newest] = (await redis.eval(SLIDING_WINDOW_STATUS_LUA, 1, key, now, windowMs)) as [number, number];
+    return { count, newest };
+  } catch {
+    throw new RedisUnavailableError();
+  }
+}
+
+/** Registra un evento en la ventana deslizante y fija el TTL de la key (R3). */
+const SLIDING_WINDOW_ADD_LUA = `
+redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1] - ARGV[2])
+redis.call('ZADD', KEYS[1], ARGV[1], ARGV[3])
+redis.call('PEXPIRE', KEYS[1], ARGV[4])
+return redis.call('ZCARD', KEYS[1])`;
+
+export interface SlidingWindowAddArgs {
+  windowMs: number;
+  member: string;
+  ttlMs: number;
+  now?: number;
+}
+
+export async function redisSlidingWindowAdd(
+  key: string,
+  { windowMs, member, ttlMs, now = Date.now() }: SlidingWindowAddArgs,
+): Promise<number> {
+  try {
+    return (await redis.eval(SLIDING_WINDOW_ADD_LUA, 1, key, now, windowMs, member, ttlMs)) as number;
+  } catch {
+    throw new RedisUnavailableError();
+  }
+}

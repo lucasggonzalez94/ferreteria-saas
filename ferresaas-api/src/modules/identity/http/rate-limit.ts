@@ -44,12 +44,14 @@ function distributedLimiter(rule: RateRule) {
 export const signupRateLimiter = distributedLimiter({
   windowSeconds: 3600, max: 5, keyPrefix: 'signup', errorCode: 'SIGNUP_RATE_LIMIT_EXCEEDED',
 });
-export const loginRateLimiter = distributedLimiter({
-  windowSeconds: 900, max: 5, keyPrefix: 'login', errorCode: 'LOGIN_RATE_LIMIT_EXCEEDED',
-});
 export const refreshRateLimiter = distributedLimiter({
   windowSeconds: 300, max: 10, keyPrefix: 'refresh', errorCode: 'REFRESH_RATE_LIMIT_EXCEEDED',
 });
+// Forgot y reset cuentan por separado: pedir el enlace no consume el
+// presupuesto de usarlo (UX de recuperación), y reset tiene su propio límite.
+export const forgotPasswordRateLimiter = distributedLimiter({
+  windowSeconds: 3600, max: 3, keyPrefix: 'forgot-password', errorCode: 'FORGOT_RATE_LIMIT_EXCEEDED',
+});
 export const resetPasswordRateLimiter = distributedLimiter({
-  windowSeconds: 3600, max: 3, keyPrefix: 'reset-password', errorCode: 'RESET_RATE_LIMIT_EXCEEDED',
+  windowSeconds: 3600, max: 5, keyPrefix: 'reset-password', errorCode: 'RESET_RATE_LIMIT_EXCEEDED',
 });
