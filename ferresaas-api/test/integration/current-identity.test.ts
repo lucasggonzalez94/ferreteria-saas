@@ -93,6 +93,9 @@ describe('AUTH-08: identidad actual (PostgreSQL runtime + Redis reales)', () => 
     permissionId = a.permissionId;
     await redis.connect();
     await redis.ping();
+    // Limiter general en Redis: ventanas de corridas anteriores no deben colarse.
+    const generalKeys = await redis.keys(redisKey('rate:general:*'));
+    if (generalKeys.length) await redis.del(...generalKeys);
   });
 
   beforeEach(() => Object.assign(env.redis, { enabled: true }));
@@ -276,7 +279,10 @@ describe('AUTH-08: identidad actual (PostgreSQL runtime + Redis reales)', () => 
   it('Redis desconectado degrada a PostgreSQL, sin rehabilitar una sesión revocada', async () => {
     const session = await sessionA();
     const sid = verifyAccessToken(session.accessToken).sid;
-    redis.disconnect();
+    // La caída se simula sobre el caché authz (get/set): la capa a probar es su
+    // degradación a PG. El limiter general sigue vivo y cuenta normalmente.
+    const spyGet = jest.spyOn(redis, 'get').mockRejectedValue(new Error('down'));
+    const spySet = jest.spyOn(redis, 'set').mockRejectedValue(new Error('down'));
     try {
       const result = await me(session.accessToken);
       expect(result.status).toBe(200);
@@ -284,7 +290,8 @@ describe('AUTH-08: identidad actual (PostgreSQL runtime + Redis reales)', () => 
       await uow.run({ businessId: tenantA }, tx => tx.authSession.update({ where: { id: sid }, data: { revokedAt: new Date() } }));
       expect((await me(session.accessToken)).status).toBe(401);
     } finally {
-      await redis.connect();
+      spyGet.mockRestore();
+      spySet.mockRestore();
     }
   });
 });

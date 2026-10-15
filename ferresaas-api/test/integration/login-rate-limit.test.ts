@@ -5,9 +5,10 @@ import { prisma, adminPrisma } from './setup';
 import type * as EnvConfig from '@/config/env';
 
 // Redis real (integración) habilitado; el resto de la config igual.
+// DB lógica dedicada (/3): aislamiento frente a suites paralelas (ver rate-limit.test.ts).
 jest.mock('@/config/env', () => {
   const actual = jest.requireActual<typeof EnvConfig>('@/config/env');
-  Object.assign(actual.env.redis, { enabled: true, url: 'redis://127.0.0.1:56379' });
+  Object.assign(actual.env.redis, { enabled: true, url: 'redis://127.0.0.1:56379/3' });
   return actual;
 });
 
@@ -134,7 +135,14 @@ describe('Login rate limiting multidimensional (Redis real)', () => {
   });
 
   it('Redis caído en el chequeo: fail-closed 503', async () => {
-    const spy = jest.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    // El limiter general corre antes (eval zset global): se rechaza sólo el
+    // eval cuya key es del policy de login, así el fail-closed probado es el suyo.
+    const original = redis.eval.bind(redis);
+    const spy = jest.spyOn(redis, 'eval').mockImplementation(((script: unknown, ...rest: unknown[]) => {
+      const key = typeof rest[1] === 'string' ? rest[1] : '';
+      if (key.startsWith(redisKey('login:'))) return Promise.reject(new Error('ECONNREFUSED'));
+      return (original as (...args: unknown[]) => Promise<unknown>)(script, ...rest);
+    }) as typeof redis.eval);
     try {
       const res = await attempt(userOne.email, userOne.password);
       expect(res.status).toBe(503);

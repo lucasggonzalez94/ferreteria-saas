@@ -5,9 +5,11 @@ import { prisma, adminPrisma } from './setup';
 import type * as EnvConfig from '@/config/env';
 
 // Redis real (integración) habilitado; el resto de la config igual.
+// DB lógica dedicada (/2): archivos Jest corren en paralelo y, sin aislamiento,
+// compartirían contadores de ventana con otras suites (rate/login/current-identity).
 jest.mock('@/config/env', () => {
   const actual = jest.requireActual<typeof EnvConfig>('@/config/env');
-  Object.assign(actual.env.redis, { enabled: true, url: 'redis://127.0.0.1:56379' });
+  Object.assign(actual.env.redis, { enabled: true, url: 'redis://127.0.0.1:56379/2' });
   return actual;
 });
 
@@ -69,7 +71,14 @@ describe('Limiters distribuidos genéricos (Redis real)', () => {
   });
 
   it('Redis dados de baja con límite habilitado falla cerrado con 503', async () => {
-    const spy = jest.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    // El limiter general (zset) corre primero: se rechaza sólo el script del
+    // limiter específico (INCR), probar el fail-closed de éste, no el general.
+    const original = redis.eval.bind(redis);
+    const spy = jest.spyOn(redis, 'eval').mockImplementation(((script: unknown, ...rest: unknown[]) => {
+      const text = typeof script === 'string' ? script : '';
+      if (text.includes('INCR')) return Promise.reject(new Error('ECONNREFUSED'));
+      return (original as (...args: unknown[]) => Promise<unknown>)(script, ...rest);
+    }) as typeof redis.eval);
     try {
       const res = await request(app).post('/v1/auth/forgot-password')
         .send({ email: `fc-${stamp}@test.example` });
@@ -77,6 +86,32 @@ describe('Limiters distribuidos genéricos (Redis real)', () => {
       expect(res.body.error.code).toBe('RATE_LIMIT_UNAVAILABLE');
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  it('limiter general /v1: ventana deslizante en Redis, distribuida (no memoria por proceso)', async () => {
+    const { rateLimit } = env;
+    const original = { windowMs: rateLimit.windowMs, maxRequests: rateLimit.maxRequests };
+    // req.ip llega como IPv6-mapped (::ffff:127.0.0.1): limpiar todas las variantes.
+    const flushGeneral = async () => {
+      const keys = await redis.keys(redisKey('rate:general:*'));
+      if (keys.length) await redis.del(...keys);
+    };
+    await flushGeneral();
+    Object.assign(rateLimit, { maxRequests: 3, windowMs: 900_000 });
+    try {
+      // GET /v1/auth/me sin token: cuenta en el general y luego 401 (no llega a auth-specifics).
+      for (let i = 0; i < 3; i++) expect((await request(app).get('/v1/auth/me')).status).toBe(401);
+      const fourth = await request(app).get('/v1/auth/me');
+      expect(fourth.status).toBe(429);
+      expect(fourth.body.error.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(fourth.headers['retry-after']).toBeDefined();
+      const [key] = await redis.keys(redisKey('rate:general:*'));
+      expect(await redis.zcard(key)).toBe(3);
+      expect(await redis.pttl(key)).toBeGreaterThan(0);
+    } finally {
+      Object.assign(rateLimit, original);
+      await flushGeneral();
     }
   });
 });
