@@ -28,7 +28,7 @@ export async function refreshSession(refreshToken: string, ip?: string, userAgen
     const bootstrap = new BootstrapStore(tx);
     const resolved = await bootstrap.sessionByHash(tokenHash);
     if (resolved) await unitOfWork.setTenant(tx, resolved.business_id);
-    const session = resolved ? await tx.authSession.findUnique({ where: { tokenHash } }) : null;
+    const session = resolved ? await sessions.findByHash(tokenHash) : null;
 
     // Replay de token consumido: revocar sesión por seguridad.
     if (!session) {
@@ -39,7 +39,7 @@ export async function refreshSession(refreshToken: string, ip?: string, userAgen
         if (Date.now() - consumed.consumedAt.getTime() < sessionPolicy.concurrentRaceMs) {
           throw AppError.retryableConflict('Concurrent refresh detected, retry with the new token');
         }
-        const target = await tx.authSession.findUnique({ where: { id: consumed.sessionId } });
+        const target = await sessions.findById(consumed.sessionId);
         if (target && target.revokedAt === null) {
           await sessions.revoke({ id: target.id, businessId: target.businessId, userId: target.userId, securityVersion: target.securityVersion });
           await new AuditStore(tx).log({

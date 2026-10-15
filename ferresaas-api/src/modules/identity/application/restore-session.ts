@@ -3,23 +3,19 @@ import { AppError } from '../../../platform/errors';
 import { generateCsrfToken, hashOpaqueToken, issueAccessToken } from '../../../platform/security/jwt';
 import { sessionPolicy } from '../domain/session-policy';
 import { IdentityStore } from '../infrastructure/identity-store';
+import { SessionStore } from '../infrastructure/session-store';
 import { BootstrapStore } from '../infrastructure/bootstrap-store';
 import type { AuthTokensResult } from './login';
 
 /** Restauración al cargar la página: NO rota refresh ni re-setea cookie; sólo emite access+CSRF. */
+// eslint-disable-next-line max-lines-per-function
 export async function restoreSession(refreshToken: string): Promise<Omit<AuthTokensResult, 'refreshToken' | 'sessionAbsoluteExpiresAt'>> {
   const data = await unitOfWork.runPublic(async tx => {
-    const resolved = await new BootstrapStore(tx).sessionByHash(hashOpaqueToken(refreshToken));
+    const tokenHash = hashOpaqueToken(refreshToken);
+    const resolved = await new BootstrapStore(tx).sessionByHash(tokenHash);
     if (!resolved) throw AppError.unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token');
     await unitOfWork.setTenant(tx, resolved.business_id);
-    const session = await tx.authSession.findFirst({
-      where: {
-        tokenHash: hashOpaqueToken(refreshToken),
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-        absoluteExpiresAt: { gt: new Date() },
-      },
-    });
+    const session = await new SessionStore(tx).findActiveByHash(tokenHash);
     if (!session) throw AppError.unauthorized('INVALID_TOKEN', 'Invalid or expired refresh token');
 
     const identity = new IdentityStore(tx);

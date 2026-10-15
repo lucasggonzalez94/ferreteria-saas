@@ -19,7 +19,7 @@ export async function logout(refreshToken: string | undefined, ip?: string, user
       resolved = { id: consumed.session_id, business_id: consumed.business_id };
     }
     await unitOfWork.setTenant(tx, resolved.business_id);
-    const session = await tx.authSession.findUnique({ where: { id: resolved.id } });
+    const session = await new SessionStore(tx).findById(resolved.id);
     if (!session || session.revokedAt) return;
     // R1: revoca sólo si sigue activa y audita únicamente cuando ESTE call revocó:
     // dos logouts simultáneos no duplican el evento.

@@ -47,6 +47,16 @@ export class SessionStore {
     });
   }
 
+  /** Lectura por hash dentro del tenant ya fijado (la resolución previa vino del bootstrap). */
+  findByHash(tokenHash: string) {
+    return this.tx.authSession.findUnique({ where: { tokenHash } });
+  }
+
+  /** Lectura por ID estable dentro del tenant ya fijado. */
+  findById(sessionId: string) {
+    return this.tx.authSession.findUnique({ where: { id: sessionId } });
+  }
+
   /** Rotación condicionada: un solo ganador por hash. */
   async rotate(currentHash: string, nextHash: string, expiresAt: Date, ip?: string, userAgent?: string) {
     const updated = await this.tx.authSession.updateMany({
