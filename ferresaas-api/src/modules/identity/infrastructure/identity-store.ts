@@ -109,6 +109,15 @@ export class IdentityStore {
     });
   }
 
+  /** Perfil propio (AUTH-06): RLS confina la escritura; P2025 si la fila no existe en el tenant. */
+  updateProfile(userId: string, data: { firstName: string; lastName: string | null }) {
+    return this.tx.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, email: true, firstName: true, lastName: true, businessId: true },
+    });
+  }
+
   /**
    * Cambio de contraseña con compare-and-set (R1): si otra request cambió el
    * hash entre la lectura y este write, la que pierde recibe conflicto.

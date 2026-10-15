@@ -1,5 +1,6 @@
 import { unitOfWork } from '../../../platform/tenancy/unit-of-work';
 import { AppError } from '../../../platform/errors';
+import { IdentityStore } from '../infrastructure/identity-store';
 import { AuditStore } from '../../audit';
 
 export interface UpdateProfileResult {
@@ -26,11 +27,7 @@ export async function updateProfile(
   return unitOfWork.run(ctx, async tx => {
     let user;
     try {
-      user = await tx.user.update({
-        where: { id: ctx.actorUserId },
-        data: { firstName, lastName },
-        select: { id: true, email: true, firstName: true, lastName: true, businessId: true },
-      });
+      user = await new IdentityStore(tx).updateProfile(ctx.actorUserId, { firstName, lastName });
     } catch (error) {
       // El usuario autenticado debe existir y pertenecer al tenant (RLS).
       if ((error as { code?: string }).code === 'P2025') {
